@@ -22,6 +22,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const loader = new GLTFLoader();
+const SOFT_TIMEOUT_MS = 15000;
 
 /** url -> { level, scene, error, geomOnly } */
 const cache = new Map();
@@ -128,7 +129,7 @@ function countTris(root) {
 }
 
 /**
- * 加载模型。**永远 resolve**，失败时 resolve(null)。
+ * 加载模型。明确失败时 resolve(null)；慢加载不因软超时被取消或缓存成 null。
  *
  * @returns Promise<{scene: Object3D, level: string, textured: boolean}|null>
  */
@@ -136,30 +137,27 @@ export function loadModel(url, key = '') {
   if (cache.has(url)) return cache.get(url);
 
   const p = new Promise((resolve) => {
-    // 加超时：有些环境下 loader 既不报错也不回调，会永久挂起
+    // 15s 是软超时，不是取消加载：实例已先显示程序化版本，
+    // 因此慢模型继续加载也不会阻塞游戏；迟到成功仍应替换回真实模型。
     let settled = false;
-    let timedOut = false; // 超时后迟到的成功回调不得再把 STATUS 改回成功态
-    const done = (v) => { if (!settled) { settled = true; resolve(v); } };
-
+    const done = (v) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(v);
+    };
     const timer = setTimeout(() => {
-      console.warn('[models] 加载超时（15s），回退到程序化建模:', url);
-      timedOut = true;
-      if (key && STATUS[key]) { STATUS[key].level = 'timeout'; STATUS[key].error = '15s 无响应'; }
-      done(null);
-    }, 15000);
+      if (key && STATUS[key]) {
+        STATUS[key].level = 'loading-slow';
+        STATUS[key].error = '仍在加载；程序化模型保持可见';
+      }
+      console.warn('[models] 加载较慢（15s），继续等待；程序化模型保持可见:', url);
+    }, SOFT_TIMEOUT_MS);
 
     loader.load(
       url,
       (gltf) => {
-        clearTimeout(timer);
         const root = gltf.scene;
-        if (timedOut) {
-          // 15s 超时已让调用方回退程序化；模型只是迟到了。
-          // 绝不能再把 STATUS 从 'timeout' 改回 'full'，否则状态与实际渲染不符。
-          console.warn('[models] 模型在超时后才到达，已忽略其成功状态:', url);
-          done(null);
-          return;
-        }
         if (!root) {
           if (key && STATUS[key]) { STATUS[key].level = 'empty'; STATUS[key].error = '场景为空'; }
           done(null);
@@ -209,8 +207,7 @@ export function loadModel(url, key = '') {
         clearTimeout(timer);
         const msg = (err && (err.message || err.type)) || String(err);
         console.warn('[models] 加载失败，回退到程序化建模:', url, msg);
-        // 超时已先落 'timeout'，迟到的 error 不覆盖，保持状态与已发生的回退一致
-        if (!timedOut && key && STATUS[key]) { STATUS[key].level = 'failed'; STATUS[key].error = msg; }
+        if (key && STATUS[key]) { STATUS[key].level = 'failed'; STATUS[key].error = msg; }
         done(null);
       },
     );
@@ -250,15 +247,20 @@ export async function instantiate(url, key = '') {
  * 预加载：并行拉取模型，避免首次出现时才卡顿。
  * 用 allSettled —— 任何一个失败都不该影响另一个，更不该影响游戏。
  */
-export function preloadModels(baseUrl = './assets/models/') {
-  const marmot = loadModel(`${baseUrl}marmot.glb`, 'marmot');
-  const fox = loadModel(`${baseUrl}fox.glb`, 'fox');
+export function preloadModels(baseUrl = './assets/models/', opts = {}) {
+  const marmot = loadModel(`${baseUrl}${opts.marmotFile || 'marmot.glb'}`, 'marmot');
+  // dev 版实际使用分块狐狸；预加载必须和 Fox 的运行时路径一致，
+  // 否则启动时白白加载 fox.glb，真正的 fox-segmented.glb 仍会在首只狐狸出现时竞态。
+  const fox = loadModel(`${baseUrl}${opts.foxFile || 'fox.glb'}`, 'fox');
   // 以全局 STATUS 为准：它能区分 full / geometry-only / timeout / failed / empty，
   // 仅看 promise 值会把"超时后 resolve(null)"和"真失败"都笼统报成 failed。
-  return Promise.allSettled([marmot, fox]).then(() => ({
+  const snapshot = () => ({
     marmot: STATUS.marmot.level,
     fox: STATUS.fox.level,
-  }));
+  });
+  // 游戏启动不 await 这个 Promise；保持等待真实终态可避免先返回 loading-slow
+  // 后 UI 状态永久过期。若 loader 无回调，实例仍显示程序化版本，慢超时只更新 STATUS。
+  return Promise.allSettled([marmot, fox]).then(snapshot);
 }
 
 /**

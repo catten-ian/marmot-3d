@@ -12,6 +12,8 @@
  * 返回的 backend 字段必须如实上报，HUD 也要显示它。
  */
 
+import { getRenderProfile } from './performance.js';
+
 let cached = null;
 
 /** 检测 WebGPU 是否真正可用（适配器 + 设备都能建起来） */
@@ -75,7 +77,7 @@ export async function createRenderer(canvas, {
           status.degraded = true;
           status.gpuReason = 'WebGPURenderer 初始化后退到了 WebGL2 后端（深度排序改用 CPU，帧率会下降）';
         }
-        applyCommon(r, THREE);
+        applyCommon(r, THREE, getRenderProfile());
         if (onStatus) onStatus(status);
         cached = status;
         return { renderer: r, THREE, status };
@@ -107,7 +109,7 @@ export async function createRenderer(canvas, {
     status.gpuReason = forceWebGL
       ? '按调试参数强制使用 WebGL2 后端，深度排序改用 CPU'
       : status.gpuReason || '使用 WebGL2 后备，深度排序改用 CPU';
-    applyCommon(r, THREE);
+    applyCommon(r, THREE, getRenderProfile());
     if (onStatus) onStatus(status);
     cached = status;
     return { renderer: r, THREE, status };
@@ -122,7 +124,7 @@ export async function createRenderer(canvas, {
   });
   status.backend = 'webgl';
   status.supportsSplat = false;
-  applyCommon(r, THREE);
+  applyCommon(r, THREE, getRenderProfile());
   if (onStatus) onStatus(status);
   cached = status;
   return { renderer: r, THREE, status };
@@ -133,15 +135,15 @@ export async function createRenderer(canvas, {
  * THREE 必须显式传入 —— WebGPU 与经典入口是两个不同的模块实例，
  * 常量（SRGBColorSpace 等）不能跨入口混用。
  */
-function applyCommon(r, THREE) {
-  r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+function applyCommon(r, THREE, profile = getRenderProfile()) {
+  r.setPixelRatio(profile.pixelRatio);
   r.setSize(window.innerWidth, window.innerHeight, false);
   r.outputColorSpace = THREE.SRGBColorSpace;
   r.toneMapping = THREE.ACESFilmicToneMapping;
   // 曝光过高会把草地照成一片死白；0.92 能保留高光又不过曝
   r.toneMappingExposure = 0.92;
   if ('shadowMap' in r) {
-    r.shadowMap.enabled = true;
+    r.shadowMap.enabled = profile.shadows;
     r.shadowMap.type = THREE.PCFShadowMap;
   }
 }

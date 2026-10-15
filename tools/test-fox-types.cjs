@@ -3,9 +3,27 @@ const http = require('http');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
-const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const PORT = 9483;
-const URL = process.argv[2] || 'http://127.0.0.1:8200/index.html?version=dev';
+const CHROME_CANDIDATES = [process.env.CHROME_PATH, '/usr/bin/google-chrome', '/usr/bin/chromium',
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files/Microsoft/Edge/Application/msedge.exe'];
+const PORT = 9400 + (process.pid % 500);
+const URL = process.argv[2] || 'http://127.0.0.1:8201/index.html?version=dev&webgl=1';
+const PARAMS = new global.URL(URL).searchParams;
+const EXPECT_REAL = PARAMS.get('models') !== 'off' && PARAMS.get('foxmodel') !== 'off';
+
+function findChrome() {
+  return CHROME_CANDIDATES.filter(Boolean).find((candidate) => fs.existsSync(candidate));
+}
+
+function stopChrome(chrome) {
+  if (!chrome || chrome.killed) return;
+  if (process.platform === 'win32') {
+    spawn('taskkill', ['/PID', String(chrome.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+  } else {
+    try { process.kill(-chrome.pid, 'SIGTERM'); } catch { chrome.kill('SIGTERM'); }
+  }
+}
 
 function get(url) {
   return new Promise((resolve, reject) => {
@@ -17,14 +35,19 @@ function get(url) {
   });
 }
 
+let chromeProcess = null;
+
 (async () => {
+  const CHROME = findChrome();
+  if (!CHROME) throw new Error('未找到 Chrome/Edge，请通过 CHROME_PATH 指定');
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'cdpFoxTypes-'));
   const chrome = spawn(CHROME, [
     '--headless=new', `--remote-debugging-port=${PORT}`,
     `--user-data-dir=${profile}`, '--no-first-run', '--disable-gpu',
     '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1280,800',
     'about:blank',
-  ], { stdio: 'ignore' });
+  ], { stdio: 'ignore', detached: process.platform !== 'win32' });
+  chromeProcess = chrome;
   let target;
   for (let i = 0; i < 60; i++) {
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -85,6 +108,7 @@ function get(url) {
   if (!ready) throw new Error('Fox constructor test hook unavailable');
 
   const result = await evaluate(`(async () => {
+    const expectReal = ${JSON.stringify(EXPECT_REAL)};
     const g = window.__game;
     const THREE = await import('/vendor/three.module.js');
     const types = ['normal', 'pup', 'fast', 'heavy', 'boss'];
@@ -92,7 +116,10 @@ function get(url) {
     const foxes = types.map((type, index) =>
       new g.FoxClass(scene, index * 3, 0, type, 5, index));
     const initialFallbackVisible = foxes.every((fox) => fox.proceduralMesh.visible);
-    await new Promise((resolve) => setTimeout(resolve, 18000));
+    const deadline = performance.now() + 90000;
+    while (performance.now() < deadline && expectReal && foxes.some((fox) => !fox.realModel)) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
     const rows = foxes.map((fox) => {
       fox._applyTransform(1 / 60, () => 0);
       fox._updateHpBar();
@@ -128,18 +155,21 @@ function get(url) {
     const sizeOk = row.size.every((value) => value > 0.001 && Number.isFinite(value));
     const labelOk = row.label && row.labelVisible && row.labelParentIsScene
       && row.labelY >= row.expectedLabelY - 0.04;
-    const ok = visible && row.hasMesh && sizeOk && labelOk;
+    const modelMatches = EXPECT_REAL
+      ? row.realPresent && row.realVisible && !row.procVisible
+      : row.procVisible && !row.realVisible;
+    const ok = modelMatches && visible && row.hasMesh && sizeOk && labelOk;
     console.log(`${ok ? 'PASS' : 'FAIL'} ${row.type}: level=${row.modelLevel}, proc=${row.procVisible}, real=${row.realVisible}, size=${row.size.join('x')}, label=${row.label || '(empty)'}`);
     if (!ok) failed = true;
   }
   console.log('uncaught page exceptions:', pageErrors.length);
   pageErrors.slice(0, 5).forEach((error) => console.log('  ' + String(error).slice(0, 250)));
   ws.close();
-  spawn('taskkill', ['/PID', String(chrome.pid), '/T', '/F'], {
-    stdio: 'ignore', windowsHide: true,
-  });
-  process.exitCode = failed || pageErrors.length ? 1 : 0;
+  stopChrome(chrome);
+  chromeProcess = null;
+  process.exit(failed || pageErrors.length ? 1 : 0);
 })().catch((error) => {
   console.error(error.stack || error);
-  process.exitCode = 1;
+  stopChrome(chromeProcess);
+  process.exit(1);
 });

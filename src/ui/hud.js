@@ -159,21 +159,22 @@ export class HUD {
       : g.boost > 0 ? '应急爆发'
       : stats.tier > 0 ? '持续动员'
       : '常态';
-    let combat = `战斗：<strong>${state}</strong>　伤害 <strong>${stats.damage.toFixed(1)}</strong>　`
-      + `范围 ${stats.range.toFixed(1)}m　攻速 ${(1 / stats.cooldown).toFixed(1)}/秒　移速 ${(6.6 * stats.speedMul).toFixed(1)}m/s`;
-    if (stats.overloaded) combat += '<br><span class="warn">负荷 ≥75：伤害 −25%、攻速下降、移动 −18%</span>';
-    else if (g.fatigue > 0) combat += `<br><span style="color:#c9c3d7">大招后疲劳 ${Math.ceil(g.fatigue)}s：移速 −20%、攻速下降</span>`;
-    else if (stats.weak) combat += '<br><span style="color:#ffb1a4">储备见底：伤害与移速下降，回洞休息或采食</span>';
-    this.el.combatInfo.innerHTML = combat;
+    let detail = `伤害 ${stats.damage.toFixed(1)} · 攻速 ${(1 / stats.cooldown).toFixed(1)}/秒`;
+    if (stats.overloaded) detail += '<br><span class="warn">负荷 ≥75：伤害 −25%、攻速下降、移动 −18%</span>';
+    else if (g.fatigue > 0) detail += `<br><span style="color:#c9c3d7">大招后疲劳 ${Math.ceil(g.fatigue)}s：移速 −20%、攻速下降</span>`;
+    else if (stats.weak) detail += '<br><span style="color:#ffb1a4">储备见底：伤害与移速下降，回洞休息或采食</span>';
+    this.el.combatInfo.innerHTML = `战斗：<strong>${state}</strong> · 范围 ${stats.range.toFixed(1)}m · `
+      + `移速 ${ (6.6 * stats.speedMul).toFixed(1) }m/s`
+      + `<span class="combat-detail">${detail}</span>`;
 
     if (g.overdrive > 0) {
-      this.el.ultimateStatus.textContent = `K 协同大招：生效 ${Math.ceil(g.overdrive)}s · 伤害 +5 / 范围 +1.2m`;
+      this.el.ultimateStatus.textContent = `K 大招生效 ${Math.ceil(g.overdrive)}s · 伤害 +5`;
     } else if (g.overCD > 0) {
       this.el.ultimateStatus.textContent = `K 大招冷却 ${Math.ceil(g.overCD)}s · 蓄力 ${Math.round(g.charge)}/100`;
     } else if (g.charge >= 100) {
-      this.el.ultimateStatus.textContent = 'K 大招就绪！范围冲击 + 5 秒强化（消耗 25 储备）';
+      this.el.ultimateStatus.textContent = 'K 大招就绪 · 范围冲击';
     } else {
-      this.el.ultimateStatus.textContent = `K 协同大招 · 蓄力 ${Math.round(g.charge)}/100（命中 / 驱退 / 采食积累）`;
+      this.el.ultimateStatus.textContent = `K 大招蓄力 ${Math.round(g.charge)}/100`;
     }
     this.el.chargeBar.style.width = g.charge + '%';
 
@@ -197,7 +198,11 @@ export class HUD {
     const row = (label, cur, need) =>
       `<div class="obj-row ${cur >= need ? 'done' : ''}"><span>${label}</span><b>${cur}/${need}</b></div>`;
 
-    let html = `<div class="obj-title">本关目标</div>`;
+    const expanded = this.el.objective.classList.contains('expanded');
+    const toggleLabel = expanded ? '收起本关目标' : '展开本关目标';
+    let html = `<button type="button" class="obj-toggle" aria-expanded="${expanded}" aria-label="${toggleLabel}">`
+      + `<span>本关目标</span><b>采食 ${g.foodCount}/${cfg.goal}</b><i aria-hidden="true">${expanded ? '−' : '+'}</i></button>`;
+    html += '<div class="obj-details">';
     // dev 版：采食对象随季节变化，标签应随之改变
     const eatLabel = g.season ? `采食 · ${g.season.season}` : '采食浆果';
     html += row(eatLabel, g.foodCount, cfg.goal);
@@ -211,6 +216,7 @@ export class HUD {
     if (g.season) {
       html += `<div class="obj-season">${g.season.seasonNote}</div>`;
     }
+    html += '</div>';
     this.el.objective.innerHTML = html;
   }
 

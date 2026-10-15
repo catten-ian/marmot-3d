@@ -1021,7 +1021,7 @@ button.primary:focus-visible { outline: 3px solid #fff; }
     bottom: 30px;
   }
   .hud-right { display: none; }
-  .banner { top: 46%; max-width: calc(100vw - 32px); font-size: 24px; line-height: 1.25; }
+  .banner { top: 31%; max-width: calc(100vw - 32px); font-size: 24px; line-height: 1.25; }
   .panel h2 { font-size: 22px; }
   .panel.level-select-panel { height: min(760px, 92vh); }
   .level-select-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
@@ -1040,4 +1040,633 @@ button.primary:focus-visible { outline: 3px solid #fff; }
 @media (max-height: 620px) {
   .hud-top { padding: 6px 10px; }
   .toast { top: 88px; }
+}
+/* ---------- Mobile browser viewport and safe-area handling ---------- */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+html, body {
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-touch-callout: none;
+}
+.panel { overscroll-behavior: contain; touch-action: pan-y; }
+.set-sheet, .help-sheet, .test-panel { overscroll-behavior: contain; touch-action: pan-y; }
+
+/* The game canvas remains full-bleed; only this coarse-pointer layer is added. */
+.touch-controls {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 22;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+body.touch-playing .touch-controls { display: block; }
+.touch-mode #scene { touch-action: none; }
+.touch-look-zone {
+  position: absolute;
+  left: 42%; right: 0;
+  top: calc(var(--safe-top) + 23dvh);
+  bottom: calc(138px + var(--safe-bottom));
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch-look-zone span {
+  position: absolute;
+  right: 12px; top: 0;
+  padding: 4px 8px;
+  border-radius: 12px;
+  color: rgba(238,244,223,.62);
+  background: rgba(10,18,13,.3);
+  font-size: 10px;
+  pointer-events: none;
+}
+.touch-joystick {
+  position: absolute;
+  left: calc(14px + var(--safe-left));
+  bottom: calc(14px + var(--safe-bottom));
+  width: 128px; height: 128px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(228,238,207,.43);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(26,43,34,.42) 0 40%, rgba(14,25,19,.32) 41% 100%);
+  box-shadow: inset 0 0 0 16px rgba(217,230,199,.055), 0 2px 12px #0005;
+  color: rgba(238,244,223,.72);
+  font-size: 10px;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.touch-joystick.active { border-color: rgba(255,207,107,.82); }
+.touch-stick {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 54px; height: 54px;
+  margin: -27px 0 0 -27px;
+  border: 1px solid rgba(255,225,163,.8);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255,238,193,.76), rgba(183,145,73,.58));
+  box-shadow: 0 2px 8px #0008;
+  pointer-events: none;
+  will-change: transform;
+}
+.touch-joystick span { position: absolute; bottom: 11px; text-shadow: 0 1px 3px #000; }
+.touch-actions {
+  position: absolute;
+  right: calc(12px + var(--safe-right));
+  bottom: calc(12px + var(--safe-bottom));
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  gap: 5px;
+  pointer-events: auto;
+}
+.touch-actions button, .touch-pause {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 3px;
+  color: var(--ink);
+  background: rgba(20,34,26,.78);
+  border: 1px solid rgba(166,192,142,.7);
+  box-shadow: 0 2px 9px #0007;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+.touch-actions button {
+  width: 52px; height: 52px;
+  border-radius: 15px;
+}
+.touch-actions button b { font-size: 16px; line-height: 1.1; color: var(--gold); }
+.touch-actions button small { margin-top: 2px; font-size: 9px; line-height: 1; }
+.touch-actions button[data-touch-action="attack"] { border-color: #c27665; }
+.touch-actions button[data-touch-action="sprint"] { border-color: #8bb677; }
+.touch-actions button.pressed, .touch-pause.pressed {
+  transform: scale(.94);
+  background: rgba(87,104,66,.93);
+  border-color: var(--gold);
+}
+.touch-pause {
+  position: absolute;
+  top: calc(7px + var(--safe-top));
+  right: calc(218px + var(--safe-right));
+  width: 38px; height: 38px;
+  border-radius: 12px;
+  font-size: 18px;
+  pointer-events: auto;
+}
+.touch-mode button { -webkit-touch-callout: none; }
+.touch-mode .panel, .touch-mode .set-sheet, .touch-mode .help-sheet,
+.touch-mode .test-panel { touch-action: pan-y; }
+
+@media (max-width: 860px) {
+  html, body { height: 100dvh; min-height: 100dvh; }
+  #scene { touch-action: none; }
+  .overlay {
+    padding: max(10px, calc(8px + var(--safe-top)))
+      max(10px, calc(8px + var(--safe-right)))
+      max(10px, calc(8px + var(--safe-bottom)))
+      max(10px, calc(8px + var(--safe-left)));
+  }
+  .panel { max-height: min(92vh, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px)); }
+  .panel.level-select-panel {
+    height: min(680px, 92vh, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px));
+  }
+  .set-sheet, .help-sheet {
+    top: calc(54px + var(--safe-top));
+    width: min(460px, calc(100vw - var(--safe-left) - var(--safe-right) - 32px));
+    overflow-y: auto;
+    right: calc(16px + var(--safe-right));
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 74px);
+  }
+  .footbar { padding-bottom: calc(5px + var(--safe-bottom)); }
+  .hud-top {
+    top: 0; left: 0; right: 0;
+    padding: calc(48px + var(--safe-top)) calc(9px + var(--safe-right)) 7px calc(9px + var(--safe-left));
+  }
+  .hud-right {
+    display: block;
+    top: auto;
+    right: calc(10px + var(--safe-right));
+    bottom: calc(140px + var(--safe-bottom));
+    width: min(174px, 45vw);
+  }
+  .hud-right .objective { min-width: 0; padding: 7px 8px; font-size: 10px; }
+  .hud-right .obj-row { gap: 5px; }
+  .hud-right .obj-title { font-size: 9px; }
+  .hud-right .obj-season { display: none; }
+  .hud-left { display: none; }
+  .mission { padding-right: 8px; }
+  .vitals { padding-right: 9px; }
+  .view-btn { top: calc(7px + var(--safe-top)); right: calc(118px + var(--safe-right)); }
+  .help-btn, .fs-btn, .set-btn { top: calc(7px + var(--safe-top)); }
+  .help-btn { right: calc(10px + var(--safe-right)); }
+  .fs-btn { right: calc(46px + var(--safe-right)); }
+  .set-btn { right: calc(82px + var(--safe-right)); }
+  .touch-joystick { width: 120px; height: 120px; }
+  .touch-look-zone { bottom: calc(132px + var(--safe-bottom)); }
+  .toast { top: calc(142px + var(--safe-top)); }
+  .footbar { display: none; }
+  .version-tag { bottom: calc(5px + var(--safe-bottom)); }
+  .test-mode-btn { bottom: calc(34px + var(--safe-bottom)); left: calc(8px + var(--safe-left)); }
+  .test-panel { bottom: calc(68px + var(--safe-bottom)); left: calc(8px + var(--safe-left)); }
+}
+@media (max-width: 420px) {
+  .vlabel { font-size: 8.5px; }
+  .vitals { gap: 5px; padding-left: 7px; padding-right: 7px; }
+  .mission { font-size: 10px; padding: 6px 8px; }
+  .objective { line-height: 1.3; }
+  .touch-joystick { width: 112px; height: 112px; }
+  .touch-stick { width: 50px; height: 50px; margin: -25px 0 0 -25px; }
+  .touch-actions { grid-template-columns: repeat(3, 48px); gap: 4px; }
+  .touch-actions button { width: 48px; height: 48px; border-radius: 14px; }
+  .touch-look-zone { bottom: calc(128px + var(--safe-bottom)); }
+  .panel { max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px); }
+  .panel.level-select-panel {
+    height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);
+    min-height: 0;
+  }
+  .level-select-grid { min-height: 0; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .touch-look-zone span { display: none; }
+  .hud-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    padding-top: calc(38px + var(--safe-top));
+  }
+  .vitals { padding-top: 5px; padding-bottom: 5px; }
+  .mission { padding-top: 4px; padding-bottom: 4px; font-size: 9.5px; line-height: 1.25; }
+  .hud-right { bottom: calc(130px + var(--safe-bottom)); width: min(154px, 24vw); }
+  .hud-right .objective { padding: 5px 6px; font-size: 9px; }
+  .touch-look-zone {
+    left: 38%;
+    top: calc(var(--safe-top) + 35dvh);
+    bottom: calc(124px + var(--safe-bottom));
+  }
+  .touch-joystick { width: 104px; height: 104px; }
+  .touch-stick { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+  .touch-actions { grid-template-columns: repeat(3, 46px); gap: 4px; }
+  .touch-actions button { width: 46px; height: 46px; border-radius: 13px; }
+  .touch-pause { width: 34px; height: 34px; }
+  .panel { padding: 16px 20px; }
+  .panel h2 { font-size: 19px; }
+  .panel p { line-height: 1.45; margin: 7px 0; }
+  .panel.level-select-panel { height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 12px); }
+  .level-select-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .level-option { min-height: 74px; padding: 6px 8px; gap: 4px; }
+  .set-sheet, .help-sheet {
+    top: calc(42px + var(--safe-top));
+    width: min(460px, calc(100vw - var(--safe-left) - var(--safe-right) - 32px));
+    overflow-y: auto;
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 52px);
+  }
+}
+/* Keep the build badge out of the thumb/action hit zones while playing. */
+body.touch-playing .version-tag { display: none; }
+
+/* ===========================================================
+   HUD 轻量化（桌面与移动端共用）
+   - 默认只保留行动所需的摘要，详细战斗状态由“详情”按需呼出。
+   - 小面积面板使用低透明度 + 毛玻璃；菜单/交互时再提高不透明度。
+   =========================================================== */
+:root {
+  --hud-bg: rgba(10, 22, 15, .46);
+  --hud-bg-soft: rgba(14, 30, 21, .34);
+  --hud-bg-strong: rgba(13, 29, 20, .82);
+  --hud-border: rgba(208, 231, 182, .24);
+  --hud-border-strong: rgba(225, 239, 196, .52);
+  --hud-shadow: 0 5px 18px rgba(0, 0, 0, .22);
+  --hud-blur: blur(9px) saturate(1.08);
+  --hud-text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+}
+
+/* 顶部渐变只压暗边缘，不再形成一条厚重的实色横幅。 */
+.hud-top {
+  padding: 9px 14px;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(8, 17, 12, .52), rgba(8, 17, 12, 0));
+}
+.vitals,
+.mission,
+.combatbar,
+.power-panel,
+.chip,
+.objective {
+  border-color: var(--hud-border);
+  box-shadow: var(--hud-shadow), inset 0 1px 0 rgba(255, 255, 255, .07);
+  backdrop-filter: var(--hud-blur);
+  -webkit-backdrop-filter: var(--hud-blur);
+  text-shadow: var(--hud-text-shadow);
+}
+.vitals {
+  grid-template-columns: repeat(3, minmax(104px, 126px));
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--hud-bg);
+  border-radius: 9px;
+}
+.vlabel { margin-bottom: 4px; font-size: 10.5px; text-shadow: var(--hud-text-shadow); }
+.track { height: 7px; background: rgba(5, 14, 9, .64); }
+.track.thin { height: 5px; }
+.mission {
+  flex: 0 1 min(340px, 31vw);
+  min-width: 210px;
+  max-height: 63px;
+  overflow: hidden;
+  padding: 7px 10px;
+  background: var(--hud-bg-soft);
+  border-radius: 9px;
+  font-size: 11.5px;
+  line-height: 1.42;
+}
+.mission b, .objective b, .obj-title { text-shadow: var(--hud-text-shadow); }
+
+/* 桌面端左下信息采用“单行摘要”；完整警告/状态按需展开。 */
+.hud-left {
+  left: 14px;
+  bottom: 28px;
+  width: min(310px, 27vw);
+  gap: 5px;
+}
+.combatbar {
+  max-height: 29px;
+  overflow: hidden;
+  padding: 6px 9px;
+  background: var(--hud-bg);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.power-panel {
+  gap: 4px;
+  padding: 6px 9px;
+  background: rgba(30, 28, 42, .44);
+  border-color: rgba(210, 184, 244, .28);
+  border-radius: 8px;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+.power-panel > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.status-row { display: none; gap: 5px; }
+.chip { padding: 3px 7px; font-size: 10px; background: var(--hud-bg-soft); }
+.hud-details-open .combatbar {
+  max-height: 84px;
+  white-space: normal;
+  overflow: auto;
+}
+.hud-details-open .status-row { display: flex; }
+.hud-details-open .power-panel > span { white-space: normal; }
+.hud-details-open .obj-season { display: block; }
+
+.hud-details-btn {
+  position: absolute;
+  left: 0;
+  top: -25px;
+  min-width: 42px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--hud-border);
+  border-radius: 11px;
+  color: rgba(239, 246, 222, .82);
+  background: rgba(8, 20, 13, .34);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font: inherit;
+  font-size: 10px;
+  line-height: 20px;
+  text-shadow: var(--hud-text-shadow);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.hud-details-btn:hover,
+.hud-details-btn:focus-visible {
+  color: var(--gold);
+  background: rgba(28, 52, 34, .72);
+  border-color: var(--hud-border-strong);
+  outline: none;
+}
+
+.hud-right { right: 14px; bottom: 28px; }
+.objective {
+  min-width: 150px;
+  max-width: min(205px, 18vw);
+  padding: 7px 10px;
+  background: var(--hud-bg);
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.obj-row { gap: 10px; padding: 2px 0; }
+.obj-title { font-size: 10px; margin-bottom: 4px; }
+.obj-season { display: none; }
+
+/* 中心信息只在短暂提示时出现，背景轻透，避免压住准星与远景。 */
+.crosshair {
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  opacity: .72;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .72));
+}
+.ch-ring { stroke: rgba(255, 255, 255, .24); stroke-width: 1; }
+.ch-dot { fill: #fffbe8; }
+.ch-tick line { stroke: rgba(255, 255, 255, .48); stroke-width: 1.35; }
+.ch-charge { opacity: .82; stroke-width: 2.3; }
+.interact-prompt {
+  top: calc(50% + 34px);
+  padding: 4px 11px;
+  color: #fff1c6;
+  background: rgba(13, 28, 19, .46);
+  border-color: rgba(255, 213, 121, .42);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .16);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  text-shadow: var(--hud-text-shadow);
+}
+.toast {
+  top: 92px;
+  padding: 7px 14px;
+  background: rgba(13, 28, 19, .58);
+  border-color: rgba(202, 232, 175, .34);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-shadow: var(--hud-text-shadow);
+}
+.banner {
+  top: 24%;
+  max-width: min(76vw, 720px);
+  padding: 4px 16px;
+  border-radius: 14px;
+  background: rgba(8, 18, 12, .18);
+  text-shadow: 0 2px 11px rgba(0, 0, 0, .9);
+}
+
+/* 顶部工具按钮：低对比常驻，悬停/聚焦时再提高可读性。 */
+.view-btn,
+.fs-btn,
+.set-btn,
+.help-btn {
+  background: rgba(15, 33, 23, .56);
+  border-color: var(--hud-border);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-shadow: var(--hud-text-shadow);
+}
+.view-btn:hover, .fs-btn:hover, .set-btn:hover, .help-btn:hover,
+.view-btn:focus-visible, .fs-btn:focus-visible, .set-btn:focus-visible, .help-btn:focus-visible {
+  background: rgba(35, 65, 43, .84);
+  border-color: var(--hud-border-strong);
+  outline: none;
+}
+
+/* 菜单属于阅读态：背景更实、描边更亮，仍保留毛玻璃层次。 */
+.overlay { background: rgba(4, 12, 8, .68); backdrop-filter: blur(10px) saturate(.9); -webkit-backdrop-filter: blur(10px) saturate(.9); }
+.panel,
+.set-sheet,
+.help-sheet {
+  background: var(--hud-bg-strong);
+  border-color: rgba(210, 235, 182, .46);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .48), inset 0 1px 0 rgba(255,255,255,.1);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  text-shadow: var(--hud-text-shadow);
+}
+.panel { padding: 26px 30px; }
+.set-sheet, .help-sheet { padding: 17px 19px; }
+.scheme-card, .keys span, .stat, .level-chip, .level-option {
+  background: rgba(11, 27, 17, .54);
+  border-color: rgba(204, 228, 181, .22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+.scheme-card:hover, .level-option:hover:not(:disabled), .level-option:focus-visible { background: rgba(36, 67, 43, .78); }
+
+/* 触控按钮也保持透气，按下态才提高实心度。 */
+.touch-actions button, .touch-pause {
+  background: rgba(15, 31, 22, .58);
+  border-color: rgba(196, 222, 169, .54);
+  box-shadow: 0 3px 13px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  text-shadow: var(--hud-text-shadow);
+}
+.touch-actions button.pressed, .touch-pause.pressed { background: rgba(87, 104, 66, .9); }
+.touch-look-zone span { background: rgba(7, 17, 11, .22); text-shadow: var(--hud-text-shadow); }
+
+/* 横屏要给拇指区与安全区留出更多垂直空间。 */
+@media (max-width: 860px) {
+  .hud-top { padding: calc(43px + var(--safe-top)) calc(9px + var(--safe-right)) 5px calc(9px + var(--safe-left)); gap: 5px; }
+  .vitals { gap: 6px; padding: 6px 8px; background: rgba(10, 22, 15, .38); }
+  .mission { flex: none; width: 100%; min-width: 0; max-height: 49px; padding: 5px 8px; font-size: 10.5px; line-height: 1.3; }
+  .hud-right { right: calc(10px + var(--safe-right)); bottom: calc(138px + var(--safe-bottom)); width: min(164px, 42vw); }
+  .objective { max-width: none; padding: 6px 8px; background: rgba(10, 22, 15, .38); font-size: 10px; }
+  .hud-details-btn { display: none; }
+  .toast { top: calc(126px + var(--safe-top)); max-width: calc(100vw - 32px); }
+  .interact-prompt { top: calc(50% + 30px); max-width: calc(100vw - 32px); }
+  .banner { top: 20%; max-width: calc(100vw - 28px); font-size: 21px; letter-spacing: 3px; }
+  .overlay { padding: max(10px, calc(8px + var(--safe-top))) max(10px, calc(8px + var(--safe-right))) max(10px, calc(8px + var(--safe-bottom))) max(10px, calc(8px + var(--safe-left))); }
+  .panel { padding: 22px 22px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .hud-top { padding-top: calc(35px + var(--safe-top)); }
+  .vitals { padding-top: 4px; padding-bottom: 4px; }
+  .mission { max-height: 35px; padding-top: 3px; padding-bottom: 3px; font-size: 9px; }
+  .hud-right { bottom: calc(126px + var(--safe-bottom)); width: min(148px, 25vw); }
+  .objective { padding: 5px 6px; font-size: 9px; }
+  .obj-row { padding: 1px 0; }
+  .crosshair { width: 36px; height: 36px; margin: -18px 0 0 -18px; }
+  .banner { top: 17%; font-size: 18px; }
+}
+@media (max-width: 420px) {
+  .vitals { gap: 4px; padding-left: 6px; padding-right: 6px; }
+  .vlabel { font-size: 8px; }
+  .mission { font-size: 9.5px; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .vitals, .mission, .combatbar, .power-panel, .chip, .objective,
+  .view-btn, .fs-btn, .set-btn, .help-btn,
+  .touch-actions button, .touch-pause { background: rgba(12, 28, 18, .82); }
+  .panel, .set-sheet, .help-sheet { background: rgba(13, 29, 20, .94); }
+}
+
+/* 目标默认呈单行摘要，点按后再查看完整任务；按钮本身保持可触达。 */
+.objective { pointer-events: auto; }
+.obj-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 27px;
+  padding: 3px 2px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--gold);
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: left;
+  text-shadow: var(--hud-text-shadow);
+  cursor: pointer;
+}
+.obj-toggle b { color: var(--ink); font-size: 10px; font-weight: 600; white-space: nowrap; }
+.obj-toggle i { color: rgba(239, 246, 222, .8); font-size: 14px; font-style: normal; line-height: 1; }
+.obj-toggle:hover, .obj-toggle:focus-visible { color: #ffe2a0; outline: none; }
+.obj-details { display: none; }
+.objective.expanded .obj-details {
+  display: block;
+  margin-top: 3px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(207, 229, 184, .16);
+}
+.objective.expanded { background: rgba(10, 22, 15, .68); border-color: rgba(225, 239, 196, .36); }
+.objective.expanded .obj-season { display: block; }
+
+.combat-detail { display: none; }
+.hud-details-open .combat-detail { display: block; margin-top: 3px; }
+.hud-details-open .combatbar { max-height: 86px; }
+
+@media (max-width: 860px) {
+  .hud-right { bottom: calc(164px + var(--safe-bottom)); }
+  .objective { min-width: 0; width: max-content; max-width: min(188px, 48vw); padding: 3px 7px; }
+  .obj-toggle { min-height: 25px; font-size: 9.5px; }
+  .obj-toggle b { font-size: 9px; }
+  .objective.expanded { max-height: min(148px, 26dvh); overflow-y: auto; overscroll-behavior: contain; }
+  .objective.expanded .obj-details { font-size: 9.5px; }
+  .objective.expanded .obj-row { gap: 7px; padding: 2px 0; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .hud-right { bottom: calc(126px + var(--safe-bottom)); }
+  .objective { max-width: min(160px, 29vw); }
+  .objective.expanded { max-height: min(150px, 40dvh); }
+}
+
+/* 窄屏横向时，三行任务信息压缩到卡片内，避免最后一行被裁掉。 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .mission { font-size: 8px; line-height: 1.2; padding-top: 2px; padding-bottom: 2px; max-height: 35px; }
+}
+@media (max-width: 420px) {
+  /* 竖屏用标题/帮助说明承载“右侧拖动”提示，避免与短提示重叠。 */
+  .touch-look-zone span { display: none; }
+}
+
+/* 小屏按实际按钮/状态条高度留白，避免暂停键压住状态条；同时提升强光下字号和底板对比。 */
+@media (max-width: 860px) {
+  .hud-top { padding-top: calc(50px + var(--safe-top)); }
+  .vitals { background: rgba(8, 19, 12, .52); }
+  .vlabel { color: #e8f0dc; font-size: 9.5px; text-shadow: 0 1px 3px #000, 0 0 5px #000b; }
+  .mission { background: rgba(8, 20, 12, .46); max-height: 56px; font-size: 10.5px; line-height: 1.28; }
+  .objective { background: rgba(8, 19, 12, .52); }
+  .toast { top: calc(148px + var(--safe-top)); }
+}
+@media (max-width: 420px) {
+  .vlabel { font-size: 9px; }
+  .mission { font-size: 10px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .hud-top { padding-top: calc(46px + var(--safe-top)); }
+  .mission { max-height: 38px; padding-top: 2px; padding-bottom: 2px; font-size: 9.5px; line-height: 1.1; }
+  .toast { top: calc(127px + var(--safe-top)); }
+}
+
+/* 细描边采用双层背景模拟渐变边框，不增加面板面积。 */
+.vitals, .mission, .combatbar, .power-panel, .objective,
+.touch-actions button, .touch-pause {
+  border-color: transparent;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+.vitals {
+  background-image: linear-gradient(rgba(10, 22, 15, .52), rgba(10, 22, 15, .52)),
+    linear-gradient(120deg, rgba(225, 239, 196, .46), rgba(106, 151, 107, .18) 56%, rgba(255, 207, 107, .3));
+}
+.mission {
+  background-image: linear-gradient(rgba(8, 20, 12, .46), rgba(8, 20, 12, .46)),
+    linear-gradient(120deg, rgba(255, 207, 107, .32), rgba(177, 215, 169, .18) 52%, rgba(225, 239, 196, .34));
+}
+.combatbar {
+  background-image: linear-gradient(rgba(10, 22, 15, .46), rgba(10, 22, 15, .46)),
+    linear-gradient(120deg, rgba(225, 239, 196, .34), rgba(106, 151, 107, .16) 60%, rgba(255, 207, 107, .2));
+}
+.power-panel {
+  background-image: linear-gradient(rgba(30, 28, 42, .44), rgba(30, 28, 42, .44)),
+    linear-gradient(120deg, rgba(214, 185, 247, .34), rgba(148, 111, 208, .18) 60%, rgba(255, 207, 107, .18));
+}
+.objective {
+  background-image: linear-gradient(rgba(8, 19, 12, .52), rgba(8, 19, 12, .52)),
+    linear-gradient(120deg, rgba(255, 207, 107, .3), rgba(106, 151, 107, .16) 58%, rgba(225, 239, 196, .32));
+}
+.touch-actions button, .touch-pause {
+  background-image: linear-gradient(rgba(15, 31, 22, .58), rgba(15, 31, 22, .58)),
+    linear-gradient(135deg, rgba(225, 239, 196, .34), rgba(106, 151, 107, .15) 60%, rgba(255, 207, 107, .3));
+}
+.touch-actions button.pressed, .touch-pause.pressed {
+  background-image: linear-gradient(rgba(87, 104, 66, .9), rgba(87, 104, 66, .9)),
+    linear-gradient(135deg, rgba(255, 225, 163, .72), rgba(255, 207, 107, .48));
+}
+@media (max-width: 860px) {
+  .hud-right { z-index: 24; }
 }

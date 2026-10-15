@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { FIELD_W, FIELD_H } from '../core/config.js';
 import { terrainHeight } from '../core/utils.js';
+import { getRenderProfile } from '../core/performance.js';
 
 export class Sky {
   constructor(scene, renderer) {
@@ -20,8 +21,9 @@ export class Sky {
 
     // 主平行光投射阴影，跟随玩家以保证阴影分辨率
     this.sun = new THREE.DirectionalLight(0xfff3d4, 2.5);
-    this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    const renderProfile = getRenderProfile();
+    this.sun.castShadow = renderProfile.shadows;
+    this.sun.shadow.mapSize.set(renderProfile.shadowMapSize, renderProfile.shadowMapSize);
     const cam = this.sun.shadow.camera;
     cam.near = 0.5;
     cam.far = 90;

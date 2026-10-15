@@ -1,0 +1,697 @@
+{
+  "results": {
+    "desktop": {
+      "viewport": [
+        1280,
+        720
+      ],
+      "body": "unlocked",
+      "es": {
+        ".hud-top": {
+          "rect": [
+            0,
+            0,
+            1280,
+            81,
+            1280,
+            81
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".vitals": {
+          "rect": [
+            14,
+            9,
+            430,
+            51,
+            416,
+            42
+          ],
+          "bg": "rgba(10, 22, 15, 0.46)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".mission": {
+          "rect": [
+            442,
+            9,
+            782,
+            72,
+            340,
+            63
+          ],
+          "bg": "rgba(14, 30, 21, 0.34)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".hud-left": {
+          "rect": [
+            14,
+            620.8,
+            324,
+            692,
+            310,
+            71.2
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".combatbar": {
+          "rect": [
+            14,
+            620.8,
+            324,
+            649.8,
+            310,
+            29
+          ],
+          "bg": "rgba(10, 22, 15, 0.46)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".power-panel": {
+          "rect": [
+            14,
+            654.8,
+            324,
+            692,
+            310,
+            37.2
+          ],
+          "bg": "rgba(30, 28, 42, 0.44)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".hud-right": {
+          "rect": [
+            1116,
+            649,
+            1266,
+            692,
+            150,
+            43
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".objective": {
+          "rect": [
+            1116,
+            649,
+            1266,
+            692,
+            150,
+            43
+          ],
+          "bg": "rgba(10, 22, 15, 0.46)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "auto"
+        },
+        ".crosshair": {
+          "rect": [
+            620,
+            340,
+            660,
+            380,
+            40,
+            40
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".touch-joystick": {
+          "rect": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "auto"
+        },
+        ".touch-actions": {
+          "rect": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "auto"
+        },
+        ".touch-pause": {
+          "rect": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bg": "rgba(15, 31, 22, 0.58)",
+          "backdrop": "blur(8px) saturate(1.05)",
+          "pointer": "auto"
+        },
+        ".toast": {
+          "rect": [
+            586,
+            92,
+            694,
+            127,
+            108,
+            35
+          ],
+          "bg": "rgba(13, 28, 19, 0.58)",
+          "backdrop": "blur(8px)",
+          "pointer": "none"
+        }
+      },
+      "overs": []
+    },
+    "portrait": {
+      "viewport": [
+        390,
+        844
+      ],
+      "body": "unlocked touch-mode touch-playing",
+      "es": {
+        ".hud-top": {
+          "rect": [
+            0,
+            0,
+            390,
+            148.4,
+            390,
+            148.4
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".vitals": {
+          "rect": [
+            9,
+            50,
+            381,
+            88,
+            372,
+            38
+          ],
+          "bg": "rgba(8, 19, 12, 0.52)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".mission": {
+          "rect": [
+            9,
+            93,
+            381,
+            143.4,
+            372,
+            50.4
+          ],
+          "bg": "rgba(8, 20, 12, 0.46)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".hud-left": null,
+        ".combatbar": {
+          "rect": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bg": "rgba(10, 22, 15, 0.46)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".power-panel": {
+          "rect": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bg": "rgba(30, 28, 42, 0.44)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".hud-right": {
+          "rect": [
+            216.2,
+            639,
+            380,
+            680,
+            163.8,
+            41
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".objective": {
+          "rect": [
+            216.2,
+            639,
+            334.6,
+            680,
+            118.4,
+            41
+          ],
+          "bg": "rgba(8, 19, 12, 0.52)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "auto"
+        },
+        ".crosshair": {
+          "rect": [
+            175,
+            402,
+            215,
+            442,
+            40,
+            40
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".touch-joystick": {
+          "rect": [
+            14,
+            718,
+            126,
+            830,
+            112,
+            112
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "auto"
+        },
+        ".touch-actions": {
+          "rect": [
+            226,
+            732,
+            378,
+            832,
+            152,
+            100
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "auto"
+        },
+        ".touch-pause": {
+          "rect": [
+            134,
+            7,
+            172,
+            45,
+            38,
+            38
+          ],
+          "bg": "rgba(15, 31, 22, 0.58)",
+          "backdrop": "blur(8px) saturate(1.05)",
+          "pointer": "auto"
+        },
+        ".toast": {
+          "rect": [
+            141,
+            148,
+            249,
+            183,
+            108,
+            35
+          ],
+          "bg": "rgba(13, 28, 19, 0.58)",
+          "backdrop": "blur(8px)",
+          "pointer": "none"
+        }
+      },
+      "overs": []
+    },
+    "landscape": {
+      "viewport": [
+        844,
+        390
+      ],
+      "body": "unlocked touch-mode touch-playing",
+      "es": {
+        ".hud-top": {
+          "rect": [
+            0,
+            0,
+            844,
+            128.3,
+            844,
+            128.3
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".vitals": {
+          "rect": [
+            9,
+            46,
+            835,
+            81,
+            826,
+            35
+          ],
+          "bg": "rgba(8, 19, 12, 0.52)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".mission": {
+          "rect": [
+            9,
+            86,
+            835,
+            123.3,
+            826,
+            37.3
+          ],
+          "bg": "rgba(8, 20, 12, 0.46)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".hud-left": null,
+        ".combatbar": {
+          "rect": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bg": "rgba(10, 22, 15, 0.46)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".power-panel": {
+          "rect": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bg": "rgba(30, 28, 42, 0.44)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".hud-right": {
+          "rect": [
+            686,
+            227,
+            834,
+            264,
+            148,
+            37
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".objective": {
+          "rect": [
+            686,
+            227,
+            800.4,
+            264,
+            114.4,
+            37
+          ],
+          "bg": "rgba(8, 19, 12, 0.52)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "auto"
+        },
+        ".crosshair": {
+          "rect": [
+            404,
+            177,
+            440,
+            213,
+            36,
+            36
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".touch-joystick": {
+          "rect": [
+            14,
+            272,
+            118,
+            376,
+            104,
+            104
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "auto"
+        },
+        ".touch-actions": {
+          "rect": [
+            686,
+            282,
+            832,
+            378,
+            146,
+            96
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "auto"
+        },
+        ".touch-pause": {
+          "rect": [
+            592,
+            7,
+            626,
+            41,
+            34,
+            34
+          ],
+          "bg": "rgba(15, 31, 22, 0.58)",
+          "backdrop": "blur(8px) saturate(1.05)",
+          "pointer": "auto"
+        },
+        ".toast": {
+          "rect": [
+            368,
+            127,
+            476,
+            162,
+            108,
+            35
+          ],
+          "bg": "rgba(13, 28, 19, 0.58)",
+          "backdrop": "blur(8px)",
+          "pointer": "none"
+        }
+      },
+      "overs": []
+    },
+    "portraitDpr2": {
+      "viewport": [
+        390,
+        844
+      ],
+      "body": "unlocked touch-mode touch-playing",
+      "es": {
+        ".hud-top": {
+          "rect": [
+            0,
+            0,
+            390,
+            148.4,
+            390,
+            148.4
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".vitals": {
+          "rect": [
+            9,
+            50,
+            381,
+            88,
+            372,
+            38
+          ],
+          "bg": "rgba(8, 19, 12, 0.52)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".mission": {
+          "rect": [
+            9,
+            93,
+            381,
+            143.4,
+            372,
+            50.4
+          ],
+          "bg": "rgba(8, 20, 12, 0.46)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".hud-left": null,
+        ".combatbar": {
+          "rect": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bg": "rgba(10, 22, 15, 0.46)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".power-panel": {
+          "rect": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "bg": "rgba(30, 28, 42, 0.44)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "none"
+        },
+        ".hud-right": {
+          "rect": [
+            216.2,
+            639,
+            380,
+            680,
+            163.8,
+            41
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".objective": {
+          "rect": [
+            216.2,
+            639,
+            334.6,
+            680,
+            118.4,
+            41
+          ],
+          "bg": "rgba(8, 19, 12, 0.52)",
+          "backdrop": "blur(9px) saturate(1.08)",
+          "pointer": "auto"
+        },
+        ".crosshair": {
+          "rect": [
+            175,
+            402,
+            215,
+            442,
+            40,
+            40
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "none"
+        },
+        ".touch-joystick": {
+          "rect": [
+            14,
+            718,
+            126,
+            830,
+            112,
+            112
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "auto"
+        },
+        ".touch-actions": {
+          "rect": [
+            226,
+            732,
+            378,
+            832,
+            152,
+            100
+          ],
+          "bg": "rgba(0, 0, 0, 0)",
+          "backdrop": "none",
+          "pointer": "auto"
+        },
+        ".touch-pause": {
+          "rect": [
+            134,
+            7,
+            172,
+            45,
+            38,
+            38
+          ],
+          "bg": "rgba(15, 31, 22, 0.58)",
+          "backdrop": "blur(8px) saturate(1.05)",
+          "pointer": "auto"
+        },
+        ".toast": {
+          "rect": [
+            141,
+            148,
+            249,
+            183,
+            108,
+            35
+          ],
+          "bg": "rgba(13, 28, 19, 0.58)",
+          "backdrop": "blur(8px)",
+          "pointer": "none"
+        }
+      },
+      "overs": []
+    }
+  },
+  "panel": {
+    "hidden": false,
+    "rect": [
+      16,
+      54,
+      374,
+      186
+    ],
+    "viewport": [
+      390,
+      844
+    ]
+  }
+}

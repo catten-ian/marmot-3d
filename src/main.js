@@ -19,6 +19,10 @@ import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
+import { getRenderProfile, isTouchPrimary } from './core/performance.js';
+import { TouchControls } from './core/touch-controls.js';
+
+const TOUCH_DEVICE = isTouchPrimary();
 
 /** 真实模型加载结果（供调试接口查看） */
 let modelLoadState = null;
@@ -28,7 +32,7 @@ import { Sky } from './world/scene.js';
 import { Burrow, Scenery } from './world/props.js';
 import { Fox } from './entities/fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
 } from './core/ecology.js';
@@ -69,6 +73,7 @@ const WANT_GS = BOOT.gsWorld === true;
 
 let renderer;
 let rendererStatus = { backend: 'webgl', supportsSplat: false, gpuReason: '' };
+let renderProfile = getRenderProfile();
 
 if (WANT_GS) {
   const result = await createRenderer(canvas, {
@@ -84,16 +89,17 @@ if (WANT_GS) {
 } else {
   renderer = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    antialias: renderProfile.antialias,
     powerPreference: 'high-performance',
     stencil: false,
   });
 }
 
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderProfile = getRenderProfile();
+renderer.setPixelRatio(renderProfile.pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 if ('shadowMap' in renderer) {
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = renderProfile.shadows;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 }
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -273,7 +279,8 @@ setViewMode(thirdPerson);
 // 异步进行，不阻塞游戏启动。返回每一档的加载级别：
 //   'full' 完整（几何+贴图） / 'geometry-only' 仅几何（贴图解码失败）
 //   'procedural' 回退到程序化建模 / 'timeout' / 'failed'
-preloadModels().then((st) => {
+const FOX_PRELOAD_FILE = IS_DEV && USE_REAL_FOX_MODEL ? 'fox-segmented.glb' : 'fox.glb';
+preloadModels('./assets/models/', { foxFile: FOX_PRELOAD_FILE }).then((st) => {
   modelLoadState = st;
   console.info('[models] 真实模型就绪情况:', st);
   // 明确告知玩家当前处于哪一档 —— "模型没加载出来"时最需要的就是这个信息，
@@ -281,6 +288,7 @@ preloadModels().then((st) => {
   const labels = {
     full: '完整',
     'geometry-only': '仅几何（贴图不可用）',
+    'loading-slow': '加载较慢（程序化模型可见）',
     procedural: '程序化兜底',
     timeout: '加载超时',
     failed: '加载失败',
@@ -646,7 +654,7 @@ function completeLevel() {
   document.getElementById('nextBtn').onclick = () => {
     hud.hidePanel();
     loadLevel(game.level + 1, true);
-    controller.requestLock();
+    if (!controller.touchEnabled) controller.requestLock();
   };
   document.getElementById('clearSelectBtn').onclick = showLevelSelect;
 }
@@ -777,6 +785,7 @@ function title() {
       去掉 URL 的 <code>?version=dev</code> 即回到正式版。</p>
     </div>` : ''}
     <div class="keys" id="titleKeys">
+      ${TOUCH_DEVICE ? '<span><kbd>触屏</kbd> 左侧摇杆移动 · 右侧拖动转视角 · 屏幕按钮执行动作</span>' : ''}
       <span><kbd>鼠标</kbd> 视角转动</span>
       <span><kbd>V</kbd> 第一 / 第三人称切换</span>
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span>
@@ -845,7 +854,7 @@ function startPlay() {
   hud.hidePanel();
   game.mode = 'play';
   loadLevel(game.level, true);
-  controller.requestLock();
+  if (!controller.touchEnabled) controller.requestLock();
 }
 
 function resetAll() {
@@ -862,18 +871,19 @@ function retryLevel() {
   loadLevel(game.level, false);
   game.mode = 'play';
   hud.hidePanel();
-  controller.requestLock();
+  if (!controller.touchEnabled) controller.requestLock();
 }
 
 function pause() {
   if (game.mode !== 'play') return;
   game.mode = 'pause';
   keys.clear();
+  touchControls?.releaseAll();
   controller.exitLock();
   hud.showPanel(`
     <div class="eyebrow">PAUSED</div>
     <h2>喘口气。</h2>
-    <p>${IS_DEV && binds.scheme === 'optimized' ? 'W/S 前后 · A/D 转向 · 方向键横移' : 'WASD 移动'} · 左键/空格 攻击 · J 爆发 · K 大招 · E 救援。<br>暂停不会消耗时间。</p>
+    <p>${TOUCH_DEVICE ? '左侧摇杆移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : `${IS_DEV && binds.scheme === 'optimized' ? 'W/S 前后 · A/D 转向 · 方向键横移' : 'WASD 移动'} · 左键/空格 攻击 · J 爆发 · K 大招 · E 救援。`}<br>暂停不会消耗时间。</p>
     <div class="row">
       <button class="primary" id="resumeBtn">继续 · P / Enter</button>
       <button class="ghost" id="pRetryBtn">重试本关 · T</button>
@@ -891,11 +901,13 @@ function resume() {
   keys.clear();
   // Esc 退出锁定后浏览器有短暂冷却，可能拒绝立即重锁；
   // 失败时提示点击画面（canvas 的 click 监听会再次请求锁定）。
-  controller.requestLock().then((locked) => {
-    if (!locked && game.mode === 'play') {
-      hud.say('鼠标未锁定 —— 点击一下画面即可继续。', 2.6);
-    }
-  });
+  if (!controller.touchEnabled) {
+    controller.requestLock().then((locked) => {
+      if (!locked && game.mode === 'play') {
+        hud.say('鼠标未锁定 —— 点击一下画面即可继续。', 2.6);
+      }
+    });
+  }
 }
 
 // ============================================================
@@ -1096,7 +1108,7 @@ function update(dt) {
   // 移动（含疾行）
   let speedMul = stats.speedMul;
   // 疾行：按方案查表，并额外接受任意一侧 Shift（双手都能用）
-  const sprinting = binds.isAction('ShiftLeft', 'sprint')
+  const sprinting = controller.touchSprint || binds.isAction('ShiftLeft', 'sprint')
     || binds.isAction('ShiftRight', 'sprint')
     || keys.has('ShiftLeft') || keys.has('ShiftRight');
   if (sprinting && p.energy > 5) speedMul *= 1.42;
@@ -1204,7 +1216,8 @@ function update(dt) {
   }
 
   // —— 攻击输入 —— 键盘键由方案决定；鼠标左键始终可攻击
-  if (mouseDown || binds.keys('attack').some((k) => keys.has(k))) strike();
+  if (mouseDown || touchAttackPointers.size > 0
+    || binds.keys('attack').some((k) => keys.has(k))) strike();
 
   // —— 采食 ——
   // 正式版吃浆果（+20）；dev 版吃当季草本植物，含多汁/富亚油酸加成
@@ -1319,9 +1332,35 @@ function update(dt) {
 const binds = new Keybinds();
 
 let mouseDown = false;
+const touchAttackPointers = new Set();
+const touchSprintPointers = new Set();
+let touchControls = null;
 // 首次点击用于捕获鼠标指针时，把这次攻击记下来，等锁定成功后补上
 let pendingClickAttack = false;
 let pendingClickTimer = 0;
+
+
+touchControls = new TouchControls({
+  canvas,
+  controller,
+  root: document.getElementById('touchControls'),
+  lookZone: document.getElementById('touchLookZone'),
+  joystick: document.getElementById('touchJoystick'),
+  stick: document.getElementById('touchStick'),
+  isActive: () => game.mode === 'play',
+  onAction: (action, pressed, pointerId) => {
+    if (action === 'attack') {
+      if (pressed) touchAttackPointers.add(pointerId); else touchAttackPointers.delete(pointerId);
+    } else if (action === 'sprint') {
+      if (pressed) touchSprintPointers.add(pointerId); else touchSprintPointers.delete(pointerId);
+      controller.touchSprint = touchSprintPointers.size > 0;
+    } else if (pressed && action === 'jump') doJump();
+    else if (pressed && action === 'interact') doInteract();
+    else if (pressed && action === 'burst') doBurst();
+    else if (pressed && action === 'ultimate') doUltimate();
+    else if (pressed && action === 'pause') pause();
+  },
+});
 
 // 不再硬编码键位表：每次按键都查当前方案
 const isBound = (code) => {
@@ -1385,6 +1424,7 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => keys.delete(e.code));
 
 canvas.addEventListener('mousedown', (e) => {
+  if (controller.touchEnabled) return;
   audio.ensure();
 
   // 右键 = 跳跃（需在 pointer lock 下才生效，未锁定时先捕获指针）
@@ -1423,7 +1463,7 @@ controller.onLockChange = (locked) => {
     if (game.mode === 'play') strike();
   }
   // 未锁定时暂停，避免玩家离开后被偷袭
-  if (!locked && game.mode === 'play') pause();
+  if (!locked && !controller.touchEnabled && game.mode === 'play') pause();
 };
 // 右键已用于跳跃，必须屏蔽浏览器右键菜单，否则每次跳跃都会弹菜单
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -1434,12 +1474,42 @@ window.addEventListener('blur', () => {
   if (game.mode === 'play') pause();
 });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && game.mode === 'play') pause();
+  if (document.hidden) {
+    touchControls?.releaseAll();
+    if (game.mode === 'play') pause();
+  } else {
+    last = performance.now();
+    resizeRenderer();
+  }
 });
 
 // 点击画面重新锁定鼠标
 canvas.addEventListener('click', () => {
-  if (game.mode === 'play' && !controller.locked) controller.requestLock();
+  if (!controller.touchEnabled && game.mode === 'play' && !controller.locked) controller.requestLock();
+});
+
+// HUD 详细状态：默认收起战斗明细与状态芯片，按需呼出。
+const hudDetailsBtn = document.getElementById('hudDetailsBtn');
+if (hudDetailsBtn) {
+  hudDetailsBtn.onclick = () => {
+    const open = document.body.classList.toggle('hud-details-open');
+    hudDetailsBtn.setAttribute('aria-expanded', String(open));
+    hudDetailsBtn.textContent = open ? '收起' : '详情';
+    hudDetailsBtn.title = open ? '收起详细状态' : '展开详细状态';
+  };
+}
+
+// 目标摘要点击展开/收起，不抢占中央瞄准与移动区域。
+document.getElementById('objective')?.addEventListener('click', (event) => {
+  const toggle = event.target.closest('.obj-toggle');
+  if (!toggle) return;
+  const objective = toggle.closest('.objective');
+  if (!objective) return;
+  const expanded = objective.classList.toggle('expanded');
+  toggle.setAttribute('aria-expanded', String(expanded));
+  toggle.setAttribute('aria-label', expanded ? '收起本关目标' : '展开本关目标');
+  const icon = toggle.querySelector('i');
+  if (icon) icon.textContent = expanded ? '−' : '+';
 });
 
 // 帮助面板
@@ -1595,20 +1665,42 @@ if (fsBtn) fsBtn.onclick = toggleFullscreen;
 document.addEventListener('fullscreenchange', syncFullscreenUI);
 document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
 
+if (TOUCH_DEVICE) {
+  const blockGesture = (event) => event.preventDefault();
+  document.addEventListener('contextmenu', blockGesture);
+  document.addEventListener('dblclick', blockGesture, { passive: false });
+  document.addEventListener('gesturestart', blockGesture, { passive: false });
+  document.addEventListener('gesturechange', blockGesture, { passive: false });
+}
+
 // 窗口尺寸 / 全屏切换共用
 function resizeRenderer() {
   const w = window.innerWidth, h = window.innerHeight;
   camera.aspect = w / h;
   // 保持基准 FOV：控制器会按姿态在其基础上收窄
   camera.updateProjectionMatrix();
+  renderProfile = getRenderProfile();
+  renderer.setPixelRatio(renderProfile.pixelRatio);
   renderer.setSize(w, h);
-  // 高 DPI 屏适当提高上限，全屏时画面更锐利
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  if ('shadowMap' in renderer) renderer.shadowMap.enabled = renderProfile.shadows;
   // viewmodel 相机也要同步宽高比，否则爪子会被拉伸变形
   viewModel.resize(w / h);
 }
 
 window.addEventListener('resize', resizeRenderer);
+window.addEventListener('orientationchange', () => requestAnimationFrame(resizeRenderer));
+window.visualViewport?.addEventListener('resize', resizeRenderer);
+
+canvas.addEventListener('webglcontextlost', (event) => {
+  event.preventDefault();
+  touchControls?.releaseAll();
+  if (game.mode === 'play') pause();
+  hud.say('图形设备暂时重置，请稍候…', 3.5);
+});
+canvas.addEventListener('webglcontextrestored', () => {
+  resizeRenderer();
+  hud.say('画面已恢复。', 2.2);
+});
 
 // ============================================================
 // 主循环
@@ -1620,6 +1712,10 @@ function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
 
+  const touchPlaying = TOUCH_DEVICE && game.mode === 'play';
+  if (document.body.classList.contains('touch-playing') !== touchPlaying) {
+    document.body.classList.toggle('touch-playing', touchPlaying);
+  }
   update(dt);
   playerModel.position.set(controller.position.x, terrainHeight(controller.position.x, controller.position.z), controller.position.z);
   playerModel.rotation.y = controller.yaw + Math.PI;
@@ -1688,6 +1784,7 @@ window.__game = {
   viewModel, playerModel, playerBody, setViewMode, get thirdPerson() { return thirdPerson; },
   binds, findConflicts, ACTIONS, FoxClass: Fox,
   isDev: IS_DEV, ecology: { energyOfPlant, eatLine, seasonForLevel, plantsForLevel, HERBIVORE },
+  touchControls, renderProfile: () => getRenderProfile(),
   DEBUG_HIDE,
   // 摄影测量远景（异步加载完成后可用）
   backdrop: () => backdropRoot,

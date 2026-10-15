@@ -15,7 +15,7 @@
  */
 
 import * as THREE from 'three';
-import { FOX, roamBounds } from '../core/config.js';
+import { FOX, ROCKS, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
 import { IS_DEV, USE_REAL_FOX_MODEL } from '../core/version.js';
 import { clamp } from '../core/utils.js';
@@ -91,6 +91,7 @@ export class Fox {
     this._runCycle = Math.random() * Math.PI * 2;
     this._runAmount = 0;
     this._segmentAnimation = null;
+    this._disposed = false;
     this.dead = false;
 
     // —— 攻击模式档案 ——
@@ -180,6 +181,11 @@ export class Fox {
     if (!USE_REAL_FOX_MODEL) return;
     try {
       const inst = await instantiateFox();
+      if (this._disposed) {
+        // 换关时模型请求可能仍在途；不要把迟到模型挂回已销毁实例。
+        this._disposeRealInstance(inst);
+        return;
+      }
       if (!inst) {
         // L2：加载器已经 warn 过了，这里只记录状态，程序化版本保持可见
         this.modelLevel = 'procedural';
@@ -230,15 +236,18 @@ export class Fox {
     }
   }
 
+  _disposeRealInstance(root) {
+    if (!root) return;
+    root.traverse((o) => {
+      // instantiate() 深拷贝材质但与缓存共享几何体和贴图；不可释放共享资源。
+      const materials = Array.isArray(o.material) ? o.material : [o.material];
+      for (const material of materials) material?.dispose?.();
+    });
+  }
+
   _discardRealModel(root) {
     if (root?.parent) root.parent.remove(root);
-    if (root) {
-      root.traverse((o) => {
-        // Clone shares GLB geometry with the loader cache; dispose only per-instance materials.
-        const materials = Array.isArray(o.material) ? o.material : [o.material];
-        for (const material of materials) material?.dispose?.();
-      });
-    }
+    this._disposeRealInstance(root);
     this.realModel = null;
     this.modelLevel = 'procedural';
     this._segmentAnimation = null;
@@ -351,7 +360,7 @@ export class Fox {
    */
   _restoreVisibility() {
     if (!this.mesh) return;
-    this.mesh.visible = true;
+    // 模型切换不应重置实体生死/逃离可见状态；只切换两套子模型。
     const useReal = !!this.realModel;
     if (this.proceduralMesh) this.proceduralMesh.visible = !useReal;
     if (this.realModel) this.realModel.visible = useReal;
@@ -468,7 +477,8 @@ export class Fox {
       // ---------- 绕行：侧向移动，从侧面切入 ----------
       case 'circle': {
         this.timer -= dt;
-        const dir = this.luredDir || (Math.random() < 0.5 ? 1 : -1);
+        if (!this.luredDir) this.luredDir = Math.random() < 0.5 ? 1 : -1;
+        const dir = this.luredDir;
         // 以玩家为圆心做切向绕圈 + 向内收一点，
         // 这样结束时藏狐会处在玩家侧面而非正后方（绕到正后方对第一人称太难预判）
         const ang = Math.atan2(dx, dz) + Math.PI / 2 * dir;
@@ -476,12 +486,9 @@ export class Fox {
         const inward = d > FOX.windRange * 0.72 ? 0.25 : -0.1;
         const moveX = Math.sin(ang) * tangent + (dx / (d || 1)) * inward;
         const moveZ = Math.cos(ang) * tangent + (dz / (d || 1)) * inward;
-        this.x += moveX * speed * dt;
-        this.z += moveZ * speed * dt;
-        // 朝向实际切向速度，而非玩家；否则绕行时身体会横着滑。
-        // 轨迹方向本身是连续变化的，因此这里直接对齐，保证每一帧
-        // 模型局部 +Z（鼻尖）与真实位移方向一致，不出现侧身漂移。
-        this.yaw = Math.atan2(moveX, moveZ);
+        // 定长切向移动，避免侧向+径向合成后速度随角度忽快忽慢；
+        // 导航器会对场地边缘、洞穴和岩石做轻量绕行。
+        this._moveGround(moveX, moveZ, speed, dt, burrow);
         if (this.timer <= 0) this._enterWind();
         break;
       }
@@ -539,10 +546,7 @@ export class Fox {
       case 'rest': {
         this.timer -= dt;
         const moveX = Math.sin(this._bob + performance.now() * 0.002) * 0.4;
-        this.x += moveX * dt;
-        if (Math.abs(moveX) > 0.04) {
-          this.yaw = this._angleLerp(this.yaw, Math.atan2(moveX, 0), dt * 2.2);
-        }
+        if (Math.abs(moveX) > 0.04) this._moveGround(Math.sign(moveX), 0, Math.abs(moveX), dt, burrow);
         if (this.timer <= 0) this.state = 'roam';
         break;
       }
@@ -553,9 +557,7 @@ export class Fox {
           // 游荡：随机漂移，身体平滑朝向实际移动方向。
           const moveX = Math.cos(performance.now() * 0.00035 + this.phase) * 1.1;
           const moveZ = Math.sin(performance.now() * 0.00045 + this.phase) * 0.8;
-          this.x += moveX * dt;
-          this.z += moveZ * dt;
-          this.yaw = this._angleLerp(this.yaw, Math.atan2(moveX, moveZ), dt * 2.2);
+          this._moveGround(moveX, moveZ, Math.hypot(moveX, moveZ), dt, burrow);
           break;
         }
         if (d < FOX.windRange) {
@@ -579,40 +581,133 @@ export class Fox {
             ? Math.sin(performance.now() * 0.001 + this.phase) * 0.65
             : 0;
           const a = Math.atan2(dx, dz) + wobble;
-          this.x += Math.sin(a) * speed * dt;
-          this.z += Math.cos(a) * speed * dt;
-          this.yaw = a;
+          this._moveGround(Math.sin(a), Math.cos(a), speed, dt, burrow);
         }
         break;
       }
     }
 
-    // 边界约束（GS 版按缩放后的活动场取，稳定版与历史值 ±74/±44 一致）
+    // 边界约束（GS 版按缩放后的活动场取，稳定版与历史值 ±74/±44 一致）。
     const rb = roamBounds();
+    const unclampedX = this.x, unclampedZ = this.z;
     this.x = clamp(this.x, -rb.hw, rb.hw);
     this.z = clamp(this.z, -rb.hh, rb.hh);
-
-    // 洞穴排斥：藏狐被洞口推出，不能进洞
-    const bd = Math.hypot(this.x - burrow.x, this.z - burrow.z);
-    if (bd < burrow.r + 2.4) {
-      const nx = (this.x - burrow.x) / (bd || 1);
-      const nz = (this.z - burrow.z) / (bd || 1);
-      const target = burrow.r + 2.5;
-      this.x = burrow.x + nx * target;
-      this.z = burrow.z + nz * target;
-      if (this.state === 'dash') {
-        this.state = 'rest';
-        this.timer = 0.8;
-        this.leap = 0;
-        this.warn.visible = false;
-      }
+    if (this.state === 'dash' && (this.x !== unclampedX || this.z !== unclampedZ)) {
+      // 冲刺撞到活动场边界就结束，不能持续顶墙/滑墙；预警方向与冲刺轨迹仍一致。
+      this._stopDashAtObstacle();
     }
 
-    const movingSpeed = Math.hypot(this.x - previousX, this.z - previousZ) / Math.max(dt, 1e-4);
+    // 藏狐不穿过岩石或洞穴安全区。逐帧推出可处理冲刺碰撞，
+    // 平常移动则提前转向，避免旧逻辑只在最后硬夹坐标造成卡边/瞬移。
+    this._resolveObstacleOverlaps(burrow);
+
+    const movedX = this.x - previousX, movedZ = this.z - previousZ;
+    const movingSpeed = Math.hypot(movedX, movedZ) / Math.max(dt, 1e-4);
+    if (movingSpeed > 0.05 && !['wind', 'dash'].includes(this.state)) {
+      const actualHeading = Math.atan2(movedX, movedZ);
+      this.yaw = this._angleLerp(this.yaw, actualHeading, Math.min(1, dt * 10));
+    }
     this._updateSegmentedFox(dt, movingSpeed);
     this._applyTransform(dt, terrainAt);
     this._updateWarn();
     this._updateHpBar();
+  }
+
+  /**
+   * 非攻击移动的轻量局部导航：保持设计速度，同时绕开静态岩石、洞穴和场地边缘。
+   * 冲刺仍锁定预警方向；若冲刺确实撞上障碍，由 _resolveObstacleOverlaps 结束冲刺。
+   */
+  _moveGround(wantX, wantZ, speed, dt, burrow) {
+    const wantedLen = Math.hypot(wantX, wantZ);
+    if (wantedLen < 1e-5 || speed <= 0 || dt <= 0) return;
+    let vx = wantX / wantedLen, vz = wantZ / wantedLen;
+    const bounds = roamBounds();
+    const edgeMargin = Math.min(7, bounds.hw * 0.16, bounds.hh * 0.16);
+    // 边缘避让必须足以抵消向外的目标向量；较弱的排斥会让狐狸长期贴边蹭行。
+    const edgeForce = 1.5;
+    if (this.x < -bounds.hw + edgeMargin) vx += (1 - clamp((this.x + bounds.hw) / edgeMargin, 0, 1)) * edgeForce;
+    if (this.x > bounds.hw - edgeMargin) vx -= (1 - clamp((bounds.hw - this.x) / edgeMargin, 0, 1)) * edgeForce;
+    if (this.z < -bounds.hh + edgeMargin) vz += (1 - clamp((this.z + bounds.hh) / edgeMargin, 0, 1)) * edgeForce;
+    if (this.z > bounds.hh - edgeMargin) vz -= (1 - clamp((bounds.hh - this.z) / edgeMargin, 0, 1)) * edgeForce;
+
+    const clearance = Math.max(1.2, speed * 0.45);
+    const rocks = ROCKS.map((rock) => {
+      const [x, z] = scalePoint(rock);
+      return { x, z, r: scaleRadius(rock[2]) + 0.72 * this.cfg.scale };
+    });
+    if (burrow) {
+      const [bx, bz] = scalePoint([burrow.x, burrow.z]);
+      rocks.push({ x: bx, z: bz, r: scaleRadius(burrow.r) + 2.5 });
+    }
+    for (let i = 0; i < rocks.length; i++) {
+      const obstacle = rocks[i];
+      const ox = this.x - obstacle.x, oz = this.z - obstacle.z;
+      const dist = Math.hypot(ox, oz);
+      const avoidDist = obstacle.r + clearance;
+      if (dist >= avoidDist) continue;
+      const nx = dist > 1e-4 ? ox / dist : Math.sin(this.yaw);
+      const nz = dist > 1e-4 ? oz / dist : Math.cos(this.yaw);
+      const inward = vx * nx + vz * nz;
+      if (inward >= 0) continue;
+
+      // 去掉直冲障碍的分量并选定一侧切线；侧别稳定，避免每帧左右抖动。
+      vx -= nx * inward;
+      vz -= nz * inward;
+      let len = Math.hypot(vx, vz);
+      if (len < 1e-4) {
+        const side = ((this.slot + i) & 1) ? 1 : -1;
+        vx = -nz * side;
+        vz = nx * side;
+        len = 1;
+      }
+      vx /= len; vz /= len;
+      const urgency = clamp((avoidDist - dist) / Math.max(clearance, 0.01), 0, 1);
+      const side = ((this.slot + i) & 1) ? 1 : -1;
+      vx += -nz * side * urgency * 0.28;
+      vz += nx * side * urgency * 0.28;
+      len = Math.hypot(vx, vz) || 1;
+      vx /= len; vz /= len;
+    }
+
+    this.x += vx * speed * dt;
+    this.z += vz * speed * dt;
+    this.yaw = Math.atan2(vx, vz);
+  }
+
+  _stopDashAtObstacle() {
+    if (this.state !== 'dash') return;
+    this.state = 'rest';
+    this.timer = Math.max(this.timer, 0.45);
+    this.leap = 0;
+    this.warn.visible = false;
+  }
+
+  _resolveObstacleOverlaps(burrow) {
+    const bounds = roamBounds();
+    let blockedDash = false;
+    const obstacles = ROCKS.map((rock) => {
+      const [x, z] = scalePoint(rock);
+      return { x, z, r: scaleRadius(rock[2]) + 0.72 * this.cfg.scale };
+    });
+    if (burrow) {
+      const [bx, bz] = scalePoint([burrow.x, burrow.z]);
+      obstacles.push({ x: bx, z: bz, r: scaleRadius(burrow.r) + 2.5 });
+    }
+    for (const obstacle of obstacles) {
+      let dx = this.x - obstacle.x, dz = this.z - obstacle.z;
+      let dist = Math.hypot(dx, dz);
+      if (dist >= obstacle.r) continue;
+      if (dist < 1e-4) {
+        dx = Math.sin(this.yaw); dz = Math.cos(this.yaw);
+        dist = Math.hypot(dx, dz) || 1;
+      }
+      this.x = obstacle.x + dx / dist * obstacle.r;
+      this.z = obstacle.z + dz / dist * obstacle.r;
+      blockedDash = true;
+    }
+    this.x = clamp(this.x, -bounds.hw, bounds.hw);
+    this.z = clamp(this.z, -bounds.hh, bounds.hh);
+    if (blockedDash) this._stopDashAtObstacle();
   }
 
   /** 进入蓄力：记录完整蓄力时长并点亮预警线 */
@@ -844,6 +939,7 @@ export class Fox {
   /** 被驱退一段时间后重新出现（增援）。必须清干净逃跑态，否则会立刻再次逃走。 */
   respawnAt(x, z) {
     this.x = x; this.z = z;
+    this.mesh.visible = true;
     this.hp = this.maxHp;
     this.state = 'roam';
     this.stun = 0;
@@ -857,16 +953,18 @@ export class Fox {
   }
 
   dispose(scene) {
-    // 释放一个 Object3D 子树的几何体与材质
-    const disposeTree = (root) => {
+    if (this._disposed) return;
+    this._disposed = true;
+    // 程序化网格和 HUD 资源均为实例所有；GLB 几何体/贴图由模型缓存共享。
+    const disposeTree = (root, { geometry = true, textures = true } = {}) => {
       if (!root) return;
       root.traverse?.((o) => {
-        if (o.geometry) o.geometry.dispose?.();
+        if (geometry && o.geometry) o.geometry.dispose?.();
         if (o.material) {
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           for (const m of mats) {
-            // 名称标签用 CanvasTexture，必须显式释放
-            if (m.map) m.map.dispose?.();
+            // 名称标签用 CanvasTexture，必须显式释放；GLB 贴图会被实例共享。
+            if (textures && m.map) m.map.dispose?.();
             m.dispose?.();
           }
         }
@@ -877,7 +975,8 @@ export class Fox {
     scene.remove(this.warn);
     scene.remove(this.hpBar);
     scene.remove(this.labelSprite);
-    disposeTree(this.mesh);
+    disposeTree(this.proceduralMesh);
+    disposeTree(this.realModel, { geometry: false, textures: false });
     disposeTree(this.warn);
     disposeTree(this.hpBar);
     disposeTree(this.labelSprite);

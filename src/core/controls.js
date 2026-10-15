@@ -21,6 +21,10 @@ export class FirstPersonController {
     this.yaw = 0;
     this.pitch = 0;
     this.sensitivity = 0.0022;
+    this.touchLookSensitivity = 0.006;
+    this.touchAxes = { x: 0, y: 0 };
+    this.touchSprint = false;
+    this.touchEnabled = false;
 
     this.onGroundY = 0;
     this.bobPhase = 0;
@@ -69,6 +73,10 @@ export class FirstPersonController {
   }
 
   requestLock() {
+    // Touch screens use the explicit look zone instead of Pointer Lock. Calling
+    // requestPointerLock from a touch gesture is rejected by mobile browsers
+    // and can steal the gesture from the game buttons.
+    if (this.touchEnabled) return Promise.resolve(false);
     if (!this.dom.requestPointerLock) return Promise.resolve(false);
     // Chrome 返回 Promise，可能因 Esc 退出锁后的短暂冷却 / 手势时机被拒。
     // 把结果交给调用方，便于在恢复游戏失败时提示"点击画面继续"。
@@ -173,6 +181,11 @@ export class FirstPersonController {
     if (keys.has(moveMap.back) || keys.has(moveMap.backAlt)) mz -= 1;
     if (keys.has(moveMap.left) || keys.has(moveMap.leftAlt)) mx -= 1;
     if (keys.has(moveMap.right) || keys.has(moveMap.rightAlt)) mx += 1;
+    // Touch joystick axes share the same acceleration/collision path as WASD.
+    // The combined vector is normalized below, so mixing keyboard and touch
+    // never increases movement speed beyond the existing diagonal cap.
+    mx += this.touchAxes.x;
+    mz += this.touchAxes.y;
 
     // 外力（阵风、受击）以速度积分；与玩家输入分开，仍共用后续碰撞处理。
     this.externalVelocity.x = clamp(
