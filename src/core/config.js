@@ -1,0 +1,549 @@
+/**
+ * 全局配置与关卡表
+ * 数值内核移植自 2D 原版《土拨鼠大作战·闯关爆发版》，单位换算为米。
+ */
+
+// —— 世界尺度 ——
+// 原版战场 1040 x 590 像素，按 1 像素 ≈ 0.125m 换算为米制竞技场。
+export const FIELD_W = 130;
+export const FIELD_H = 78;
+
+export const BURROW = { x: -52, z: 0, r: 8.2 }; // 洞穴：安全区，休息回储备、缓压
+
+// —— 主角基准参数（米制）——
+export const PLAYER = {
+  eyeHeight: 0.46, // 土拨鼠视角：贴地低机位
+  radius: 0.42,
+  speed: 4.8, // m/s：接近旱獭短距离奔跑速度；疾行倍率后仍保留玩法余量
+  collisionHeight: 0.54, // 玩家用于接触判定的简化躯干高度（米）
+  maxHp: 100,
+  maxEnergy: 100,
+
+  /**
+   * 姿态：静止站立 ↔ 奔跑俯伏（土拨鼠四足奔跑时会压低身体）。
+   *
+   * rate 用的是指数插值系数（越大越快），且起身慢于趴下：
+   * 生物从伏地起身需要更多肌肉做功，这与直觉一致，也让姿态更有生物感。
+   * 关键：因为 crouch 是连续标量而非布尔状态，
+   * "站起到一半时开始奔跑"会自然地从当前值继续趴下，不会跳变。
+   */
+  posture: {
+    speedThreshold: 0.18, // 速度超过基准的 18% 即判为奔跑
+    crouchRate: 14, // 趴下：干脆利落
+    standRate: 6.5, // 起身：稍缓
+    eyeDrop: 0.19, // 俯伏时视高下降（米）
+    pitchDrop: 0.1, // 俯伏时视线下压（弧度）
+    fovNarrow: 5, // 俯伏时视野收窄（度），冲刺更专注
+    bobBoost: 0.7, // 俯伏时颠簸增强
+  },
+
+  /**
+   * 跳跃。土拨鼠是挖掘动物，采用短促小跳；碰撞通过双方垂直区间重叠判断。
+   * 峰值高度 = v²/(2g)，当前约 0.52m；滞空时间约 0.65s。
+   */
+  jump: {
+    velocity: 3.2, // 起跳初速度 m/s；峰值约 0.52m
+    gravity: 9.8, // 重力加速度 m/s²
+    cooldown: 0.35, // 两次起跳最小间隔，防止连点刷跳
+    dodgeHeight: 0.3, // 作为有效腾空区间，不再单独授予无条件免疫
+  },
+};
+
+/** 默认移动键映射（兼容方案使用；实际由 keybinds 模块提供） */
+export const DEFAULT_MOVE_MAP = {
+  forward: 'KeyW', forwardAlt: 'ArrowUp',
+  back: 'KeyS', backAlt: 'ArrowDown',
+  left: 'KeyA', leftAlt: 'ArrowLeft',
+  right: 'KeyD', rightAlt: 'ArrowRight',
+};
+
+// —— 浆果 / 伙伴 / 藏狐 ——
+export const BERRY_RADIUS = 0.75;
+export const BERRY_ENERGY = 20;
+export const BERRY_CHARGE = 8;
+
+export const COMPANION_FOLLOW_SPEED = 7.2;
+export const COMPANION_CATCH_DIST = 1.5;
+export const RESCUE_DIST = 1.9;
+export const SOCIAL_RANGE = 2.4;
+
+/**
+ * 藏狐的攻击模式档案。
+ *
+ * 原版只有一种攻击：直线蓄力 → 直线冲刺。玩家一旦学会"看到红线就侧移"，
+ * 所有藏狐都变成同一个可预测的靶子，战斗很快变单调。
+ *
+ * 这里给每种藏狐分配**行为不同**的攻击模式，让"看动作猜意图"重新成为玩法核心。
+ * 首要设计约束：**每种模式都必须能被预警线读出来** —— 否则玩家无从应对，
+ * 只是在随机挨打，难度上升但体验不涨。
+ *
+ * mode       行为模式，见 fox.js 的状态机
+ * windMul    蓄力时长倍率（1 = 用关卡的 wind 值）
+ * dashTime   冲刺持续秒数；真实冲刺距离 = dashSpeed × dashTime × dashSpeedMul，
+ *            **必须与预警线长度一致**，否则玩家会失去"线到头了就该躲完了"的信任
+ * turnRate   冲刺中可修正朝向的速率（弧度/秒）：0 = 方向锁死（好躲）；
+ *            大 = 追踪玩家（难躲，所以 windMul 也要相应加长，给玩家反应时间）
+ * dashSpeedMul 冲刺速度倍率
+ * circleTime 绕行阶段时长（'circle' 模式）
+ * lureChance 虚晃概率（'circle' 模式）：蓄力中途放弃并重新绕行
+ * leapHeight 跃扑的起跳高度（'leap' 模式）：必须明显高于 PLAYER.jump.dodgeHeight
+ * comboCount 连冲段数（'combo' 模式）
+ */
+const FOX_ATTACKS = {
+  // 幼狐：短距低跃扑；用垂直碰撞区间判断是否真正碰到玩家。
+  // 冲刺距 = dashSpeed × (dashTime + 0.22 腾空)，仍须覆盖 windRange 与接触半径。
+  pup: {
+    mode: 'leap', windMul: 1.12, dashTime: 0.34, turnRate: 1.4,
+    leapHeight: 0.9, label: '跃扑',
+  },
+  // 普通狐：标准直线冲刺，作为基准（最好躲）。14.5 × 0.62 ≈ 9.0m
+  normal: {
+    mode: 'straight', windMul: 1.0, dashTime: 0.62, turnRate: 0,
+    label: '直线冲刺',
+  },
+  // 疾行狐：蓄力极短、冲刺最快且方向锁死 —— 「来不及反应，但可以靠距离躲开」。
+  // 14.5 × 0.68 ≈ 9.9m，是全场最远的一击
+  fast: {
+    mode: 'straight', windMul: 0.7, dashTime: 0.68, turnRate: 0,
+    label: '疾冲',
+  },
+  // 厚皮狐：绕行 + 虚晃，从侧面反复试探才真的冲 —— 「难以预判会从哪一侧来」。
+  // 14.5 × 0.65 ≈ 9.4m
+  heavy: {
+    mode: 'circle', windMul: 1.3, dashTime: 0.65, turnRate: 0.5,
+    circleTime: 1.15, lureChance: 0.55, label: '绕行虚晃',
+  },
+  // 首领：三段连冲，每段都能微调方向 —— 「必须连续躲三次，不能一躲了事」。
+  // 单段 14.5 × 0.42 × 1.1 ≈ 6.7m，三段连冲保留压迫感。
+  boss: {
+    mode: 'combo', windMul: 1.08, dashTime: 0.42, turnRate: 1.3,
+    comboCount: 3, dashSpeedMul: 1.1, label: '三段连冲',
+  },
+};
+
+/**
+ * 狐狸类型表。
+ *
+ * 设计原则（对应玩家需求）：
+ *   · **同类区分主要靠体型**，不靠颜色 —— 幼狐与成狐毛色相同，仅体型更小，
+ *     这样玩家不会产生"颜色=威胁等级"的错误直觉。
+ *   · **特殊种类才允许毛色辅助识别** —— 沙黄(疾行狐)、灰褐(厚皮狐)、
+ *     深褐(首领) 都是现实中真实存在的毛色，不是虚构的青紫色。
+ *   · 体型差异要拉开：幼狐 0.62 ~ 首领 1.6，肉眼可辨。
+ */
+export const FOX = {
+  types: {
+    normal: { hp: 3, speed: 1.0, wind: 1.0, mass: 1.0, knockbackMul: 1, label: '', scale: 1.0 },
+    // 幼狐：毛色同 normal，仅体型 62%，血量更低、速度略慢
+    pup: { hp: 2, speed: 0.88, wind: 1.1, mass: 1.15, knockbackMul: 1.05, label: '幼狐', scale: 0.62 },
+    fast: { hp: 2, speed: 1.2, wind: 0.8, mass: 0.85, knockbackMul: 1.1, label: '疾行狐', scale: 0.88 },
+    heavy: { hp: 6, speed: 0.78, wind: 1.15, mass: 0.6, knockbackMul: 0.62, label: '厚皮狐', scale: 1.2 },
+    boss: { hp: 18, speed: 1.1, wind: 0.9, mass: 0.38, knockbackMul: 0.38, label: '狐首领', scale: 1.6 },
+  },
+  /** 每种类型的攻击模式（行为差异的来源，见文件上方 FOX_ATTACKS） */
+  // attackOf 已移到本对象末尾（需引用 FOX_ATTACKS，故不能用箭头属性提前声明）
+  roamRange: 52, // 感知半径
+  /**
+   * 进入蓄力的距离。
+   *
+   * 这是全场最关键的一个数，必须与「冲刺距离 + 接触半径」匹配：
+   * 藏狐在 windRange 处开始蓄力，冲 dashSpeed × dashTime 米后停下，
+   * 若 dashSpeed × dashTime < windRange - contact，它就**停在玩家碰不到的地方**，
+   * 玩家站着不动永远不会被抓到 —— 预警线也就成了纯装饰，
+   * 整局失去紧张感（这是实测发现的老问题，见 tools/test-attacks.cjs）。
+   *
+   * 现在的配平原则：
+   *   冲刺距离按各类型 dashTime 与 dashSpeedMul 计算；所有类型都须覆盖
+   *   windRange(9.2) - 接触半径，给玩家预警与躲避空间。
+   *   首领以三段连冲提供持续压迫，而非单次超高速冲刺。
+   */
+  windRange: 9.2,
+  dashSpeed: 14.5,
+  /**
+   * 被驱退后的逃跑。
+   * 藏狐是被吓跑的，不是被杀 —— 所以它必须有一个可见的逃跑过程，
+   * 而不是原地消失。
+   *
+   * 参数权衡：速度要明显快于玩家（8.4 vs 6.6），显得"逃得掉，但得趁早下手"；
+   * 逃跑时间上限要足够跑出玩家视野（约 1.5 秒 × 8.4 ≈ 13m），
+   * 否则玩家看到的是"淡出"而不是"跑掉"，语义又错了。
+   * 到上限仍未跑出边界的（角落），强制离场以免原地抖动。
+   */
+  fleeSpeed: 5.8,
+  fleeMaxTime: 4.0,
+  // 接触判定：土拨鼠体型小，接触距离相应放大到体型的一半以上才合理
+  contact: { boss: 2.2, heavy: 1.95, pup: 1.45, default: 1.7 },
+  collisionHeight: { normal: 0.48, pup: 0.34, fast: 0.4, heavy: 0.52, boss: 0.68 },
+  damage: { boss: 22, heavy: 18, pup: 8, default: 12 },
+  /** 攻击模式档案（定义在本文件上方 FOX_ATTACKS） */
+  attacks: FOX_ATTACKS,
+  /** 取某类型的攻击档案，新增类型漏配时回退到 normal */
+  attackOf(type) { return FOX_ATTACKS[type] || FOX_ATTACKS.normal; },
+};
+
+/**
+ * 关卡配置（12 关）。新增/删减关卡后，HUD 与各界面经 LEVELS.length 自动跟随，
+ * 不要在别处硬编码关卡总数。
+ *
+ * 设计原则：**每关有一个新的"要解决的问题"，而不只是数字变大。**
+ * 只加 count/speed/goal 的关卡表，玩到第 4 关就会觉得重复 ——
+ * 所以后期关卡引入环境修饰（雾、风、沙尘、补给点分布）与目标侧重变化。
+ *
+ * 字段说明：
+ *   count        同屏藏狐数
+ *   speed/wind   藏狐接近速度 / 蓄力基准时长（秒）
+ *   goal         需要采食（恢复能量）的次数
+ *   repels       需要驱退的藏狐数
+ *   time         限时（秒）
+ *   reinforce    驱退后重新出现的增援间隔（秒）
+ *   friend       伙伴被困位置 [x, z]
+ *   boss         是否有首领（首领被驱退才算击败）
+ *   types        本关藏狐类型池（不填则按关卡推断）
+ *   fog/fogFar   雾的近端与远端距离 —— 能见度的核心参数
+ *   windGust     环境阵风强度（米/秒² 的横向推力），0 = 无风
+ *   sandstorm    沙尘：周期性降低能见度（雾的周期性加成）
+ *   lureBias     虚晃倾向倍率（>1 让厚皮狐更爱骗人）
+ *
+ * 每一关的 `brief` 会显示在关卡开场提示里，必须说清"这关要学什么"。
+ */
+export const LEVELS = [
+  {
+    name: '初出洞穴',
+    brief: '学会爆发与反击',
+    count: 2,
+    speed: 7.2,
+    goal: 4,
+    repels: 1,
+    time: 115,
+    wind: 0.76,
+    reinforce: 8,
+    friend: [48, 22],
+    types: ['normal'],
+    sky: ['#8fa8c4', '#c9d8dd'],
+    grass: ['#93a978', '#718f65'],
+    fog: '#93a4a8',
+    sun: '#fff3d4',
+    sunIntensity: 1.9,
+    ambient: 0.42,
+  },
+  {
+    name: '双翼包抄',
+    brief: '疾行狐蓄力极短就冲，靠拉开距离比靠反应更快',
+    count: 3,
+    speed: 8.0,
+    goal: 5,
+    repels: 2,
+    time: 125,
+    wind: 0.7,
+    reinforce: 7.2,
+    friend: [56, 19],
+    types: ['normal', 'fast'],
+    sky: ['#93a9bd', '#d3d6c8'],
+    grass: ['#9cac70', '#778c58'],
+    fog: '#9aa596',
+    sun: '#ffeec6',
+    sunIntensity: 1.85,
+    ambient: 0.40,
+  },
+  {
+    name: '持续应战',
+    brief: '厚皮狐会绕到你侧面，还可能中途虚晃骗你出手',
+    count: 4,
+    speed: 8.6,
+    goal: 6,
+    repels: 3,
+    time: 140,
+    wind: 0.66,
+    reinforce: 6.5,
+    friend: [58, 24],
+    types: ['normal', 'fast', 'heavy'],
+    lureBias: 1.3,
+    sky: ['#b0a679', '#e0d3a0'],
+    grass: ['#a6a46a', '#838d5f'],
+    fog: '#b0a684',
+    sun: '#ffe4a8',
+    sunIntensity: 2.0,
+    ambient: 0.38,
+  },
+  {
+    // 新机制：视野受限。藏狐会先消失在雾里再贴近，
+    // 逼玩家依赖"地面预警线 + 边缘威胁箭头"而不是靠眼睛盯着。
+    name: '雾锁黄昏',
+    brief: '雾很浓，看不见藏狐 —— 盯住地面的红色预警线',
+    count: 4,
+    speed: 9.0,
+    goal: 6,
+    repels: 4,
+    time: 150,
+    wind: 0.62,
+    reinforce: 6.0,
+    friend: [57, 19],
+    types: ['normal', 'pup', 'fast'],
+    fog: '#9aa8ad',
+    fogNear: 12,
+    fogFar: 68,
+    sun: '#e8d9c0',
+    sunIntensity: 1.35,
+    ambient: 0.52,
+    sky: ['#8b9aa4', '#b6c0c4'],
+    grass: ['#84937a', '#64735f'],
+  },
+  {
+    name: '群狐来袭',
+    brief: '六只围攻，蓄满按 K 清出空间',
+    count: 6,
+    speed: 9.4,
+    goal: 7,
+    repels: 5,
+    time: 160,
+    wind: 0.6,
+    reinforce: 5.7,
+    friend: [57, 19],
+    types: ['normal', 'pup', 'fast', 'heavy'],
+    lureBias: 1.2,
+    sky: ['#a99a78', '#d8c79a'],
+    grass: ['#a39877', '#827c62'],
+    fog: '#a89a7c',
+    sun: '#ffd79a',
+    sunIntensity: 1.8,
+    ambient: 0.36,
+  },
+  {
+    // 新机制：阵风。周期性横风会推动玩家，冲刺距离与躲闪窗口都被改变，
+    // 迫使玩家"顺着风躲"而不是原地按键。
+    name: '风口疾行',
+    brief: '横风会推着你走，躲闪要顺着风借力',
+    count: 5,
+    speed: 10.2,
+    goal: 7,
+    repels: 5,
+    time: 165,
+    wind: 0.56,
+    reinforce: 5.4,
+    friend: [60, 22],
+    types: ['fast', 'fast', 'normal', 'heavy'],
+    windGust: 7.5,
+    lureBias: 1.1,
+    sky: ['#9db4c0', '#cfd9d6'],
+    grass: ['#8fa87e', '#6c8562'],
+    fog: '#a3b4b8',
+    sun: '#e6f0ea',
+    sunIntensity: 1.7,
+    ambient: 0.44,
+  },
+  {
+    // 新机制：沙尘。周期性把能见度压到很低，是「雾锁黄昏」的强化版。
+    name: '沙尘掩埋',
+    brief: '沙尘会周期性地吞掉视野，预警线是你唯一的依靠',
+    count: 6,
+    speed: 10.0,
+    goal: 8,
+    repels: 6,
+    time: 175,
+    wind: 0.55,
+    reinforce: 5.2,
+    friend: [58, 26],
+    types: ['normal', 'pup', 'fast', 'heavy'],
+    fog: '#c2ab84',
+    fogNear: 16,
+    fogFar: 110,
+    sandstorm: true,
+    lureBias: 1.4,
+    sky: ['#c9b489', '#e6d5ab'],
+    grass: ['#b09c6c', '#8a7a55'],
+    sun: '#ffe0a8',
+    sunIntensity: 1.55,
+    ambient: 0.5,
+  },
+  {
+    name: '首领围攻',
+    brief: '首领会三段连冲，每段都能修正方向 —— 连续躲三次',
+    count: 8,
+    speed: 10.6,
+    goal: 8,
+    repels: 7,
+    time: 190,
+    wind: 0.54,
+    reinforce: 5,
+    friend: [58, 26],
+    boss: true,
+    types: ['normal', 'pup', 'fast', 'heavy', 'boss'],
+    lureBias: 1.2,
+    sky: ['#6f8087', '#aeb9b6'],
+    grass: ['#839286', '#596d69'],
+    fog: '#75858a',
+    sun: '#dfe8ee',
+    sunIntensity: 1.65,
+    ambient: 0.45,
+  },
+  {
+    name: '逆风回巢',
+    brief: '强阵风会持续改变走位，先稳住方向再处理疾行狐',
+    count: 6,
+    speed: 10.4,
+    goal: 7,
+    repels: 5,
+    time: 170,
+    wind: 0.56,
+    reinforce: 5.2,
+    friend: [56, 27],
+    types: ['fast', 'normal', 'fast', 'heavy'],
+    windGust: 11,
+    sky: ['#84979c', '#c6d0c2'],
+    grass: ['#899876', '#64745e'],
+    fog: '#91a19b', sun: '#e8e2c8', sunIntensity: 1.65, ambient: 0.43,
+  },
+  {
+    name: '浓雾伏击',
+    brief: '低能见度中厚皮狐会绕行虚晃，靠预警线判断出手时机',
+    count: 7,
+    speed: 10.6,
+    goal: 8,
+    repels: 6,
+    time: 180,
+    wind: 0.58,
+    reinforce: 5.0,
+    friend: [59, 24],
+    types: ['heavy', 'normal', 'fast', 'heavy', 'pup'],
+    fog: '#879494', fogNear: 8, fogFar: 54,
+    lureBias: 1.65,
+    sky: ['#77868a', '#a6b2af'],
+    grass: ['#798775', '#596857'],
+    sun: '#d5dfd7', sunIntensity: 1.35, ambient: 0.5,
+  },
+  {
+    name: '沙暴突围',
+    brief: '沙尘与横风交替出现，利用平静窗口采食、救援并拉开距离',
+    count: 7,
+    speed: 10.8,
+    goal: 8,
+    repels: 6,
+    time: 185,
+    wind: 0.58,
+    reinforce: 4.8,
+    friend: [58, 29],
+    types: ['fast', 'pup', 'normal', 'heavy', 'fast'],
+    fog: '#b9a27c', fogNear: 14, fogFar: 96,
+    sandstorm: true, windGust: 6.5, lureBias: 1.25,
+    sky: ['#b9a276', '#ddc99d'],
+    grass: ['#a3956a', '#7c7354'],
+    sun: '#f1d19a', sunIntensity: 1.5, ambient: 0.48,
+  },
+  {
+    name: '草原守望者',
+    brief: '最终考验：首领连冲、疾行狐与沙尘同时施压，保住伙伴并回洞',
+    count: 9,
+    speed: 11.2,
+    goal: 9,
+    repels: 8,
+    time: 205,
+    wind: 0.58,
+    reinforce: 4.6,
+    friend: [60, 28],
+    boss: true,
+    types: ['normal', 'pup', 'fast', 'heavy', 'fast', 'boss'],
+    fog: '#9a9582', fogNear: 15, fogFar: 105,
+    sandstorm: true, windGust: 7.5, lureBias: 1.4,
+    sky: ['#777e7b', '#b5b4a5'],
+    grass: ['#888d72', '#5d6b58'],
+    sun: '#e8d5ad', sunIntensity: 1.5, ambient: 0.46,
+  },
+];
+
+/** 关卡的子类（未显式指定 types 时按索引推断，保持旧关卡兼容） */
+export function typesForLevel(index) {
+  const cfg = LEVELS[index];
+  if (cfg && cfg.types && cfg.types.length) return cfg.types;
+  const pool = ['normal'];
+  if (index >= 1) pool.push('fast');
+  if (index >= 2) pool.push('heavy');
+  if (index >= 3) pool.push('pup');
+  return pool;
+}
+
+// 浆果与藏狐刷新点位（米制，绕开洞穴）
+export const BERRY_POINTS = [
+  [-28, -24], [-14, 8], [-4, -32], [10, 20], [30, 12], [44, -24],
+  [32, 30], [16, -18], [-22, 26], [4, 0], [50, 28], [-34, -6],
+];
+
+export const SPAWN_POINTS = [
+  [50, -28], [46, 30], [26, -32], [56, 4], [22, 32], [38, -18],
+  [-8, 34], [0, -34],
+];
+
+// 岩石障碍物（圆形碰撞体）
+export const ROCKS = [
+  [-20, -14, 3.4], [8, 26, 4.1], [34, -8, 3.0], [-30, 16, 3.6],
+  [18, -26, 2.7], [42, 20, 3.3], [-2, 34, 3.8], [26, 34, 2.4],
+  [-44, -26, 4.4], [50, -14, 3.2], [-36, -34, 3.6], [12, -6, 2.2],
+];
+
+/**
+ * 运行时点位缩放（GS 全场景用）。
+ *
+ * 需求是"放大地图 + 缩小原先活动范围来适配原先大小"。
+ * 上面的点位/边界常量都被多个模块静态 import，无法直接改，
+ * 所以这里维护一个**运行时缩放系数**，并把所有"读点位"的地方
+ * 统一走 scalePoint()。
+ *
+ * 稳定版系数为 1，行为与原来完全一致。
+ */
+const POINT_SCALE = { k: 1, cx: 0, cz: 0 };
+
+/**
+ * 设置点位缩放。
+ * @param k    线性缩放系数（1 = 原样）
+ * @param cx   缩放中心（目标范围的中心，米）
+ * @param cz   同上
+ */
+export function setPointScale(k, cx = 0, cz = 0) {
+  POINT_SCALE.k = k;
+  POINT_SCALE.cx = cx;
+  POINT_SCALE.cz = cz;
+}
+export function getPointScale() { return POINT_SCALE.k; }
+
+/** 把一个点位按缩放系数与中心映射到新的活动范围 */
+export function scalePoint(p) {
+  const { k, cx, cz } = POINT_SCALE;
+  if (k === 1) return p;
+  return [cx + p[0] * k, cz + p[1] * k];
+}
+
+/** 供需要原点坐标的场合（如洞穴位置）使用 */
+export function scaleCoord(v, axis) {
+  const { k, cx, cz } = POINT_SCALE;
+  if (k === 1) return v;
+  return (axis === 'x' ? cx : cz) + v * k;
+}
+
+/** 半径只做线性缩放，不受中心影响 */
+export function scaleRadius(r) {
+  return r * POINT_SCALE.k;
+}
+
+/** 活动范围半宽/半高（缩放后） */
+export function fieldHalf() {
+  return { hw: FIELD_W / 2 * POINT_SCALE.k, hh: FIELD_H / 2 * POINT_SCALE.k };
+}
+
+/**
+ * 玩家移动边界（缩放后，含场外缓冲）。
+ * 稳定版与历史值 FIELD_W/2+12、FIELD_H/2+12 完全一致；
+ * GS 版缓冲随系数同比缩小，避免边界超出可行走高度场过多。
+ */
+export function moveBounds(pad = 12) {
+  const k = POINT_SCALE.k;
+  return { hw: (FIELD_W / 2 + pad) * k, hh: (FIELD_H / 2 + pad) * k };
+}
+
+/**
+ * 藏狐游荡/逃跑判定边界（缩放后）。
+ * 历史值写死 ±74 / ±44（略大于内场 ±65 / ±39），这里按同一比例缩放，
+ * 否则 GS 版狐狸会跑出缩小后的活动场、增援判定也会失真。
+ */
+export function roamBounds() {
+  const k = POINT_SCALE.k;
+  return { hw: 74 * k, hh: 44 * k };
+}

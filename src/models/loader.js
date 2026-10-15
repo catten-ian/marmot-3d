@@ -1,0 +1,361 @@
+/**
+ * 真实模型加载器（含分级回退）。
+ *
+ * 为什么要分级回退：真实模型是"锦上添花"，游戏逻辑不能因为它挂掉。
+ * 加载失败的原因在真实环境里很常见：
+ *   · 网络/服务器问题（404、传输中断、缓存过期）
+ *   · 浏览器解码能力不足（部分环境 HTMLImage 解码失败，只能走 ImageBitmap）
+ *   · GLB 格式不合规（自己写的打包脚本出错，chunk 长度或 accessor 偏移算错）
+ *   · WebGL 上下文丢失后重建，贴图变成空
+ *
+ * 回退阶梯（逐级降级，每一级都保证"游戏能跑且看起来正常"）：
+ *   L0 完整模型（几何 + 贴图）
+ *   L1 仅几何（贴图解码失败 → 用顶点色/纯色）
+ *   L2 程序化建模（GLB 完全不可用）
+ *
+ * 状态通过 getModelStatus() 暴露，UI 可显示当前处于哪一级，
+ * 这样"模型没加载出来"时玩家/开发者能立刻知道原因，
+ * 而不是看到一只没有毛色的狐狸却不知道发生了什么。
+ */
+
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const loader = new GLTFLoader();
+
+/** url -> { level, scene, error, geomOnly } */
+const cache = new Map();
+/** 全局统计，供 UI 展示 */
+const STATUS = {
+  marmot: { level: 'pending', error: null, tris: 0, textured: false },
+  fox: { level: 'pending', error: null, tris: 0, textured: false },
+};
+
+export function getModelStatus() {
+  return JSON.parse(JSON.stringify(STATUS));
+}
+
+/**
+ * 贴图是否真的解码成功。
+ * 不能只看"有没有 map"，必须验证 image 有有效尺寸 ——
+ * 解码失败时 three.js 会留下一个 width/height 为 0 的空 texture，
+ * 渲染结果是纯白/纯黑，很容易被误判成"加载成功"。
+ */
+function textureUsable(tex) {
+  if (!tex) return false;
+  const img = tex.image;
+  if (!img) return false;
+  const w = img.width || img.videoWidth || img.naturalWidth || 0;
+  const h = img.height || img.videoHeight || img.naturalHeight || 0;
+  return w > 1 && h > 1;
+}
+
+/**
+ * 强制所有材质双面渲染。
+ *
+ * 为什么运行时也要做（而不是只靠 GLB 里的 doubleSided）：
+ *   摄影测量网格经顶点聚类简化后，三角形绕序会**一半朝内、一半朝外**
+ *   （实测藏狐 49.8% / 50.2%）。默认背面剔除会剔掉约一半的面，
+ *   模型渲染成破碎的空壳 —— 在贴地第一人称视角下几乎完全看不见，
+ *   而**属性检查全部"正常"**（visible=true、包围盒合理、贴图有像素）。
+ *   这类"数据对、画面空"的问题只有靠双面渲染才能兜住。
+ *
+ * 代价：不过滤背面，填充率略高。对这两个模型（1.5~2 万面）完全可接受。
+ */
+function forceDoubleSided(root) {
+  let n = 0;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const one = (m) => {
+      if (!m) return m;
+      if (!m.side || m.side !== THREE_DoubleSide) {
+        m.side = THREE_DoubleSide;
+        m.needsUpdate = true;
+        n++;
+      }
+      return m;
+    };
+    if (Array.isArray(o.material)) o.material = o.material.map(one);
+    else o.material = one(o.material);
+  });
+  return n;
+}
+
+/** THREE.DoubleSide 的数值（避免在此文件顶层再 import 一次 three 造成循环依赖） */
+const THREE_DoubleSide = 2;
+
+/** 剥离无法解码的贴图，退到纯色材质（用顶点色，没有就中性灰） */
+function stripTextures(root, label) {
+  let stripped = 0;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const one = (m) => {
+      if (!m) return m;
+      if (!textureUsable(m.map)) {
+        if (m.map) {
+          m.map.dispose();
+          stripped++;
+        }
+        m.map = null;
+        m.needsUpdate = true;
+      }
+      // 粗糙度/金属度贴图同理
+      for (const k of ['roughnessMap', 'metalnessMap', 'normalMap', 'emissiveMap', 'aoMap']) {
+        if (m[k] && !textureUsable(m[k])) { m[k] = null; m.needsUpdate = true; }
+      }
+      // 贴图没了，用顶点色兜底（摄影测量模型一般有顶点色）
+      if (!m.map && m.color) {
+        m.color.set(0x9a8f78);
+      }
+      return m;
+    };
+    if (Array.isArray(o.material)) o.material = o.material.map(one);
+    else o.material = one(o.material);
+  });
+  if (stripped) console.warn(`[models] ${label}: ${stripped} 张贴图无法解码，已退到纯色材质`);
+  return stripped;
+}
+
+/** 统计三角面数（用于状态展示） */
+function countTris(root) {
+  let tris = 0;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const idx = o.geometry.index;
+    tris += (idx ? idx.count : o.geometry.attributes.position.count) / 3;
+  });
+  return Math.round(tris);
+}
+
+/**
+ * 加载模型。**永远 resolve**，失败时 resolve(null)。
+ *
+ * @returns Promise<{scene: Object3D, level: string, textured: boolean}|null>
+ */
+export function loadModel(url, key = '') {
+  if (cache.has(url)) return cache.get(url);
+
+  const p = new Promise((resolve) => {
+    // 加超时：有些环境下 loader 既不报错也不回调，会永久挂起
+    let settled = false;
+    let timedOut = false; // 超时后迟到的成功回调不得再把 STATUS 改回成功态
+    const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+
+    const timer = setTimeout(() => {
+      console.warn('[models] 加载超时（15s），回退到程序化建模:', url);
+      timedOut = true;
+      if (key && STATUS[key]) { STATUS[key].level = 'timeout'; STATUS[key].error = '15s 无响应'; }
+      done(null);
+    }, 15000);
+
+    loader.load(
+      url,
+      (gltf) => {
+        clearTimeout(timer);
+        const root = gltf.scene;
+        if (timedOut) {
+          // 15s 超时已让调用方回退程序化；模型只是迟到了。
+          // 绝不能再把 STATUS 从 'timeout' 改回 'full'，否则状态与实际渲染不符。
+          console.warn('[models] 模型在超时后才到达，已忽略其成功状态:', url);
+          done(null);
+          return;
+        }
+        if (!root) {
+          if (key && STATUS[key]) { STATUS[key].level = 'empty'; STATUS[key].error = '场景为空'; }
+          done(null);
+          return;
+        }
+
+        // —— L1 判定：贴图是否可用 ——
+        let textured = false;
+        root.traverse((o) => {
+          if (!o.isMesh) return;
+          const ms = Array.isArray(o.material) ? o.material : [o.material];
+          for (const m of ms) if (m && textureUsable(m.map)) textured = true;
+        });
+        if (!textured) {
+          stripTextures(root, key || url);
+        }
+
+        const tris = countTris(root);
+        if (tris < 8) {
+          // 几何体是空的 —— 视为不可用，走程序化
+          console.warn(`[models] ${url} 几何体为空（${tris} 面），回退`);
+          if (key && STATUS[key]) { STATUS[key].level = 'empty-geometry'; STATUS[key].error = `${tris} 面`; }
+          done(null);
+          return;
+        }
+
+        // 强制双面渲染（详见 forceDoubleSided 的注释）——
+        // 单面渲染下简化后的摄影测量网格会渲染成空壳，画面上完全看不见。
+        const dblSided = forceDoubleSided(root);
+        if (dblSided) {
+          console.info(`[models] ${key || url}: ${dblSided} 个材质已设为双面渲染` +
+            '（简化后的摄影测量网格绕序不一致，单面会渲染成空壳）');
+        }
+
+        const level = textured ? 'full' : 'geometry-only';
+        if (key && STATUS[key]) {
+          STATUS[key].level = level;
+          STATUS[key].error = null;
+          STATUS[key].tris = tris;
+          STATUS[key].textured = textured;
+        }
+        console.info(`[models] ${key || url} 加载成功 [${level}] ${tris.toLocaleString()} 面`);
+        done({ scene: root, level, textured, tris });
+      },
+      undefined,
+      (err) => {
+        clearTimeout(timer);
+        const msg = (err && (err.message || err.type)) || String(err);
+        console.warn('[models] 加载失败，回退到程序化建模:', url, msg);
+        // 超时已先落 'timeout'，迟到的 error 不覆盖，保持状态与已发生的回退一致
+        if (!timedOut && key && STATUS[key]) { STATUS[key].level = 'failed'; STATUS[key].error = msg; }
+        done(null);
+      },
+    );
+  });
+
+  cache.set(url, p);
+  return p;
+}
+
+/**
+ * 取模型的一个独立实例（深拷贝材质，避免共享导致的染色冲突）。
+ * 失败返回 null —— 调用方负责切回程序化建模。
+ */
+export async function instantiate(url, key = '') {
+  const rec = await loadModel(url, key);
+  if (!rec) return null;
+  const clone = rec.scene.clone(true);
+  clone.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = false;
+    // 深拷贝材质：不同个体的染色（如首领偏深）互不影响
+    if (Array.isArray(o.material)) o.material = o.material.map((m) => m.clone());
+    else if (o.material) o.material = o.material.clone();
+    // clone 后再确认一次双面 —— 材质深拷贝不会丢 side，
+    // 但若外部传入的 GLB 没有 doubleSided，这里是最后一道保险。
+    const one = (m) => { if (m) { m.side = THREE_DoubleSide; m.needsUpdate = true; } return m; };
+    if (Array.isArray(o.material)) o.material = o.material.map(one);
+    else o.material = one(o.material);
+  });
+  clone.userData.level = rec.level;
+  clone.userData.textured = rec.textured;
+  return clone;
+}
+
+/**
+ * 预加载：并行拉取模型，避免首次出现时才卡顿。
+ * 用 allSettled —— 任何一个失败都不该影响另一个，更不该影响游戏。
+ */
+export function preloadModels(baseUrl = './assets/models/') {
+  const marmot = loadModel(`${baseUrl}marmot.glb`, 'marmot');
+  const fox = loadModel(`${baseUrl}fox.glb`, 'fox');
+  // 以全局 STATUS 为准：它能区分 full / geometry-only / timeout / failed / empty，
+  // 仅看 promise 值会把"超时后 resolve(null)"和"真失败"都笼统报成 failed。
+  return Promise.allSettled([marmot, fox]).then(() => ({
+    marmot: STATUS.marmot.level,
+    fox: STATUS.fox.level,
+  }));
+}
+
+/**
+ * 贴图/GPU 上下文丢失后重新验证已缓存模型的贴图是否仍可用。
+ * 遍历已 resolve 的缓存，剥离解码尺寸为 0 的失效贴图（退纯色），
+ * 返回被剥离的贴图数量。异步：缓存里是 promise，需要 await。
+ */
+export async function revalidateTextures() {
+  let bad = 0;
+  for (const [url, p] of cache) {
+    let rec;
+    try { rec = await p; } catch { continue; }
+    if (!rec || !rec.scene) continue;
+    // stripTextures 遍历并剥离解码尺寸为 0 的失效贴图，返回剥离数量
+    const stripped = stripTextures(rec.scene, url);
+    if (stripped > 0 && rec.textured) {
+      bad += stripped;
+      rec.textured = false;
+      rec.level = 'geometry-only';
+      const key = url.includes('marmot') ? 'marmot' : url.includes('fox') ? 'fox' : '';
+      if (key && STATUS[key]) { STATUS[key].level = 'geometry-only'; STATUS[key].textured = false; }
+    }
+  }
+  return bad;
+}
+
+/**
+ * 把摄影测量模型摆正：脚底在 y=0、面朝 +Z、高度归一到 targetHeight。
+ *
+ * 层级职责（**必须严格分开**）：
+ *   obj    —— 只承担"摆正"：绕 Z 转 -90°（把源 Y 变成竖直），
+ *             再按摆正后的包围盒把脚底挪到 y=0、水平居中
+ *   inner  —— 只承担"统一高度"（scale）
+ *   wrap   —— 只承担"给调用方一个可整体控制的把手"
+ *   this.mesh（外部容器）—— 只承担"类型体型"（cfg.scale）
+ *
+ * ── 为什么必须绕 Z 转 -90°（实测结论）─────────────────────
+ * fox.glb 的原始包围盒是 **X=0.933  Y=0.630  Z=0.609**：
+ * Y 不是最大轴，说明模型是**横躺**的 —— 源坐标的 +Y 其实是"躯干长度方向"。
+ * 实测 6 种候选轴向的归一结果（tools/probe-orient.cjs）：
+ *   A 原样          → 1.480 × 1.000 × 0.966   长/宽=1.53  ❌ 横躺
+ *   B 绕X转         → 1.532 × 1.000 × 1.035   长/宽=1.48  ❌ 横躺
+ *   **C 绕Z转 -90°  → 0.676 × 1.000 × 0.653**  高/宽=1.53  ✅ 四足动物躯干比例
+ *   D/E             → 0.676 × 1.000 × 0.653   同上
+ * 正确的狐狸应该是"高≈长、宽最窄"的躯干，所以选 **绕 Z 转 -90°**。
+ *
+ * 历史 bug（本次修复）：之前没转轴向，直接把横躺的模型归一，
+ * 结果 `1.48 × 1.0 × 0.97` 的一坨肉块躺在地上 ——
+ * 属性检查（visible / 包围盒非零 / 贴图有效）全都"正常"，
+ * 但视觉上完全不是狐狸。**这说明属性验证不足以判断模型可用性，必须看画面。**
+ *
+ * marmot.glb 的原始包围盒是 X=0.535 Y=0.897 Z=0.720，Y 是最大轴，
+ * 说明土拨鼠本来就是**正立**的，不该转 —— 所以要按模型分别处理。
+ */
+export function normalizeModel(obj, targetHeight = null, opts = {}) {
+  // upAxis: 'z' = 源 Z 是竖直（不转）；'y' = 源 Y 是竖直（绕 Z 转 -90°）
+  const { upAxis = 'y' } = opts;
+
+  // 1) 摆正：把"躯干长度方向"转为竖直
+  if (upAxis === 'y') {
+    obj.rotation.set(0, 0, -Math.PI / 2);
+  }
+  obj.updateMatrixWorld(true);
+
+  // 2) 再按**摆正后**的包围盒把脚底挪到 y=0、水平居中
+  //    顺序不可颠倒：rotation 绕自身原点，先平移后旋转会让平移量跟着转。
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  obj.position.set(-center.x, -box.min.y, -center.z);
+  obj.updateMatrixWorld(true);
+
+  // 3) 统一高度：只改 inner 的 scale
+  //    用 size.y（**世界竖直方向**）而不是"最大轴" —— 最大轴可能是躯干长度。
+  const inner = new THREE.Group();
+  inner.add(obj);
+  let appliedScale = 1;
+  if (targetHeight && size.y > 0.0001) {
+    appliedScale = targetHeight / size.y;
+    inner.scale.setScalar(appliedScale);
+  }
+
+  const wrap = new THREE.Group();
+  wrap.add(inner);
+
+  return {
+    wrap,
+    size,
+    center,
+    appliedScale,
+    height: size.y * appliedScale,
+    debug: {
+      upAxis,
+      srcSize: [+size.x.toFixed(3), +size.y.toFixed(3), +size.z.toFixed(3)],
+      objScale: obj.scale.x, innerScale: inner.scale.x, wrapScale: wrap.scale.x,
+    },
+  };
+}

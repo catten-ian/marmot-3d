@@ -1,0 +1,673 @@
+{
+  "base": "http://127.0.0.1:8123/index.html?models=off",
+  "runMode": "procedural-fallback",
+  "generatedAt": "2026-10-15T01:40:29.938Z",
+  "progression": {
+    "clearMode": "levelclear",
+    "unlocked": 1,
+    "nextLevel": 1,
+    "count": 12,
+    "seasons": [
+      "早春",
+      "晚春",
+      "初夏",
+      "夏末",
+      "冬眠前",
+      "早春",
+      "晚春",
+      "初夏",
+      "夏末",
+      "冬眠前",
+      "早春",
+      "晚春"
+    ],
+    "levelDataValid": true
+  },
+  "results": [
+    {
+      "name": "title",
+      "width": 1280,
+      "height": 720,
+      "canvas": [
+        1280,
+        720
+      ],
+      "canvasRect": [
+        1280,
+        720
+      ],
+      "visibleUi": [
+        "overlay"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "title",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": 0,
+          "rightZ": 0,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "title-narrow",
+      "width": 390,
+      "height": 844,
+      "canvas": [
+        390,
+        844
+      ],
+      "canvasRect": [
+        390,
+        844
+      ],
+      "visibleUi": [
+        "overlay"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "title",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": 0,
+          "rightZ": 0,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "level-select",
+      "width": 1280,
+      "height": 720,
+      "canvas": [
+        1280,
+        720
+      ],
+      "canvasRect": [
+        1280,
+        720
+      ],
+      "visibleUi": [
+        "overlay"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "title",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "",
+        "levelCount": 12,
+        "levelOptions": 12,
+        "lockedOptions": 11,
+        "levelBackVisible": true,
+        "paws": {
+          "leftZ": 0,
+          "rightZ": 0,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "level-select-narrow",
+      "width": 390,
+      "height": 844,
+      "canvas": [
+        390,
+        844
+      ],
+      "canvasRect": [
+        390,
+        844
+      ],
+      "visibleUi": [
+        "overlay"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "title",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "",
+        "levelCount": 12,
+        "levelOptions": 12,
+        "lockedOptions": 11,
+        "levelBackVisible": true,
+        "paws": {
+          "leftZ": 0,
+          "rightZ": 0,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "play",
+      "width": 1280,
+      "height": 720,
+      "canvas": [
+        1280,
+        720
+      ],
+      "canvasRect": [
+        1280,
+        720
+      ],
+      "visibleUi": [
+        "hudTop",
+        "hud-left",
+        "hud-right",
+        "crosshair"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "play",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "第 1 / 12 关 · 初出洞穴学会爆发与反击剩余 114 秒 · 位置：洞穴内（安全）",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": -0.045,
+          "rightZ": -0.045,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "play-narrow",
+      "width": 390,
+      "height": 844,
+      "canvas": [
+        390,
+        844
+      ],
+      "canvasRect": [
+        390,
+        844
+      ],
+      "visibleUi": [
+        "hudTop",
+        "hud-left",
+        "crosshair"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "play",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "第 1 / 12 关 · 初出洞穴学会爆发与反击剩余 113 秒 · 位置：洞穴内（安全）",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": -0.045,
+          "rightZ": -0.045,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "paws-stand",
+      "width": 1280,
+      "height": 720,
+      "canvas": [
+        1280,
+        720
+      ],
+      "canvasRect": [
+        1280,
+        720
+      ],
+      "visibleUi": [
+        "hudTop",
+        "hud-left",
+        "hud-right",
+        "crosshair"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "play",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "第 1 / 12 关 · 初出洞穴学会爆发与反击剩余 111 秒 · 位置：洞穴内（安全）",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": -0.045,
+          "rightZ": -0.045,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "paws-run",
+      "width": 1280,
+      "height": 720,
+      "canvas": [
+        1280,
+        720
+      ],
+      "canvasRect": [
+        1280,
+        720
+      ],
+      "visibleUi": [
+        "hudTop",
+        "hud-left",
+        "hud-right",
+        "crosshair"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "play",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "第 1 / 12 关 · 初出洞穴学会爆发与反击剩余 110 秒 · 位置：洞穴内（安全）",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": 0.002,
+          "rightZ": -0.092,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "paws-run-narrow",
+      "width": 390,
+      "height": 844,
+      "canvas": [
+        390,
+        844
+      ],
+      "canvasRect": [
+        390,
+        844
+      ],
+      "visibleUi": [
+        "hudTop",
+        "hud-left",
+        "crosshair"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "play",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "第 1 / 12 关 · 初出洞穴学会爆发与反击剩余 109 秒 · 位置：洞穴内（安全）",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": -0.025,
+          "rightZ": -0.065,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "fox-closeup",
+      "width": 1280,
+      "height": 720,
+      "canvas": [
+        1280,
+        720
+      ],
+      "canvasRect": [
+        1280,
+        720
+      ],
+      "visibleUi": [
+        "hudTop",
+        "hud-left",
+        "hud-right",
+        "crosshair"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "play",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "第 1 / 12 关 · 初出洞穴学会爆发与反击剩余 108 秒 · 位置：洞穴内（安全）",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": -0.007,
+          "rightZ": -0.083,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "pause",
+      "width": 1280,
+      "height": 720,
+      "canvas": [
+        1280,
+        720
+      ],
+      "canvasRect": [
+        1280,
+        720
+      ],
+      "visibleUi": [
+        "overlay"
+      ],
+      "overlaps": [],
+      "sheetOpen": false,
+      "hudOpacity": "1",
+      "panelFits": true,
+      "info": {
+        "mode": "pause",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "第 2 / 12 关 · 双翼包抄疾行狐蓄力极短就冲，靠拉开距离比靠反应更快剩余 125 秒 · 位置：洞穴内（安全）",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": 0,
+          "rightZ": -0.09,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    },
+    {
+      "name": "settings",
+      "width": 1280,
+      "height": 720,
+      "canvas": [
+        1280,
+        720
+      ],
+      "canvasRect": [
+        1280,
+        720
+      ],
+      "visibleUi": [
+        "hudTop",
+        "hud-left",
+        "hud-right",
+        "crosshair",
+        "setSheet"
+      ],
+      "overlaps": [
+        [
+          "hudTop",
+          "setSheet",
+          24783
+        ],
+        [
+          "hud-right",
+          "setSheet",
+          19453
+        ]
+      ],
+      "sheetOpen": true,
+      "hudOpacity": "0.12",
+      "panelFits": true,
+      "info": {
+        "mode": "pause",
+        "foxes": [
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          },
+          {
+            "real": false,
+            "realVisible": false,
+            "proc": true,
+            "level": "procedural"
+          }
+        ],
+        "content": "第 2 / 12 关 · 双翼包抄疾行狐蓄力极短就冲，靠拉开距离比靠反应更快剩余 125 秒 · 位置：洞穴内（安全）",
+        "levelCount": 12,
+        "levelOptions": 0,
+        "lockedOptions": 0,
+        "levelBackVisible": false,
+        "paws": {
+          "leftZ": 0.016,
+          "rightZ": -0.106,
+          "forwardFacing": true,
+          "clawsExtendPastPalm": true,
+          "armsVisible": true,
+          "groundedPose": true
+        }
+      }
+    }
+  ],
+  "consoleErrors": [],
+  "pass": true
+}

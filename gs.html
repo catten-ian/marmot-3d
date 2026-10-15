@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>土拨鼠大作战 · 高斯泼溅版（WebGPU）</title>
+<link rel="icon" href="./assets/favicon.ico" sizes="48x48">
+<link rel="icon" href="./assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="./assets/favicon-192.png">
+<meta name="theme-color" content="#101a15">
+<link rel="stylesheet" href="./gs.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.js",
+    "three/webgpu": "./vendor/three.webgpu.js",
+    "three/tsl": "./vendor/three.tsl.js",
+    "three/addons/": "./vendor/addons/"
+  }
+}
+</script>
+</head>
+<body>
+
+<canvas id="view"></canvas>
+
+<!-- 能力检测 / 不支持提示 -->
+<div id="gate" class="gate hidden">
+  <div class="gate-card">
+    <div class="gate-icon" id="gateIcon">⚠</div>
+    <h2 id="gateTitle">正在检测 WebGPU…</h2>
+    <p id="gateMsg">高斯泼溅需要 WebGPU。本版本与 WebGL 版完全独立，不支持时不会影响主游戏。</p>
+    <div id="gateDetail" class="gate-detail"></div>
+    <div class="gate-actions">
+      <a class="btn primary" href="./index.html">回到 WebGL 主版本</a>
+      <button class="btn" id="gateRetry" type="button">重新检测</button>
+    </div>
+  </div>
+</div>
+
+<!-- 加载进度 -->
+<div id="boot" class="boot">
+  <div class="boot-inner">
+    <div class="boot-title">土拨鼠大作战</div>
+    <div class="boot-sub">高斯泼溅版 · WebGPU</div>
+    <div class="boot-bar"><div class="boot-fill" id="bootFill"></div></div>
+    <div class="boot-step" id="bootStep">初始化渲染器…</div>
+  </div>
+</div>
+
+<!-- 开始面板 -->
+<div id="menu" class="menu hidden">
+  <div class="menu-card">
+    <div class="eyebrow">WEBGPU · GAUSSIAN SPLATTING</div>
+    <h1>草甸深处</h1>
+    <p class="menu-lead">
+      这一版把你扫描的<b>真实摄影测量场景</b>直接铺进脚下 ——
+      98 万个高斯泼溅，带球谐光照，可以走进去。
+    </p>
+    <div class="menu-stats" id="menuStats"></div>
+    <div class="menu-actions">
+      <button class="btn primary" id="btnStart" type="button">进入草甸</button>
+      <button class="btn" id="btnFree" type="button">自由观察</button>
+    </div>
+    <p class="menu-foot">
+      操作：<b>W/S</b> 前后 · <b>A/D</b> 转向 · <b>方向键</b> 横移 · <b>鼠标</b> 视角 · <b>Shift</b> 疾行 · <b>Space</b> 跳 · <b>F</b> 全屏 · <b>Esc</b> 释放鼠标
+    </p>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hud hidden">
+  <div class="hud-left">
+    <div class="stat"><span class="v" id="fps">–</span><span class="l">FPS</span></div>
+    <div class="stat"><span class="v" id="splats">–</span><span class="l">泼溅数</span></div>
+  </div>
+  <div class="hud-hint" id="hudHint">点击画面锁定视角</div>
+  <div class="hud-crosshair" id="crosshair"></div>
+  <div class="hud-mode" id="hudMode">WebGPU</div>
+</div>
+
+<!-- 帮助面板 -->
+<div id="help" class="help hidden">
+  <h3>操作</h3>
+  <table>
+    <tr><td>W / S</td><td>前后移动</td></tr>
+    <tr><td>A / D</td><td>左右转向</td></tr>
+    <tr><td>← / →</td><td>横向移动</td></tr>
+    <tr><td>鼠标</td><td>视角</td></tr>
+    <tr><td>Shift</td><td>疾行</td></tr>
+    <tr><td>Space</td><td>跳跃</td></tr>
+    <tr><td>Q / E</td><td>调整视野高度（贴地 / 站立）</td></tr>
+    <tr><td>F</td><td>全屏</td></tr>
+    <tr><td>H</td><td>显示 / 隐藏本面板</td></tr>
+    <tr><td>Esc</td><td>释放鼠标</td></tr>
+  </table>
+  <button class="btn" id="btnBack" type="button">返回主版本</button>
+</div>
+
+<script type="module" src="./src/gs/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+{
+  "url": "http://127.0.0.1:8123/index.html?version=dev&webgl=1",
+  "mode": "play",
+  "model": {
+    "modelLevel": "geometry-only",
+    "segmented": true,
+    "legCount": 4,
+    "tailCount": 1,
+    "position": [
+      0,
+      -0.018365478515625,
+      -2.8
+    ]
+  },
+  "motion": {
+    "samples": 18,
+    "range": [
+      {
+        "min": -0.618,
+        "max": 0.62
+      },
+      {
+        "min": -0.62,
+        "max": 0.618
+      },
+      {
+        "min": -0.62,
+        "max": 0.618
+      },
+      {
+        "min": -0.618,
+        "max": 0.62
+      }
+    ]
+  },
+  "gait": {
+    "legs": [
+      {
+        "fore": true,
+        "side": 1,
+        "swing": 0.62
+      },
+      {
+        "fore": true,
+        "side": 1,
+        "swing": -0.62
+      },
+      {
+        "fore": false,
+        "side": -1,
+        "swing": -0.62
+      },
+      {
+        "fore": false,
+        "side": -1,
+        "swing": 0.62
+      }
+    ],
+    "frontBackSeparation": 1.24
+  },
+  "idlePose": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "assertions": {
+    "devPlay": true,
+    "fourLegsBound": true,
+    "movingLegsChanged": true,
+    "diagonalGait": true,
+    "noConsoleErrors": true
+  },
+  "consoleErrors": [],
+  "pass": true
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>模型检查台 · Model Inspector</title>
+<style>
+  body { margin: 0; background: #2a2e26; color: #e8e2d0;
+         font-family: "Microsoft YaHei", sans-serif; }
+  #view { display: block; width: 100vw; height: 100vh; }
+  #info { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,.7);
+          padding: 12px 16px; font: 12px/1.7 ui-monospace, Consolas, monospace;
+          border: 1px solid rgba(255,255,255,.15); border-radius: 8px;
+          white-space: pre; z-index: 10; max-width: 44vw; }
+  #tips { position: fixed; bottom: 10px; left: 10px; color: #b8b0a0;
+          font-size: 12px; z-index: 10; }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="info">加载中…</div>
+<div id="tips">拖动左键旋转 · 滚轮缩放 · 右键平移</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const params = new URLSearchParams(location.search);
+const MODEL = params.get('model') || './assets/models/fox.glb';
+const UP_AXIS = params.get('up') || 'y';        // 'y' = 源 Y 是躯干长度（需绕Z转）
+const TARGET_H = parseFloat(params.get('h') || '0.92');
+
+const canvas = document.getElementById('view');
+const info = document.getElementById('info');
+
+// preserveDrawingBuffer: true —— 让 canvas 能被 drawImage / toDataURL 读回，
+// 否则 WebGL 画布在合成后就被丢弃，截图会得到全黑（曾因此误判"模型没渲染"）
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x3a4038);       // 中灰背景，任何颜色都能看清
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
+
+// 三点光：避免单侧光导致模型全黑看不清结构
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const k1 = new THREE.DirectionalLight(0xfff2dd, 2.2); k1.position.set(3, 5, 4);
+const k2 = new THREE.DirectionalLight(0xbfd4ff, 1.1); k2.position.set(-4, 2, -3);
+scene.add(k1, k2);
+
+// 地面网格：直观看出模型是站着还是躺着
+const grid = new THREE.GridHelper(4, 20, 0x808080, 0x505050);
+scene.add(grid);
+
+const loader = new GLTFLoader();
+loader.load(MODEL, (gltf) => {
+  const root = gltf.scene;
+
+  // 摆正
+  if (UP_AXIS === 'y') { root.rotation.set(0, 0, -Math.PI / 2); }
+  root.updateMatrixWorld(true);
+
+  const box0 = new THREE.Box3().setFromObject(root);
+  const size0 = box0.getSize(new THREE.Vector3());
+  const c0 = box0.getCenter(new THREE.Vector3());
+  root.position.set(-c0.x, -box0.min.y, -c0.z);
+  root.updateMatrixWorld(true);
+
+  // 归一到目标高度（用世界竖直方向，不是最大轴）
+  const box1 = new THREE.Box3().setFromObject(root);
+  const sy = box1.max.y - box1.min.y;
+  const wrap = new THREE.Group();
+  const inner = new THREE.Group();
+  wrap.add(inner);
+  inner.add(root);
+  inner.scale.setScalar(TARGET_H / sy);
+  inner.updateMatrixWorld(true);
+  const box2 = new THREE.Box3().setFromObject(wrap);
+  inner.position.y -= box2.min.y;
+  wrap.updateMatrixWorld(true);
+
+  // 关键：强制双面
+  let dbl = 0;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of ms) { if (m) { m.side = THREE.DoubleSide; m.needsUpdate = true; dbl++; } }
+  });
+
+  scene.add(wrap);
+
+  const final = new THREE.Box3().setFromObject(wrap);
+  const fs = final.getSize(new THREE.Vector3());
+  let tris = 0, mats = [];
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const i = o.geometry.index;
+    tris += (i ? i.count : o.geometry.attributes.position.count) / 3;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    mats.push({
+      type: m?.type, side: m?.side,
+      color: m?.color ? '#' + m.color.getHexString() : null,
+      map: m?.map ? [m.map.image?.width, m.map.image?.height] : null,
+      opacity: m?.opacity, transparent: m?.transparent,
+    });
+  });
+
+  info.textContent =
+    '模型: ' + MODEL.split('/').pop() + '\n' +
+    'upAxis: ' + UP_AXIS + '   目标高: ' + TARGET_H + '\n' +
+    '源尺寸: ' + [size0.x, size0.y, size0.z].map(v => v.toFixed(3)).join(' × ') + '\n' +
+    '归一后: ' + [fs.x, fs.y, fs.z].map(v => v.toFixed(3)).join(' × ') + '\n' +
+    '三角面: ' + Math.round(tris).toLocaleString() + '   双面材质数: ' + dbl + '\n' +
+    '长/高 = ' + (fs.x / fs.y).toFixed(2) + (fs.x / fs.y > 1.4 && fs.x / fs.y < 3 ? '  (像四足动物 ✅)' : '  (可疑 ❌)') + '\n' +
+    '材质: ' + JSON.stringify(mats);
+
+  // 控制器
+  const ctrl = { theta: 0.7, phi: 1.1, r: 2.6, tx: 0, ty: 0.4 };
+  let drag = 0, px = 0, py = 0;
+  canvas.addEventListener('mousedown', (e) => { drag = e.button; px = e.clientX; py = e.clientY; });
+  window.addEventListener('mouseup', () => { drag = 0; });
+  window.addEventListener('mousemove', (e) => {
+    if (!drag) return;
+    if (drag === 0) { ctrl.theta -= (e.clientX - px) * 0.008; ctrl.phi -= (e.clientY - py) * 0.008; }
+    else { ctrl.tx -= (e.clientX - px) * 0.004; ctrl.ty -= (e.clientY - py) * 0.004; }
+    ctrl.phi = Math.max(0.15, Math.min(Math.PI - 0.15, ctrl.phi));
+    px = e.clientX; py = e.clientY;
+  });
+  canvas.addEventListener('wheel', (e) => { ctrl.r = Math.max(0.6, Math.min(12, ctrl.r * (1 + Math.sign(e.deltaY) * 0.12))); });
+
+  function frame() {
+    requestAnimationFrame(frame);
+    const r = ctrl.r;
+    camera.position.set(
+      ctrl.tx + r * Math.sin(ctrl.phi) * Math.sin(ctrl.theta),
+      ctrl.ty + r * Math.cos(ctrl.phi),
+      ctrl.tx + r * Math.sin(ctrl.phi) * Math.cos(ctrl.theta)
+    );
+    camera.lookAt(ctrl.tx, ctrl.ty, 0);
+    renderer.render(scene, camera);
+  }
+  frame();
+
+  // 暴露给自动化测试
+  window.__inspect = {
+    info: { srcSize: size0.toArray(), finalSize: fs.toArray(), tris: Math.round(tris), dbl, mats },
+    box: { min: final.min.toArray(), max: final.max.toArray() },
+    setView: (theta, phi, r, ty) => { ctrl.theta = theta; ctrl.phi = phi; ctrl.r = r; if (ty !== undefined) ctrl.ty = ty; },
+  };
+}, undefined, (e) => {
+  info.textContent = '加载失败: ' + (e.message || e);
+  window.__inspect = { error: String(e.message || e) };
+});
+</script>
+</body>
+</html>

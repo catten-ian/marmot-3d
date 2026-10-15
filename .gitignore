@@ -1,0 +1,34 @@
+# ── 未被网页引用的原始摄影测量/建模素材（体积极大，保留在分发包而非 git） ──
+# 网页运行时只使用 assets/models/*.glb 与 assets/splats/*.spz
+/*.glb
+/*.fbx
+/*.ply
+/*.spz
+/*.png
+/*.jpg
+/*.jpeg
+/third-person-check.png
+/shot*.png
+
+# 但保留 assets/ 下实际被引用的模型与图标
+!assets/**
+!favicon.ico
+
+# ── Windows 启动器：编译产物与第三方 TCC 工具链（不入库） ──
+launcher/marmot-server.exe
+launcher/tcc/
+*.obj
+*.o
+*.lib
+*.dll
+*.exp
+*.pdb
+
+# ── Python 缓存 ──
+__pycache__/
+*.pyc
+
+# ── 系统/编辑器杂项 ──
+.DS_Store
+Thumbs.db
+*.log

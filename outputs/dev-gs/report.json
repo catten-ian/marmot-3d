@@ -1,0 +1,35 @@
+{
+  "url": "http://127.0.0.1:8123/index.html?version=dev&webgl=1",
+  "generatedAt": "2026-10-15T04:58:04.667Z",
+  "initial": {
+    "ready": true,
+    "dev": true,
+    "backend": "WebGL2 兜底（非 WebGPU）",
+    "rendererBackend": "webgl2",
+    "gsPresent": true,
+    "gsVisible": true,
+    "terrainVisible": false,
+    "hillsVisible": false,
+    "heightFieldActive": true,
+    "heightAtStart": -0.018365478515625,
+    "playerY": -0.018365478515625
+  },
+  "playState": {
+    "mode": "play"
+  },
+  "state": {
+    "mode": "play",
+    "heightFieldActive": true,
+    "position": [
+      -39.87692307692308,
+      -0.018365478515625,
+      1.6615384615384616
+    ],
+    "sceneChildren": [
+      "gsWorld",
+      "backdrop"
+    ]
+  },
+  "consoleErrors": [],
+  "pass": true
+}
