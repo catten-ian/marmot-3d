@@ -1670,3 +1670,72 @@ body.touch-playing .version-tag { display: none; }
 @media (max-width: 860px) {
   .hud-right { z-index: 24; }
 }
+
+/* HUD 可读性精修：把上方按钮行与状态条完全分层，释放状态条宽度，
+   并让摘要目标维持清楚、可按的触控面积。 */
+@media (max-width: 860px) {
+  .vitals { padding-right: 8px; }
+  .vlabel {
+    font-size: 10.5px;
+    color: #edf4e5;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .95), 0 0 5px rgba(0, 0, 0, .72);
+  }
+  .vlabel span:last-child { font-size: 10px; }
+  .mission { font-size: 11px; line-height: 1.3; }
+  .obj-toggle { min-height: 32px; font-size: 10.5px; }
+  .obj-toggle b { font-size: 10px; }
+}
+@media (max-width: 420px) {
+  .vlabel { font-size: 10px; }
+  .vlabel span:last-child { font-size: 9.5px; }
+  .mission { font-size: 10.5px; }
+  .obj-toggle { min-height: 31px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .mission { max-height: 44px; font-size: 10px; line-height: 1.2; }
+  .obj-toggle { min-height: 29px; font-size: 10px; }
+  .obj-toggle b { font-size: 9.5px; }
+}
+
+/* 关卡提示与季节说明纳入可展开的任务详情，不常驻占据视野。 */
+.obj-hint {
+  display: none;
+  padding: 5px 0 4px;
+  color: #e0e9d4;
+  font-size: 10px;
+  line-height: 1.45;
+  text-shadow: var(--hud-text-shadow);
+}
+.objective.expanded .obj-hint { display: block; }
+.objective.expanded { max-height: min(220px, 40vh); overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 860px) {
+  .mission { max-height: 46px; }
+  .objective.expanded { max-height: min(148px, 26dvh); }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .objective.expanded { max-height: min(150px, 40dvh); }
+}
+
+.touch-help { display: none; }
+.touch-mode .touch-help { display: block; }
+
+/* 摘要任务卡固定为两行：关卡名与实时状态；减少顶部遮挡高度。 */
+.mission { max-height: 46px; line-height: 1.3; }
+
+/* 触控拇指区最后一层微调：扩大按钮间隔，避免误触；关卡卡片在横屏不铺满全宽。 */
+.touch-joystick span {
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.obj-toggle i { margin-left: 2px; }
+@media (max-width: 420px) {
+  .touch-actions { gap: 5px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .touch-actions { gap: 5px; }
+  .mission {
+    width: min(520px, calc(100vw - var(--safe-left) - var(--safe-right) - 24px));
+    justify-self: start;
+  }
+}

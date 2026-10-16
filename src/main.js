@@ -1510,6 +1510,7 @@ document.getElementById('objective')?.addEventListener('click', (event) => {
   toggle.setAttribute('aria-label', expanded ? '收起本关目标' : '展开本关目标');
   const icon = toggle.querySelector('i');
   if (icon) icon.textContent = expanded ? '−' : '+';
+  objective.querySelector('.obj-details')?.setAttribute('aria-hidden', String(!expanded));
 });
 
 // 帮助面板

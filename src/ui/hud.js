@@ -150,9 +150,10 @@ export class HUD {
     this.el.energyText.textContent = Math.round(p.energy) + '/100';
     this.el.stressText.textContent = Math.round(p.stress) + (stats.overloaded ? ' · 过载' : '');
 
+    // Keep only level identity and live status in the always-visible mission
+    // chip. Instructional text stays available in the expanded objective.
     this.el.mission.innerHTML =
       `第 <b>${g.level + 1}</b> / ${LEVELS.length} 关 · ${cfg.name}<br>` +
-      `${cfg.subtitle || cfg.brief || ''}<br>` +
       `${g.freezeTimer ? '测试模式：无时间限制' : `剩余 <b>${Math.ceil(g.time)}</b> 秒`} · 位置：${g.inBurrow ? '<b style="color:#8fe8b0">洞穴内（安全）</b>' : '草地上'}`;
 
     const state = g.overdrive > 0 ? '协同大招'
@@ -191,7 +192,7 @@ export class HUD {
 
   _updateObjective(g, cfg) {
     const f = g.friend;
-    const key = `${g.foodCount}/${g.levelRepels}/${f.rescued}/${f.saved}/${g.bossDown}/${cfg.goal}/${cfg.repels}/${cfg.boss}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
+    const key = `${g.level}/${g.foodCount}/${g.levelRepels}/${f.rescued}/${f.saved}/${g.bossDown}/${cfg.goal}/${cfg.repels}/${cfg.boss}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
     if (key === this._lastObjective) return;
     this._lastObjective = key;
 
@@ -200,9 +201,9 @@ export class HUD {
 
     const expanded = this.el.objective.classList.contains('expanded');
     const toggleLabel = expanded ? '收起本关目标' : '展开本关目标';
-    let html = `<button type="button" class="obj-toggle" aria-expanded="${expanded}" aria-label="${toggleLabel}">`
+    let html = `<button type="button" class="obj-toggle" aria-expanded="${expanded}" aria-controls="objectiveDetails" aria-label="${toggleLabel}">`
       + `<span>本关目标</span><b>采食 ${g.foodCount}/${cfg.goal}</b><i aria-hidden="true">${expanded ? '−' : '+'}</i></button>`;
-    html += '<div class="obj-details">';
+    html += `<div class="obj-details" id="objectiveDetails" aria-hidden="${!expanded}">`;
     // dev 版：采食对象随季节变化，标签应随之改变
     const eatLabel = g.season ? `采食 · ${g.season.season}` : '采食浆果';
     html += row(eatLabel, g.foodCount, cfg.goal);
@@ -212,6 +213,8 @@ export class HUD {
       html += `<div class="obj-row ${g.bossDown ? 'done' : ''}"><span>狐首领</span><b>${g.bossDown ? '已驱退' : '未驱退'}</b></div>`;
     }
     html += `<div class="obj-row ${g.inBurrow ? 'done' : ''}"><span>回洞结算</span><b>${g.inBurrow ? '在洞内' : '未回洞'}</b></div>`;
+    const levelHint = cfg.subtitle || cfg.brief;
+    if (levelHint) html += `<div class="obj-hint">关卡提示：${levelHint}</div>`;
     // dev 版：显示当季说明，把季节性与进食强度联系起来
     if (g.season) {
       html += `<div class="obj-season">${g.season.seasonNote}</div>`;
