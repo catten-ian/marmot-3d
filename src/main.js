@@ -19,10 +19,17 @@ import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
-import { getRenderProfile, isTouchPrimary } from './core/performance.js';
-import { TouchControls } from './core/touch-controls.js';
+import { getRenderProfile, isTouchPrimary } from './core/performance.js?v=m20261016c';
+import { TouchControls } from './core/touch-controls.js?v=m20261016c';
 
-const TOUCH_DEVICE = isTouchPrimary();
+let TOUCH_DEVICE = isTouchPrimary();
+/** 内置浏览器(微信/QQ X5)可能谎报指针能力；首次真实触摸时升级为触屏模式。 */
+function enableTouchRuntime() {
+  if (TOUCH_DEVICE) return;
+  TOUCH_DEVICE = true;
+  try { touchControls?.activate?.(); } catch (_) {}
+  document.body.classList.add('touch-mode');
+}
 
 /** 真实模型加载结果（供调试接口查看） */
 let modelLoadState = null;
@@ -1362,6 +1369,15 @@ touchControls = new TouchControls({
   },
 });
 
+// 运行时兜底：媒体查询/UA 都没识别时，收到真实触摸即启用触控层（capture 最早、不拦截）。
+for (const evName of ['pointerdown', 'touchstart']) {
+  window.addEventListener(evName, (ev) => {
+    if (TOUCH_DEVICE) return;
+    const realTouch = ev.pointerType === 'touch' || ev.pointerType === 'pen' || evName === 'touchstart';
+    if (realTouch) enableTouchRuntime();
+  }, { passive: true, capture: true });
+}
+
 // 不再硬编码键位表：每次按键都查当前方案
 const isBound = (code) => {
   // Enter 不参与键位方案，但用于标题/暂停/通关界面的确认，必须放行
@@ -1486,30 +1502,6 @@ document.addEventListener('visibilitychange', () => {
 // 点击画面重新锁定鼠标
 canvas.addEventListener('click', () => {
   if (!controller.touchEnabled && game.mode === 'play' && !controller.locked) controller.requestLock();
-});
-
-// HUD 详细状态：默认收起战斗明细与状态芯片，按需呼出。
-const hudDetailsBtn = document.getElementById('hudDetailsBtn');
-if (hudDetailsBtn) {
-  hudDetailsBtn.onclick = () => {
-    const open = document.body.classList.toggle('hud-details-open');
-    hudDetailsBtn.setAttribute('aria-expanded', String(open));
-    hudDetailsBtn.textContent = open ? '收起' : '详情';
-    hudDetailsBtn.title = open ? '收起详细状态' : '展开详细状态';
-  };
-}
-
-// 目标摘要点击展开/收起，不抢占中央瞄准与移动区域。
-document.getElementById('objective')?.addEventListener('click', (event) => {
-  const toggle = event.target.closest('.obj-toggle');
-  if (!toggle) return;
-  const objective = toggle.closest('.objective');
-  if (!objective) return;
-  const expanded = objective.classList.toggle('expanded');
-  toggle.setAttribute('aria-expanded', String(expanded));
-  toggle.setAttribute('aria-label', expanded ? '收起本关目标' : '展开本关目标');
-  const icon = toggle.querySelector('i');
-  if (icon) icon.textContent = expanded ? '−' : '+';
 });
 
 // 帮助面板

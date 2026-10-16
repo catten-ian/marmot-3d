@@ -9,7 +9,7 @@
 <link rel="icon" href="./assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="./assets/favicon-192.png">
 <meta name="theme-color" content="#101a15">
-<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="./styles.css?v=m20261016b">
 <script type="importmap">
 { "imports": {
     "three": "./vendor/three.module.js",
@@ -69,7 +69,6 @@
 
 <!-- ========== 左下：战斗数值 ========== -->
 <div class="hud-left">
-  <button class="hud-details-btn" id="hudDetailsBtn" type="button" aria-expanded="false" aria-controls="combatInfo" title="展开详细状态">详情</button>
   <div class="combatbar" id="combatInfo"></div>
   <div class="power-panel">
     <span id="ultimateStatus"></span>
@@ -240,7 +239,7 @@ if (boot.gsWorld) {
 }
 
 window.__boot = boot;
-await import('./src/main.js');
+await import('./src/main.js?v=m20261016c');
 </script>
 </body>
 </html>

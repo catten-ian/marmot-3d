@@ -1,4 +1,4 @@
-import { isTouchPrimary } from './performance.js';
+import { isTouchPrimary } from './performance.js?v=m20261016c';
 
 /** Touch-first input layer. It is only enabled when touch is the primary input. */
 export class TouchControls {
@@ -19,11 +19,23 @@ export class TouchControls {
     this.maxStick = 48;
     this.enabled = isTouchPrimary();
 
-    if (!this.enabled || !root || !lookZone || !joystick || !stick) return;
-    document.body.classList.add('touch-mode');
-    controller.touchEnabled = true;
-    controller.touchAxes = this.move;
+    // 元素缺失则无法工作。
+    if (!root || !lookZone || !joystick || !stick) return;
+    // 始终绑定指针监听：它们只响应真实 touch/pen 指针，桌面鼠标不会触发。
+    // 这样即使内置浏览器(微信/QQ X5)谎报 pointer:fine，用户第一次触摸也能即时激活。
     this._bind();
+    if (this.enabled) this.activate();
+  }
+
+  /** 激活触控模式（幂等）。可由加载时判定或首次真实触摸调用。 */
+  activate() {
+    if (this.enabled) return;
+    this.enabled = true;
+    document.body.classList.add('touch-mode');
+    this.controller.touchEnabled = true;
+    this.controller.touchAxes = this.move;
+    // 触控设备不需要鼠标指针锁定；若此前尝试过锁定则退出，避免抢焦/误暂停。
+    if (document.pointerLockElement) { try { document.exitPointerLock(); } catch (_) {} }
   }
 
   _bind() {
@@ -101,7 +113,9 @@ export class TouchControls {
   }
 
   _isTouchPointer(event) {
-    return event.pointerType === 'touch' || event.pointerType === 'pen';
+    const isTouch = event.pointerType === 'touch' || event.pointerType === 'pen';
+    if (isTouch && !this.enabled) this.activate();
+    return isTouch;
   }
 
   _capture(element, pointerId) {
