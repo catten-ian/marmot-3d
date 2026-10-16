@@ -21,6 +21,9 @@ import { IS_DEV, USE_REAL_FOX_MODEL } from '../core/version.js';
 import { clamp } from '../core/utils.js';
 import { createProceduralFox } from './procedural-fox.js';
 import { foxRecoverySeconds, stepFoxTurn, stepFoxRecovery } from '../core/fox-motion.js';
+/** 手搓程序化狐狸：config 开关，或 beta 用 ?procfox=1 临时启用对比；默认仍走现有模型 */
+const USE_PROCEDURAL_FOX = FOX.useProcedural
+  || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('procfox') === '1');
 /** 真实藏狐模型的基准缩放：让成体在游戏里约 1.0m 高（与土拨鼠同量级） */
 const FOX_MODEL_BASE = 1.05;
 const SEGMENTED_FOX_MODEL = IS_DEV
@@ -148,7 +151,7 @@ export class Fox {
     //   现在两套模型是**兄弟**：藏程序化不影响真实模型。
     this.mesh = new THREE.Group();
     // 可选程序化狐狸保持独立于旧 GLB/L2 回退网格，默认关闭。
-    if (FOX.useProcedural) {
+    if (USE_PROCEDURAL_FOX) {
       this._proceduralFox = createProceduralFox({ color: FOX.proceduralColors[type] ?? FOX.proceduralColors.normal });
       this.proceduralMesh = this._proceduralFox.group;
     } else this.proceduralMesh = buildFoxMesh(type, 1);
@@ -192,7 +195,7 @@ export class Fox {
    // 而日志里看不到任何错误 —— 最难查的一类问题。
    */
   async _loadRealModel() {
-    if (!USE_REAL_FOX_MODEL || FOX.useProcedural) return;
+    if (!USE_REAL_FOX_MODEL || USE_PROCEDURAL_FOX) return;
     try {
       const inst = await instantiateFox();
       if (this._disposed) {
