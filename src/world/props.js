@@ -28,53 +28,60 @@ export class Burrow {
     const y = terrainHeight(pos.x, pos.z);
     this.group.position.set(pos.x, y, pos.z);
 
-    // 土丘：半球压扁（暖褐色，与冷绿草地形成对比，一眼分辨"家"）
-    const moundGeo = new THREE.SphereGeometry(this.r * 0.95, 30, 18, 0, Math.PI * 2, 0, Math.PI / 2);
-    const moundMat = new THREE.MeshStandardMaterial({ color: isBase ? 0xa8814e : 0x687b78, roughness: 1 });
-    const mound = new THREE.Mesh(moundGeo, moundMat);
-    // 只保留入口周围少量挖出土，中央不能再是地表土丘。
-    mound.scale.set(1, 0.16, 1);
-    mound.castShadow = true;
-    mound.receiveShadow = true;
-    this.group.add(mound);
+    // 少量挖出土：只在井口外一圈形成低土环（用 Torus，不再用覆盖洞口的半球土丘）。
+    const spoilGeo = new THREE.TorusGeometry(underground.slopeRadius * 0.96, isBase ? 0.34 : 0.2, 8, 32);
+    spoilGeo.rotateX(Math.PI / 2);
+    const spoilMat = new THREE.MeshStandardMaterial({ color: isBase ? 0x8a6238 : 0x6b7d79, roughness: 1 });
+    const spoil = new THREE.Mesh(spoilGeo, spoilMat);
+    spoil.position.y = 0.06;
+    spoil.scale.y = 0.42;
+    spoil.castShadow = true;
+    spoil.receiveShadow = true;
+    this.group.add(spoil);
 
-    // 洞口：朝 +z 方向开的深色凹坑
-    // 竖井/暗腔：从地表开口向下收缩，给 GS 无法实时挖地形时的近似通道。
+    // 竖井井壁：开口（小，上）→ 腔室（略宽，下），向下扩开。
+    // 从洞内/井口看需要看到内壁，故用 BackSide（看圆柱内表面）。
+    const wallColor = isBase ? 0x2a1c10 : 0x16201f;
     const shaftGeo = new THREE.CylinderGeometry(
-      underground.chamberRadius * 0.82, underground.openingRadius,
-      underground.chamberDepth, 20, 1, true,
+      underground.chamberRadius, underground.openingRadius,
+      underground.chamberDepth, 24, 1, true,
     );
-    const shaftMat = new THREE.MeshStandardMaterial({
-      color: isBase ? 0x21150d : 0x182326, roughness: 1, side: THREE.BackSide,
-    });
+    const shaftMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 1, side: THREE.BackSide });
     const shaft = new THREE.Mesh(shaftGeo, shaftMat);
     shaft.position.y = -underground.chamberDepth * 0.5;
+    shaft.castShadow = false;
+    shaft.receiveShadow = true;
     this.group.add(shaft);
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(underground.chamberRadius * 0.8, 24),
-      new THREE.MeshStandardMaterial({ color: isBase ? 0x120b07 : 0x101719, roughness: 1 }),
-    );
+
+    // 腔室地板
+    const floorGeo = new THREE.CircleGeometry(underground.chamberRadius, 28);
+    const floorMat = new THREE.MeshStandardMaterial({ color: isBase ? 0x3a2817 : 0x1a2423, roughness: 1 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -underground.chamberDepth + 0.04;
+    floor.position.y = -underground.chamberDepth + 0.02;
+    floor.receiveShadow = true;
     this.group.add(floor);
     this.shaft = shaft;
 
-    // 洞口土框
-    const rimGeo = new THREE.TorusGeometry(isBase ? 2.1 : 1.18, isBase ? 0.32 : 0.18, 8, 28);
-    const rimMat = new THREE.MeshStandardMaterial({ color: isBase ? 0x8a6238 : 0x596b68, roughness: 1 });
+    // 洞口内缘：一圈贴地的深色实环，圈出“开口”边界（不再悬空椭圆环）。
+    const rimGeo = new THREE.RingGeometry(underground.openingRadius * 0.92, underground.slopeRadius * 0.98, 32);
+    const rimMat = new THREE.MeshStandardMaterial({ color: isBase ? 0x1c1208 : 0x0e1515, roughness: 1, side: THREE.DoubleSide });
     const rim = new THREE.Mesh(rimGeo, rimMat);
-    rim.position.set(0, 0.08, 0);
-    rim.rotation.x = Math.PI / 2;
-    rim.scale.y = 0.5;
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = 0.03;
+    rim.receiveShadow = true;
     this.group.add(rim);
 
-    // 大本营才有暖光；临时避难洞只是一个黑洞，不发光、不成地标。
-    if (isBase) {
-      const glow = new THREE.PointLight(pos.lightColor ?? 0xffc978, pos.lightIntensity ?? 4.8, 12, 2);
-      glow.position.set(0, -underground.chamberDepth * 0.35, 0);
-      this.group.add(glow);
-      this.glow = glow;
-    }
+    // 开口天光：从井口洒下的一束柔光（临时洞几乎不可见）。
+    const skylight = new THREE.PointLight(0xbfd6ff, isBase ? 0.5 : 0.08, underground.slopeRadius * 3.2, 2);
+    skylight.position.set(0, -0.4, 0);
+    this.group.add(skylight);
+
+    // 大本营：腔室底部暖光，从开口微微透出；临时洞仅极弱冷光。
+    const glow = new THREE.PointLight(pos.lightColor ?? 0xffc978, pos.lightIntensity ?? (isBase ? 6.2 : 0.28), isBase ? 11 : 4, 2);
+    glow.position.set(0, -underground.chamberDepth + 0.9, 0);
+    this.group.add(glow);
+    this.glow = glow;
 
 // 安全区标识（仅大本营）：立式光柱 + 顶端悬浮环。
     // 早期版本用贴地平面圆环，在土拨鼠的贴地视角下会被透视压成一条

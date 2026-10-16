@@ -13,10 +13,12 @@ export const FEEDBACK = { endpoint: '' };
 
 export const BURROW = { x: -52, z: 0, r: 8.2 }; // 兼容旧调用的主洞定义（安全区/回储备/缓压）
 
-// 地下空间参数：r 仍表示旧版安全区半径；其余参数描述真实入口、斜坡和腔室。
+// 地下空间（两段式：小开口竖井 + 底部略宽腔室）。
+// openingRadius 洞口/井壁上口；slopeRadius 洞口外挖掘坡的外缘（贴近 opening，形成陡壁而非缓土碗）；
+// chamberRadius 底部腔室半径（略大于开口，井壁向下微微扩开）；chamberDepth 腔室深度。
 export const UNDERGROUND = {
-  base: { openingRadius: 2.2, slopeRadius: 5.8, chamberRadius: 4.6, chamberDepth: 3.8, warmLight: true, lightColor: 0xffc978, lightIntensity: 4.8 },
-  shelter: { openingRadius: 1.05, slopeRadius: 2.6, chamberRadius: 2.0, chamberDepth: 2.0, warmLight: false, lightColor: 0x8bb8c4, lightIntensity: 0.28 },
+  base: { openingRadius: 2.2, slopeRadius: 3.6, chamberRadius: 3.0, chamberDepth: 3.8, warmLight: true, lightColor: 0xffc978, lightIntensity: 6.2 },
+  shelter: { openingRadius: 1.05, slopeRadius: 1.9, chamberRadius: 1.5, chamberDepth: 2.0, warmLight: false, lightColor: 0x8bb8c4, lightIntensity: 0.28 },
 };
 
 // 洞穴布局：BURROW 保留为主洞兼容别名；其余为临时避难洞。

@@ -96,6 +96,16 @@ export function baseTerrainHeight(x, z) {
   return (rolling + detail) * flat;
 }
 
+// 地下洞穴径向下沉系数（0=地表，1=腔底），两段式：
+// d<=opening：1（平的腔室地板）；opening<d<slope：陡壁 smoothstep 回到 0；d>=slope：0。
+// 纯函数放这里，供 terrainHeight 与 world/underground 共用，避免循环依赖与两处不一致。
+export function depressionAt(d, p) {
+  if (d <= p.openingRadius) return 1;
+  if (d >= p.slopeRadius) return 0;
+  const t = (p.slopeRadius - d) / (p.slopeRadius - p.openingRadius);
+  return t * t * (3 - 2 * t);
+}
+
 export function terrainHeight(x, z) {
   // 外部高度场优先（GS 版）
   if (_heightField) return _heightField(x, z);
@@ -104,14 +114,11 @@ export function terrainHeight(x, z) {
   // the underground module supplies the visual/logic approximation there.
   for (const b of BURROWS) {
     const [dx, dz] = scalePoint([b.x, b.z]);
-    const slope = scaleRadius(b.slopeRadius ?? (b.type === 'base' ? 5.8 : 2.6));
-    const depth = b.chamberDepth ?? (b.type === 'base' ? 3.8 : 2);
+    const slope = scaleRadius(b.slopeRadius ?? 3.6);
+    const opening = scaleRadius(b.openingRadius ?? 2.2);
+    const depth = b.chamberDepth ?? 3.8;
     const d = Math.hypot(x - dx, z - dz);
-    if (d < slope) {
-      const t = 1 - d / slope;
-      const eased = t * t * (3 - 2 * t);
-      y -= depth * eased;
-    }
+    if (d < slope) y -= depth * depressionAt(d, { openingRadius: opening, slopeRadius: slope });
   }
   return y;
 }

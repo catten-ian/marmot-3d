@@ -1,5 +1,5 @@
 import { BURROWS, scalePoint, scaleRadius } from '../core/config.js';
-import { terrainHeight, baseTerrainHeight, heightFieldActive } from '../core/utils.js';
+import { terrainHeight, baseTerrainHeight, heightFieldActive, depressionAt } from '../core/utils.js';
 
 let _defs = [];
 export function configureUnderground(defs = []) { _defs = defs; return _defs; }
@@ -9,8 +9,8 @@ export function undergroundProfile(def) {
   const base = def.type === 'base' ? 1 : 0;
   return {
     openingRadius: def.openingRadius ?? (base ? 2.2 : 1.05),
-    slopeRadius: def.slopeRadius ?? (base ? 5.8 : 2.6),
-    chamberRadius: def.chamberRadius ?? (base ? 4.6 : 2),
+    slopeRadius: def.slopeRadius ?? (base ? 3.6 : 1.9),
+    chamberRadius: def.chamberRadius ?? (base ? 3.0 : 1.5),
     chamberDepth: def.chamberDepth ?? (base ? 3.8 : 2),
   };
 }
@@ -22,11 +22,8 @@ export function undergroundFloorY(x, z, defs = _defs) {
     const p = undergroundProfile(b);
     const d = Math.hypot(x - b.x, z - b.z);
     if (d >= p.slopeRadius) continue;
-    const t = Math.max(0, Math.min(1, 1 - d / p.slopeRadius));
-    // Smooth ramp: surface at the lip, full depth in the inner chamber.
-    const eased = t * t * (3 - 2 * t);
     const surface = heightFieldActive() ? terrainHeight(b.x, b.z) : baseTerrainHeight(b.x, b.z);
-    y = Math.min(y, surface - p.chamberDepth * eased);
+    y = Math.min(y, surface - p.chamberDepth * depressionAt(d, p));
   }
   return y;
 }
