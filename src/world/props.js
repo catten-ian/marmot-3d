@@ -52,46 +52,50 @@ export class Burrow {
     rim.scale.y = 0.5;
     this.group.add(rim);
 
-    // 洞口暖光：提示"安全/可休息"
-    const glow = new THREE.PointLight(isBase ? 0xffc978 : 0x7db6c1, isBase ? 5.5 : 0.35, isBase ? 16 : 4, 2);
-    glow.position.set(0, 1.5, this.r * 0.35);
-    this.group.add(glow);
-    this.glow = glow;
+    // 大本营才有暖光；临时避难洞只是一个黑洞，不发光、不成地标。
+    if (isBase) {
+      const glow = new THREE.PointLight(0xffc978, 5.5, 16, 2);
+      glow.position.set(0, 1.5, this.r * 0.35);
+      this.group.add(glow);
+      this.glow = glow;
+    }
 
-// 安全区标识：立式光柱 + 顶端悬浮环。
+// 安全区标识（仅大本营）：立式光柱 + 顶端悬浮环。
     // 早期版本用贴地平面圆环，在土拨鼠的贴地视角下会被透视压成一条
     // 横贯视野的亮线，反而看不见"这是一个圆形的家"。改用竖直光柱后，
     // 无论玩家站在圈内还是圈外，都能立刻辨认出安全区。
-    const beamGeo = new THREE.CylinderGeometry(this.r * 0.92, this.r * 0.98, isBase ? 3.4 : 0.9, 40, 1, true);
-    const beamMat = new THREE.MeshBasicMaterial({
-      color: isBase ? 0x7fe0a0 : 0x83aeb4, transparent: true, opacity: isBase ? 0.085 : 0.035,
-      side: THREE.DoubleSide, depthWrite: false,
-    });
-    const beam = new THREE.Mesh(beamGeo, beamMat);
-    beam.position.y = isBase ? 1.7 : 0.45;
-    this.group.add(beam);
-    this.beam = beam;
+    if (isBase) {
+      const beamGeo = new THREE.CylinderGeometry(this.r * 0.92, this.r * 0.98, 3.4, 40, 1, true);
+      const beamMat = new THREE.MeshBasicMaterial({
+        color: 0x7fe0a0, transparent: true, opacity: 0.085,
+        side: THREE.DoubleSide, depthWrite: false,
+      });
+      const beam = new THREE.Mesh(beamGeo, beamMat);
+      beam.position.y = 1.7;
+      this.group.add(beam);
+      this.beam = beam;
 
-    // 顶部悬浮环：给远处一个可识别的"地标"
-    const capGeo = new THREE.TorusGeometry(this.r * 0.94, isBase ? 0.13 : 0.07, 8, 40);
-    capGeo.rotateX(Math.PI / 2);
-    const capMat = new THREE.MeshBasicMaterial({
-      color: isBase ? 0x9ff0b8 : 0x86afb4, transparent: true, opacity: isBase ? 0.45 : 0.18, depthWrite: false,
-    });
-    const cap = new THREE.Mesh(capGeo, capMat);
-    cap.position.y = isBase ? 3.4 : 0.95;
-    this.group.add(cap);
-    this.cap = cap;
+      // 顶部悬浮环：给远处一个可识别的"地标"
+      const capGeo = new THREE.TorusGeometry(this.r * 0.94, 0.13, 8, 40);
+      capGeo.rotateX(Math.PI / 2);
+      const capMat = new THREE.MeshBasicMaterial({
+        color: 0x9ff0b8, transparent: true, opacity: 0.45, depthWrite: false,
+      });
+      const cap = new THREE.Mesh(capGeo, capMat);
+      cap.position.y = 3.4;
+      this.group.add(cap);
+      this.cap = cap;
 
-    // 圈内地面微亮（保持极淡，仅在脚下近距离可见）
-    const discGeo = new THREE.CircleGeometry(this.r * 0.94, 40);
-    const discMat = new THREE.MeshBasicMaterial({
-      color: isBase ? 0x9fe8b8 : 0x81a6aa, transparent: true, opacity: isBase ? 0.05 : 0.025, depthWrite: false,
-    });
-    const disc = new THREE.Mesh(discGeo, discMat);
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.y = 0.07;
-    this.group.add(disc);
+      // 圈内地面微亮（保持极淡，仅在脚下近距离可见）
+      const discGeo = new THREE.CircleGeometry(this.r * 0.94, 40);
+      const discMat = new THREE.MeshBasicMaterial({
+        color: 0x9fe8b8, transparent: true, opacity: 0.05, depthWrite: false,
+      });
+      const disc = new THREE.Mesh(discGeo, discMat);
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.y = 0.07;
+      this.group.add(disc);
+    }
 
     scene.add(this.group);
     this._t = 0;
@@ -100,14 +104,15 @@ export class Burrow {
 
   update(dt) {
     this._t += dt;
+    if (!this.isBase) return; // 临时避难洞静态、无发光动画
     // 光柱与顶环呼吸，保持"活着"的地标感
     const p = 0.32 + Math.sin(this._t * 1.6) * 0.12;
     this.cap.material.opacity = p;
     this.beam.material.opacity = 0.07 + Math.sin(this._t * 1.6) * 0.025;
     // 顶环缓慢旋转 + 上下浮动
     this.cap.rotation.y += dt * 0.35;
-    this.cap.position.y = (this.isBase ? 3.4 : 0.95) + Math.sin(this._t * 0.9) * (this.isBase ? 0.12 : 0.04);
-    this.glow.intensity = this.isBase ? 4.6 + Math.sin(this._t * 2.1) * 1.1 : 0.28;
+    this.cap.position.y = 3.4 + Math.sin(this._t * 0.9) * 0.12;
+    this.glow.intensity = 4.6 + Math.sin(this._t * 2.1) * 1.1;
   }
 }
 

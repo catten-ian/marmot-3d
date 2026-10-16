@@ -1363,7 +1363,6 @@ const binds = new Keybinds();
 
 let mouseDown = false;
 const touchAttackPointers = new Set();
-const touchSprintPointers = new Set();
 let touchControls = null;
 // 首次点击用于捕获鼠标指针时，把这次攻击记下来，等锁定成功后补上
 let pendingClickAttack = false;
@@ -1381,9 +1380,6 @@ touchControls = new TouchControls({
   onAction: (action, pressed, pointerId) => {
     if (action === 'attack') {
       if (pressed) touchAttackPointers.add(pointerId); else touchAttackPointers.delete(pointerId);
-    } else if (action === 'sprint') {
-      if (pressed) touchSprintPointers.add(pointerId); else touchSprintPointers.delete(pointerId);
-      controller.touchSprint = touchSprintPointers.size > 0;
     } else if (pressed && action === 'jump') doJump();
     else if (pressed && action === 'interact') doInteract();
     else if (pressed && action === 'burst') doBurst();

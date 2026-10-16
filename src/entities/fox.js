@@ -27,7 +27,8 @@ const SEGMENTED_FOX_MODEL = IS_DEV
 const FOX_MODEL_PATH = SEGMENTED_FOX_MODEL
   ? './assets/models/fox-segmented.glb'
   : './assets/models/fox.glb';
-const FOX_MODEL_UP_AXIS = SEGMENTED_FOX_MODEL ? 'z' : 'y';
+// 两个资产的原始前向都是局部 -X；旋转 +90° Y 后与实体 yaw 的局部 +Z 对齐。
+const FOX_MODEL_HEADING = Math.PI / 2;
 
 /**
  * 真实藏狐归一化后的**目标高度**（米，容器内单位）。
@@ -198,8 +199,10 @@ export class Fox {
         this.modelLevel = 'procedural';
         return;
       }
-      // 新分块模型源坐标为 Y-up、头朝 -X；旧资产已烘焙为游戏朝向。
-      const norm = normalizeModel(inst, FOX_TARGET_HEIGHT, { upAxis: FOX_MODEL_UP_AXIS });
+      // 两个 GLB 的几何侧视图都显示头在局部 -X、尾在 +X；
+      // normalizeModel 保留节点原生姿态，统一的 -X → 游戏 +Z 修正只放在 wrap 层。
+      const norm = normalizeModel(inst, FOX_TARGET_HEIGHT, { upAxis: 'native' });
+      norm.wrap.rotation.y = FOX_MODEL_HEADING;
       this.mesh.add(norm.wrap);
       this.realModel = norm.wrap;
       this.modelLevel = inst.userData.level || 'full';
@@ -284,7 +287,7 @@ export class Fox {
   _prepareSegmentedFox(source) {
     const inner = this.realModel.children[0];
     const sourceHeading = new THREE.Group();
-    sourceHeading.rotation.y = Math.PI / 2;
+    // 模型前向修正已统一放在外层 wrap（FOX_MODEL_HEADING），内层不再额外旋转。
     while (inner.children.length) sourceHeading.add(inner.children[0]);
     inner.add(sourceHeading);
 

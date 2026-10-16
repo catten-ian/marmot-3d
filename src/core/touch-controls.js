@@ -1,5 +1,8 @@
 import { isTouchPrimary } from './performance.js';
 
+// 摇杆推过该归一化距离即进入疾跑（取代独立疾跑按钮）。
+const SPRINT_STICK_THRESHOLD = 0.78;
+
 /**
  * 触屏输入层。
  * 现代浏览器使用 Pointer Events；老旧 QQ/微信 X5 内核可能存在
@@ -21,7 +24,7 @@ export class TouchControls {
     this.lookLast = { x: 0, y: 0 };
     this.movePointer = null;
     this.pointerRoles = new Map();
-    this.move = { x: 0, y: 0 };
+    this.move = { x: 0, y: 0, mag: 0 };
     this.maxStick = 48;
     this.enabled = isTouchPrimary();
 
@@ -271,6 +274,11 @@ export class TouchControls {
     }
     this.move.x = x;
     this.move.y = y;
+    // 疾跑由摇杆拖动距离决定（取代独立疾跑按钮）：推过档位环即疾跑。
+    this.move.mag = Math.min(1, magnitude);
+    const wantSprint = this.move.mag >= SPRINT_STICK_THRESHOLD;
+    this.controller.touchSprint = wantSprint;
+    this.joystick.classList.toggle('stick-sprint', wantSprint);
     this.stick.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
     this.joystick.classList.add('active');
   }
@@ -284,6 +292,9 @@ export class TouchControls {
       this.movePointer = null;
       this.move.x = 0;
       this.move.y = 0;
+      this.move.mag = 0;
+      this.controller.touchSprint = false;
+      this.joystick.classList.remove('stick-sprint');
       this.stick.style.transform = 'translate(0, 0)';
       this.joystick.classList.remove('active');
     }
@@ -300,7 +311,9 @@ export class TouchControls {
     for (const pointerId of ids) this._release(pointerId);
     this.move.x = 0;
     this.move.y = 0;
-    if (this.joystick) this.joystick.classList.remove('active');
+    this.move.mag = 0;
+    this.controller.touchSprint = false;
+    if (this.joystick) this.joystick.classList.remove('active', 'stick-sprint');
     if (this.stick) this.stick.style.transform = 'translate(0, 0)';
     if (this.root) {
       const buttons = this.root.querySelectorAll('.pressed');

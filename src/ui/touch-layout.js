@@ -3,9 +3,10 @@
  * 应用时按安全区和按钮半径夹紧，因此旋转屏幕/窄屏不会把按键挤出画面。
  */
 const STORAGE_KEY = 'marmot.touch-layout.v1';
-const ACTIONS = ['attack', 'jump', 'sprint', 'interact', 'burst', 'ultimate', 'pause'];
-const LABELS = { attack: '攻击', jump: '跳跃', sprint: '疾跑', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停' };
-const SIZE = { attack: 76, jump: 58, sprint: 56, interact: 56, burst: 56, ultimate: 58, pause: 38 };
+// 疾跑已改为由摇杆拖动距离判定（见 touch-controls SPRINT_STICK_THRESHOLD），不再有独立按钮。
+const ACTIONS = ['attack', 'jump', 'interact', 'burst', 'ultimate', 'pause'];
+const LABELS = { attack: '攻击', jump: '跳跃', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停' };
+const SIZE = { attack: 76, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38 };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const copy = (v) => JSON.parse(JSON.stringify(v));
 
@@ -37,10 +38,10 @@ export class TouchLayout {
     const ay = landscape ? h - safe.bottom - Math.max(154, h * .4) : h - safe.bottom - Math.max(230, h * .273);
     const dx = landscape ? Math.max(66, Math.min(78, unit * .2)) : Math.max(54, Math.min(70, w * .18));
     const dy = landscape ? Math.max(57, Math.min(68, unit * .17)) : Math.max(62, Math.min(76, unit * .2));
+    // 攻击居中最大，跳跃正上方，交互/爆发/大招环绕两侧。
     const positions = {
       attack: [ax, ay],
       jump: [ax, ay - 96],
-      sprint: [ax - dx, ay - dy],
       interact: [ax + dx, ay - dy],
       burst: [ax - dx, ay + dy],
       ultimate: [ax + dx, ay + dy],
@@ -93,6 +94,9 @@ export class TouchLayout {
       el.style.setProperty('--touch-button-size', `${base}px`);
       el.style.setProperty('--touch-button-scale', String(item.scale * this.layout.scale));
       el.style.setProperty('--touch-button-opacity', String(item.opacity * this.layout.opacity));
+      // 直接写 inline opacity 兑底：部分旧内核/重复 CSS 规则下，--touch-button-opacity
+      // 变量可能未生效，导致调透明度滑块无变化。inline opacity 始终生效。
+      el.style.opacity = String(Math.max(0.18, item.opacity * this.layout.opacity));
       el.style.zIndex = id === 'attack' ? '2' : '1';
     }
     this.root.classList.toggle('layout-editing', this.editing);

@@ -21,17 +21,17 @@ export class Minimap {
     if (!show) return;
     const c = this.ctx, w = this.canvas.width, h = this.canvas.height;
     c.clearRect(0, 0, w, h);
-    c.fillStyle = 'rgba(9,20,16,.88)'; c.fillRect(0, 0, w, h);
-    c.strokeStyle = 'rgba(181,207,177,.28)'; c.lineWidth = 2; c.strokeRect(1, 1, w - 2, h - 2);
+    c.fillStyle = 'rgba(9,20,16,.42)'; c.fillRect(0, 0, w, h);
+    c.strokeStyle = 'rgba(181,207,177,.18)'; c.lineWidth = 2; c.strokeRect(1, 1, w - 2, h - 2);
     const p = data.player, sx = w / 2, sy = h / 2, scale = (w * 0.44) / VIEW_RADIUS;
     const mark = (x, z, color, size = 4, alpha = 1) => {
       const dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz);
       if (d > VIEW_RADIUS) return;
-      c.globalAlpha = alpha * Math.max(0.18, 1 - d / VIEW_RADIUS);
+      c.globalAlpha = alpha * Math.max(0.22, 0.72 * (1 - d / VIEW_RADIUS));
       c.fillStyle = color; c.beginPath(); c.arc(sx + dx * scale, sy + dz * scale, size, 0, Math.PI * 2); c.fill();
       c.globalAlpha = 1;
     };
-    c.strokeStyle = 'rgba(222,245,206,.15)'; c.beginPath(); c.arc(sx, sy, VIEW_RADIUS * scale, 0, Math.PI * 2); c.stroke();
+    c.strokeStyle = 'rgba(222,245,206,.1)'; c.beginPath(); c.arc(sx, sy, VIEW_RADIUS * scale, 0, Math.PI * 2); c.stroke();
     mark(data.base.x, data.base.z, '#ffc978', 6);
     for (const b of data.shelters || []) mark(b.x, b.z, '#83b6c2', 4);
     for (const b of data.berries || []) if (!b.taken) mark(b.x, b.z, '#d98683', 3);

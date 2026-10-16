@@ -1119,6 +1119,21 @@ body.touch-playing .touch-controls { display: block; }
   will-change: transform;
 }
 .touch-joystick span { position: absolute; bottom: 11px; text-shadow: 0 1px 3px #000; }
+/* 疾跑档位环：摇杆推过该环（约 78% 半径）自动疾跑 */
+.stick-sprint-ring {
+  position: absolute; left: 50%; top: 50%;
+  width: 78%; height: 78%;
+  margin-left: -39%; margin-top: -39%;
+  border: 1.5px dashed rgba(228,238,207,.32);
+  border-radius: 50%;
+  pointer-events: none;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.touch-joystick.stick-sprint .stick-sprint-ring {
+  border-color: rgba(255,207,107,.95);
+  box-shadow: 0 0 12px rgba(255,207,107,.45), inset 0 0 12px rgba(255,207,107,.18);
+}
+.touch-joystick.stick-sprint { border-color: rgba(255,207,107,.95); }
 .touch-actions {
   position: absolute;
   right: calc(12px + var(--safe-right));

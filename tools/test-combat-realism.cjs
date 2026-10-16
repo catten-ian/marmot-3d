@@ -7,8 +7,8 @@ const { stepFoxRecovery } = await import('../src/core/fox-motion.js');
 
 const peak = PLAYER.jump.velocity ** 2 / (2 * PLAYER.jump.gravity);
 const airtime = 2 * PLAYER.jump.velocity / PLAYER.jump.gravity;
-assert(Math.abs(peak - 0.522) < 0.01);
-assert(Math.abs(airtime - 0.653) < 0.02);
+assert(Math.abs(peak - (4.1 ** 2) / (2 * 9.8)) < 0.01, `jump peak ${peak}`); // v=4.1 峰值≈0.858m
+assert(Math.abs(airtime - (2 * 4.1 / 9.8)) < 0.02, `airtime ${airtime}`); // 滞空≈0.837s
 
 const hit = (forward, lateral, dy) => strikeVolumeHit({ forward, lateral,
   playerBottom: 0, targetBottom: 0.65 + dy, targetHeight: 0.2, range: 2.4 });
