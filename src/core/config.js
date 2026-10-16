@@ -8,6 +8,9 @@
 export const FIELD_W = 130;
 export const FIELD_H = 78;
 
+// 静态站点可在部署时填写反馈接收地址；留空时使用本地离线队列。
+export const FEEDBACK = { endpoint: '' };
+
 export const BURROW = { x: -52, z: 0, r: 8.2 }; // 洞穴：安全区，休息回储备、缓压
 
 // 洞穴布局：BURROW 保留为主洞兼容别名；其余为临时避难洞。

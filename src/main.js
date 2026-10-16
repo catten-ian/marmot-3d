@@ -56,6 +56,8 @@ import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
+import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
+import { FEEDBACK } from './core/config.js';
 import { TouchLayout } from './ui/touch-layout.js';
 import { Minimap } from './ui/minimap.js';
 import { cooldownOverlayData } from './ui/cooldown-overlay.js';
@@ -948,11 +950,13 @@ function pause() {
       <button class="primary" id="resumeBtn">继续 · P / Enter</button>
       <button class="ghost" id="pRetryBtn">重试本关 · T</button>
       <button class="ghost" id="pTitleBtn">返回标题</button>
+      <button class="ghost" id="pFeedbackBtn">问题反馈 / 反馈建议</button>
     </div>
   `);
   document.getElementById('resumeBtn').onclick = resume;
   document.getElementById('pRetryBtn').onclick = retryLevel;
   document.getElementById('pTitleBtn').onclick = () => { hud.hidePanel(); title(); };
+  document.getElementById('pFeedbackBtn').onclick = () => feedbackUI.open();
 }
 
 function resume() {
@@ -1636,7 +1640,14 @@ document.getElementById('helpClose').onclick = () => { helpSheet.hidden = true; 
 
 // 设置面板（键位方案）
 const touchLayout = new TouchLayout();
-const settingsUI = new SettingsUI(binds, touchLayout);
+const feedbackUI = new FeedbackUI({
+  endpoint: FEEDBACK.endpoint,
+  getSnapshot: () => collectGameSnapshot({
+    game, version: VERSION_LABEL, thirdPerson, sandbox: SANDBOX_MODE,
+    touch: TOUCH_DEVICE, performanceProfile: renderProfile,
+  }),
+});
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI);
 
 // 开发测试面板通过 ?test=1 显式启用，不进入普通用户界面。
 const testModeBtn = document.getElementById('testModeBtn');

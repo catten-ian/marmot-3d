@@ -6,9 +6,10 @@ import { Keybinds, ACTIONS, findConflicts } from '../core/keybinds.js';
 import { IS_DEV } from '../core/version.js';
 
 export class SettingsUI {
-  constructor(binds, touchLayout = null) {
+  constructor(binds, touchLayout = null, feedback = null) {
     this.binds = binds;
     this.touchLayout = touchLayout;
+    this.feedback = feedback;
     this.el = {
       btn: document.getElementById('setBtn'),
       sheet: document.getElementById('setSheet'),
@@ -139,6 +140,7 @@ export class SettingsUI {
     if (b.scheme === 'custom') {
       html += '<div class="set-actions"><button class="ghost-btn" id="resetBinds">恢复默认键位</button></div>';
     }
+    if (this.feedback) html += '<div class="set-actions"><button class="ghost-btn" id="settingsFeedback">问题反馈 / 反馈建议</button></div>';
 
     this.el.body.innerHTML = html;
 
@@ -154,6 +156,8 @@ export class SettingsUI {
     });
     const rb = this.el.body.querySelector('#resetBinds');
     if (rb) rb.onclick = () => this.binds.resetCustom();
+    const fb = this.el.body.querySelector('#settingsFeedback');
+    if (fb) fb.onclick = () => this.feedback.open();
     this.touchLayout?.bindSettings(this.el.body);
   }
 }
