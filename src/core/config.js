@@ -10,11 +10,32 @@ export const FIELD_H = 78;
 
 export const BURROW = { x: -52, z: 0, r: 8.2 }; // 洞穴：安全区，休息回储备、缓压
 
+// 洞穴布局：BURROW 保留为主洞兼容别名；其余为临时避难洞。
+// 坐标刻意避开现有刷点、浆果点和岩石，运行时统一经 scalePoint/scaleRadius 缩放。
+export const BURROWS = [
+  { id: 'base', type: 'base', x: BURROW.x, z: BURROW.z, r: BURROW.r, regenMul: 1, label: '大本营' },
+  { id: 'shelter-a', type: 'shelter', x: -12, z: -25, r: 3.15, regenMul: 0.18, label: '临时避难洞' },
+  { id: 'shelter-b', type: 'shelter', x: 18, z: 13, r: 3.15, regenMul: 0.18, label: '临时避难洞' },
+  { id: 'shelter-c', type: 'shelter', x: 40, z: 32, r: 3.0, regenMul: 0.18, label: '临时避难洞' },
+  { id: 'shelter-d', type: 'shelter', x: -34, z: 28, r: 3.0, regenMul: 0.18, label: '临时避难洞' },
+];
+
+export const BURROW_AI = {
+  lingerBase: 3.6,
+  lingerShelter: 2.8,
+  lingerRadius: 4.5,
+  leaveDistance: 18,
+  exitMemory: 2.4,
+  exitNearOverride: 3.0,
+};
+
 // —— 主角基准参数（米制）——
 export const PLAYER = {
   eyeHeight: 0.46, // 土拨鼠视角：贴地低机位
   radius: 0.42,
   speed: 4.8, // m/s：接近旱獭短距离奔跑速度；疾行倍率后仍保留玩法余量
+  backpedalSpeed: 0.58, // 纯后退速度相对前进速度；适用于键盘与触屏摇杆
+  bodyTurnRate: 10, // 第三人称身体朝向的指数平滑速率（每秒）
   collisionHeight: 0.54, // 玩家用于接触判定的简化躯干高度（米）
   maxHp: 100,
   maxEnergy: 100,
@@ -47,6 +68,8 @@ export const PLAYER = {
     cooldown: 0.35, // 两次起跳最小间隔，防止连点刷跳
     dodgeHeight: 0.3, // 作为有效腾空区间，不再单独授予无条件免疫
   },
+  // 玩家横向转向/刹车基线，用于保证狐狸高速时明显更难急停。
+  handling: { turnRate: 2.2, accel: 14, brake: 18 },
 };
 
 /** 默认移动键映射（兼容方案使用；实际由 keybinds 模块提供） */
@@ -93,7 +116,7 @@ const FOX_ATTACKS = {
   // 幼狐：短距低跃扑；用垂直碰撞区间判断是否真正碰到玩家。
   // 冲刺距 = dashSpeed × (dashTime + 0.22 腾空)，仍须覆盖 windRange 与接触半径。
   pup: {
-    mode: 'leap', windMul: 1.12, dashTime: 0.34, turnRate: 1.4,
+    mode: 'leap', windMul: 1.12, dashTime: 0.34, turnRate: 0.42,
     leapHeight: 0.9, label: '跃扑',
   },
   // 普通狐：标准直线冲刺，作为基准（最好躲）。14.5 × 0.62 ≈ 9.0m
@@ -110,13 +133,13 @@ const FOX_ATTACKS = {
   // 厚皮狐：绕行 + 虚晃，从侧面反复试探才真的冲 —— 「难以预判会从哪一侧来」。
   // 14.5 × 0.65 ≈ 9.4m
   heavy: {
-    mode: 'circle', windMul: 1.3, dashTime: 0.65, turnRate: 0.5,
+    mode: 'circle', windMul: 1.3, dashTime: 0.65, turnRate: 0.28,
     circleTime: 1.15, lureChance: 0.55, label: '绕行虚晃',
   },
   // 首领：三段连冲，每段都能微调方向 —— 「必须连续躲三次，不能一躲了事」。
   // 单段 14.5 × 0.42 × 1.1 ≈ 6.7m，三段连冲保留压迫感。
   boss: {
-    mode: 'combo', windMul: 1.08, dashTime: 0.42, turnRate: 1.3,
+    mode: 'combo', windMul: 1.08, dashTime: 0.42, turnRate: 0.38,
     comboCount: 3, dashSpeedMul: 1.1, label: '三段连冲',
   },
 };
@@ -159,6 +182,13 @@ export const FOX = {
    */
   windRange: 9.2,
   dashSpeed: 14.5,
+  // 狐狸高速冲刺不应拥有玩家级别的急转与急刹能力。
+  handling: {
+    maxTurnRate: 0.78, turnAccel: 1.6, windTurnRate: 1.1, windTurnAccel: 3.8,
+    brakeLerp: 2.8, recoverySpeedMax: 2.8,
+  },
+  recovery: { normal: 1.15, fast: 0.9, leap: 1.05, combo: 1.2, blocked: 0.9 },
+  groundAttackHeight: 0.4,
   /**
    * 被驱退后的逃跑。
    * 藏狐是被吓跑的，不是被杀 —— 所以它必须有一个可见的逃跑过程，
@@ -193,7 +223,6 @@ export const FOX = {
  *   count        同屏藏狐数
  *   speed/wind   藏狐接近速度 / 蓄力基准时长（秒）
  *   goal         需要采食（恢复能量）的次数
- *   repels       需要驱退的藏狐数
  *   time         限时（秒）
  *   reinforce    驱退后重新出现的增援间隔（秒）
  *   friend       伙伴被困位置 [x, z]
@@ -213,7 +242,6 @@ export const LEVELS = [
     count: 2,
     speed: 7.2,
     goal: 4,
-    repels: 1,
     time: 115,
     wind: 0.76,
     reinforce: 8,
@@ -232,7 +260,6 @@ export const LEVELS = [
     count: 3,
     speed: 8.0,
     goal: 5,
-    repels: 2,
     time: 125,
     wind: 0.7,
     reinforce: 7.2,
@@ -251,7 +278,6 @@ export const LEVELS = [
     count: 4,
     speed: 8.6,
     goal: 6,
-    repels: 3,
     time: 140,
     wind: 0.66,
     reinforce: 6.5,
@@ -273,7 +299,6 @@ export const LEVELS = [
     count: 4,
     speed: 9.0,
     goal: 6,
-    repels: 4,
     time: 150,
     wind: 0.62,
     reinforce: 6.0,
@@ -294,7 +319,6 @@ export const LEVELS = [
     count: 6,
     speed: 9.4,
     goal: 7,
-    repels: 5,
     time: 160,
     wind: 0.6,
     reinforce: 5.7,
@@ -316,7 +340,6 @@ export const LEVELS = [
     count: 5,
     speed: 10.2,
     goal: 7,
-    repels: 5,
     time: 165,
     wind: 0.56,
     reinforce: 5.4,
@@ -338,7 +361,6 @@ export const LEVELS = [
     count: 6,
     speed: 10.0,
     goal: 8,
-    repels: 6,
     time: 175,
     wind: 0.55,
     reinforce: 5.2,
@@ -361,7 +383,6 @@ export const LEVELS = [
     count: 8,
     speed: 10.6,
     goal: 8,
-    repels: 7,
     time: 190,
     wind: 0.54,
     reinforce: 5,
@@ -382,7 +403,6 @@ export const LEVELS = [
     count: 6,
     speed: 10.4,
     goal: 7,
-    repels: 5,
     time: 170,
     wind: 0.56,
     reinforce: 5.2,
@@ -399,7 +419,6 @@ export const LEVELS = [
     count: 7,
     speed: 10.6,
     goal: 8,
-    repels: 6,
     time: 180,
     wind: 0.58,
     reinforce: 5.0,
@@ -417,7 +436,6 @@ export const LEVELS = [
     count: 7,
     speed: 10.8,
     goal: 8,
-    repels: 6,
     time: 185,
     wind: 0.58,
     reinforce: 4.8,
@@ -435,7 +453,6 @@ export const LEVELS = [
     count: 9,
     speed: 11.2,
     goal: 9,
-    repels: 8,
     time: 205,
     wind: 0.58,
     reinforce: 4.6,

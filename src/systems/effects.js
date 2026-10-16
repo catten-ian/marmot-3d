@@ -11,17 +11,16 @@ export class ClawSwing {
   constructor(scene) {
     this.group = new THREE.Group();
     const shape = new THREE.Shape();
-    // 扇形：0.55rad 半角
+    // 第一人称正前方的短弧斩击：在竖直平面展开，不再像地面 AOE。
     const half = 0.55;
     shape.moveTo(0, 0);
     const R = 1;
     for (let i = 0; i <= 14; i++) {
       const a = -half + (i / 14) * half * 2;
-      shape.lineTo(Math.sin(a) * R, Math.cos(a) * R);
+      shape.lineTo(Math.sin(a) * R, 0.48 + Math.cos(a) * 0.48);
     }
     shape.closePath();
     const geo = new THREE.ShapeGeometry(shape);
-    geo.rotateX(-Math.PI / 2);
 
     this.mat = new THREE.MeshBasicMaterial({
       color: 0xfff1a9, transparent: true, opacity: 0,
@@ -31,13 +30,17 @@ export class ClawSwing {
     this.mesh.renderOrder = 5;
     this.group.add(this.mesh);
 
-    // 边缘弧线，让攻击范围更易读
+    // 边缘弧线，让攻击方向更易读
     const edgeMat = new THREE.MeshBasicMaterial({
       color: 0xfff8d0, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide,
     });
-    const edgeGeo = new THREE.RingGeometry(0.92, 1, 20, 1, -half, half * 2);
-    edgeGeo.rotateX(-Math.PI / 2);
-    this.edge = new THREE.Mesh(edgeGeo, edgeMat);
+    const edgePoints = [];
+    for (let i = 0; i <= 20; i++) {
+      const a = -half + (i / 20) * half * 2;
+      edgePoints.push(new THREE.Vector3(Math.sin(a), 0.48 + Math.cos(a) * 0.48, 0.01));
+    }
+    const edgeGeo = new THREE.BufferGeometry().setFromPoints(edgePoints);
+    this.edge = new THREE.Line(edgeGeo, edgeMat);
     this.group.add(this.edge);
 
     scene.add(this.group);
@@ -48,7 +51,7 @@ export class ClawSwing {
   }
 
   fire(x, y, z, yaw, radius, color = 0xfff1a9) {
-    this.group.position.set(x, y, z);
+    this.group.position.set(x, y + 0.05, z);
     this.group.rotation.y = yaw;
     this.mat.color.setHex(color);
     this.edge.material.color.setHex(color);

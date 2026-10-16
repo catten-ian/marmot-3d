@@ -1739,3 +1739,86 @@ body.touch-playing .version-tag { display: none; }
     justify-self: start;
   }
 }
+
+/* Circular touch skill wheel: positions are supplied by src/ui/touch-layout.js. */
+#touchSafeInsets { position: fixed; width: 0; height: 0; padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); visibility: hidden; pointer-events: none; }
+.touch-actions { position: absolute; inset: 0; right: auto; bottom: auto; display: block; pointer-events: none; }
+.touch-actions button {
+  position: absolute; left: 0; top: 0;
+  width: var(--touch-button-size, 56px); height: var(--touch-button-size, 56px);
+  padding: 2px; border-radius: 50%;
+  opacity: var(--touch-button-opacity, 1);
+  transform: translate(-50%, -50%) scale(var(--touch-button-scale, 1));
+  transform-origin: center;
+  pointer-events: auto;
+  touch-action: none;
+  transition: background .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.touch-actions button b { font-size: 15px; text-shadow: 0 1px 3px #000; }
+.touch-actions button small { font-size: 9px; font-weight: 700; color: #f3f5e8; text-shadow: 0 1px 3px #000, 0 0 4px #000; }
+.touch-actions button[data-touch-action="attack"] {
+  --touch-button-size: 76px;
+  border: 2px solid rgba(255, 203, 141, .95);
+  background-image: linear-gradient(rgba(91, 38, 25, .78), rgba(44, 24, 22, .74)), linear-gradient(135deg, #ffdfae, #bd705e 50%, #ffc879);
+  box-shadow: 0 0 0 4px rgba(255, 190, 126, .14), 0 4px 15px #000a, inset 0 1px 4px #fff7;
+}
+.touch-actions button[data-touch-action="attack"] b { font-size: 22px; }
+.touch-actions button[data-touch-action="attack"] small { font-size: 10px; }
+.touch-actions button[data-touch-action="jump"] { border-color: rgba(247, 224, 150, .88); }
+.touch-actions button[data-touch-action="sprint"] { border-color: rgba(164, 220, 146, .88); }
+.touch-actions button[data-touch-action="interact"] { border-color: rgba(150, 218, 205, .9); }
+.touch-actions button[data-touch-action="burst"] { border-color: rgba(255, 156, 119, .9); }
+.touch-actions button[data-touch-action="ultimate"] { border-color: rgba(207, 171, 255, .92); }
+.touch-actions button.pressed, .touch-pause.pressed {
+  transform: translate(-50%, -50%) scale(calc(var(--touch-button-scale, 1) * .92));
+  background-color: rgba(87, 104, 66, .96);
+  border-color: #ffe0a1;
+  box-shadow: 0 0 18px rgba(255, 204, 115, .6), inset 0 0 12px #fff4;
+}
+.touch-controls.layout-editing .touch-actions button { pointer-events: auto; }
+.touch-controls.layout-editing .touch-actions button[data-touch-action] { touch-action: none; }
+.touch-pause { right: auto; bottom: auto; width: 38px; height: 38px; border-radius: 50%; }
+.touch-layout-entry {
+  position: fixed; left: calc(14px + var(--safe-left)); bottom: calc(142px + var(--safe-bottom));
+  min-width: 52px; height: 30px; padding: 0 10px; border-radius: 16px;
+  border: 1px solid rgba(214, 232, 189, .68); color: var(--ink);
+  background: rgba(12, 27, 18, .8); box-shadow: 0 2px 8px #0008;
+  font: 600 11px inherit; pointer-events: auto; touch-action: manipulation;
+  backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+}
+.touch-layout-entry[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.touch-layout-editing .touch-controls { display: block; }
+.touch-controls.layout-editing .touch-actions button { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
+.touch-controls.layout-editing .touch-actions button.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
+.touch-controls.layout-editing .touch-actions button.layout-dragging { cursor: grabbing; filter: brightness(1.25); }
+.touch-layout-settings { margin: 18px 0 14px; padding: 13px; border: 1px solid rgba(214, 232, 189, .24); border-radius: 10px; background: rgba(8, 20, 13, .5); }
+.touch-layout-settings h4 { margin: 0 0 5px; color: var(--gold); font-size: 14px; }
+.touch-layout-settings p { margin: 4px 0 10px; color: var(--soft); font-size: 11px; line-height: 1.5; }
+.layout-setting-row { display: grid; grid-template-columns: 100px minmax(80px, 1fr) 38px; align-items: center; gap: 8px; margin: 8px 0; font-size: 11px; }
+.layout-setting-row input[type="range"] { width: 100%; accent-color: var(--gold); }
+.layout-setting-row output { text-align: right; color: var(--gold); font-size: 10px; }
+.layout-setting-row select { grid-column: span 2; min-height: 30px; border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; color: var(--ink); background: #16261d; }
+.layout-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.layout-actions button { min-height: 34px; padding: 5px 9px; font-size: 10px; }
+.layout-save-status { min-height: 16px; margin: 7px 0 0 !important; color: #d9e5c8 !important; }
+.touch-layout-settings + .bind-list { margin-top: 14px; }
+@media (max-width: 860px) {
+  body.touch-playing .hud-right { display: none; }
+  body.touch-playing .touch-layout-entry { bottom: calc(142px + var(--safe-bottom)); }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .touch-layout-entry { bottom: calc(122px + var(--safe-bottom)); }
+  body.touch-playing .hud-right { top: calc(145px + var(--safe-top)); }
+}
+@media (max-width: 340px) {
+  .layout-setting-row { grid-template-columns: 86px minmax(60px, 1fr) 34px; gap: 5px; }
+  .layout-actions button { flex: 1 1 100%; }
+}
+/* 站立观察小地图：右上方独立于右下动作盘，带安全区适配。 */
+.minimap { position: fixed; top: calc(64px + var(--safe-top, 0px)); right: calc(14px + var(--safe-right, 0px)); width: 174px; z-index: 18; opacity: 0; transform: translateY(-6px) scale(.96); pointer-events: none; transition: opacity .16s ease, transform .16s ease; }
+.minimap.on { opacity: 1; transform: none; }
+.minimap canvas { display: block; width: 174px; height: 174px; border: 1px solid #5e7b63; border-radius: 8px; image-rendering: auto; }
+.minimap span { display: block; margin-top: 3px; color: #dcebc9; font-size: 10px; text-align: center; text-shadow: 0 1px 3px #000; }
+@media (max-width: 860px) { .minimap { top: calc(96px + var(--safe-top, 0px)); right: calc(9px + var(--safe-right, 0px)); } }
+@media (max-width: 420px) { .minimap, .minimap canvas { width: 142px; height: 142px; } }
+@media (orientation: landscape) and (max-height: 520px) { .minimap { top: calc(42px + var(--safe-top, 0px)); } .minimap, .minimap canvas { width: 128px; height: 128px; } }

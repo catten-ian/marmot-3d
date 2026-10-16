@@ -3,7 +3,7 @@
  *
  * 游戏状态：title → play ⇄ pause → (won | lost) → play ...
  * 核心玩法循环（移植自 2D 原版）：
- *   采食恢复储备 → 驱退藏狐积累大招 → 拉负荷过载惩罚 →
+ *   采食恢复储备 → 自卫应对藏狐 → 拉负荷过载惩罚 →
  *   救伙伴带回洞穴 → 完成三目标回洞 → 下一关
  */
 import * as THREE from 'three';
@@ -15,6 +15,8 @@ import {
 } from './core/config.js';
 import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/utils.js';
 import { FirstPersonController } from './core/controls.js';
+import { dampAngle } from './core/move-facing.mjs';
+import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
@@ -36,7 +38,8 @@ let modelLoadState = null;
 /** 远景布景根节点 */
 let backdropRoot = null;
 import { Sky } from './world/scene.js';
-import { Burrow, Scenery } from './world/props.js';
+import { Scenery } from './world/props.js';
+import { createBurrows, burrowAt } from './world/burrows.js';
 import { Fox } from './entities/fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
@@ -44,13 +47,16 @@ import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
 } from './core/ecology.js';
 import {
-  combatStats, verticalHitOverlap, burst, ultimate, interact, STRIKE_COST, ULT,
+  combatStats, strikeVolumeHit, foxAttackVerticalHit, burst, ultimate, interact,
+  STRIKE_COST, ULT,
 } from './systems/combat.js';
 import { ClawSwing, Shockwave, Particles, DamageText, PlayerAura } from './systems/effects.js';
 import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
+import { TouchLayout } from './ui/touch-layout.js';
+import { Minimap } from './ui/minimap.js';
 
 // ============================================================
 // 初始化
@@ -197,13 +203,13 @@ if (WANT_GS && rendererStatus.supportsSplat) {
  * 稳定版缩放系数为 1，这里等价于原始常量。
  */
 const PT_K = getPointScale();
-const BURROW_R = BURROW.r * PT_K;
-const BURROW_X = BURROW.x * PT_K;
-const BURROW_Z = BURROW.z * PT_K;
-
-const burrow = new Burrow(scene, {
-  x: BURROW_X, z: BURROW_Z, r: BURROW_R,
-});
+const burrowSet = createBurrows(scene);
+const burrowDefs = burrowSet.defs;
+const baseBurrow = burrowSet.base;
+const BURROW_R = baseBurrow.r;
+const BURROW_X = baseBurrow.x;
+const BURROW_Z = baseBurrow.z;
+const burrow = burrowSet.baseObject;
 const scenery = new Scenery(scene);
 hud.setLoading(70);
 
@@ -241,6 +247,7 @@ function buildFoods(levelIndex) {
 }
 berries = buildFoods(0);
 const companion = new Companion(scene);
+const minimap = new Minimap();
 let foxes = [];
 hud.setLoading(86);
 
@@ -462,6 +469,9 @@ const game = {
   ultimates: 0,
   hits: 0,
   inBurrow: false,
+  inBaseBurrow: false,
+  currentBurrow: null,
+  observing: false,
   stressWarned: false,
   season: null, // dev 版：当季食物信息（正式版恒为 null）
 };
@@ -671,13 +681,12 @@ function levelClearHTML() {
   return `
     <div class="eyebrow">LEVEL ${game.level + 1} CLEAR</div>
     <h2>${cfg.name} · 完成</h2>
-    <p>采食达标、藏狐驱退、伙伴安全到家。<b>${cfg.brief}</b></p>
+    <p>采食达标、伙伴安全到家并回洞休息。<b>${cfg.brief}</b></p>
     <div class="level-list">
       ${LEVELS.map((l, i) =>
     `<span class="level-chip ${progress.completedLevels.has(i) ? 'done' : i === game.level + 1 ? 'cur' : ''}">${i + 1} ${l.name}</span>`).join('')}
     </div>
     <div class="stats-grid">
-      <div class="stat"><div class="v">${game.levelRepels}</div><div class="l">本关驱退</div></div>
       <div class="stat"><div class="v">${game.boosts}</div><div class="l">应急爆发</div></div>
       <div class="stat"><div class="v">${game.ultimates}</div><div class="l">协同大招</div></div>
       <div class="stat"><div class="v">${Math.round(game.player.stress)}</div><div class="l">当前负荷</div></div>
@@ -700,10 +709,9 @@ function finish(won, reason = '被藏狐逮住了。') {
   hud.showPanel(`
     <div class="eyebrow">${won ? `ALL CLEAR / ${LEVELS.length} 关通关` : 'TRY AGAIN / 再试一次'}</div>
     <h2>${won ? '草地上的稳态高手！' : `第 ${game.level + 1} 关，还差一点。`}</h2>
-    <p>${won ? '伙伴与食物都安全，首领也被赶走了。' : reason}</p>
+    <p>${won ? '伙伴与食物都安全，已经回到洞穴。' : reason}</p>
     <div class="stats-grid">
       <div class="stat"><div class="v">${game.completed}</div><div class="l">通过关卡</div></div>
-      <div class="stat"><div class="v">${game.totalRepels}</div><div class="l">累计驱退</div></div>
       <div class="stat"><div class="v">${game.boosts}</div><div class="l">应急爆发</div></div>
       <div class="stat"><div class="v">${game.ultimates}</div><div class="l">协同大招</div></div>
       <div class="stat"><div class="v">${game.hits}</div><div class="l">受到攻击</div></div>
@@ -770,11 +778,11 @@ function title() {
     <div class="eyebrow">CAMPAIGN / ${LEVELS.length} 关草原冒险 · 第一 / 第三人称 3D</div>
     <h2>从两只藏狐，到草原守望者。</h2>
     <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>V</b> 切换为第三人称跟随视角，随时按需选择。</p>
-    <p>每关完成 <b>采食、救援、驱退</b> 三件事，回洞即可进入下一关。
+    <p>每关完成 <b>采食、救援与陪伴</b>，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
     <p style="font-size:12.5px"><b>你不会真的杀死藏狐。</b>把它们打到体力耗尽后，它们会
     <b>夹着尾巴转身逃跑</b>，逃出草地才会消失 —— 一段时间后可能有同类再次出现。
-    你要做的不是猎杀，而是<b>把它们从洞口和采食区赶开</b>。</p>
+    你要做的是在采食和救援时自卫，随后回洞。</p>
     ${IS_DEV ? `
     <div class="dev-intro">
       <div class="dev-badge">DEV 版 · 旱獭生态学改写</div>
@@ -928,7 +936,7 @@ let stats_cache = { cd: 0 };
 function strike() {
   const p = game.player;
   if (game.attackCD > 0) return;
-  if (game.inBurrow) return;
+  if (game.inBurrow || game.observing) return;
 
   const s = combatStats(game);
   // dev 版「耐饥渴」：挥爪的储备消耗也更低
@@ -956,11 +964,14 @@ function strike() {
   for (const f of foxes) {
     if (f.hp <= 0) continue;
     const dx = f.x - controller.position.x, dz = f.z - controller.position.z;
-    const d = Math.hypot(dx, dz);
-    if (d > s.range) continue;
-    // 扇形判定：距离 + 朝向夹角（半角约 70°）
-    const dot = (dx * _fwd.x + dz * _fwd.z) / (d || 1);
-    if (dot < 0.34) continue;
+    const forward = dx * _fwd.x + dz * _fwd.z;
+    const lateral = dx * (-_fwd.z) + dz * _fwd.x;
+    const playerBottom = terrainHeight(controller.position.x, controller.position.z)
+      + controller.airHeight;
+    const foxBottom = terrainHeight(f.x, f.z) + f.leap;
+    const foxHeight = FOX.collisionHeight[f.type] ?? FOX.collisionHeight.normal;
+    if (!strikeVolumeHit({ forward, lateral, playerBottom,
+      targetBottom: foxBottom, targetHeight: foxHeight, range: s.range })) continue;
     hitFox(f, s.damage, s);
     hits++;
   }
@@ -984,7 +995,7 @@ function hitFox(f, damage, s) {
     f.startFleeing(controller.position.x, controller.position.z, cfg);
     if (game.overdrive <= 0) game.charge = clamp(game.charge + 18, 0, 100);
     game.player.energy = clamp(game.player.energy + 8, 0, 100);
-    damageText.spawn(f.x, fy + 1.6, f.z, '驱退 +1', '#ceebbc');
+    damageText.spawn(f.x, fy + 1.6, f.z, '威胁已解除', '#ceebbc');
     particles.burst(f.x, fy + 0.5, f.z, colRepel, 18, 1.4);
     audio.repel();
     recordTestLog('fox-repelled', { foxType: f.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
@@ -1059,7 +1070,7 @@ function doInteract() {
     hud.say('伙伴跟上了！带它回左侧洞穴。');
     return;
   }
-  if (f.saved && inBurrow && game.socialCD <= 0) {
+  if (f.saved && game.inBaseBurrow && game.socialCD <= 0) {
     game.social = 9;
     game.socialCD = 13;
     companion.showEmote('check');
@@ -1078,7 +1089,7 @@ const _tmpV = new THREE.Vector3();
 function update(dt) {
   if (game.mode !== 'play') {
     // 非游戏状态仍更新视觉表现，保持画面"活着"
-    burrow.update(dt);
+    burrowSet.objects.forEach((b) => b.update(dt));
     shockwave.update(dt);
     particles.update(dt);
     damageText.update(dt);
@@ -1134,8 +1145,10 @@ function update(dt) {
   p.z = controller.position.z;
 
   // 洞穴判定
-  const dBurrow = Math.hypot(p.x - BURROW_X, p.z - BURROW_Z);
-  game.inBurrow = dBurrow < BURROW_R;
+  game.currentBurrow = burrowAt(p.x, p.z, burrowDefs);
+  game.inBurrow = !!game.currentBurrow;
+  game.inBaseBurrow = game.currentBurrow?.type === 'base';
+  game.observing = controller.crouch < 0.08 && controller.postureSpeed < 0.04 && !moving && !game.inBurrow;
 
   // 移动消耗储备
   // dev 版「耐饥渴」：同一动作消耗更低（旱獭能长时间不进食活动）
@@ -1150,7 +1163,7 @@ function update(dt) {
   const burrowRegenMul = devOn('famineTolerance') ? HERBIVORE.burrowRegenMul : 1;
   if (!moving) {
     p.energy = clamp(
-      p.energy + (game.inBurrow ? 14 * burrowRegenMul : 2.5 * regenMul) * dt, 0, 100,
+      p.energy + (game.inBurrow ? (game.currentBurrow.regenMul || 0) * 14 * burrowRegenMul : 2.5 * regenMul) * dt, 0, 100,
     );
   }
 
@@ -1159,7 +1172,7 @@ function update(dt) {
   let anyWinding = false;
   for (const f of foxes) {
     const prevState = f.state;
-    f.update(dt, p, game.inBurrow, cfg, BURROW, terrainHeight);
+    f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow);
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
@@ -1177,9 +1190,10 @@ function update(dt) {
       const foxHitHeight = FOX.collisionHeight[f.type] ?? FOX.collisionHeight.normal;
       const playerBottom = terrainHeight(p.x, p.z) + controller.airHeight;
       const playerHitHeight = PLAYER.collisionHeight;
-      const verticalOverlap = verticalHitOverlap(
-        playerBottom, playerHitHeight, foxBottom, foxHitHeight,
-      );
+      const verticalOverlap = foxAttackVerticalHit({
+        playerBottom, playerHeight: playerHitHeight, foxBottom, foxHeight: foxHitHeight,
+        groundAttackHeight: FOX.groundAttackHeight, mode: f.attack?.mode, state: f.state,
+      });
       if (d < reach && verticalOverlap) {
         // 注意括号：`??` 优先级低于 `+`，必须先按类型取基础伤害再叠加关卡加成，
         // 否则 `+ game.level` 只会并进 default 分支、而该分支永远不会被用到。
@@ -1255,14 +1269,14 @@ function update(dt) {
   companion.update(dt, controller.position, game.inBurrow);
   if (game.friend.rescued && !game.friend.saved) {
     const d = Math.hypot(companion.x - BURROW_X, companion.z - BURROW_Z);
-    if (game.inBurrow && d < BURROW_R + 2.5) {
+    if (game.inBaseBurrow && d < BURROW_R + 2.5) {
       game.friend.saved = true;
       companion.saved = true;
       companion.x = BURROW_X - 2.6 * getPointScale();
       companion.z = BURROW_Z + 3 * getPointScale();
       companion.sync();
       audio.rescue();
-      hud.say('伙伴到家！采食和驱退完成后回洞。', 3.3);
+      hud.say('伙伴到家！采食完成后回洞。', 3.3);
     }
   }
 
@@ -1285,7 +1299,7 @@ function update(dt) {
 
   // —— 交互提示 ——
   let prompt = '';
-  if (game.friend.saved && game.inBurrow && game.socialCD <= 0) {
+  if (game.friend.saved && game.inBaseBurrow && game.socialCD <= 0) {
     prompt = '<kbd>E</kbd> 陪伴缓压';
   } else if (!game.friend.rescued && !game.friend.saved
     && Math.hypot(companion.x - p.x, companion.z - p.z) < RESCUE_DIST) {
@@ -1299,7 +1313,7 @@ function update(dt) {
   playerBody.rotation.x = -controller.crouch * 0.28;
   playerBody.position.y = controller.crouch * -0.12 + (controller.grounded ? 0 : 0.08);
   playerBody.scale.set(1, 1 - controller.crouch * 0.12, 1 + controller.crouch * 0.18);
-  burrow.update(dt);
+  burrowSet.objects.forEach((b) => b.update(dt));
   berries.forEach((b) => b.update(dt));
   claw.update(dt);
   shockwave.update(dt);
@@ -1312,6 +1326,13 @@ function update(dt) {
 
   controller.forwardFlat(_fwd);
   hud.updateThreats(foxes, p, camera, _fwd, companion);
+  minimap.update({
+    visible: game.observing,
+    player: { x: p.x, z: p.z, yaw: controller.yaw },
+    base: baseBurrow,
+    shelters: burrowDefs.filter((b) => b.type === 'shelter'),
+    berries, companion, foxes,
+  });
 
   // 低血量警告音
   if (p.hp < 30) {
@@ -1324,8 +1345,10 @@ function update(dt) {
   if (game.time <= 0) { finish(false, '天黑前没有完成本关任务。'); return; }
 
   // —— 通关判定：三目标 + 回洞 ——
-  if (game.foodCount >= cfg.goal && game.levelRepels >= cfg.repels
-    && game.friend.saved && game.bossDown && game.inBurrow) {
+  // 正式通关：采食达标 + 伙伴到家 + 回到【大本营】（临时避难洞不结算）。
+  // 驱退狐狸不再是任务配额；boss 也不是强制目标。
+  if (objectivesComplete({ foodCount: game.foodCount, foodGoal: cfg.goal,
+    friendSaved: game.friend.saved, inBurrow: game.inBaseBurrow })) {
     completeLevel();
     return;
   }
@@ -1536,7 +1559,8 @@ helpBtn.onclick = () => { helpSheet.hidden = !helpSheet.hidden; };
 document.getElementById('helpClose').onclick = () => { helpSheet.hidden = true; };
 
 // 设置面板（键位方案）
-const settingsUI = new SettingsUI(binds);
+const touchLayout = new TouchLayout();
+const settingsUI = new SettingsUI(binds, touchLayout);
 
 // 开发测试面板通过 ?test=1 显式启用，不进入普通用户界面。
 const testModeBtn = document.getElementById('testModeBtn');
@@ -1626,7 +1650,7 @@ function syncHelpKeys() {
       <span><kbd>${get('pause')}</kbd> 暂停　<kbd>${get('retry')}</kbd> 重试</span>
       <span><kbd>${get('restart')}</kbd> 从第一关重开</span>
     </div>
-    <p class="note">洞穴内不能攻击。完成<b>采食 + 驱退 + 伙伴到家</b>后回洞，自动进入下一关。<br>
+    <p class="note">洞穴内不能攻击。完成<b>采食 + 伙伴到家</b>后回洞，自动进入下一关。<br>
     <b>驱退不等于杀死</b>：藏狐体力耗尽后会转身逃向草地边缘，逃掉才消失，过一阵还可能再来。<br>
     <b>奔跑时会自动俯身冲刺，停下则起身</b> —— 起身比趴下稍慢，就像真的在用四肢撑起身体。<br>
     被困伙伴会周期性<b>呼救</b>，屏幕边缘的<b>绿色箭头</b>指向它；红色箭头则是正在逼近的藏狐。<br>
@@ -1723,6 +1747,7 @@ canvas.addEventListener('webglcontextrestored', () => {
 // 主循环
 // ============================================================
 let last = performance.now();
+let playerBodyYaw = controller.yaw;
 let fpsAcc = 0, fpsCount = 0, fpsTimer = 0;
 
 function frame(now) {
@@ -1735,7 +1760,8 @@ function frame(now) {
   }
   update(dt);
   playerModel.position.set(controller.position.x, terrainHeight(controller.position.x, controller.position.z), controller.position.z);
-  playerModel.rotation.y = controller.yaw + Math.PI;
+  playerBodyYaw = dampAngle(playerBodyYaw, controller.moveFacingYaw, dt, PLAYER.bodyTurnRate);
+  playerModel.rotation.y = playerBodyYaw + Math.PI;
   // dt 传入 sky：天穹云随时间漂移（标题界面作为动态背景也在动）
   sky.update(controller.position, dt);
 
@@ -1797,7 +1823,7 @@ window.__game = {
   foxes: () => foxes, berries: () => berries, companion,
   combatStats: () => combatStats(game),
   burrow: BURROW,
-  burrowObj: burrow, scenery, sky, claw, shockwave, particles, damageText, aura,
+  burrowObj: burrow, burrows: burrowDefs, scenery, sky, claw, shockwave, particles, damageText, aura, minimap,
   viewModel, playerModel, playerBody, setViewMode, get thirdPerson() { return thirdPerson; },
   binds, findConflicts, ACTIONS, FoxClass: Fox,
   isDev: IS_DEV, ecology: { energyOfPlant, eatLine, seasonForLevel, plantsForLevel, HERBIVORE },

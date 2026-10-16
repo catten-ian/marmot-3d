@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { terrainHeight, clamp } from '../core/utils.js';
+import { resolveMoveIntent } from './move-facing.mjs';
 
 export class FirstPersonController {
   constructor(camera, domElement) {
@@ -25,6 +26,9 @@ export class FirstPersonController {
     this.touchAxes = { x: 0, y: 0 };
     this.touchSprint = false;
     this.touchEnabled = false;
+    this.moveFacingYaw = 0;
+    this.isBackpedal = false;
+    this.moveSpeedScale = 1;
 
     this.onGroundY = 0;
     this.bobPhase = 0;
@@ -120,6 +124,9 @@ export class FirstPersonController {
   teleport(x, z, yaw = 0) {
     this.position.set(x, terrainHeight(x, z), z);
     this.yaw = yaw;
+    this.moveFacingYaw = yaw;
+    this.isBackpedal = false;
+    this.moveSpeedScale = 1;
     this.pitch = 0;
     this.velocity.set(0, 0, 0);
     this.externalVelocity.set(0, 0, 0);
@@ -173,7 +180,7 @@ export class FirstPersonController {
     const base = PLAYER.speed * speedMul;
     if (turnMap) {
       const turn = Number(keys.has(turnMap.left)) - Number(keys.has(turnMap.right));
-      this.yaw += turn * 2.2 * dt;
+      this.yaw += turn * PLAYER.handling.turnRate * dt;
     }
     let mx = 0, mz = 0;
     // 通过键位方案查表取移动键，而不是硬编码 KeyW
@@ -197,21 +204,20 @@ export class FirstPersonController {
       this.externalVelocity.z *= drag;
     }
 
-    const moving = mx !== 0 || mz !== 0;
+    const intent = resolveMoveIntent(mx, mz, this.yaw, PLAYER.backpedalSpeed);
+    this.moveFacingYaw = intent.facingYaw;
+    this.isBackpedal = intent.isBackpedal;
+    this.moveSpeedScale = intent.speedScale;
+    const moving = intent.mx !== 0 || intent.mz !== 0;
     if (moving) {
-      const len = Math.hypot(mx, mz);
-      mx /= len; mz /= len;
-      // 前向 = yaw 方向
-      const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
-      const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
-      const targetVx = (fx * mz + rx * mx) * base;
-      const targetVz = (fz * mz + rz * mx) * base;
+      const targetVx = intent.moveX * base * intent.speedScale;
+      const targetVz = intent.moveZ * base * intent.speedScale;
       // 平滑加速，手感更稳
-      const accel = 1 - Math.exp(-14 * dt);
+      const accel = 1 - Math.exp(-PLAYER.handling.accel * dt);
       this.velocity.x += (targetVx - this.velocity.x) * accel;
       this.velocity.z += (targetVz - this.velocity.z) * accel;
     } else {
-      const decel = 1 - Math.exp(-18 * dt);
+      const decel = 1 - Math.exp(-PLAYER.handling.brake * dt);
       this.velocity.x -= this.velocity.x * decel;
       this.velocity.z -= this.velocity.z * decel;
     }

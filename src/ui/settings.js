@@ -6,8 +6,9 @@ import { Keybinds, ACTIONS, findConflicts } from '../core/keybinds.js';
 import { IS_DEV } from '../core/version.js';
 
 export class SettingsUI {
-  constructor(binds) {
+  constructor(binds, touchLayout = null) {
     this.binds = binds;
+    this.touchLayout = touchLayout;
     this.el = {
       btn: document.getElementById('setBtn'),
       sheet: document.getElementById('setSheet'),
@@ -98,6 +99,10 @@ export class SettingsUI {
     }
     html += '</div>';
 
+    if (this.touchLayout) {
+      html += this.touchLayout.settingsMarkup();
+    }
+
     // 冲突提示
     const conflicts = findConflicts(b.scheme === 'custom' ? b.custom : b.map);
     if (conflicts.size) {
@@ -149,5 +154,6 @@ export class SettingsUI {
     });
     const rb = this.el.body.querySelector('#resetBinds');
     if (rb) rb.onclick = () => this.binds.resetCustom();
+    this.touchLayout?.bindSettings(this.el.body);
   }
 }

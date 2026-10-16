@@ -16,6 +16,32 @@ export function verticalHitOverlap(aBottom, aHeight, bBottom, bHeight) {
   return aBottom < bBottom + bHeight && bBottom < aBottom + aHeight;
 }
 
+// 三维近战体：水平仍是前方扇形，垂直则是从脚边到头顶的短柱体。
+// 这些值刻意比旧 dot=0.34 更宽容，但不会覆盖身后或远处目标。
+export const STRIKE_VOLUME = {
+  halfAngle: 78 * Math.PI / 180,
+  lower: 0.06,
+  upper: 1.18,
+};
+
+export function strikeVolumeHit({ forward, lateral, playerBottom, targetBottom, targetHeight, range }) {
+  const d = Math.hypot(forward, lateral);
+  if (d > range) return false;
+  // 距离几乎为零时没有可靠的水平朝向差，允许命中；仍必须通过垂直区间。
+  if (d > 1e-6 && forward / d < Math.cos(STRIKE_VOLUME.halfAngle)) return false;
+  const clawBottom = playerBottom + STRIKE_VOLUME.lower;
+  const clawTop = playerBottom + STRIKE_VOLUME.upper;
+  return verticalHitOverlap(clawBottom, clawTop - clawBottom, targetBottom, targetHeight);
+}
+
+export function foxAttackVerticalHit({ playerBottom, playerHeight, foxBottom, foxHeight, groundAttackHeight, mode, state }) {
+  if (state !== 'dash') return false;
+  // 普通冲刺是低位扑咬/擦撞，不随大型模型的耳尖高度抬高攻击盒。
+  // 跃扑则采用狐狸真实腾空后的类型碰撞盒，仍能覆盖玩家空中轨迹。
+  const attackHeight = mode === 'leap' ? foxHeight : groundAttackHeight;
+  return verticalHitOverlap(playerBottom, playerHeight, foxBottom, attackHeight);
+}
+
 export function combatStats(g) {
   const p = g.player;
   const tier = g.cortisol >= 60 ? 2 : g.cortisol >= 25 ? 1 : 0;

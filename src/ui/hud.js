@@ -154,7 +154,7 @@ export class HUD {
     // chip. Instructional text stays available in the expanded objective.
     this.el.mission.innerHTML =
       `第 <b>${g.level + 1}</b> / ${LEVELS.length} 关 · ${cfg.name}<br>` +
-      `${g.freezeTimer ? '测试模式：无时间限制' : `剩余 <b>${Math.ceil(g.time)}</b> 秒`} · 位置：${g.inBurrow ? '<b style="color:#8fe8b0">洞穴内（安全）</b>' : '草地上'}`;
+      `${g.freezeTimer ? '测试模式：无时间限制' : `剩余 <b>${Math.ceil(g.time)}</b> 秒`} · 位置：${g.inBaseBurrow ? '<b style="color:#ffd080">大本营内</b>' : g.inBurrow ? '<b style="color:#9bd4dc">临时避难洞内</b>' : '草地上'}`;
 
     const state = g.overdrive > 0 ? '协同大招'
       : g.boost > 0 ? '应急爆发'
@@ -185,14 +185,14 @@ export class HUD {
       + `${Math.round(g.cortisol)}/100`
       + (g.cortisol >= 60 ? ' · 攻击 +2' : g.cortisol >= 25 ? ' · 攻击 +1' : ' · 达 25 后攻击 +1');
     this.el.socialStatus.innerHTML = '<strong>E 陪伴</strong> '
-      + (!g.friend.saved ? '先救伙伴' : g.social > 0 ? `缓压中 ${Math.ceil(g.social)}s` : g.socialCD > 0 ? `冷却 ${Math.ceil(g.socialCD)}s` : '回洞使用');
+      + (!g.friend.saved ? '先救伙伴' : g.social > 0 ? `缓压中 ${Math.ceil(g.social)}s` : g.socialCD > 0 ? `冷却 ${Math.ceil(g.socialCD)}s` : '回大本营使用');
 
     this._updateObjective(g, cfg);
   }
 
   _updateObjective(g, cfg) {
     const f = g.friend;
-    const key = `${g.level}/${g.foodCount}/${g.levelRepels}/${f.rescued}/${f.saved}/${g.bossDown}/${cfg.goal}/${cfg.repels}/${cfg.boss}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
+    const key = `${g.level}/${g.foodCount}/${f.rescued}/${f.saved}/${g.inBurrow}/${cfg.goal}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
     if (key === this._lastObjective) return;
     this._lastObjective = key;
 
@@ -207,12 +207,8 @@ export class HUD {
     // dev 版：采食对象随季节变化，标签应随之改变
     const eatLabel = g.season ? `采食 · ${g.season.season}` : '采食浆果';
     html += row(eatLabel, g.foodCount, cfg.goal);
-    html += row('驱退藏狐', g.levelRepels, cfg.repels);
     html += `<div class="obj-row ${f.saved ? 'done' : ''}"><span>伙伴</span><b>${f.saved ? '已到家' : f.rescued ? '跟随中' : '待救援'}</b></div>`;
-    if (cfg.boss) {
-      html += `<div class="obj-row ${g.bossDown ? 'done' : ''}"><span>狐首领</span><b>${g.bossDown ? '已驱退' : '未驱退'}</b></div>`;
-    }
-    html += `<div class="obj-row ${g.inBurrow ? 'done' : ''}"><span>回洞结算</span><b>${g.inBurrow ? '在洞内' : '未回洞'}</b></div>`;
+    html += `<div class="obj-row ${g.inBaseBurrow ? 'done' : ''}"><span>回大本营结算</span><b>${g.inBaseBurrow ? '在大本营' : g.inBurrow ? '临时避难中' : '未回洞'}</b></div>`;
     const levelHint = cfg.subtitle || cfg.brief;
     if (levelHint) html += `<div class="obj-hint">关卡提示：${levelHint}</div>`;
     // dev 版：显示当季说明，把季节性与进食强度联系起来

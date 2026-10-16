@@ -19,13 +19,16 @@ export class Burrow {
     // 半径取传入值（GS 版 main 已按 scaleRadius 缩放），不能写死 8.2，
     // 否则安全区视觉圈与实际碰撞/回储备范围对不上。
     this.r = pos.r ?? 8.2;
+    this.type = pos.type || 'base';
+    this.label = pos.label || (this.type === 'base' ? '大本营' : '临时避难洞');
+    const isBase = this.type === 'base';
 
     const y = terrainHeight(pos.x, pos.z);
     this.group.position.set(pos.x, y, pos.z);
 
     // 土丘：半球压扁（暖褐色，与冷绿草地形成对比，一眼分辨"家"）
     const moundGeo = new THREE.SphereGeometry(this.r * 0.95, 30, 18, 0, Math.PI * 2, 0, Math.PI / 2);
-    const moundMat = new THREE.MeshStandardMaterial({ color: 0xa8814e, roughness: 1 });
+    const moundMat = new THREE.MeshStandardMaterial({ color: isBase ? 0xa8814e : 0x687b78, roughness: 1 });
     const mound = new THREE.Mesh(moundGeo, moundMat);
     mound.scale.set(1, 0.4, 1);
     mound.castShadow = true;
@@ -33,16 +36,16 @@ export class Burrow {
     this.group.add(mound);
 
     // 洞口：朝 +z 方向开的深色凹坑
-    const holeGeo = new THREE.CircleGeometry(1.9, 24);
-    const holeMat = new THREE.MeshBasicMaterial({ color: 0x140d05 });
+    const holeGeo = new THREE.CircleGeometry(isBase ? 1.9 : 1.0, 24);
+    const holeMat = new THREE.MeshBasicMaterial({ color: isBase ? 0x140d05 : 0x172125 });
     const hole = new THREE.Mesh(holeGeo, holeMat);
     hole.position.set(0, 0.06, this.r * 0.56);
     hole.rotation.x = -Math.PI / 2.1;
     this.group.add(hole);
 
     // 洞口土框
-    const rimGeo = new THREE.TorusGeometry(2.1, 0.32, 8, 28);
-    const rimMat = new THREE.MeshStandardMaterial({ color: 0x8a6238, roughness: 1 });
+    const rimGeo = new THREE.TorusGeometry(isBase ? 2.1 : 1.18, isBase ? 0.32 : 0.18, 8, 28);
+    const rimMat = new THREE.MeshStandardMaterial({ color: isBase ? 0x8a6238 : 0x596b68, roughness: 1 });
     const rim = new THREE.Mesh(rimGeo, rimMat);
     rim.position.set(0, 0.1, this.r * 0.56);
     rim.rotation.x = -Math.PI / 2.1 + Math.PI / 2;
@@ -50,7 +53,7 @@ export class Burrow {
     this.group.add(rim);
 
     // 洞口暖光：提示"安全/可休息"
-    const glow = new THREE.PointLight(0xffc978, 5.5, 16, 2);
+    const glow = new THREE.PointLight(isBase ? 0xffc978 : 0x7db6c1, isBase ? 5.5 : 0.35, isBase ? 16 : 4, 2);
     glow.position.set(0, 1.5, this.r * 0.35);
     this.group.add(glow);
     this.glow = glow;
@@ -59,31 +62,31 @@ export class Burrow {
     // 早期版本用贴地平面圆环，在土拨鼠的贴地视角下会被透视压成一条
     // 横贯视野的亮线，反而看不见"这是一个圆形的家"。改用竖直光柱后，
     // 无论玩家站在圈内还是圈外，都能立刻辨认出安全区。
-    const beamGeo = new THREE.CylinderGeometry(this.r * 0.92, this.r * 0.98, 3.4, 40, 1, true);
+    const beamGeo = new THREE.CylinderGeometry(this.r * 0.92, this.r * 0.98, isBase ? 3.4 : 0.9, 40, 1, true);
     const beamMat = new THREE.MeshBasicMaterial({
-      color: 0x7fe0a0, transparent: true, opacity: 0.085,
+      color: isBase ? 0x7fe0a0 : 0x83aeb4, transparent: true, opacity: isBase ? 0.085 : 0.035,
       side: THREE.DoubleSide, depthWrite: false,
     });
     const beam = new THREE.Mesh(beamGeo, beamMat);
-    beam.position.y = 1.7;
+    beam.position.y = isBase ? 1.7 : 0.45;
     this.group.add(beam);
     this.beam = beam;
 
     // 顶部悬浮环：给远处一个可识别的"地标"
-    const capGeo = new THREE.TorusGeometry(this.r * 0.94, 0.13, 8, 40);
+    const capGeo = new THREE.TorusGeometry(this.r * 0.94, isBase ? 0.13 : 0.07, 8, 40);
     capGeo.rotateX(Math.PI / 2);
     const capMat = new THREE.MeshBasicMaterial({
-      color: 0x9ff0b8, transparent: true, opacity: 0.45, depthWrite: false,
+      color: isBase ? 0x9ff0b8 : 0x86afb4, transparent: true, opacity: isBase ? 0.45 : 0.18, depthWrite: false,
     });
     const cap = new THREE.Mesh(capGeo, capMat);
-    cap.position.y = 3.4;
+    cap.position.y = isBase ? 3.4 : 0.95;
     this.group.add(cap);
     this.cap = cap;
 
     // 圈内地面微亮（保持极淡，仅在脚下近距离可见）
     const discGeo = new THREE.CircleGeometry(this.r * 0.94, 40);
     const discMat = new THREE.MeshBasicMaterial({
-      color: 0x9fe8b8, transparent: true, opacity: 0.05, depthWrite: false,
+      color: isBase ? 0x9fe8b8 : 0x81a6aa, transparent: true, opacity: isBase ? 0.05 : 0.025, depthWrite: false,
     });
     const disc = new THREE.Mesh(discGeo, discMat);
     disc.rotation.x = -Math.PI / 2;
@@ -92,6 +95,7 @@ export class Burrow {
 
     scene.add(this.group);
     this._t = 0;
+    this.isBase = isBase;
   }
 
   update(dt) {
@@ -102,8 +106,8 @@ export class Burrow {
     this.beam.material.opacity = 0.07 + Math.sin(this._t * 1.6) * 0.025;
     // 顶环缓慢旋转 + 上下浮动
     this.cap.rotation.y += dt * 0.35;
-    this.cap.position.y = 3.4 + Math.sin(this._t * 0.9) * 0.12;
-    this.glow.intensity = 4.6 + Math.sin(this._t * 2.1) * 1.1;
+    this.cap.position.y = (this.isBase ? 3.4 : 0.95) + Math.sin(this._t * 0.9) * (this.isBase ? 0.12 : 0.04);
+    this.glow.intensity = this.isBase ? 4.6 + Math.sin(this._t * 2.1) * 1.1 : 0.28;
   }
 }
 

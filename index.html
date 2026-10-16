@@ -106,6 +106,7 @@
 
 <!-- 触屏操作层：仅粗指针设备显示；左右分区支持同时移动与转向。 -->
 <div id="touchControls" class="touch-controls" aria-label="触屏游戏控制">
+  <i id="touchSafeInsets" aria-hidden="true"></i>
   <div id="touchLookZone" class="touch-look-zone" aria-label="拖动以转动视角">
     <span>右侧拖动视角</span>
   </div>
@@ -122,6 +123,7 @@
     <button type="button" data-touch-action="burst" aria-label="应急爆发"><b>J</b><small>爆发</small></button>
     <button type="button" data-touch-action="ultimate" aria-label="协同大招"><b>K</b><small>大招</small></button>
   </div>
+  <button class="touch-layout-entry" id="touchLayoutEntry" type="button" aria-pressed="false">编辑</button>
 </div>
 
 <!-- ========== 加载 ========== -->
@@ -184,7 +186,7 @@
     <span><kbd>P</kbd> 暂停　<kbd>T</kbd> 重试本关</span>
     <span><kbd>R</kbd> 从第一关重开　<kbd>Esc</kbd> 释放鼠标</span>
   </div>
-  <p class="note">洞穴内不能攻击。完成<b>采食 + 驱退 + 伙伴到家</b>后回洞，自动进入下一关。<br>
+  <p class="note">洞穴内不能攻击。完成<b>采食 + 伙伴到家</b>后回洞，自动进入下一关。<br>
   <b>奔跑时会自动俯身冲刺，停下则起身</b> —— 起身比趴下稍慢，就像真的在用四肢撑起身体。<br>
   被困伙伴会周期性<b>呼救</b>，屏幕边缘的<b>绿色箭头</b>指向它；红色箭头则是正在逼近的藏狐。</p>
   <button class="primary" id="helpClose">知道了</button>
