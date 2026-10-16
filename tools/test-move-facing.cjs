@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 
 (async () => {
-  const { resolveMoveIntent, dampAngle } = await import('../src/core/move-facing.mjs');
+  const { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget } = await import('../src/core/move-facing.mjs');
   const yaw = 0;
   const angleError = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
   const direction = (mx, mz) => {
@@ -45,6 +45,12 @@ const assert = require('node:assert/strict');
     current = next;
   }
   assert.ok(firstStep > 0 && current > 1.5, 'smooth interpolation converges over frames');
+  assert.equal(classifyMoveFacing(1, 0, true).followBody, true);
+  assert.equal(classifyMoveFacing(1, 0, false).followBody, false);
+  assert.equal(classifyMoveFacing(1, 0.2, true).followBody, false);
+  const rightRun = thirdPersonStrafeTarget(1, 0);
+  assert.ok(Math.abs(rightRun.targetYaw + Math.PI / 2) < 1e-9 && rightRun.moveX > .99 && Math.abs(rightRun.moveZ) < 1e-9);
+  assert.ok(Math.abs(Math.hypot(rightRun.moveX, rightRun.moveZ) - 1) < 1e-9);
 
   console.log('move-facing logic: all assertions passed');
 })();

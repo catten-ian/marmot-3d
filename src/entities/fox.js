@@ -460,7 +460,7 @@ export class Fox {
     const dx = p.x - this.x, dz = p.z - this.z;
     const d = Math.hypot(dx, dz);
     const A = this.attack;                 // 攻击档案（config.FOX_ATTACKS）
-    const speed = levelCfg.speed * this.cfg.speed;
+    const speed = levelCfg.speed * this.cfg.speed * (this.sandboxSpeedMul || 1);
     // 关卡的蓄力基准时长（实际蓄力 = 该值 × 档案 windMul）
     this.levelCfgWind = levelCfg.wind;
     // 跃扑的腾空时间也算进冲刺时长，预警线长度才准
@@ -673,7 +673,7 @@ export class Fox {
     }
     this._updateSegmentedFox(dt, movingSpeed);
     this._applyTransform(dt, terrainAt);
-    this._updateWarn();
+    this._updateWarn(terrainAt);
     this._updateHpBar();
   }
 
@@ -795,7 +795,7 @@ export class Fox {
   /** 进入蓄力：记录完整蓄力时长并点亮预警线 */
   _enterWind() {
     this.state = 'wind';
-    this.windFull = this.levelCfgWind * this.attack.windMul;
+    this.windFull = this.levelCfgWind * this.attack.windMul * (this.sandboxAlertMul || 1);
     this.windTotal = this.windFull;
     this.timer = this.windFull;
     this.warn.visible = true;
@@ -950,9 +950,9 @@ export class Fox {
     this.hpBar.position.set(this.x, terrainAt(this.x, this.z) + 1.55 * this.cfg.scale, this.z);
   }
 
-  _updateWarn() {
+  _updateWarn(terrainAt = null) {
     if (!this.warn.visible) return;
-    this.warn.position.set(this.x, this.baseY + 0.06, this.z);
+    this.warn.position.set(this.x, (terrainAt ? terrainAt(this.x, this.z) : this.baseY) + 0.02, this.z);
     this.warn.rotation.y = this.yaw;
     // 长度必须等于**真实冲刺距离**：玩家靠预警线判断"往哪躲、躲多远"，
     // 长度一旦失真，"线到头了但狐还在冲"的失信就无从避免。

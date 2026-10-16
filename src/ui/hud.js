@@ -152,8 +152,9 @@ export class HUD {
 
     // Keep only level identity and live status in the always-visible mission
     // chip. Instructional text stays available in the expanded objective.
-    this.el.mission.innerHTML =
-      `第 <b>${g.level + 1}</b> / ${LEVELS.length} 关 · ${cfg.name}<br>` +
+    this.el.mission.innerHTML = g.sandbox
+      ? '<b>自由测试 · 无关卡 / 无时间限制</b><br>移动、攻击与狐狸机动均可反复测试'
+      : `第 <b>${g.level + 1}</b> / ${LEVELS.length} 关 · ${cfg.name}<br>` +
       `${g.freezeTimer ? '测试模式：无时间限制' : `剩余 <b>${Math.ceil(g.time)}</b> 秒`} · 位置：${g.inBaseBurrow ? '<b style="color:#ffd080">大本营内</b>' : g.inBurrow ? '<b style="color:#9bd4dc">临时避难洞内</b>' : '草地上'}`;
 
     const state = g.overdrive > 0 ? '协同大招'
@@ -191,6 +192,12 @@ export class HUD {
   }
 
   _updateObjective(g, cfg) {
+    if (g.sandbox) {
+      if (this._lastObjective === 'sandbox') return;
+      this._lastObjective = 'sandbox';
+      this.el.objective.innerHTML = '<div class="obj-title">沙盒状态</div><div class="obj-row done"><span>关卡目标</span><b>关闭</b></div><div class="obj-row done"><span>时间限制</span><b>关闭</b></div>';
+      return;
+    }
     const f = g.friend;
     const key = `${g.level}/${g.foodCount}/${f.rescued}/${f.saved}/${g.inBurrow}/${cfg.goal}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
     if (key === this._lastObjective) return;

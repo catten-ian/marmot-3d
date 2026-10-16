@@ -16,6 +16,7 @@ import {
 import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/utils.js';
 import { FirstPersonController } from './core/controls.js';
 import { dampAngle } from './core/move-facing.mjs';
+import { selectAttackMove, selectAttackMoveFromInput } from './core/combat-wheel.mjs';
 import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels } from './models/loader.js';
@@ -57,6 +58,10 @@ import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
 import { TouchLayout } from './ui/touch-layout.js';
 import { Minimap } from './ui/minimap.js';
+import { cooldownOverlayData } from './ui/cooldown-overlay.js';
+import { createSandboxState, SANDBOX_LEVEL } from './sandbox/state.js';
+import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
+import { setupSandboxPanel } from './sandbox/panel.js';
 
 // ============================================================
 // 初始化
@@ -386,6 +391,9 @@ function saveProgress() {
 }
 
 const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
+const SANDBOX_MODE = new URLSearchParams(location.search).get('sandbox') === '1';
+const sandboxState = createSandboxState();
+if (SANDBOX_MODE) sandboxState.active = true;
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
 const testLogs = [];
@@ -474,6 +482,8 @@ const game = {
   observing: false,
   stressWarned: false,
   season: null, // dev 版：当季食物信息（正式版恒为 null）
+  sandbox: false,
+  attackMoveLock: 0,
 };
 
 const colBoost = new THREE.Color(0xffd17a);
@@ -494,7 +504,7 @@ const colHurt = new THREE.Color(0xeea091);
  * 新增关卡时只要改配置表即可，不用动代码。
  */
 function makeFox(i) {
-  const cfg = LEVELS[game.level];
+  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[game.level];
   const boss = cfg.boss && i === cfg.count - 1;
   const pool = typesForLevel(game.level);
   const [sx, sz] = scalePoint(SPAWN_POINTS[i % SPAWN_POINTS.length]);
@@ -512,9 +522,40 @@ function makeFox(i) {
     type, game.level, i, { lureBias: cfg.lureBias || 1 });
 }
 
+function spawnSandboxFox(type = sandboxState.selectedType, slot = foxes.length) {
+  const distance = 8 + (slot % 3) * 2.4;
+  const angle = controller.yaw + (slot - 1) * 0.24;
+  const fox = new Fox(scene, controller.position.x + Math.sin(angle) * distance,
+    controller.position.z + Math.cos(angle) * distance, type, 0, slot, { lureBias: 1.15 });
+  fox.sandboxSpeedMul = sandboxState.speedMultiplier;
+  fox.sandboxAlertMul = sandboxState.alertMultiplier;
+  foxes.push(fox);
+  return fox;
+}
+
+function disposeAllFoxes() { foxes.forEach((f) => f.dispose(scene)); foxes = []; }
+
+function enterSandbox() {
+  hud.hidePanel(); sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
+  game.sandbox = true; game.mode = 'play'; document.body.classList.add('sandbox-active');
+  testModeBtn.hidden = false; testModeBtn.textContent = '沙盒控制';
+  testState.godMode = true; testState.freezeTimer = true;
+  loadLevel(0, false); disposeAllFoxes();
+  for (let i = 0; i < 3; i++) spawnSandboxFox(i === 2 ? 'fast' : 'normal', i);
+  game.time = Infinity; game.foodCount = 0; game.levelRepels = 0; game.player.hp = 100; game.player.energy = 100;
+  game.player.stress = 0; game.charge = 100;
+  applySandboxDifficulty(sandboxState, sandboxState.difficulty);
+  if (!controller.touchEnabled) controller.requestLock();
+}
+
+function exitSandbox() {
+  sandboxState.active = false; game.sandbox = false; document.body.classList.remove('sandbox-active');
+  testModeBtn.hidden = !TEST_MODE; testModeBtn.textContent = '测试'; testPanel.hidden = true; title();
+}
+
 function loadLevel(index, announce = true) {
   game.level = index;
-  const cfg = LEVELS[index];
+  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[index];
 
   // 重置玩家
   const p = game.player;
@@ -550,7 +591,7 @@ function loadLevel(index, announce = true) {
 
   game.levelRepels = 0;
   game.bossDown = !cfg.boss;
-  game.time = cfg.time;
+  game.time = game.sandbox ? Infinity : cfg.time;
   game.elapsed = 0;
   for (const k of ['boost', 'boostCD', 'attackCD', 'social', 'socialCD',
     'overdrive', 'overCD', 'fatigue', 'cortisol', 'drive']) {
@@ -677,7 +718,7 @@ function completeLevel() {
 }
 
 function levelClearHTML() {
-  const cfg = LEVELS[game.level];
+  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[game.level];
   return `
     <div class="eyebrow">LEVEL ${game.level + 1} CLEAR</div>
     <h2>${cfg.name} · 完成</h2>
@@ -774,9 +815,12 @@ function showLevelSelect() {
 
 function title() {
   game.mode = 'title';
+  game.sandbox = false;
+  document.body.classList.remove('sandbox-active');
   hud.showPanel(`
     <div class="eyebrow">CAMPAIGN / ${LEVELS.length} 关草原冒险 · 第一 / 第三人称 3D</div>
     <h2>从两只藏狐，到草原守望者。</h2>
+    <button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>
     <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>V</b> 切换为第三人称跟随视角，随时按需选择。</p>
     <p>每关完成 <b>采食、救援与陪伴</b>，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
@@ -826,6 +870,7 @@ function title() {
     </div>
   `);
   document.getElementById('startBtn').onclick = startPlay;
+  document.getElementById('sandboxEntryBtn').onclick = enterSandbox;
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
 }
@@ -933,51 +978,49 @@ const _fwd = new THREE.Vector3();
 let stats_cache = { cd: 0 };
 
 /** 攻击：扇形范围判定，原版是圆形范围，第一人称下改为朝向前方扇形更合理 */
-function strike() {
+function strike(move = 'tap') {
   const p = game.player;
-  if (game.attackCD > 0) return;
-  if (game.inBurrow || game.observing) return;
-
+  if (game.attackCD > 0 || game.inBurrow || game.observing) return false;
+  const wheel = PLAYER.combatWheel[move] || PLAYER.combatWheel.tap;
   const s = combatStats(game);
-  // dev 版「耐饥渴」：挥爪的储备消耗也更低
   const atkMul = devOn('famineTolerance') ? HERBIVORE.attackCostMul : 1;
-  const rawCost = game.overdrive > 0 ? STRIKE_COST.overdrive
-    : game.boost > 0 ? STRIKE_COST.boost
-    : STRIKE_COST.base;
+  const rawCost = move === 'tap' ? (game.overdrive > 0 ? STRIKE_COST.overdrive : game.boost > 0 ? STRIKE_COST.boost : STRIKE_COST.base) : wheel.cost;
   const cost = rawCost * atkMul;
-  if (p.energy < cost) return;
-
+  if (p.energy < cost) return false;
   p.energy -= cost;
-  game.attackCD = s.cooldown;
-
+  game.attackCD = Math.max(s.cooldown, wheel.cooldown || 0.18) + (wheel.recovery || 0);
+  if (move === 'stand') controller.movementLocked = true;
   controller.forwardFlat(_fwd);
+  const right = new THREE.Vector3(-_fwd.z, 0, _fwd.x);
+  if (move === 'dodge') {
+    controller.externalVelocity.addScaledVector(right, 6.2);
+    p.invuln = Math.max(p.invuln, wheel.invuln || 0.35);
+    controller.dashForward(0.4);
+    return true;
+  }
+  if (move === 'lunge') controller.externalVelocity.addScaledVector(_fwd, 7.2);
+  if (move === 'stand') game.attackMoveLock = wheel.lock || 0.4;
   const originY = terrainHeight(controller.position.x, controller.position.z);
-  claw.fire(
-    controller.position.x, originY + 0.32, controller.position.z,
-    controller.yaw, s.range,
-    game.overdrive > 0 ? 0xe4b1ff : game.boost > 0 ? 0xffd17a : 0xfff1a9,
-  );
-  controller.attackKick(game.boost > 0 ? 1.5 : 1);
+  const color = move === 'stand' ? 0xd6a1ff : move === 'lunge' ? 0xffa36f : game.overdrive > 0 ? 0xe4b1ff : game.boost > 0 ? 0xffd17a : 0xfff1a9;
+  claw.fire(controller.position.x, originY + 0.32, controller.position.z, controller.yaw, s.range, color);
+  controller.attackKick(move === 'lunge' ? 1.6 : 1);
   audio.swing();
-
   let hits = 0;
   for (const f of foxes) {
     if (f.hp <= 0) continue;
     const dx = f.x - controller.position.x, dz = f.z - controller.position.z;
     const forward = dx * _fwd.x + dz * _fwd.z;
     const lateral = dx * (-_fwd.z) + dz * _fwd.x;
-    const playerBottom = terrainHeight(controller.position.x, controller.position.z)
-      + controller.airHeight;
+    const playerBottom = terrainHeight(controller.position.x, controller.position.z) + controller.airHeight;
     const foxBottom = terrainHeight(f.x, f.z) + f.leap;
     const foxHeight = FOX.collisionHeight[f.type] ?? FOX.collisionHeight.normal;
-    if (!strikeVolumeHit({ forward, lateral, playerBottom,
-      targetBottom: foxBottom, targetHeight: foxHeight, range: s.range })) continue;
-    hitFox(f, s.damage, s);
+    if (!strikeVolumeHit({ forward, lateral, playerBottom, targetBottom: foxBottom, targetHeight: foxHeight, range: s.range + (move === 'lunge' ? 0.8 : 0) })) continue;
+    hitFox(f, s.damage * (wheel.damageMul || 1), { ...s, stun: wheel.stun || s.stun, knockback: wheel.knockback || s.knockback });
     hits++;
   }
-  if (hits && game.overdrive <= 0) game.charge = clamp(game.charge + 6, 0, 100);
+  if (hits && game.overdrive <= 0) game.charge = clamp(game.charge + (move === 'stand' ? 9 : move === 'lunge' ? 8 : 6), 0, 100);
+  return true;
 }
-
 function hitFox(f, damage, s) {
   if (f.hp <= 0) return;
   const fy = terrainHeight(f.x, f.z);
@@ -1101,7 +1144,7 @@ function update(dt) {
   const p = game.player;
   game.elapsed += dt;
   game.totalTime += dt;
-  if (!TEST_MODE || !testState.freezeTimer) game.time = Math.max(0, game.time - dt);
+  if (!game.sandbox && (!TEST_MODE || !testState.freezeTimer)) game.time = Math.max(0, game.time - dt);
 
   const stats = combatStats(game);
   stats_cache = stats;
@@ -1118,6 +1161,8 @@ function update(dt) {
     game[k] = Math.max(0, game[k] - dt);
   }
   p.invuln = Math.max(0, p.invuln - dt);
+  game.attackMoveLock = Math.max(0, game.attackMoveLock - dt);
+  controller.movementLocked = game.attackMoveLock > 0;
   if (prevOverdrive > 0 && game.overdrive === 0) {
     game.fatigue = 5;
     hud.say('大招结束：5 秒疲劳，先拉开距离或回洞休息。', 3);
@@ -1133,7 +1178,7 @@ function update(dt) {
   controller.update(
     dt,
     keys,
-    speedMul,
+    game.attackMoveLock > 0 ? 0 : speedMul,
     binds.moveMap,
     env.gust * env.gustDir,
     binds.turnMap,
@@ -1236,9 +1281,7 @@ function update(dt) {
     game.charge = clamp(game.charge + (2 + Math.min(threats, 4)) * dt, 0, 100);
   }
 
-  // —— 攻击输入 —— 键盘键由方案决定；鼠标左键始终可攻击
-  if (mouseDown || touchAttackPointers.size > 0
-    || binds.keys('attack').some((k) => keys.has(k))) strike();
+  // 攻击在释放时结算：按住期间仅采集方向输入。
 
   // —— 采食 ——
   // 正式版吃浆果（+20）；dev 版吃当季草本植物，含多汁/富亚油酸加成
@@ -1304,8 +1347,6 @@ function update(dt) {
   } else if (!game.friend.rescued && !game.friend.saved
     && Math.hypot(companion.x - p.x, companion.z - p.z) < RESCUE_DIST) {
     prompt = '<kbd>E</kbd> 救援伙伴';
-  } else if (game.charge >= 100 && game.overCD <= 0 && !game.inBurrow) {
-    prompt = '<kbd>K</kbd> 大招就绪';
   }
   hud.setInteractPrompt(prompt);
 
@@ -1323,6 +1364,8 @@ function update(dt) {
     boost: game.boost > 0, overdrive: game.overdrive > 0,
     overloaded: stats.overloaded, social: game.social > 0, fatigue: game.fatigue > 0,
   });
+  updateCooldownButtons();
+  if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(dt, 0.0001) });
 
   controller.forwardFlat(_fwd);
   hud.updateThreats(foxes, p, camera, _fwd, companion);
@@ -1341,13 +1384,13 @@ function update(dt) {
   }
 
   // —— 失败判定 ——
-  if (p.hp <= 0) { finish(false); return; }
-  if (game.time <= 0) { finish(false, '天黑前没有完成本关任务。'); return; }
+  if (!game.sandbox && p.hp <= 0) { finish(false); return; }
+  if (!game.sandbox && game.time <= 0) { finish(false, '天黑前没有完成本关任务。'); return; }
 
   // —— 通关判定：三目标 + 回洞 ——
   // 正式通关：采食达标 + 伙伴到家 + 回到【大本营】（临时避难洞不结算）。
   // 驱退狐狸不再是任务配额；boss 也不是强制目标。
-  if (objectivesComplete({ foodCount: game.foodCount, foodGoal: cfg.goal,
+  if (!game.sandbox && objectivesComplete({ foodCount: game.foodCount, foodGoal: cfg.goal,
     friendSaved: game.friend.saved, inBurrow: game.inBaseBurrow })) {
     completeLevel();
     return;
@@ -1362,11 +1405,23 @@ function update(dt) {
 const binds = new Keybinds();
 
 let mouseDown = false;
+let attackKeyDown = false;
 const touchAttackPointers = new Set();
+const attackGestures = new Map();
 let touchControls = null;
 // 首次点击用于捕获鼠标指针时，把这次攻击记下来，等锁定成功后补上
 let pendingClickAttack = false;
 let pendingClickTimer = 0;
+const attackWheel = document.createElement('div');
+attackWheel.className = 'attack-wheel';
+attackWheel.innerHTML = '<i data-move="lunge">扑咬</i><i data-move="stand">迎咬</i><i data-move="dodge">翻滚</i><i data-move="tap">推击</i>';
+document.body.appendChild(attackWheel);
+function showAttackWheel(gesture = {}) {
+  attackWheel.classList.add('visible');
+  const move = selectAttackMove(gesture);
+  attackWheel.querySelectorAll('[data-move]').forEach((el) => el.classList.toggle('active', el.dataset.move === move));
+}
+function hideAttackWheel() { attackWheel.classList.remove('visible'); }
 
 
 touchControls = new TouchControls({
@@ -1377,9 +1432,18 @@ touchControls = new TouchControls({
   joystick: document.getElementById('touchJoystick'),
   stick: document.getElementById('touchStick'),
   isActive: () => game.mode === 'play',
-  onAction: (action, pressed, pointerId) => {
+  onAction: (action, pressed, pointerId, gesture = {}) => {
     if (action === 'attack') {
-      if (pressed) touchAttackPointers.add(pointerId); else touchAttackPointers.delete(pointerId);
+      if (pressed) {
+        touchAttackPointers.add(pointerId);
+        attackGestures.set(pointerId, gesture);
+        showAttackWheel(gesture);
+      } else {
+        touchAttackPointers.delete(pointerId);
+        attackGestures.delete(pointerId);
+        hideAttackWheel();
+        strike(selectAttackMove(gesture));
+      }
     } else if (pressed && action === 'jump') doJump();
     else if (pressed && action === 'interact') doInteract();
     else if (pressed && action === 'burst') doBurst();
@@ -1450,13 +1514,20 @@ window.addEventListener('keydown', (e) => {
 
   // —— 战斗类动作 ——
   keys.add(e.code);
+  if (binds.isAction(e.code, 'attack')) { attackKeyDown = true; showAttackWheel({ dx: 0, dy: 0, moved: false }); }
   if (binds.isAction(e.code, 'burst')) doBurst();
   if (binds.isAction(e.code, 'ultimate')) doUltimate();
   if (binds.isAction(e.code, 'interact')) doInteract();
   if (binds.isAction(e.code, 'jump')) doJump();
 });
 
-window.addEventListener('keyup', (e) => keys.delete(e.code));
+window.addEventListener('keyup', (e) => {
+  keys.delete(e.code);
+  if (binds.isAction(e.code, 'attack')) {
+    attackKeyDown = false; hideAttackWheel();
+    if (game.mode === 'play') strike(selectAttackMoveFromInput(Number(keys.has('KeyD')) - Number(keys.has('KeyA')), Number(keys.has('KeyW')) - Number(keys.has('KeyS'))));
+  }
+});
 
 canvas.addEventListener('mousedown', (e) => {
   if (controller.touchEnabled) return;
@@ -1476,6 +1547,8 @@ canvas.addEventListener('mousedown', (e) => {
     if (game.mode === 'play') {
       controller.requestLock();
       pendingClickAttack = true;
+      mouseDown = true;
+      showAttackWheel({ dx: 0, dy: 0, moved: false });
       // 若用户拒绝锁定或请求失败，pendingClickAttack 会一直挂着，
       // 导致下次成功锁定时打出一记莫名其妙的"幽灵攻击"。超时清理。
       clearTimeout(pendingClickTimer);
@@ -1484,7 +1557,7 @@ canvas.addEventListener('mousedown', (e) => {
     return;
   }
   mouseDown = true;
-  if (game.mode === 'play') strike();
+  if (game.mode === 'play') showAttackWheel({ dx: 0, dy: 0, moved: false });
 });
 
 // 指针捕获成功时，补上被吞掉的那次攻击
@@ -1495,7 +1568,7 @@ controller.onLockChange = (locked) => {
     clearTimeout(pendingClickTimer);
     pendingClickAttack = false;
     mouseDown = true;
-    if (game.mode === 'play') strike();
+    if (game.mode === 'play') { mouseDown = true; showAttackWheel({ dx: 0, dy: 0, moved: false }); }
   }
   // 未锁定时暂停，避免玩家离开后被偷袭
   if (!locked && !controller.touchEnabled && game.mode === 'play') pause();
@@ -1503,7 +1576,14 @@ controller.onLockChange = (locked) => {
 // 右键已用于跳跃，必须屏蔽浏览器右键菜单，否则每次跳跃都会弹菜单
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-window.addEventListener('mouseup', (e) => { if (e.button === 0) mouseDown = false; });
+window.addEventListener('mouseup', (e) => {
+  if (e.button !== 0) return;
+  mouseDown = false; hideAttackWheel();
+  if (game.mode === 'play') {
+    const move = selectAttackMoveFromInput(Number(keys.has('KeyD')) - Number(keys.has('KeyA')), Number(keys.has('KeyW')) - Number(keys.has('KeyS')));
+    strike(move);
+  }
+});
 window.addEventListener('blur', () => {
   keys.clear(); mouseDown = false;
   if (game.mode === 'play') pause();
@@ -1561,8 +1641,9 @@ const settingsUI = new SettingsUI(binds, touchLayout);
 // 开发测试面板通过 ?test=1 显式启用，不进入普通用户界面。
 const testModeBtn = document.getElementById('testModeBtn');
 const testPanel = document.getElementById('testPanel');
-if (TEST_MODE) {
+{
   testModeBtn.hidden = false;
+  testModeBtn.hidden = !TEST_MODE && !SANDBOX_MODE;
   document.getElementById('testGodMode').checked = testState.godMode;
   document.getElementById('testFreezeTimer').checked = testState.freezeTimer;
   recordTestLog('session-start', { userAgent: navigator.userAgent, initialSnapshot: testSnapshot() });
@@ -1609,12 +1690,50 @@ if (TEST_MODE) {
     const meta = document.getElementById('testLogMeta');
     if (meta) meta.textContent = `日志 ${testLogs.length} 条`;
   });
+  testPanel.querySelector('#testGodMode').addEventListener('change', (event) => {
+    if (game.sandbox) sandboxState.godMode = event.target.checked;
+    testState.godMode = event.target.checked;
+  });
+  testPanel.querySelector('#testFreezeTimer').addEventListener('change', (event) => {
+    if (game.sandbox) sandboxState.freezeTimer = event.target.checked;
+    testState.freezeTimer = event.target.checked;
+  });
   window.addEventListener('error', (event) => recordTestLog('browser-error', {
     message: event.message, source: event.filename, line: event.lineno, column: event.colno,
   }));
   window.addEventListener('unhandledrejection', (event) => recordTestLog('unhandled-rejection', {
     reason: String(event.reason?.stack || event.reason),
   }));
+}
+
+const sandboxPanelUI = setupSandboxPanel({
+  root: testPanel,
+  state: sandboxState,
+  onAction: (action) => {
+    if (action === 'refill') { game.player.hp = 100; game.player.energy = 100; }
+    else if (action === 'clearStress') { game.player.stress = 0; game.stressWarned = false; }
+    else if (action === 'charge') game.charge = 100;
+    else if (action === 'spawnOne') spawnSandboxFoxes({ state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
+    else if (action === 'spawnGroup') spawnSandboxFoxes({ count: 6, state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
+    else if (action === 'clearFoxes') clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
+  },
+  onChange: (name, value) => {
+    if (name === 'godMode') testState.godMode = value;
+    if (name === 'freezeTimer') testState.freezeTimer = value;
+    if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; }); }
+  },
+});
+
+function updateCooldownButtons() {
+  for (const id of ['burst', 'ultimate']) {
+    const el = document.querySelector(`[data-touch-action="${id}"]`);
+    const overlay = el?.querySelector('.cooldown-overlay'); if (!el || !overlay) continue;
+    const isUlt = id === 'ultimate';
+    const data = cooldownOverlayData({ remaining: isUlt ? game.overCD : game.boostCD, duration: isUlt ? ULT.cooldown : 12,
+      energy: game.player.energy, cost: isUlt ? ULT.cost : 20, charge: game.charge, charging: isUlt });
+    el.classList.toggle('no-energy', data.state === 'no-energy'); overlay.classList.toggle('on', data.state === 'cd' || data.state === 'charging');
+    overlay.style.setProperty('--cd-angle', `${data.angle}deg`); overlay.querySelector('em').textContent = data.state === 'cd' ? Math.ceil(isUlt ? game.overCD : game.boostCD) : '';
+  }
 }
 
 // 键位变化时同步帮助面板上的按键提示，避免文档与实际绑定不一致
@@ -1805,6 +1924,7 @@ controller.update(0.016, new Set(), 1);
 sky.update(controller.position);
 title();
 hud.hideLoader();
+if (SANDBOX_MODE) requestAnimationFrame(() => requestAnimationFrame(enterSandbox));
 requestAnimationFrame(frame);
 
 // 调试开关：URL 参数 ?debug=hide-<name> 可隐藏特定对象，便于排查渲染问题
@@ -1815,7 +1935,8 @@ const DEBUG_HIDE = (() => {
 
 window.__game = {
   game, controller, scene, renderer, camera, keys, LEVELS,
-  testMode: TEST_MODE, testState, testLogs, recordTestLog, testSnapshot, exportTestLogs,
+  testMode: TEST_MODE, sandboxMode: SANDBOX_MODE, sandboxState, enterSandbox, exitSandbox,
+  testState, testLogs, recordTestLog, testSnapshot, exportTestLogs,
   foxes: () => foxes, berries: () => berries, companion,
   combatStats: () => combatStats(game),
   burrow: BURROW,

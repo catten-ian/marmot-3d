@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { terrainHeight, clamp } from '../core/utils.js';
-import { resolveMoveIntent } from './move-facing.mjs';
+import { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget } from './move-facing.mjs';
 
 export class FirstPersonController {
   constructor(camera, domElement) {
@@ -29,6 +29,8 @@ export class FirstPersonController {
     this.moveFacingYaw = 0;
     this.isBackpedal = false;
     this.moveSpeedScale = 1;
+    this._thirdPersonStrafeYaw = null;
+    this.movementLocked = false;
 
     this.onGroundY = 0;
     this.bobPhase = 0;
@@ -99,7 +101,7 @@ export class FirstPersonController {
 
   setThirdPerson(enabled) {
     this.thirdPerson = !!enabled;
-    this.camera.fov = this.baseFov;
+    this.camera.fov = this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson;
     this.camera.updateProjectionMatrix();
   }
 
@@ -141,8 +143,9 @@ export class FirstPersonController {
     this.grounded = true;
     this.jumpCD = 0;
     this.airHeight = 0;
-    if (this.camera.fov !== this.baseFov) {
-      this.camera.fov = this.baseFov;
+    const baseFov = this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson;
+    if (this.camera.fov !== baseFov) {
+      this.camera.fov = baseFov;
       this.camera.updateProjectionMatrix();
     }
   }
@@ -193,6 +196,8 @@ export class FirstPersonController {
     // never increases movement speed beyond the existing diagonal cap.
     mx += this.touchAxes.x;
     mz += this.touchAxes.y;
+    const turnActive = !!(turnMap && (keys.has(turnMap.left) || keys.has(turnMap.right)));
+    if (this.movementLocked) { mx = 0; mz = 0; this.velocity.set(0, 0, 0); }
 
     // 外力（阵风、受击）以速度积分；与玩家输入分开，仍共用后续碰撞处理。
     this.externalVelocity.x = clamp(
@@ -204,7 +209,22 @@ export class FirstPersonController {
       this.externalVelocity.z *= drag;
     }
 
-    const intent = resolveMoveIntent(mx, mz, this.yaw, PLAYER.backpedalSpeed);
+    let intent = resolveMoveIntent(mx, mz, this.yaw, PLAYER.backpedalSpeed);
+    const facing = classifyMoveFacing(mx, mz, this.thirdPerson);
+    if (facing.followBody && !turnActive) {
+      if (this._thirdPersonStrafeYaw === null) this._thirdPersonStrafeYaw = thirdPersonStrafeTarget(mx, this.yaw).targetYaw;
+      this.yaw = dampAngle(this.yaw, this._thirdPersonStrafeYaw, dt, PLAYER.bodyTurnRate);
+      const magnitude = Math.min(1, Math.abs(mx));
+      intent = { ...intent,
+        moveX: -Math.sin(this._thirdPersonStrafeYaw) * magnitude,
+        moveZ: -Math.cos(this._thirdPersonStrafeYaw) * magnitude,
+        facingYaw: this._thirdPersonStrafeYaw,
+      };
+    } else if (Math.abs(mx) > 1e-6 || Math.abs(mz) > 1e-6) {
+      this._thirdPersonStrafeYaw = null;
+    } else {
+      this._thirdPersonStrafeYaw = null;
+    }
     this.moveFacingYaw = intent.facingYaw;
     this.isBackpedal = intent.isBackpedal;
     this.moveSpeedScale = intent.speedScale;
@@ -342,7 +362,8 @@ export class FirstPersonController {
     // 趴下：视高降低、俯仰下压、视野收窄（冲刺时专注前方）
     const eyeH = PLAYER.eyeHeight - P.eyeDrop * c;
     const pitchBias = -P.pitchDrop * c;
-    const fovNow = this.baseFov - (this.thirdPerson ? 0 : P.fovNarrow * c);
+    const fovNow = (this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson)
+      - (this.thirdPerson ? 0 : P.fovNarrow * c);
     if (Math.abs(this.camera.fov - fovNow) > 0.01) {
       this.camera.fov = fovNow;
       this.camera.updateProjectionMatrix();

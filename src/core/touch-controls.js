@@ -24,6 +24,7 @@ export class TouchControls {
     this.lookLast = { x: 0, y: 0 };
     this.movePointer = null;
     this.pointerRoles = new Map();
+    this.attackPointers = new Map();
     this.move = { x: 0, y: 0, mag: 0 };
     this.maxStick = 48;
     this.enabled = isTouchPrimary();
@@ -137,16 +138,31 @@ export class TouchControls {
         this._capture(button, event.pointerId);
         this.pointerRoles.set(event.pointerId, 'button:' + action);
         button.classList.add('pressed');
-        this.onAction(action, true, event.pointerId);
+        if (action === 'attack') this.attackPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, dx: 0, dy: 0 });
+        this.onAction(action, true, event.pointerId, { dx: 0, dy: 0, moved: false });
       });
       button.addEventListener('pointerup', (event) => this._release(event.pointerId));
       button.addEventListener('pointercancel', (event) => this._release(event.pointerId));
       button.addEventListener('lostpointercapture', (event) => this._release(event.pointerId));
+      button.addEventListener('pointermove', (event) => {
+        if (this.pointerRoles.get(event.pointerId) !== 'button:attack') return;
+        const a = this.attackPointers.get(event.pointerId);
+        if (!a) return;
+        a.dx = event.clientX - a.x; a.dy = event.clientY - a.y;
+        this.onAction('attack', true, event.pointerId, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
+        event.preventDefault();
+      });
       button.addEventListener('contextmenu', (event) => event.preventDefault());
     });
 
     window.addEventListener('pointerup', (event) => this._release(event.pointerId));
     window.addEventListener('pointercancel', (event) => this._release(event.pointerId));
+    window.addEventListener('pointermove', (event) => {
+      if (this.pointerRoles.get(event.pointerId) !== 'button:attack') return;
+      const a = this.attackPointers.get(event.pointerId); if (!a) return;
+      a.dx = event.clientX - a.x; a.dy = event.clientY - a.y;
+      this.onAction('attack', true, event.pointerId, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
+    });
   }
 
   _bindTouchInput() {
@@ -210,18 +226,36 @@ export class TouchControls {
           if (this.pointerRoles.has(touch.identifier)) continue;
           this.pointerRoles.set(touch.identifier, 'button:' + action);
           button.classList.add('pressed');
-          this.onAction(action, true, touch.identifier);
+          if (action === 'attack') this.attackPointers.set(touch.identifier, { x: touch.clientX, y: touch.clientY, dx: 0, dy: 0 });
+          this.onAction(action, true, touch.identifier, { dx: 0, dy: 0, moved: false });
         }
         event.preventDefault();
         event.stopPropagation();
       });
-      add(button, 'touchmove', (event) => event.preventDefault());
+      add(button, 'touchmove', (event) => {
+        for (const touch of event.changedTouches) {
+          const role = this.pointerRoles.get(touch.identifier);
+          if (role !== 'button:attack') continue;
+          const a = this.attackPointers.get(touch.identifier);
+          if (!a) continue;
+          a.dx = touch.clientX - a.x; a.dy = touch.clientY - a.y;
+          this.onAction('attack', true, touch.identifier, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
+        }
+        event.preventDefault();
+      });
       add(button, 'contextmenu', (event) => event.preventDefault());
     });
 
     // touchend 会发送到触摸开始时的原始目标；window 再做一层兜底。
     const finishTouches = (event) => {
-      for (const touch of event.changedTouches) this._release(touch.identifier);
+      for (const touch of event.changedTouches) {
+        const role = this.pointerRoles.get(touch.identifier);
+        if (role === 'button:attack') {
+          const a = this.attackPointers.get(touch.identifier);
+          if (a) { a.dx = touch.clientX - a.x; a.dy = touch.clientY - a.y; }
+        }
+        this._release(touch.identifier);
+      }
     };
     window.addEventListener('touchend', finishTouches, { passive: false });
     window.addEventListener('touchcancel', finishTouches, { passive: false });
@@ -300,7 +334,9 @@ export class TouchControls {
     }
     if (role.indexOf('button:') === 0) {
       const action = role.slice(7);
-      this.onAction(action, false, pointerId);
+      const a = this.attackPointers.get(pointerId);
+      this.onAction(action, false, pointerId, a ? { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 } : { dx: 0, dy: 0, moved: false });
+      this.attackPointers.delete(pointerId);
       const button = this.root.querySelector('[data-touch-action="' + action + '"]');
       if (button) button.classList.remove('pressed');
     }

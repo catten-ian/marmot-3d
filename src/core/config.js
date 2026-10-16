@@ -71,6 +71,14 @@ export const PLAYER = {
   },
   // 玩家横向转向/刹车基线，用于保证狐狸高速时明显更难急停。
   handling: { turnRate: 2.2, accel: 14, brake: 18 },
+  // 玩法手感抽象：攻击轮盘四招的伤害、冲量、无敌与后摇。
+  fov: { firstPerson: 78, thirdPerson: 68 },
+  combatWheel: {
+    tap: { damageMul: 1, costMul: 1, cooldown: 0.58 },
+    dodge: { damageMul: 0, cost: 3, distance: 2.2, invuln: 0.35, recovery: 0.12 },
+    stand: { damageMul: 1.8, cost: 4, stun: 1.2, lock: 0.4, knockback: 2.8, recovery: 0.35 },
+    lunge: { damageMul: 1.45, cost: 4, distance: 2.8, recovery: 0.42 },
+  },
 };
 
 /** 默认移动键映射（兼容方案使用；实际由 keybinds 模块提供） */

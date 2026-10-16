@@ -28,3 +28,14 @@ export function dampAngle(current, target, dt, rate) {
   const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
   return current + delta * (1 - Math.exp(-rate * dt));
 }
+
+export function classifyMoveFacing(mx, mz, thirdPerson = false) {
+  const lateralOnly = Math.abs(mz) < 1e-6 && Math.abs(mx) > 1e-6;
+  return { lateralOnly, followBody: !!thirdPerson && lateralOnly };
+}
+
+export function thirdPersonStrafeTarget(mx, yaw) {
+  if (Math.abs(mx) < 1e-6) return null;
+  const targetYaw = yaw - Math.sign(mx) * Math.PI / 2;
+  return { targetYaw, moveX: -Math.sin(targetYaw), moveZ: -Math.cos(targetYaw) };
+}
