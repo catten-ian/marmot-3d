@@ -1,5 +1,6 @@
 import { BURROWS, scalePoint, scaleRadius, fieldHalf, ROCKS, BERRY_POINTS, SPAWN_POINTS } from '../core/config.js';
 import { Burrow } from './props.js';
+import { configureUnderground } from './underground.js';
 
 /** 运行时洞穴布局：位置/半径与 GS 点位缩放保持一致。 */
 export function scaledBurrows() {
@@ -11,6 +12,7 @@ export function scaledBurrows() {
 
 export function createBurrows(scene) {
   const defs = scaledBurrows();
+  configureUnderground(defs);
   const objects = defs.map((def) => new Burrow(scene, def));
   return { defs, objects, base: defs[0], baseObject: objects[0] };
 }

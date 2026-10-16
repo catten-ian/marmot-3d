@@ -3,7 +3,7 @@
  * 高度场必须是纯函数式确定性采样，玩家/敌人/植被共用同一套，否则会浮空。
  */
 
-import { BURROW, scaleCoord, scaleRadius } from './config.js';
+import { BURROW, BURROWS, scaleCoord, scaleRadius, scalePoint } from './config.js';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -79,7 +79,7 @@ export function heightSourceName() {
   return _heightField ? 'gs-field' : 'procedural';
 }
 
-export function terrainHeight(x, z) {
+export function baseTerrainHeight(x, z) {
   // 外部高度场优先（GS 版）
   if (_heightField) return _heightField(x, z);
   const rolling = fbm(x * 0.022, z * 0.022, 4) * TERRAIN.amp;
@@ -94,6 +94,26 @@ export function terrainHeight(x, z) {
   const dBurrow = Math.hypot(x - bx, z - bz);
   const flat = smoothstep(clamp((dBurrow - flatInner) / flatSpan, 0, 1));
   return (rolling + detail) * flat;
+}
+
+export function terrainHeight(x, z) {
+  // 外部高度场优先（GS 版）
+  if (_heightField) return _heightField(x, z);
+  let y = baseTerrainHeight(x, z);
+  // Procedural terrain gets a real depression. GS heightfields remain untouched;
+  // the underground module supplies the visual/logic approximation there.
+  for (const b of BURROWS) {
+    const [dx, dz] = scalePoint([b.x, b.z]);
+    const slope = scaleRadius(b.slopeRadius ?? (b.type === 'base' ? 5.8 : 2.6));
+    const depth = b.chamberDepth ?? (b.type === 'base' ? 3.8 : 2);
+    const d = Math.hypot(x - dx, z - dz);
+    if (d < slope) {
+      const t = 1 - d / slope;
+      const eased = t * t * (3 - 2 * t);
+      y -= depth * eased;
+    }
+  }
+  return y;
 }
 
 /** 地形法线（用于让草丛/石块贴合坡面） */

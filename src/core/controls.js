@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { terrainHeight, clamp } from '../core/utils.js';
+import { undergroundFloorY } from '../world/underground.js';
 import { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget, firstPersonStrafeTarget } from './move-facing.mjs';
 
 export class FirstPersonController {
@@ -299,7 +300,7 @@ export class FirstPersonController {
     this.movingThisFrame = actualMoved > 0.0015;
 
     // 地形跟随
-    const groundY = terrainHeight(this.position.x, this.position.z);
+    const groundY = undergroundFloorY(this.position.x, this.position.z);
     this.onGroundY = groundY;
 
     // ---- 垂直运动（跳跃 / 重力）----
