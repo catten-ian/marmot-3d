@@ -164,6 +164,8 @@ const FOX_ATTACKS = {
  *   · 体型差异要拉开：幼狐 0.62 ~ 首领 1.6，肉眼可辨。
  */
 export const FOX = {
+  useProcedural: false,
+  proceduralColors: { normal: 0xc4763a, pup: 0xc4763a, fast: 0xd9c294, heavy: 0x9c8770, boss: 0x6b4c31 },
   types: {
     normal: { hp: 3, speed: 1.0, wind: 1.0, mass: 1.0, knockbackMul: 1, label: '', scale: 1.0 },
     // 幼狐：毛色同 normal，仅体型 62%，血量更低、速度略慢

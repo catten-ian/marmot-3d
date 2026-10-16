@@ -19,6 +19,7 @@ import { FOX, ROCKS, BURROW_AI, roamBounds, scalePoint, scaleRadius } from '../c
 import { instantiate, normalizeModel } from '../models/loader.js';
 import { IS_DEV, USE_REAL_FOX_MODEL } from '../core/version.js';
 import { clamp } from '../core/utils.js';
+import { createProceduralFox } from './procedural-fox.js';
 import { foxRecoverySeconds, stepFoxTurn, stepFoxRecovery } from '../core/fox-motion.js';
 /** 真实藏狐模型的基准缩放：让成体在游戏里约 1.0m 高（与土拨鼠同量级） */
 const FOX_MODEL_BASE = 1.05;
@@ -93,6 +94,7 @@ export class Fox {
     this._runCycle = Math.random() * Math.PI * 2;
     this._runAmount = 0;
     this._segmentAnimation = null;
+    this._proceduralFox = null;
     this._disposed = false;
     this.dead = false;
     this._lastSafe = false;
@@ -145,7 +147,11 @@ export class Fox {
     //   而日志里一条错误都没有（模型确实加载成功了）。
     //   现在两套模型是**兄弟**：藏程序化不影响真实模型。
     this.mesh = new THREE.Group();
-    this.proceduralMesh = buildFoxMesh(type, 1);
+    // 可选程序化狐狸保持独立于旧 GLB/L2 回退网格，默认关闭。
+    if (FOX.useProcedural) {
+      this._proceduralFox = createProceduralFox({ color: FOX.proceduralColors[type] ?? FOX.proceduralColors.normal });
+      this.proceduralMesh = this._proceduralFox.group;
+    } else this.proceduralMesh = buildFoxMesh(type, 1);
     this.mesh.add(this.proceduralMesh);
     this.realModel = null;
     this.modelLevel = 'procedural';
@@ -186,7 +192,7 @@ export class Fox {
    // 而日志里看不到任何错误 —— 最难查的一类问题。
    */
   async _loadRealModel() {
-    if (!USE_REAL_FOX_MODEL) return;
+    if (!USE_REAL_FOX_MODEL || FOX.useProcedural) return;
     try {
       const inst = await instantiateFox();
       if (this._disposed) {
@@ -340,6 +346,12 @@ export class Fox {
   }
 
   _updateSegmentedFox(dt, movingSpeed) {
+    if (this._proceduralFox) {
+      const anim = this.state === 'dash' || this.fleeing ? 'dash' : movingSpeed > 0.15 ? 'walk' : 'idle';
+      this._proceduralFox.setAnimState({ anim, speed: movingSpeed || 1, phase: this._runCycle });
+      this._proceduralFox.update(dt);
+      return;
+    }
     if (!this._segmentAnimation) return;
     const { parts } = this._segmentAnimation;
     const target = Math.min(1, Math.max(0, movingSpeed / 2.6));
