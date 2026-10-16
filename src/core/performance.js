@@ -8,7 +8,22 @@ export function isTouchPrimary() {
   const touches = Number(globalThis.navigator?.maxTouchPoints) > 0;
   const finePointer = !!media?.('(pointer: fine)')?.matches;
   const hover = !!media?.('(hover: hover)')?.matches;
-  return touches && !finePointer && !hover;
+  if (touches && !finePointer && !hover) return true;
+
+  // 兜底：部分安卓 WebView / 微信 / QQ(X5/TBS) 内置浏览器会谎报 pointer:fine，
+  // 导致媒体查询判定为非触屏。只要设备支持触摸且 UA 表明是手机/平板，就按触屏处理。
+  const ua = String(globalThis.navigator?.userAgentData?.mobile
+    ? 'Mobile' : (globalThis.navigator?.userAgent || ''));
+  const isMobileUA = /Android|iPhone|iPod|iPad|HarmonyOS|Mobile|MicroMessenger|MQQBrowser|TBS\/|X5\//i.test(ua)
+    || (navigator.userAgentData && navigator.userAgentData.mobile === true);
+  if (touches && isMobileUA) return true;
+  return false;
+}
+
+/** 运行时一旦收到真实手指触摸（含谎报媒体能力的内置浏览器），可据此动态激活触控层。 */
+export function hasRealTouch() {
+  return Number(globalThis.navigator?.maxTouchPoints) > 0
+    || 'ontouchstart' in globalThis;
 }
 
 /** Device-aware render budget shared by the stable and GS-world builds. */

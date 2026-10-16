@@ -22,7 +22,14 @@ import { createRenderer, splatUsable } from './core/renderer.js';
 import { getRenderProfile, isTouchPrimary } from './core/performance.js';
 import { TouchControls } from './core/touch-controls.js';
 
-const TOUCH_DEVICE = isTouchPrimary();
+let TOUCH_DEVICE = isTouchPrimary();
+/** 微信/QQ X5 等内置浏览器可能谎报指针能力；首次真实触摸时升级为触屏模式。 */
+function enableTouchRuntime() {
+  if (TOUCH_DEVICE) return;
+  TOUCH_DEVICE = true;
+  try { touchControls?.activate?.(); } catch (_) {}
+  document.body.classList.add('touch-mode');
+}
 
 /** 真实模型加载结果（供调试接口查看） */
 let modelLoadState = null;
@@ -1361,6 +1368,15 @@ touchControls = new TouchControls({
     else if (pressed && action === 'pause') pause();
   },
 });
+
+// 老内核兜底：媒体查询/UA 未识别时，收到真实手指触摸立即启用触控层（capture 最早、不拦截）。
+for (const evName of ['pointerdown', 'touchstart']) {
+  window.addEventListener(evName, (ev) => {
+    if (TOUCH_DEVICE) return;
+    const realTouch = ev.pointerType === 'touch' || ev.pointerType === 'pen' || evName === 'touchstart';
+    if (realTouch) enableTouchRuntime();
+  }, { passive: true, capture: true });
+}
 
 // 不再硬编码键位表：每次按键都查当前方案
 const isBound = (code) => {
