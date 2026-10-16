@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 
 (async () => {
-  const { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget } = await import('../src/core/move-facing.mjs');
+  const { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget, firstPersonStrafeTarget } = await import('../src/core/move-facing.mjs');
   const yaw = 0;
   const angleError = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
   const direction = (mx, mz) => {
@@ -51,6 +51,15 @@ const assert = require('node:assert/strict');
   const rightRun = thirdPersonStrafeTarget(1, 0);
   assert.ok(Math.abs(rightRun.targetYaw + Math.PI / 2) < 1e-9 && rightRun.moveX > .99 && Math.abs(rightRun.moveZ) < 1e-9);
   assert.ok(Math.abs(Math.hypot(rightRun.moveX, rightRun.moveZ) - 1) < 1e-9);
+
+  // 第一人称：推右时“眼睛”目标 yaw 也朝右，与第三人称身体横移对称。
+  const fpRight = firstPersonStrafeTarget(1, 0);
+  assert.ok(Math.abs(fpRight.targetYaw + Math.PI / 2) < 1e-9, 'FP right turns view clockwise');
+  assert.ok(fpRight.moveX > .99 && Math.abs(fpRight.moveZ) < 1e-9, 'FP right moves toward new facing');
+  const fpLeft = firstPersonStrafeTarget(-1, 0);
+  assert.ok(Math.abs(fpLeft.targetYaw - Math.PI / 2) < 1e-9, 'FP left turns view counter-clockwise');
+  assert.equal(firstPersonStrafeTarget(0, 0), null, 'FP target null without lateral input');
+  assert.ok(Math.abs(Math.hypot(fpLeft.moveX, fpLeft.moveZ) - 1) < 1e-9);
 
   console.log('move-facing logic: all assertions passed');
 })();

@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { terrainHeight, clamp } from '../core/utils.js';
-import { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget } from './move-facing.mjs';
+import { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget, firstPersonStrafeTarget } from './move-facing.mjs';
 
 export class FirstPersonController {
   constructor(camera, domElement) {
@@ -211,10 +211,23 @@ export class FirstPersonController {
 
     let intent = resolveMoveIntent(mx, mz, this.yaw, PLAYER.backpedalSpeed);
     const facing = classifyMoveFacing(mx, mz, this.thirdPerson);
-    if (facing.followBody && !turnActive) {
-      if (this._thirdPersonStrafeYaw === null) this._thirdPersonStrafeYaw = thirdPersonStrafeTarget(mx, this.yaw).targetYaw;
+    // 纯横向输入（无前后、未按转向键）：第三人称转身体、镜头不动；
+    // 第一人称且来自触屏摇杆时，镜头就是土拨鼠的眼睛，推左右应转身朝该方向看。
+    // 桌面 standard WASD 保留经典 strafe（A/D=横移、鼠标转视角）；
+    // dev optimized 方案里 A/D 本就是转向键（turnActive 已处理）。
+    const lateralOnly = Math.abs(mz) < 1e-6 && Math.abs(mx) > 1e-6;
+    const touchLateral = lateralOnly
+      && Math.abs(this.touchAxes.x) > 1e-6
+      && Math.abs(this.touchAxes.x) + 1e-6 >= Math.abs(mx) - 1e-6;
+    const firstPersonTurn = !this.thirdPerson && touchLateral;
+    if ((facing.followBody || firstPersonTurn) && !turnActive) {
+      const lateralX = firstPersonTurn ? this.touchAxes.x : mx;
+      const tgt = this.thirdPerson
+        ? thirdPersonStrafeTarget(lateralX, this.yaw)
+        : firstPersonStrafeTarget(lateralX, this.yaw);
+      if (this._thirdPersonStrafeYaw === null) this._thirdPersonStrafeYaw = tgt.targetYaw;
       this.yaw = dampAngle(this.yaw, this._thirdPersonStrafeYaw, dt, PLAYER.bodyTurnRate);
-      const magnitude = Math.min(1, Math.abs(mx));
+      const magnitude = Math.min(1, Math.abs(lateralX));
       intent = { ...intent,
         moveX: -Math.sin(this._thirdPersonStrafeYaw) * magnitude,
         moveZ: -Math.cos(this._thirdPersonStrafeYaw) * magnitude,

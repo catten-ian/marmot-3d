@@ -39,3 +39,12 @@ export function thirdPersonStrafeTarget(mx, yaw) {
   const targetYaw = yaw - Math.sign(mx) * Math.PI / 2;
   return { targetYaw, moveX: -Math.sin(targetYaw), moveZ: -Math.cos(targetYaw) };
 }
+
+// 第一人称：镜头即土拨鼠的眼睛。纯左右输入应让“眼睛/视角”转向该侧，
+// 身体随之朝新朝向跑，而不是镜头不动、世界横向滑过（那是第三人称身体横移）。
+// 与 thirdPersonStrafeTarget 对称，但这里转向的是视角 yaw 本身。
+export function firstPersonStrafeTarget(mx, yaw) {
+  if (Math.abs(mx) < 1e-6) return null;
+  const targetYaw = yaw - Math.sign(mx) * Math.PI / 2;
+  return { targetYaw, moveX: -Math.sin(targetYaw), moveZ: -Math.cos(targetYaw) };
+}
