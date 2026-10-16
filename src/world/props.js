@@ -10,6 +10,7 @@ import {
 import { heightFieldActive } from '../core/utils.js';
 import { terrainHeight, terrainNormal, makeRng } from '../core/utils.js';
 import { devOn } from '../core/version.js';
+import { undergroundProfile } from './underground.js';
 
 /** 洞穴入口：土丘 + 洞口 + 内部暖光 + 地面光圈 */
 export class Burrow {
@@ -22,6 +23,7 @@ export class Burrow {
     this.type = pos.type || 'base';
     this.label = pos.label || (this.type === 'base' ? '大本营' : '临时避难洞');
     const isBase = this.type === 'base';
+    const underground = undergroundProfile(pos);
 
     const y = terrainHeight(pos.x, pos.z);
     this.group.position.set(pos.x, y, pos.z);
@@ -30,32 +32,46 @@ export class Burrow {
     const moundGeo = new THREE.SphereGeometry(this.r * 0.95, 30, 18, 0, Math.PI * 2, 0, Math.PI / 2);
     const moundMat = new THREE.MeshStandardMaterial({ color: isBase ? 0xa8814e : 0x687b78, roughness: 1 });
     const mound = new THREE.Mesh(moundGeo, moundMat);
-    mound.scale.set(1, 0.4, 1);
+    // 只保留入口周围少量挖出土，中央不能再是地表土丘。
+    mound.scale.set(1, 0.16, 1);
     mound.castShadow = true;
     mound.receiveShadow = true;
     this.group.add(mound);
 
     // 洞口：朝 +z 方向开的深色凹坑
-    const holeGeo = new THREE.CircleGeometry(isBase ? 1.9 : 1.0, 24);
-    const holeMat = new THREE.MeshBasicMaterial({ color: isBase ? 0x140d05 : 0x172125 });
-    const hole = new THREE.Mesh(holeGeo, holeMat);
-    hole.position.set(0, 0.06, this.r * 0.56);
-    hole.rotation.x = -Math.PI / 2.1;
-    this.group.add(hole);
+    // 竖井/暗腔：从地表开口向下收缩，给 GS 无法实时挖地形时的近似通道。
+    const shaftGeo = new THREE.CylinderGeometry(
+      underground.chamberRadius * 0.82, underground.openingRadius,
+      underground.chamberDepth, 20, 1, true,
+    );
+    const shaftMat = new THREE.MeshStandardMaterial({
+      color: isBase ? 0x21150d : 0x182326, roughness: 1, side: THREE.BackSide,
+    });
+    const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+    shaft.position.y = -underground.chamberDepth * 0.5;
+    this.group.add(shaft);
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(underground.chamberRadius * 0.8, 24),
+      new THREE.MeshStandardMaterial({ color: isBase ? 0x120b07 : 0x101719, roughness: 1 }),
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -underground.chamberDepth + 0.04;
+    this.group.add(floor);
+    this.shaft = shaft;
 
     // 洞口土框
     const rimGeo = new THREE.TorusGeometry(isBase ? 2.1 : 1.18, isBase ? 0.32 : 0.18, 8, 28);
     const rimMat = new THREE.MeshStandardMaterial({ color: isBase ? 0x8a6238 : 0x596b68, roughness: 1 });
     const rim = new THREE.Mesh(rimGeo, rimMat);
-    rim.position.set(0, 0.1, this.r * 0.56);
-    rim.rotation.x = -Math.PI / 2.1 + Math.PI / 2;
+    rim.position.set(0, 0.08, 0);
+    rim.rotation.x = Math.PI / 2;
     rim.scale.y = 0.5;
     this.group.add(rim);
 
     // 大本营才有暖光；临时避难洞只是一个黑洞，不发光、不成地标。
     if (isBase) {
-      const glow = new THREE.PointLight(0xffc978, 5.5, 16, 2);
-      glow.position.set(0, 1.5, this.r * 0.35);
+      const glow = new THREE.PointLight(pos.lightColor ?? 0xffc978, pos.lightIntensity ?? 4.8, 12, 2);
+      glow.position.set(0, -underground.chamberDepth * 0.35, 0);
       this.group.add(glow);
       this.glow = glow;
     }
@@ -100,6 +116,7 @@ export class Burrow {
     scene.add(this.group);
     this._t = 0;
     this.isBase = isBase;
+    this.underground = underground;
   }
 
   update(dt) {

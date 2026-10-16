@@ -11,16 +11,22 @@ export const FIELD_H = 78;
 // 静态站点可在部署时填写反馈接收地址；留空时使用本地离线队列。
 export const FEEDBACK = { endpoint: '' };
 
-export const BURROW = { x: -52, z: 0, r: 8.2 }; // 洞穴：安全区，休息回储备、缓压
+export const BURROW = { x: -52, z: 0, r: 8.2 }; // 兼容旧调用的主洞定义（安全区/回储备/缓压）
+
+// 地下空间参数：r 仍表示旧版安全区半径；其余参数描述真实入口、斜坡和腔室。
+export const UNDERGROUND = {
+  base: { openingRadius: 2.2, slopeRadius: 5.8, chamberRadius: 4.6, chamberDepth: 3.8, warmLight: true, lightColor: 0xffc978, lightIntensity: 4.8 },
+  shelter: { openingRadius: 1.05, slopeRadius: 2.6, chamberRadius: 2.0, chamberDepth: 2.0, warmLight: false, lightColor: 0x8bb8c4, lightIntensity: 0.28 },
+};
 
 // 洞穴布局：BURROW 保留为主洞兼容别名；其余为临时避难洞。
 // 坐标刻意避开现有刷点、浆果点和岩石，运行时统一经 scalePoint/scaleRadius 缩放。
 export const BURROWS = [
-  { id: 'base', type: 'base', x: BURROW.x, z: BURROW.z, r: BURROW.r, regenMul: 1, label: '大本营' },
-  { id: 'shelter-a', type: 'shelter', x: -12, z: -25, r: 3.15, regenMul: 0.18, label: '临时避难洞' },
-  { id: 'shelter-b', type: 'shelter', x: 18, z: 13, r: 3.15, regenMul: 0.18, label: '临时避难洞' },
-  { id: 'shelter-c', type: 'shelter', x: 40, z: 32, r: 3.0, regenMul: 0.18, label: '临时避难洞' },
-  { id: 'shelter-d', type: 'shelter', x: -34, z: 28, r: 3.0, regenMul: 0.18, label: '临时避难洞' },
+  { id: 'base', type: 'base', x: BURROW.x, z: BURROW.z, r: BURROW.r, regenMul: 1, label: '大本营', ...UNDERGROUND.base },
+  { id: 'shelter-a', type: 'shelter', x: -12, z: -25, r: 3.15, regenMul: 0.18, label: '临时避难洞', ...UNDERGROUND.shelter },
+  { id: 'shelter-b', type: 'shelter', x: 18, z: 13, r: 3.15, regenMul: 0.18, label: '临时避难洞', ...UNDERGROUND.shelter },
+  { id: 'shelter-c', type: 'shelter', x: 40, z: 32, r: 3.0, regenMul: 0.18, label: '临时避难洞', ...UNDERGROUND.shelter },
+  { id: 'shelter-d', type: 'shelter', x: -34, z: 28, r: 3.0, regenMul: 0.18, label: '临时避难洞', ...UNDERGROUND.shelter },
 ];
 
 export const BURROW_AI = {

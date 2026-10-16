@@ -40,7 +40,8 @@ let modelLoadState = null;
 let backdropRoot = null;
 import { Sky } from './world/scene.js';
 import { Scenery } from './world/props.js';
-import { createBurrows, burrowAt } from './world/burrows.js';
+import { createBurrows } from './world/burrows.js';
+import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
@@ -1194,7 +1195,7 @@ function update(dt) {
   p.z = controller.position.z;
 
   // 洞穴判定
-  game.currentBurrow = burrowAt(p.x, p.z, burrowDefs);
+  game.currentBurrow = burrowVolumeAt(p.x, controller.position.y, p.z, burrowDefs);
   game.inBurrow = !!game.currentBurrow;
   game.inBaseBurrow = game.currentBurrow?.type === 'base';
   game.observing = controller.crouch < 0.08 && controller.postureSpeed < 0.04 && !moving && !game.inBurrow;
@@ -1885,7 +1886,7 @@ function frame(now) {
     document.body.classList.toggle('touch-playing', touchPlaying);
   }
   update(dt);
-  playerModel.position.set(controller.position.x, terrainHeight(controller.position.x, controller.position.z), controller.position.z);
+  playerModel.position.set(controller.position.x, controller.position.y, controller.position.z);
   playerBodyYaw = dampAngle(playerBodyYaw, controller.moveFacingYaw, dt, PLAYER.bodyTurnRate);
   playerModel.rotation.y = playerBodyYaw + Math.PI;
   // dt 传入 sky：天穹云随时间漂移（标题界面作为动态背景也在动）
