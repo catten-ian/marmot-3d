@@ -30,7 +30,9 @@ export function dampAngle(current, target, dt, rate) {
 }
 
 export function classifyMoveFacing(mx, mz, thirdPerson = false) {
-  const lateralOnly = Math.abs(mz) < 1e-6 && Math.abs(mx) > 1e-6;
+  // 手指推“左右”几乎总会带一点前后分量，不能要求前后严格为 0；
+  // 只要横向明显主导（约 1.2 倍）就按侧向移动处理。
+  const lateralOnly = Math.abs(mx) > 1e-6 && Math.abs(mx) > Math.abs(mz) * 1.2;
   return { lateralOnly, followBody: !!thirdPerson && lateralOnly };
 }
 
@@ -40,11 +42,12 @@ export function thirdPersonStrafeTarget(mx, yaw) {
   return { targetYaw, moveX: -Math.sin(targetYaw), moveZ: -Math.cos(targetYaw) };
 }
 
-// 第一人称：镜头即土拨鼠的眼睛。纯左右输入应让“眼睛/视角”转向该侧，
-// 身体随之朝新朝向跑，而不是镜头不动、世界横向滑过（那是第三人称身体横移）。
-// 与 thirdPersonStrafeTarget 对称，但这里转向的是视角 yaw 本身。
+// 第一人称：镜头即土拨鼠的眼睛。左右输入应让“眼睛/视角”转向该侧，
+// 身体随之朝新朝向跑。转头量随摇杆横向幅度缩放：轻推轻转、满杆约 90°，
+// 比“非 0 即 90°”更像自然转头，也更容易感知到视角在动。
 export function firstPersonStrafeTarget(mx, yaw) {
   if (Math.abs(mx) < 1e-6) return null;
-  const targetYaw = yaw - Math.sign(mx) * Math.PI / 2;
+  const amount = Math.min(1, Math.abs(mx));
+  const targetYaw = yaw - Math.sign(mx) * (Math.PI / 2) * amount;
   return { targetYaw, moveX: -Math.sin(targetYaw), moveZ: -Math.cos(targetYaw) };
 }

@@ -215,13 +215,17 @@ export class FirstPersonController {
     // 第一人称且来自触屏摇杆时，镜头就是土拨鼠的眼睛，推左右应转身朝该方向看。
     // 桌面 standard WASD 保留经典 strafe（A/D=横移、鼠标转视角）；
     // dev optimized 方案里 A/D 本就是转向键（turnActive 已处理）。
-    const lateralOnly = Math.abs(mz) < 1e-6 && Math.abs(mx) > 1e-6;
+    // 横向主导输入：第三/第一人称都按“侧向”处理。
+    // 不再要求前后严格为 0——手指推左右总会带点纵向分量。
+    const lateralOnly = Math.abs(mx) > 1e-6 && Math.abs(mx) > Math.abs(mz) * 1.2;
     const touchLateral = lateralOnly
       && Math.abs(this.touchAxes.x) > 1e-6
       && Math.abs(this.touchAxes.x) + 1e-6 >= Math.abs(mx) - 1e-6;
     const firstPersonTurn = !this.thirdPerson && touchLateral;
     if ((facing.followBody || firstPersonTurn) && !turnActive) {
       const lateralX = firstPersonTurn ? this.touchAxes.x : mx;
+      // 第一人称：用摇杆横向偏移量决定转头量（左/右满杆约 90°，轻推则轻转），
+      // 比“非 0 即 90°”更像眼睛自然转头，也更容易感知到视角在动。
       const tgt = this.thirdPerson
         ? thirdPersonStrafeTarget(lateralX, this.yaw)
         : firstPersonStrafeTarget(lateralX, this.yaw);

@@ -47,7 +47,10 @@ const assert = require('node:assert/strict');
   assert.ok(firstStep > 0 && current > 1.5, 'smooth interpolation converges over frames');
   assert.equal(classifyMoveFacing(1, 0, true).followBody, true);
   assert.equal(classifyMoveFacing(1, 0, false).followBody, false);
-  assert.equal(classifyMoveFacing(1, 0.2, true).followBody, false);
+  // 横向主导（手指推左右带一点纵向）仍算侧向转身：1 > 0.2*1.2
+  assert.equal(classifyMoveFacing(1, 0.2, true).followBody, true);
+  // 纵向主导时不当作侧向：1 不大于 0.9*1.2
+  assert.equal(classifyMoveFacing(1, 0.9, true).followBody, false);
   const rightRun = thirdPersonStrafeTarget(1, 0);
   assert.ok(Math.abs(rightRun.targetYaw + Math.PI / 2) < 1e-9 && rightRun.moveX > .99 && Math.abs(rightRun.moveZ) < 1e-9);
   assert.ok(Math.abs(Math.hypot(rightRun.moveX, rightRun.moveZ) - 1) < 1e-9);
