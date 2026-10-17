@@ -12,6 +12,26 @@ import { terrainHeight, terrainNormal, makeRng } from '../core/utils.js';
 import { devOn } from '../core/version.js';
 import { undergroundProfile } from './underground.js';
 
+// 生成始终面向相机的悬浮文字标签（Sprite）。
+function buildBurrowLabel(text) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 80;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 40px system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(8,18,28,0.85)';
+  ctx.strokeText(text, 128, 42);
+  ctx.fillStyle = '#bfe2ff';
+  ctx.fillText(text, 128, 42);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(2.4, 0.75, 1);
+  sprite.renderOrder = 20;
+  return sprite;
+}
+
 /** 洞穴入口：土丘 + 洞口 + 内部暖光 + 地面光圈 */
 export class Burrow {
   constructor(scene, pos) {
@@ -160,6 +180,31 @@ export class Burrow {
       disc.rotation.x = -Math.PI / 2;
       disc.position.y = 0.07;
       this.group.add(disc);
+    } else {
+      // 临时避难洞：冷色发光地标，解决“找不到临时洞”的问题。
+      const beaconGeo = new THREE.TorusGeometry(underground.slopeRadius * 1.05, 0.09, 8, 36);
+      beaconGeo.rotateX(Math.PI / 2);
+      this.beaconMat = new THREE.MeshBasicMaterial({
+        color: 0x8fd0ff, transparent: true, opacity: 0.5, depthWrite: false,
+      });
+      const beacon = new THREE.Mesh(beaconGeo, this.beaconMat);
+      beacon.position.y = 0.12;
+      this.group.add(beacon);
+      this.beacon = beacon;
+
+      const sbeamGeo = new THREE.CylinderGeometry(underground.slopeRadius * 0.5, underground.slopeRadius * 0.7, 2.6, 28, 1, true);
+      this.sbeamMat = new THREE.MeshBasicMaterial({
+        color: 0x8fd0ff, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false,
+      });
+      const sbeam = new THREE.Mesh(sbeamGeo, this.sbeamMat);
+      sbeam.position.y = 1.3;
+      this.group.add(sbeam);
+      this.sbeam = sbeam;
+
+      // 悬浮世界标签
+      this.labelSprite = buildBurrowLabel(this.label || '临时避难洞');
+      this.labelSprite.position.set(0, 2.7, 0);
+      this.group.add(this.labelSprite);
     }
 
     scene.add(this.group);
@@ -170,7 +215,19 @@ export class Burrow {
 
   update(dt) {
     this._t += dt;
-    if (!this.isBase) return; // 临时避难洞静态、无发光动画
+    if (!this.isBase) {
+      // 临时避难洞：冷色地标脉冲 + 标签始终面向相机。
+      if (this.beacon) {
+        const p = 0.34 + Math.sin(this._t * 2.2) * 0.16;
+        this.beaconMat.opacity = p;
+        this.beacon.rotation.y += dt * 0.5;
+        const s = 1 + Math.sin(this._t * 2.2) * 0.05;
+        this.beacon.scale.set(s, s, s);
+        this.sbeamMat.opacity = 0.07 + Math.sin(this._t * 2.2) * 0.04;
+      }
+      if (this.labelSprite) { /* Sprite 始终面向相机，无需手动旋转 */ }
+      return;
+    }
     // 光柱与顶环呼吸，保持"活着"的地标感
     const p = 0.32 + Math.sin(this._t * 1.6) * 0.12;
     this.cap.material.opacity = p;

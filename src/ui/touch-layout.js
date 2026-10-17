@@ -4,9 +4,9 @@
  */
 const STORAGE_KEY = 'marmot.touch-layout.v1';
 // 疾跑已改为由摇杆拖动距离判定（见 touch-controls SPRINT_STICK_THRESHOLD），不再有独立按钮。
-const ACTIONS = ['attack', 'jump', 'interact', 'burst', 'ultimate', 'pause'];
-const LABELS = { attack: '攻击', jump: '跳跃', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停' };
-const SIZE = { attack: 76, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38 };
+const ACTIONS = ['attack', 'dodge', 'jump', 'interact', 'burst', 'ultimate', 'pause'];
+const LABELS = { attack: '攻击', dodge: '翻滚', jump: '跳跃', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停' };
+const SIZE = { attack: 76, dodge: 58, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38 };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const copy = (v) => JSON.parse(JSON.stringify(v));
 
@@ -41,6 +41,7 @@ export class TouchLayout {
     // 攻击居中最大，跳跃正上方，交互/爆发/大招环绕两侧。
     const positions = {
       attack: [ax, ay],
+      dodge: [ax - dx, ay - dy * 0.4],
       jump: [ax, ay - 96],
       interact: [ax + dx, ay - dy],
       burst: [ax - dx, ay + dy],

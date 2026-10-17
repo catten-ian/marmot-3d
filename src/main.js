@@ -16,7 +16,7 @@ import {
 import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/utils.js';
 import { FirstPersonController } from './core/controls.js';
 import { dampAngle } from './core/move-facing.mjs';
-import { selectAttackMove, selectAttackMoveFromInput } from './core/combat-wheel.mjs';
+import { selectChargedMove, rollDirection } from './core/combat-wheel.mjs';
 import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels } from './models/loader.js';
@@ -981,6 +981,12 @@ function resume() {
 const _fwd = new THREE.Vector3();
 // 缓存本次战斗数值，供 viewmodel 的攻击动画计算进度使用
 let stats_cache = { cd: 0 };
+// 当前玩家攻击动作类型（供第一/第三人称动作表现使用）：'' | tap | stand | lunge | dodge
+let playerAttackAnim = '';
+let playerAttackT = 0;
+let playerAttackDur = 1;
+// 迎击窗口剩余时间（秒）：期间正面接住狐狸 dash 可抵消伤害并反打。
+let parryWindowT = 0;
 
 /** 攻击：扇形范围判定，原版是圆形范围，第一人称下改为朝向前方扇形更合理 */
 function strike(move = 'tap') {
@@ -988,6 +994,17 @@ function strike(move = 'tap') {
   if (game.attackCD > 0 || game.inBurrow || game.observing) return false;
   const wheel = PLAYER.combatWheel[move] || PLAYER.combatWheel.tap;
   const s = combatStats(game);
+  const running = isSprintingNow();
+
+  // 扑咬仅奔跑姿态可用：非奔跑时降级为推击。
+  if (move === 'lunge' && !running) move = 'tap';
+  // 迎击站立/奔跑都可用；奔跑中使用时自动停步、强制起身（进入站立迎击）。
+  if (move === 'stand' && running) {
+    controller.velocity.set(0, controller.velocity.y, 0);
+    controller.externalVelocity.multiplyScalar(0.2);
+    controller.crouch = Math.min(controller.crouch, 0.08);
+  }
+
   const atkMul = devOn('famineTolerance') ? HERBIVORE.attackCostMul : 1;
   const rawCost = move === 'tap' ? (game.overdrive > 0 ? STRIKE_COST.overdrive : game.boost > 0 ? STRIKE_COST.boost : STRIKE_COST.base) : wheel.cost;
   const cost = rawCost * atkMul;
@@ -995,19 +1012,37 @@ function strike(move = 'tap') {
   p.energy -= cost;
   game.attackCD = Math.max(s.cooldown, wheel.cooldown || 0.18) + (wheel.recovery || 0);
   if (move === 'stand') controller.movementLocked = true;
+
+  // 推击在站/跑姿态下的范围与伤害分档。
+  let rangeMul = 1, damagePostureMul = 1, knockbackPostureMul = 1, stunPostureMul = 1;
+  if (move === 'tap') {
+    const pose = running ? wheel.run : wheel.stand;
+    rangeMul = pose.rangeMul; damagePostureMul = pose.damageMul;
+    knockbackPostureMul = pose.knockbackMul; stunPostureMul = pose.stunMul;
+  }
+
+  // 记录动作类型与时长，供双视角动作表现。
+  playerAttackAnim = move;
+  playerAttackDur = Math.max(0.28, wheel.recovery || 0.2) + 0.18;
+  playerAttackT = playerAttackDur;
+
+  // 迎击窗口：在这个时间内正面接住 dash 可抵消伤害。
+  if (move === 'stand') parryWindowT = Math.max(parryWindowT, wheel.parryWindow || 0.3);
+
   controller.forwardFlat(_fwd);
   const right = new THREE.Vector3(-_fwd.z, 0, _fwd.x);
   if (move === 'dodge') {
-    controller.externalVelocity.addScaledVector(right, 6.2);
-    p.invuln = Math.max(p.invuln, wheel.invuln || 0.35);
-    controller.dashForward(0.4);
+    const dir = rollDirection({ velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw });
+    controller.roll(dir, 7.2);
+    p.invuln = Math.max(p.invuln, wheel.invuln || 0.42);
     return true;
   }
   if (move === 'lunge') controller.externalVelocity.addScaledVector(_fwd, 7.2);
   if (move === 'stand') game.attackMoveLock = wheel.lock || 0.4;
   const originY = terrainHeight(controller.position.x, controller.position.z);
   const color = move === 'stand' ? 0xd6a1ff : move === 'lunge' ? 0xffa36f : game.overdrive > 0 ? 0xe4b1ff : game.boost > 0 ? 0xffd17a : 0xfff1a9;
-  claw.fire(controller.position.x, originY + 0.32, controller.position.z, controller.yaw, s.range, color);
+  const baseRange = s.range * rangeMul + (move === 'lunge' ? 0.8 : 0);
+  claw.fire(controller.position.x, originY + 0.32, controller.position.z, controller.yaw, baseRange, color);
   controller.attackKick(move === 'lunge' ? 1.6 : 1);
   audio.swing();
   let hits = 0;
@@ -1019,13 +1054,32 @@ function strike(move = 'tap') {
     const playerBottom = terrainHeight(controller.position.x, controller.position.z) + controller.airHeight;
     const foxBottom = terrainHeight(f.x, f.z) + f.leap;
     const foxHeight = FOX.collisionHeight[f.type] ?? FOX.collisionHeight.normal;
-    if (!strikeVolumeHit({ forward, lateral, playerBottom, targetBottom: foxBottom, targetHeight: foxHeight, range: s.range + (move === 'lunge' ? 0.8 : 0) })) continue;
-    hitFox(f, s.damage * (wheel.damageMul || 1), { ...s, stun: wheel.stun || s.stun, knockback: wheel.knockback || s.knockback });
+    if (!strikeVolumeHit({ forward, lateral, playerBottom, targetBottom: foxBottom, targetHeight: foxHeight, range: baseRange })) continue;
+    const dmg = s.damage * (wheel.damageMul || 1) * damagePostureMul;
+    const kb = (wheel.knockback || s.knockback) * knockbackPostureMul;
+    const stun = (wheel.stun || s.stun) * stunPostureMul;
+    hitFox(f, dmg, { ...s, range: baseRange, stun, knockback: kb });
     hits++;
   }
   if (hits && game.overdrive <= 0) game.charge = clamp(game.charge + (move === 'stand' ? 9 : move === 'lunge' ? 8 : 6), 0, 100);
   return true;
 }
+// 迎击练习：狐狸被击退后立即在玩家正前方重新出现，不逃跑、不计驱退/回能。
+function scheduleDrillReset(f) {
+  if (!f) return;
+  const pyaw = controller.bodyYaw;
+  const dist = 7;
+  setTimeout(() => {
+    if (!sandboxState.parryDrill) return;
+    f.respawnAt(p.x + (-Math.sin(pyaw)) * dist, p.z + (-Math.cos(pyaw)) * dist);
+    f.hp = f.maxHp;
+    f.state = 'roam';
+    // 清掉迎击击退的残留动量，否则复位瞬间会滑行偏移。
+    f.knockbackVX = 0; f.knockbackVZ = 0; f.leap = 0;
+    f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.bodyYaw };
+  }, 350);
+}
+
 function hitFox(f, damage, s) {
   if (f.hp <= 0) return;
   const fy = terrainHeight(f.x, f.z);
@@ -1038,6 +1092,13 @@ function hitFox(f, damage, s) {
 
   // 体力耗尽 = 被驱退。它不会死，而是转身逃跑。
   if (f.hp <= 0) {
+    // 迎击练习：不驱退、不计数，立刻复位到玩家正前方重来。
+    if (sandboxState.parryDrill) {
+      audio.hit();
+      controller.hitShake(0.2);
+      scheduleDrillReset(f);
+      return;
+    }
     game.levelRepels = (game.levelRepels || 0) + 1;
     game.totalRepels = (game.totalRepels || 0) + 1;
     f.startFleeing(controller.position.x, controller.position.z, cfg);
@@ -1105,6 +1166,30 @@ function doJump() {
     new THREE.Color(0xbfae8e), 6, 0.7);
 }
 
+// 翻滚：朝当前移动方向（否则身体朝向）滚动，整段无敌。
+function doRoll() {
+  const p = game.player;
+  const wheel = PLAYER.combatWheel.dodge;
+  if (game.attackCD > 0 || game.inBurrow || (controller.rollT || 0) > 0.02) return false;
+  const atkMul = devOn('famineTolerance') ? HERBIVORE.attackCostMul : 1;
+  if (p.energy < wheel.cost * atkMul) { hud.say('储备不足，无法翻滚', 1.2); return false; }
+  p.energy -= wheel.cost * atkMul;
+  const dir = rollDirection({
+    velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw,
+  });
+  controller.roll(dir, 7.2);
+  p.invuln = Math.max(p.invuln, wheel.invuln);
+  game.attackCD = wheel.recovery || 0.12;
+  audio.swing();
+  const y = terrainHeight(controller.position.x, controller.position.z);
+  particles.burst(controller.position.x, y + 0.12, controller.position.z, new THREE.Color(0xcbb79a), 10, 0.9);
+  damageText.spawn(controller.position.x, y + 1.0, controller.position.z, '翻滚', '#d8e6c8');
+  playerAttackAnim = 'dodge';
+  playerAttackDur = wheel.invuln;
+  playerAttackT = wheel.invuln;
+  return true;
+}
+
 function doInteract() {
   const f = game.friend;
   const d = Math.hypot(f.x - controller.position.x, f.z - controller.position.z);
@@ -1168,6 +1253,14 @@ function update(dt) {
   p.invuln = Math.max(0, p.invuln - dt);
   game.attackMoveLock = Math.max(0, game.attackMoveLock - dt);
   controller.movementLocked = game.attackMoveLock > 0;
+  // 攻击键蓄力计时与动作/翻滚/迎击窗口衰减。
+  if (attackCharge.held) { attackCharge.t += dt; setAttackHint(attackCharge.t, isSprintingNow()); }
+  if (controller.rollT > 0) controller.rollT = Math.max(0, controller.rollT - dt);
+  if (parryWindowT > 0) parryWindowT = Math.max(0, parryWindowT - dt);
+  if (playerAttackT > 0) {
+    playerAttackT = Math.max(0, playerAttackT - dt);
+    if (playerAttackT === 0) { playerAttackAnim = ''; playerAttackDur = 1; }
+  }
   if (prevOverdrive > 0 && game.overdrive === 0) {
     game.fatigue = 5;
     hud.say('大招结束：5 秒疲劳，先拉开距离或回洞休息。', 3);
@@ -1225,6 +1318,11 @@ function update(dt) {
   let anyWinding = false;
   for (const f of foxes) {
     const prevState = f.state;
+    if (sandboxState.parryDrill) {
+      f.drillCtx = { px: p.x, pz: p.z, yaw: controller.bodyYaw };
+    } else if (f.drillCtx) {
+      delete f.drillCtx;
+    }
     f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow);
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
@@ -1248,6 +1346,28 @@ function update(dt) {
         groundAttackHeight: FOX.groundAttackHeight, mode: f.attack?.mode, state: f.state,
       });
       if (d < reach && verticalOverlap) {
+        // 迎击判定：迎击窗口内，且狐狸从玩家正面（约 ±80°）冲来 → 抵消本次接触并反打。
+        const parryCfg = PLAYER.combatWheel.stand;
+        const toFoxX = (f.x - p.x) / (d || 1), toFoxZ = (f.z - p.z) / (d || 1);
+        const facingDot = toFoxX * (-Math.sin(controller.bodyYaw)) + toFoxZ * (-Math.cos(controller.bodyYaw));
+        const parryOK = parryWindowT > 0 && f.state === 'dash'
+          && facingDot >= Math.cos(parryCfg.parryHalfAngle ?? 80 * Math.PI / 180);
+        if (parryOK) {
+          parryWindowT = 0;
+          p.invuln = Math.max(p.invuln, 0.35);
+          // 把冲来的狐狸当场定住、反方向击退并眩晕（不消耗击杀计数/回能奖励）。
+          // hit() 的击退方向 = 狐狸位置 - from，故 from 传玩家位置，才能把狐狸朝远离玩家顶开。
+          f.hit(0, (parryCfg.knockback || 2.8) + 1.2, parryCfg.stun || 1.2, p.x, p.z);
+          const fy0 = terrainHeight(p.x, p.z);
+          damageText.spawn(p.x, fy0 + 1.5, p.z, '迎击！', '#e7c4ff');
+          particles.burst(p.x + toFoxX * 1.2, fy0 + 0.6, p.z + toFoxZ * 1.2, 0xd6a1ff, 18, 1.3);
+          audio.parry ? audio.parry() : audio.hit();
+          controller.hitShake(0.35, toFoxX * 2.2, toFoxZ * 2.2);
+          if (game.overdrive <= 0) game.charge = clamp(game.charge + 10, 0, 100);
+          game.parryCount = (game.parryCount || 0) + 1;
+          if (sandboxState.parryDrill) scheduleDrillReset(f);
+          continue;
+        }
         // 注意括号：`??` 优先级低于 `+`，必须先按类型取基础伤害再叠加关卡加成，
         // 否则 `+ game.level` 只会并进 default 分支、而该分支永远不会被用到。
         const damage = (FOX.damage[f.type] ?? FOX.damage.default) + game.level;
@@ -1362,6 +1482,27 @@ function update(dt) {
   playerBody.rotation.x = -controller.crouch * 0.28;
   playerBody.position.y = controller.crouch * -0.12 + (controller.grounded ? 0 : 0.08);
   playerBody.scale.set(1, 1 - controller.crouch * 0.12, 1 + controller.crouch * 0.18);
+  // 第三人称攻击/翻滚动作（前肢 + 身体姿态）。
+  const arms = playerBody.userData.frontArms;
+  const atkK = playerAttackT > 0 ? Math.sin(Math.min(1, 1 - playerAttackT / 0.46) * Math.PI) : 0;
+  if (arms) {
+    const L = arms.left, R = arms.right;
+    L.rotation.x = 0; R.rotation.x = 0; L.rotation.z = 0; R.rotation.z = 0;
+    if (playerAttackAnim === 'lunge') {
+      // 扑咬：前肢大前伸（绕本地 X 向前抬）+ 身体下压
+      L.rotation.x = -1.2 * atkK; R.rotation.x = -1.2 * atkK;
+      playerBody.rotation.x -= 0.35 * atkK;
+    } else if (playerAttackAnim === 'stand') {
+      // 迎击：双前肢前顶、略外展
+      L.rotation.x = -0.8 * atkK; R.rotation.x = -0.8 * atkK;
+      L.rotation.z = -0.3 * atkK; R.rotation.z = 0.3 * atkK;
+    } else if (playerAttackAnim === 'dodge') {
+      playerBody.rotation.z = 0.7 * atkK; // 翻滚侧倾
+    } else if (playerAttackAnim === 'tap') {
+      L.rotation.x = -0.9 * atkK; R.rotation.x = -0.5 * atkK;
+    }
+  }
+  if (playerAttackAnim !== 'dodge') playerBody.rotation.z = 0;
   burrowSet.objects.forEach((b) => b.update(dt));
   berries.forEach((b) => b.update(dt));
   claw.update(dt);
@@ -1413,23 +1554,59 @@ function update(dt) {
 const binds = new Keybinds();
 
 let mouseDown = false;
-let attackKeyDown = false;
-const touchAttackPointers = new Set();
-const attackGestures = new Map();
 let touchControls = null;
+// 攻击键“按住升级”状态：按下记录时间，帧循环累加，松开按当前蓄力档位出招。
+const attackCharge = { held: false, t: 0, pointerId: null, via: null };
 // 首次点击用于捕获鼠标指针时，把这次攻击记下来，等锁定成功后补上
 let pendingClickAttack = false;
 let pendingClickTimer = 0;
-const attackWheel = document.createElement('div');
-attackWheel.className = 'attack-wheel';
-attackWheel.innerHTML = '<i data-move="lunge">扑咬</i><i data-move="stand">迎咬</i><i data-move="dodge">翻滚</i><i data-move="tap">推击</i>';
-document.body.appendChild(attackWheel);
-function showAttackWheel(gesture = {}) {
-  attackWheel.classList.add('visible');
-  const move = selectAttackMove(gesture);
-  attackWheel.querySelectorAll('[data-move]').forEach((el) => el.classList.toggle('active', el.dataset.move === move));
+// 攻击蓄力提示环（贴在攻击键上的三段档位）
+const attackHint = document.createElement('div');
+attackHint.className = 'attack-charge-hint';
+attackHint.innerHTML = '<b class="seg s-tap">推击</b><b class="seg s-stand">迎击</b><b class="seg s-lunge">扑咬</b>';
+attackHint.setAttribute('aria-hidden', 'true');
+document.body.appendChild(attackHint);
+function setAttackHint(hold = 0, sprinting = false) {
+  const cfg = PLAYER.combatWheel.charge;
+  let tier = 'tap';
+  if (hold >= cfg.lungeHold && sprinting) tier = 'lunge';
+  else if (hold >= cfg.parryHold) tier = 'stand';
+  attackHint.classList.toggle('visible', attackCharge.held);
+  attackHint.dataset.tier = tier;
 }
-function hideAttackWheel() { attackWheel.classList.remove('visible'); }
+function hideAttackHint() {
+  attackHint.classList.remove('visible');
+  attackHint.dataset.tier = 'tap';
+}
+function beginAttack(via, pointerId = null) {
+  if (game.mode !== 'play') return;
+  // 触屏在按住拖动时会重复回调 pressed=true，不能因此把蓄力计时清零。
+  if (attackCharge.held) return;
+  attackCharge.held = true;
+  attackCharge.t = 0;
+  attackCharge.pointerId = pointerId;
+  attackCharge.via = via;
+  setAttackHint(0, isSprintingNow());
+}
+function releaseAttack() {
+  if (!attackCharge.held) return;
+  const hold = attackCharge.t;
+  attackCharge.held = false;
+  attackCharge.t = 0;
+  attackCharge.pointerId = null;
+  attackCharge.via = null;
+  hideAttackHint();
+  if (game.mode !== 'play') return;
+  const move = selectChargedMove(hold, isSprintingNow(), PLAYER.combatWheel.charge);
+  strike(move);
+}
+// 是否处于奔跑姿态：疾跑按键 / 触屏疾跑 / 身体俯伏超过阈值。
+function isSprintingNow() {
+  return controller.touchSprint
+    || keys.has('ShiftLeft') || keys.has('ShiftRight')
+    || binds.isAction('ShiftLeft', 'sprint') || binds.isAction('ShiftRight', 'sprint')
+    || controller.crouch > 0.5;
+}
 
 
 touchControls = new TouchControls({
@@ -1440,19 +1617,12 @@ touchControls = new TouchControls({
   joystick: document.getElementById('touchJoystick'),
   stick: document.getElementById('touchStick'),
   isActive: () => game.mode === 'play',
-  onAction: (action, pressed, pointerId, gesture = {}) => {
+  onAction: (action, pressed, pointerId) => {
     if (action === 'attack') {
-      if (pressed) {
-        touchAttackPointers.add(pointerId);
-        attackGestures.set(pointerId, gesture);
-        showAttackWheel(gesture);
-      } else {
-        touchAttackPointers.delete(pointerId);
-        attackGestures.delete(pointerId);
-        hideAttackWheel();
-        strike(selectAttackMove(gesture));
-      }
-    } else if (pressed && action === 'jump') doJump();
+      if (pressed) beginAttack('touch', pointerId);
+      else { if (attackCharge.pointerId === pointerId) releaseAttack(); }
+    } else if (pressed && action === 'dodge') doRoll();
+    else if (pressed && action === 'jump') doJump();
     else if (pressed && action === 'interact') doInteract();
     else if (pressed && action === 'burst') doBurst();
     else if (pressed && action === 'ultimate') doUltimate();
@@ -1522,7 +1692,8 @@ window.addEventListener('keydown', (e) => {
 
   // —— 战斗类动作 ——
   keys.add(e.code);
-  if (binds.isAction(e.code, 'attack')) { attackKeyDown = true; showAttackWheel({ dx: 0, dy: 0, moved: false }); }
+  if (binds.isAction(e.code, 'attack')) beginAttack('key');
+  if (binds.isAction(e.code, 'dodge')) doRoll();
   if (binds.isAction(e.code, 'burst')) doBurst();
   if (binds.isAction(e.code, 'ultimate')) doUltimate();
   if (binds.isAction(e.code, 'interact')) doInteract();
@@ -1532,8 +1703,7 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
   keys.delete(e.code);
   if (binds.isAction(e.code, 'attack')) {
-    attackKeyDown = false; hideAttackWheel();
-    if (game.mode === 'play') strike(selectAttackMoveFromInput(Number(keys.has('KeyD')) - Number(keys.has('KeyA')), Number(keys.has('KeyW')) - Number(keys.has('KeyS'))));
+    if (attackCharge.via === 'key') releaseAttack();
   }
 });
 
@@ -1555,17 +1725,14 @@ canvas.addEventListener('mousedown', (e) => {
     if (game.mode === 'play') {
       controller.requestLock();
       pendingClickAttack = true;
-      mouseDown = true;
-      showAttackWheel({ dx: 0, dy: 0, moved: false });
-      // 若用户拒绝锁定或请求失败，pendingClickAttack 会一直挂着，
-      // 导致下次成功锁定时打出一记莫名其妙的"幽灵攻击"。超时清理。
+      beginAttack('mouse');
       clearTimeout(pendingClickTimer);
-      pendingClickTimer = setTimeout(() => { pendingClickAttack = false; }, 1200);
+      pendingClickTimer = setTimeout(() => { pendingClickAttack = false; if (attackCharge.via === 'mouse') releaseAttack(); }, 1200);
     }
     return;
   }
   mouseDown = true;
-  if (game.mode === 'play') showAttackWheel({ dx: 0, dy: 0, moved: false });
+  if (game.mode === 'play') beginAttack('mouse');
 });
 
 // 指针捕获成功时，补上被吞掉的那次攻击
@@ -1576,7 +1743,7 @@ controller.onLockChange = (locked) => {
     clearTimeout(pendingClickTimer);
     pendingClickAttack = false;
     mouseDown = true;
-    if (game.mode === 'play') { mouseDown = true; showAttackWheel({ dx: 0, dy: 0, moved: false }); }
+    // 攻击蓄力已在 mousedown 时开始，这里无需重复。
   }
   // 未锁定时暂停，避免玩家离开后被偷袭
   if (!locked && !controller.touchEnabled && game.mode === 'play') pause();
@@ -1586,14 +1753,12 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('mouseup', (e) => {
   if (e.button !== 0) return;
-  mouseDown = false; hideAttackWheel();
-  if (game.mode === 'play') {
-    const move = selectAttackMoveFromInput(Number(keys.has('KeyD')) - Number(keys.has('KeyA')), Number(keys.has('KeyW')) - Number(keys.has('KeyS')));
-    strike(move);
-  }
+  mouseDown = false;
+  if (attackCharge.via === 'mouse') releaseAttack();
 });
 window.addEventListener('blur', () => {
   keys.clear(); mouseDown = false;
+  if (attackCharge.held) releaseAttack();
   if (game.mode === 'play') pause();
 });
 document.addEventListener('visibilitychange', () => {
@@ -1728,6 +1893,11 @@ const sandboxPanelUI = setupSandboxPanel({
     if (action === 'refill') { game.player.hp = 100; game.player.energy = 100; }
     else if (action === 'clearStress') { game.player.stress = 0; game.stressWarned = false; }
     else if (action === 'charge') game.charge = 100;
+    else if (action === 'resetFood') {
+      berries.forEach((b) => b.reset());
+      scenery.resetBerries?.();
+      hud.say('食物已重置，被吃掉的浆果/植物重新出现', 2);
+    }
     else if (action === 'spawnOne') spawnSandboxFoxes({ state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
     else if (action === 'spawnGroup') spawnSandboxFoxes({ count: 6, state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
     else if (action === 'clearFoxes') clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
@@ -1735,6 +1905,18 @@ const sandboxPanelUI = setupSandboxPanel({
   onChange: (name, value) => {
     if (name === 'godMode') testState.godMode = value;
     if (name === 'freezeTimer') testState.freezeTimer = value;
+    if (name === 'parryDrill') {
+      sandboxState.parryDrill = value;
+      if (value) {
+        // 只留 1 只练习狐，清掉其他；它会在 fox.update 里被 drillCtx 引导。
+        clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
+        const f = spawnSandboxFox('normal');
+        if (f) { f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.bodyYaw }; }
+        hud.say('迎击练习：等狐狸正面冲刺时用迎击（按住攻击到“迎击”档）顶回去', 3.2);
+      } else {
+        foxes.forEach((f) => delete f.drillCtx);
+      }
+    }
     if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; }); }
   },
 });
@@ -1908,10 +2090,9 @@ function frame(now) {
       controller.crouch,
       controller.postureSpeed || 0,
       airborne,
-      game.attackCD > 0 && stats_cache.cd > 0
-        ? 1 - game.attackCD / stats_cache.cd
-        : -1,
+      playerAttackT > 0 ? playerAttackT / Math.max(0.01, playerAttackDur) : -1,
       controller.pitch,
+      playerAttackAnim,
     );
     viewModel.render(renderer);
   }

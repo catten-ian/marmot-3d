@@ -30,6 +30,7 @@ export function createSandboxState() {
     difficulty: 'standard',
     speedMultiplier: 1,
     alertMultiplier: 1,
+    parryDrill: false,
     fps: 0,
     lastCommand: '',
   };

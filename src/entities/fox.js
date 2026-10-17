@@ -20,10 +20,37 @@ import { instantiate, normalizeModel } from '../models/loader.js';
 import { IS_DEV, USE_REAL_FOX_MODEL } from '../core/version.js';
 import { clamp } from '../core/utils.js';
 import { createProceduralFox } from './procedural-fox.js';
+import { createTibetanFox } from './tibetan-fox.js';
 import { foxRecoverySeconds, stepFoxTurn, stepFoxRecovery } from '../core/fox-motion.js';
 /** 手搓程序化狐狸：config 开关，或 beta 用 ?procfox=1 临时启用对比；默认仍走现有模型 */
 const USE_PROCEDURAL_FOX = FOX.useProcedural
   || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('procfox') === '1');
+// 高保真程序化藏狐（img2threejs 工程产物，自包含）：默认用于 normal/pup，
+// 可用 ?hififox=off 临时关闭回退旧外观。
+const HIFI_FOX_OFF = typeof location !== 'undefined'
+  && new URLSearchParams(location.search).get('hififox') === 'off';
+const USE_HIFI_FOX = !HIFI_FOX_OFF;
+
+/**
+ * 把 img2threejs 藏狐模型归一化到游戏尺度并接地。
+ * 原始模型高约 2.3、长约 4.5（鼻尖 +Z、尾 -Z、耳尖 +Y，脚掌约 y=0.1），
+ * 与实体 yaw（yaw=0 朝 +Z）同向，故无需额外前向旋转；只需缩放到目标高并把脚掌放到 0。
+ */
+function buildHiFiTibetanFox() {
+  const wrap = new THREE.Group();
+  const fox = createTibetanFox();
+  let box;
+  fox.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(fox);
+  const h = Math.max(0.001, box.max.y - box.min.y);
+  const s = FOX_TARGET_HEIGHT / h;
+  wrap.scale.setScalar(s);
+  fox.position.y -= box.min.y; // 脚掌接地
+  fox.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; o.frustumCulled = true; } });
+  wrap.add(fox);
+  wrap.name = 'hifi-tibetan-fox';
+  return wrap;
+}
 /** 真实藏狐模型的基准缩放：让成体在游戏里约 1.0m 高（与土拨鼠同量级） */
 const FOX_MODEL_BASE = 1.05;
 const SEGMENTED_FOX_MODEL = IS_DEV
@@ -150,18 +177,29 @@ export class Fox {
     //   而日志里一条错误都没有（模型确实加载成功了）。
     //   现在两套模型是**兄弟**：藏程序化不影响真实模型。
     this.mesh = new THREE.Group();
-    // 可选程序化狐狸保持独立于旧 GLB/L2 回退网格，默认关闭。
-    if (USE_PROCEDURAL_FOX) {
+    // 高保真程序化藏狐（img2threejs）：默认作为藏狐外观，旧外观作为回退。
+    this.hiFiMesh = null;
+    if (USE_HIFI_FOX) {
+      this.hiFiMesh = buildHiFiTibetanFox();
+      this.mesh.add(this.hiFiMesh);
+      this.proceduralMesh = buildFoxMesh(type, 1);
+      this.proceduralMesh.visible = false;
+      this.mesh.add(this.proceduralMesh);
+    } else if (USE_PROCEDURAL_FOX) {
       this._proceduralFox = createProceduralFox({ color: FOX.proceduralColors[type] ?? FOX.proceduralColors.normal });
       this.proceduralMesh = this._proceduralFox.group;
-    } else this.proceduralMesh = buildFoxMesh(type, 1);
-    this.mesh.add(this.proceduralMesh);
+      this.mesh.add(this.proceduralMesh);
+    } else {
+      this.proceduralMesh = buildFoxMesh(type, 1);
+      this.mesh.add(this.proceduralMesh);
+    }
     this.realModel = null;
-    this.modelLevel = 'procedural';
+    this.modelLevel = USE_HIFI_FOX ? 'hifi' : 'procedural';
     this.mesh.position.set(x, 0, z);
     scene.add(this.mesh);
     this.scene = scene;
-    this._loadRealModel();
+    // 高保真模型已足够完整时不再异步加载 GLB（避免两套模型叠加/闪烁）。
+    if (!USE_HIFI_FOX) this._loadRealModel();
 
     // 蓄力预警：地面上的方向指示条（第一人称下比 2D 线条更易读）
     this.warn = buildWarnIndicator();
@@ -387,7 +425,9 @@ export class Fox {
     if (!this.mesh) return;
     // 模型切换不应重置实体生死/逃离可见状态；只切换两套子模型。
     const useReal = !!this.realModel;
-    if (this.proceduralMesh) this.proceduralMesh.visible = !useReal;
+    // 高保真程序化藏狐是默认外观：它与旧程序化模型成对显示；若异步 GLB 成功则隐藏两者。
+    if (this.hiFiMesh) this.hiFiMesh.visible = !useReal;
+    if (this.proceduralMesh) this.proceduralMesh.visible = !useReal && !this.hiFiMesh;
     if (this.realModel) this.realModel.visible = useReal;
   }
 
@@ -481,6 +521,46 @@ export class Fox {
     // 跃扑的腾空时间也算进冲刺时长，预警线长度才准
     const leapT = A.mode === 'leap' ? 0.22 : 0;
     this.dashTime = A.dashTime + leapT;
+
+    // —— 迎击练习：绕到玩家正前方，直线蓄力冲刺，不绕行/不虚晃 ——
+    // dash 状态故意不拦截：交给下方正常 switch 的 dash 分支执行冲刺位移与结束转换。
+    if (this.drillCtx && this.state !== 'dash') {
+      const pyaw = this.drillCtx.yaw || 0;
+      // 玩家正前方 7m 处的站位（玩家朝 -sin,-cos）。
+      const standDist = 7;
+      const tx = this.drillCtx.px + (-Math.sin(pyaw)) * standDist;
+      const tz = this.drillCtx.pz + (-Math.cos(pyaw)) * standDist;
+      const ddx = tx - this.x, ddz = tz - this.z;
+      const dd = Math.hypot(ddx, ddz);
+      const facingPlayer = Math.atan2(p.x - this.x, p.z - this.z);
+      if (this.state === 'wind') {
+        this.timer -= dt;
+        const turn = stepFoxTurn(this.yaw, facingPlayer, this.turnVelocity, dt,
+          FOX.handling.windTurnRate, FOX.handling.windTurnAccel);
+        this.yaw = turn.yaw; this.turnVelocity = turn.turnVelocity;
+        if (this.timer <= 0) this._beginDash();
+      } else if (dd > 1.4) {
+        // 走到正前方站位（roam/circle/其他态都被引导过去）。
+        this.state = 'roam'; this.warn.visible = false;
+        this._moveGround(ddx, ddz, Math.min(speed * 1.05, 5.2), dt, allBurrows);
+        this.yaw = stepFoxTurn(this.yaw, facingPlayer, this.turnVelocity, dt,
+          FOX.handling.windTurnRate, FOX.handling.windTurnAccel).yaw;
+      } else {
+        // 到位：短延迟后直线蓄力。
+        this.state = 'wind';
+        this.warn.visible = true;
+        this.windTotal = Math.max(0.55, (levelCfg.wind ?? 0.9) * 0.7);
+        this.timer = this.windTotal;
+        this.lureChance = 0;
+      }
+      // 练习狐不进入 linger/flee/circle；下方 switch 只允许 wind/dash，其余帧已在此处理。
+      this.warn.visible = this.state === 'wind';
+      if (this.state === 'wind') this._updateWarn(terrainAt); else this.warn.visible = false;
+      this._updateSegmentedFox(dt, this.state === 'dash' ? 1 : 0);
+      this._applyTransform(dt, terrainAt);
+      this._updateHpBar();
+      return;
+    }
 
     switch (this.state) {
       case 'linger': {
@@ -1073,6 +1153,7 @@ export class Fox {
     scene.remove(this.hpBar);
     scene.remove(this.labelSprite);
     disposeTree(this.proceduralMesh);
+    disposeTree(this.hiFiMesh);
     disposeTree(this.realModel, { geometry: false, textures: false });
     disposeTree(this.warn);
     disposeTree(this.hpBar);

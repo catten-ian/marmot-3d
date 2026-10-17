@@ -29,6 +29,64 @@ export function dampAngle(current, target, dt, rate) {
   return current + delta * (1 - Math.exp(-rate * dt));
 }
 
+export function wrapAngle(a) {
+  return Math.atan2(Math.sin(a), Math.cos(a));
+}
+
+/**
+ * 触屏跑动模型：摇杆是“油门 + 连续转向”，不是瞬时方向平移。
+ *
+ * - 左右按住：bodyYaw 每帧持续朝该侧旋转，同时仍向前跑，所以持续左推会跑圈；
+ * - 前推/斜推：沿当前身体朝向给油门，横向分量负责弧线；
+ * - 后拉：平滑 U-turn 到镜头后方，掉头后继续向前跑（没有后退步）。
+ *
+ * cameraYaw 与 bodyYaw 分离：第三人称移动只转 bodyYaw，不转镜头。
+ */
+export function resolveTouchDrive(input) {
+  const {
+    bodyYaw, cameraYaw, x, y, dt,
+    turnRate = 2.7,
+    uTurnRate = 3.4,
+    uTurn = false,
+  } = input;
+  const dead = 0.14;
+  const ax = Math.abs(x);
+  const ay = Math.abs(y);
+  const mag = Math.hypot(x, y);
+  if (mag < dead) return { bodyYaw, throttle: 0, uTurn: false, finishedTurn: false };
+
+  let nextYaw = bodyYaw;
+  let throttle = Math.min(1, mag);
+  let finishedTurn = false;
+  let nextUTurn = uTurn;
+
+  if (y < -0.35) {
+    // 后拉：以镜头正后方为目标做一次平滑掉头；掉正后自动退出。
+    nextUTurn = true;
+    const target = cameraYaw + Math.PI;
+    const before = Math.abs(wrapAngle(target - nextYaw));
+    nextYaw = dampAngle(nextYaw, target, dt, uTurnRate);
+    const after = Math.abs(wrapAngle(target - nextYaw));
+    finishedTurn = after < 0.08 || after > before;
+    if (finishedTurn) nextUTurn = false;
+    throttle = Math.max(0.25, -y);
+  } else {
+    nextUTurn = false;
+    // 纯横推也要给基础油门：这样“一直向左”=边向前跑边持续左转=画圈。
+    const forwardThrottle = y > 0 ? y : ax * 0.82;
+    throttle = Math.max(0.2, Math.min(1, Math.hypot(Math.max(0, y), x * 0.82), forwardThrottle));
+    if (ax > dead) {
+      nextYaw -= x * turnRate * dt;
+    }
+    // 前推时如果身体和镜头朝向偏离很大（例如刚 U-turn / 转了圈），柔和回到镜头前方。
+    if (y > 0.35 && ax < 0.45) {
+      nextYaw = dampAngle(nextYaw, cameraYaw, dt, 1.15 * Math.max(0.15, y));
+    }
+  }
+
+  return { bodyYaw: wrapAngle(nextYaw), throttle, uTurn: nextUTurn, finishedTurn };
+}
+
 export function classifyMoveFacing(mx, mz, thirdPerson = false) {
   // 手指推“左右”几乎总会带一点前后分量，不能要求前后严格为 0；
   // 只要横向明显主导（约 1.2 倍）就按侧向移动处理。

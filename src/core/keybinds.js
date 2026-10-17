@@ -29,6 +29,7 @@ export const ACTIONS = [
   { id: 'turnLeft',   label: '视角左转', type: 'move' },
   { id: 'turnRight',  label: '视角右转', type: 'move' },
   { id: 'attack',     label: '攻击',   type: 'combat' },
+  { id: 'dodge',      label: '翻滚',   type: 'combat' },
   { id: 'jump',       label: '跳跃',   type: 'combat' },
   { id: 'burst',      label: '应急爆发', type: 'combat' },
   { id: 'ultimate',   label: '协同大招', type: 'combat' },
@@ -43,7 +44,7 @@ export const ACTIONS = [
 /** 兼容方案：与 v1.0 完全一致 */
 const COMPAT = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
-  attack: 'Space', jump: 'KeyF', burst: 'KeyJ', ultimate: 'KeyK',
+  attack: 'Space', dodge: 'KeyC', jump: 'KeyF', burst: 'KeyJ', ultimate: 'KeyK',
   interact: 'KeyE', sprint: 'ShiftLeft',
   pause: 'KeyP', retry: 'KeyT', restart: 'KeyR', fullscreen: 'F11',
 };
@@ -70,6 +71,8 @@ const OPTIMIZED = {
   ultimate: 'KeyR',
   // 交互：F（WASD 右下方，社区惯例）
   interact: 'KeyF',
+  // 翻滚：G（技能簇 Q-E-R-G 一线）
+  dodge: 'KeyG',
   // 疾行：Shift（通用）
   sprint: 'ShiftLeft',
   // 系统键：远离战斗区，防误触

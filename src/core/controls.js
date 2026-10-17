@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { terrainHeight, clamp } from '../core/utils.js';
 import { undergroundFloorY } from '../world/underground.js';
-import { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget, firstPersonStrafeTarget } from './move-facing.mjs';
+import { resolveMoveIntent, dampAngle, wrapAngle, resolveTouchDrive } from './move-facing.mjs';
 
 export class FirstPersonController {
   constructor(camera, domElement) {
@@ -21,6 +21,7 @@ export class FirstPersonController {
     this.velocity = new THREE.Vector3();
     this.externalVelocity = new THREE.Vector3();
     this.yaw = 0;
+    this.bodyYaw = 0;
     this.pitch = 0;
     this.sensitivity = 0.0022;
     this.touchLookSensitivity = 0.006;
@@ -30,6 +31,7 @@ export class FirstPersonController {
     this.moveFacingYaw = 0;
     this.isBackpedal = false;
     this.moveSpeedScale = 1;
+    this.touchUTurn = false;
     this._thirdPersonStrafeYaw = null;
     this.movementLocked = false;
 
@@ -124,9 +126,24 @@ export class FirstPersonController {
     this.kickZ = 0.5 * power;
   }
 
+  /**
+   * 翻滚：朝给定水平方向施加一次短促冲量，并进入低姿态。
+   * 无敌帧由调用方写玩家 invuln。dir 为归一化 {x,z}。
+   */
+  roll(dir, speed = 7.2) {
+    this.externalVelocity.x = clamp(this.externalVelocity.x + dir.x * speed, -10, 10);
+    this.externalVelocity.z = clamp(this.externalVelocity.z + dir.z * speed, -10, 10);
+    // 翻滚瞬间身体朝向滚动方向
+    this.bodyYaw = Math.atan2(-dir.x, -dir.z);
+    this.moveFacingYaw = this.bodyYaw;
+    this.rollT = Math.max(this.rollT || 0, PLAYER.combatWheel.dodge.invuln);
+    this.kickPitch = 0.12;
+  }
+
   teleport(x, z, yaw = 0) {
     this.position.set(x, terrainHeight(x, z), z);
     this.yaw = yaw;
+    this.bodyYaw = yaw;
     this.moveFacingYaw = yaw;
     this.isBackpedal = false;
     this.moveSpeedScale = 1;
@@ -211,42 +228,44 @@ export class FirstPersonController {
     }
 
     let intent = resolveMoveIntent(mx, mz, this.yaw, PLAYER.backpedalSpeed);
-    const facing = classifyMoveFacing(mx, mz, this.thirdPerson);
-    // 纯横向输入（无前后、未按转向键）：第三人称转身体、镜头不动；
-    // 第一人称且来自触屏摇杆时，镜头就是土拨鼠的眼睛，推左右应转身朝该方向看。
-    // 桌面 standard WASD 保留经典 strafe（A/D=横移、鼠标转视角）；
-    // dev optimized 方案里 A/D 本就是转向键（turnActive 已处理）。
-    // 横向主导输入：第三/第一人称都按“侧向”处理。
-    // 不再要求前后严格为 0——手指推左右总会带点纵向分量。
-    const lateralOnly = Math.abs(mx) > 1e-6 && Math.abs(mx) > Math.abs(mz) * 1.2;
-    const touchLateral = lateralOnly
-      && Math.abs(this.touchAxes.x) > 1e-6
-      && Math.abs(this.touchAxes.x) + 1e-6 >= Math.abs(mx) - 1e-6;
-    const firstPersonTurn = !this.thirdPerson && touchLateral;
-    if ((facing.followBody || firstPersonTurn) && !turnActive) {
-      const lateralX = firstPersonTurn ? this.touchAxes.x : mx;
-      // 第一人称：用摇杆横向偏移量决定转头量（左/右满杆约 90°，轻推则轻转），
-      // 比“非 0 即 90°”更像眼睛自然转头，也更容易感知到视角在动。
-      const tgt = this.thirdPerson
-        ? thirdPersonStrafeTarget(lateralX, this.yaw)
-        : firstPersonStrafeTarget(lateralX, this.yaw);
-      if (this._thirdPersonStrafeYaw === null) this._thirdPersonStrafeYaw = tgt.targetYaw;
-      this.yaw = dampAngle(this.yaw, this._thirdPersonStrafeYaw, dt, PLAYER.bodyTurnRate);
-      const magnitude = Math.min(1, Math.abs(lateralX));
-      intent = { ...intent,
-        moveX: -Math.sin(this._thirdPersonStrafeYaw) * magnitude,
-        moveZ: -Math.cos(this._thirdPersonStrafeYaw) * magnitude,
-        facingYaw: this._thirdPersonStrafeYaw,
+    const touchActive = Math.hypot(this.touchAxes.x, this.touchAxes.y) > 1e-6;
+    if (touchActive && !turnActive) {
+      // 触屏摇杆：油门 + 连续转向。身体朝向(bodyYaw)与镜头朝向(yaw)分离。
+      // 持续左/右推会让土拨鼠一直转头同时向前跑 → 跑圈；后拉做平滑 U-turn。
+      // 第三人称下移动绝不带动镜头；第一人称镜头跟随身体。
+      const drive = resolveTouchDrive({
+        bodyYaw: this.bodyYaw, cameraYaw: this.yaw,
+        x: this.touchAxes.x, y: this.touchAxes.y, dt,
+        turnRate: 2.7, uTurnRate: 3.4, uTurn: this.touchUTurn,
+      });
+      this.bodyYaw = wrapAngle(drive.bodyYaw);
+      this.touchUTurn = drive.uTurn;
+      const th = drive.throttle;
+      intent = {
+        mx: 0, mz: 0,
+        moveX: -Math.sin(this.bodyYaw) * th,
+        moveZ: -Math.cos(this.bodyYaw) * th,
+        facingYaw: this.bodyYaw,
+        isBackpedal: false,
+        speedScale: 1,
       };
-    } else if (Math.abs(mx) > 1e-6 || Math.abs(mz) > 1e-6) {
-      this._thirdPersonStrafeYaw = null;
+      if (this.thirdPerson) {
+        // 第三人称：镜头不随身体转向，保持玩家观察方向；但身体/模型朝向跟 bodyYaw。
+        this.moveFacingYaw = this.bodyYaw;
+      } else {
+        // 第一人称：眼睛即身体，镜头平滑追上身体朝向（无突变）。
+        this.yaw = dampAngle(this.yaw, this.bodyYaw, dt, PLAYER.bodyTurnRate * 1.35);
+        this.moveFacingYaw = this.yaw;
+      }
     } else {
-      this._thirdPersonStrafeYaw = null;
+      // 键盘/鼠标路径：保持原有 strafe + 转向键逻辑；身体朝向移动方向。
+      this.touchUTurn = false;
+      this.bodyYaw = dampAngle(this.bodyYaw, intent.facingYaw, dt, PLAYER.bodyTurnRate);
+      this.moveFacingYaw = intent.facingYaw;
     }
-    this.moveFacingYaw = intent.facingYaw;
     this.isBackpedal = intent.isBackpedal;
     this.moveSpeedScale = intent.speedScale;
-    const moving = intent.mx !== 0 || intent.mz !== 0;
+    const moving = intent.mx !== 0 || intent.mz !== 0 || (intent.moveX !== 0 || intent.moveZ !== 0);
     if (moving) {
       const targetVx = intent.moveX * base * intent.speedScale;
       const targetVz = intent.moveZ * base * intent.speedScale;

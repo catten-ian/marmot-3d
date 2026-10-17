@@ -82,13 +82,23 @@ export const PLAYER = {
   },
   // 玩家横向转向/刹车基线，用于保证狐狸高速时明显更难急停。
   handling: { turnRate: 2.2, accel: 14, brake: 18 },
-  // 玩法手感抽象：攻击轮盘四招的伤害、冲量、无敌与后摇。
+  // 玩法手感抽象：攻击键“按住升级”三招 + 独立翻滚的伤害、冲量、无敌与后摇。
   fov: { firstPerson: 78, thirdPerson: 68 },
   combatWheel: {
-    tap: { damageMul: 1, costMul: 1, cooldown: 0.58 },
-    dodge: { damageMul: 0, cost: 3, distance: 2.2, invuln: 0.35, recovery: 0.12 },
-    stand: { damageMul: 1.8, cost: 4, stun: 1.2, lock: 0.4, knockback: 2.8, recovery: 0.35 },
+    tap: {
+      damageMul: 1, costMul: 1, cooldown: 0.58,
+      // 推击在站立 / 奔跑两种姿态下的范围与伤害分档：
+      // 站立：短距离、高击退（把扑来的狐狸顶开）；奔跑：更长前伸、更高伤害、击退略低。
+      stand: { rangeMul: 0.92, damageMul: 0.9, knockbackMul: 1.5, stunMul: 1.1 },
+      run:   { rangeMul: 1.22, damageMul: 1.25, knockbackMul: 1.0, stunMul: 0.9 },
+    },
+    dodge: { damageMul: 0, cost: 3, distance: 2.2, invuln: 0.42, recovery: 0.12 },
+    stand: { damageMul: 1.8, cost: 4, stun: 1.2, lock: 0.4, knockback: 2.8, recovery: 0.35,
+      // 迎击：在狐狸冲刺接触前的短暂窗口内正面迎上，抵消伤害并反打。
+      parryWindow: 0.3, parryHalfAngle: 80 * Math.PI / 180 },
     lunge: { damageMul: 1.45, cost: 4, distance: 2.8, recovery: 0.42 },
+    // 攻击键“按住升级”的蓄力时间阈值（秒）：点按→推击；跨过 t1→迎击；跨过 t2→扑咬。
+    charge: { parryHold: 0.28, lungeHold: 0.58 },
   },
 };
 

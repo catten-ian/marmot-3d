@@ -13,10 +13,12 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
     <div class="sandbox-subline">无关卡 · 无时间限制 · 不计入正式进度</div>
     <label class="test-toggle"><input id="sandboxGodMode" type="checkbox"> 无敌</label>
     <label class="test-toggle"><input id="sandboxFreezeTimer" type="checkbox" checked> 冻结 / 关闭计时</label>
+    <label class="test-toggle"><input id="sandboxParryDrill" type="checkbox"> 迎击练习（单狐正面冲刺，击退即重来）</label>
     <div class="test-actions sandbox-actions">
       <button type="button" data-sandbox-action="refill">回满生命 / 储备</button>
       <button type="button" data-sandbox-action="clearStress">清零应激</button>
       <button type="button" data-sandbox-action="charge">充满大招</button>
+      <button type="button" data-sandbox-action="resetFood">重置食物</button>
     </div>
     <div class="sandbox-spawn-row">
       <label>狐狸类型 <select id="sandboxFoxType">${SANDBOX_TYPES.map((t) => `<option value="${t}">${typeLabels[t] || t}</option>`).join('')}</select></label>
@@ -32,14 +34,17 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
   root.appendChild(section);
   const god = section.querySelector('#sandboxGodMode');
   const freeze = section.querySelector('#sandboxFreezeTimer');
+  const parryDrill = section.querySelector('#sandboxParryDrill');
   const type = section.querySelector('#sandboxFoxType');
   const difficulty = section.querySelector('#sandboxDifficulty');
   god.checked = !!state.godMode;
   freeze.checked = state.freezeTimer !== false;
+  parryDrill.checked = !!state.parryDrill;
   type.value = state.selectedType;
   difficulty.value = state.difficulty;
   god.onchange = () => { state.godMode = god.checked; onChange?.('godMode', state.godMode); };
   freeze.onchange = () => { state.freezeTimer = freeze.checked; onChange?.('freezeTimer', state.freezeTimer); };
+  parryDrill.onchange = () => { state.parryDrill = parryDrill.checked; onChange?.('parryDrill', parryDrill.checked); };
   type.onchange = () => { state.selectedType = type.value; onChange?.('foxType', type.value); };
   difficulty.onchange = () => { onChange?.('difficulty', difficulty.value); };
   section.addEventListener('click', (event) => {
