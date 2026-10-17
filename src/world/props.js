@@ -41,21 +41,34 @@ export class Burrow {
 
     // 竖井井壁：开口（小，上）→ 腔室（略宽，下），向下扩开。
     // 从洞内/井口看需要看到内壁，故用 BackSide（看圆柱内表面）。
+    // 加极弱暖色 emissive：进洞后全局光被压暗，井壁仍能读出泥土色与圆筒形，
+    // 不至于死黑一片。
     const wallColor = isBase ? 0x2a1c10 : 0x16201f;
     const shaftGeo = new THREE.CylinderGeometry(
       underground.chamberRadius, underground.openingRadius,
       underground.chamberDepth, 24, 1, true,
     );
-    const shaftMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 1, side: THREE.BackSide });
+    const shaftMat = new THREE.MeshStandardMaterial({
+      color: wallColor,
+      emissive: isBase ? 0x1a0f04 : 0x040808,
+      emissiveIntensity: isBase ? 0.55 : 0.18,
+      roughness: 1,
+      side: THREE.BackSide,
+    });
     const shaft = new THREE.Mesh(shaftGeo, shaftMat);
     shaft.position.y = -underground.chamberDepth * 0.5;
     shaft.castShadow = false;
     shaft.receiveShadow = true;
     this.group.add(shaft);
 
-    // 腔室地板
+    // 腔室地板（同样带暖色自发光底）。
     const floorGeo = new THREE.CircleGeometry(underground.chamberRadius, 28);
-    const floorMat = new THREE.MeshStandardMaterial({ color: isBase ? 0x3a2817 : 0x1a2423, roughness: 1 });
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: isBase ? 0x3a2817 : 0x1a2423,
+      emissive: isBase ? 0x221205 : 0x040808,
+      emissiveIntensity: isBase ? 0.6 : 0.2,
+      roughness: 1,
+    });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -underground.chamberDepth + 0.02;
@@ -83,14 +96,22 @@ export class Burrow {
     this.group.add(mouth);
     this.mouth = mouth;
 
-    // 开口天光：从井口洒下的一束柔光（临时洞几乎不可见）。
+    // 开口天光：洞口向下打的聚光灯，形成光柱并照亮井壁上半部。
+    const shaftLight = new THREE.SpotLight(0xcfe0ff, isBase ? 2.4 : 0.5, underground.chamberDepth + 3, 0.72, 0.6, 1.6);
+    shaftLight.position.set(0, 0.35, 0);
+    const shaftTarget = new THREE.Object3D();
+    shaftTarget.position.set(0, -underground.chamberDepth, 0);
+    this.group.add(shaftTarget);
+    shaftLight.target = shaftTarget;
+    this.group.add(shaftLight);
+    // 洞口附近一点冷色填充，模拟井口漏下来的漫反射。
     const skylight = new THREE.PointLight(0xbfd6ff, isBase ? 0.5 : 0.08, underground.slopeRadius * 3.2, 2);
     skylight.position.set(0, -0.4, 0);
     this.group.add(skylight);
 
     // 大本营：腔室底部暖光，从开口微微透出；临时洞仅极弱冷光。
-    const glow = new THREE.PointLight(pos.lightColor ?? 0xffc978, pos.lightIntensity ?? (isBase ? 6.2 : 0.28), isBase ? 11 : 4, 2);
-    glow.position.set(0, -underground.chamberDepth + 0.9, 0);
+    const glow = new THREE.PointLight(pos.lightColor ?? 0xffc978, pos.lightIntensity ?? (isBase ? 7.0 : 0.28), isBase ? 11 : 4, 2);
+    glow.position.set(0, -underground.chamberDepth + 1.1, 0);
     this.group.add(glow);
     this.glow = glow;
 
