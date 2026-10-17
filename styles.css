@@ -1928,3 +1928,18 @@ body.touch-layout-editing .sandbox-touch-layer button { cursor: grab; outline: 1
 .attack-charge-hint[data-tier="tap"] .s-tap,
 .attack-charge-hint[data-tier="stand"] .s-stand,
 .attack-charge-hint[data-tier="lunge"] .s-lunge{color:#fff3b0;border-color:#ffcf6b;background:rgba(120,86,30,.72);text-shadow:0 0 8px #ffcf6b;}
+
+/* 摇杆内圈：触发核心，尺寸/透明度由布局编辑面板经 CSS 变量
+   --stick-core-scale / --stick-core-opacity 调节（持久化在 marmot.touchLayout）。 */
+.stick-core {
+  position: absolute; left: 50%; top: 50%;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(var(--stick-core-scale, .58));
+  transform-origin: center;
+  background: radial-gradient(circle at 45% 35%, rgba(255, 245, 210, .88), rgba(200, 160, 90, .75) 58%, rgba(140, 100, 50, .68));
+  box-shadow: 0 0 10px rgba(255, 220, 140, .42), inset 0 1px 2px rgba(255, 255, 255, .48);
+  opacity: var(--stick-core-opacity, .85);
+  pointer-events: none;
+  transition: opacity .12s ease;
+}

@@ -35,6 +35,7 @@ const SIZE = {
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 // 攻击键内圈（触发核心）默认占外圈 55%、不透明度 92%，滑块范围 40-100% / 30-100%。
 const ATTACK_CORE_DEFAULTS = { size: 0.55, opacity: 0.92 };
+const STICK_CORE_DEFAULTS = { size: 0.58, opacity: 0.85 };
 const copy = (v) => JSON.parse(JSON.stringify(v));
 
 function readInsets() {
@@ -124,7 +125,7 @@ export class TouchLayout {
     for (const id of ALL_IDS) buttons[id] = { x: positions[id][0] / w, y: positions[id][1] / h, scale: 1 };
     buttons.attack.coreSize = ATTACK_CORE_DEFAULTS.size;
     buttons.attack.coreOpacity = ATTACK_CORE_DEFAULTS.opacity;
-    return { scale: 1, opacity: 1, buttons };
+    return { scale: 1, opacity: 1, buttons, joystick: { coreSize: STICK_CORE_DEFAULTS.size, coreOpacity: STICK_CORE_DEFAULTS.opacity } };
   }
 
   _normalize(input) {
@@ -147,6 +148,12 @@ export class TouchLayout {
         out.buttons[id].coreOpacity = clamp(Number.isFinite(Number(opacitySrc)) ? Number(opacitySrc) : ATTACK_CORE_DEFAULTS.opacity, .3, 1);
       }
     }
+    // 摇杆内圈
+    const jsInput = input.joystick || {};
+    out.joystick = {
+      coreSize: clamp(Number.isFinite(Number(jsInput.coreSize)) ? Number(jsInput.coreSize) : STICK_CORE_DEFAULTS.size, .4, 1),
+      coreOpacity: clamp(Number.isFinite(Number(jsInput.coreOpacity)) ? Number(jsInput.coreOpacity) : STICK_CORE_DEFAULTS.opacity, .3, 1)
+    };
     return out;
   }
 
@@ -184,6 +191,12 @@ export class TouchLayout {
         el.style.setProperty('--attack-core-opacity', String(item.coreOpacity ?? ATTACK_CORE_DEFAULTS.opacity));
       }
       el.style.zIndex = id === 'attack' ? '2' : '1';
+    }
+    // 摇杆内圈 CSS 变量
+    const stick = document.getElementById('touchStick');
+    if (stick && this.layout.joystick) {
+      stick.style.setProperty('--stick-core-scale', String(this.layout.joystick.coreSize ?? STICK_CORE_DEFAULTS.size));
+      stick.style.setProperty('--stick-core-opacity', String(this.layout.joystick.coreOpacity ?? STICK_CORE_DEFAULTS.opacity));
     }
     this.root.classList.toggle('layout-editing', this.editing);
     document.body.classList.toggle('touch-layout-editing', this.editing);
@@ -277,6 +290,8 @@ export class TouchLayout {
       <div class="layout-setting-row"><label for="layoutButtonOpacity">单键透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreSize">内圈大小 (40-100%)</label><input id="layoutAttackCoreSize" type="range" min="0.4" max="1" step="0.01"><output data-layout-value="attackCoreSize"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreOpacity">内圈透明度 (30-100%)</label><input id="layoutAttackCoreOpacity" type="range" min="0.3" max="1" step="0.01"><output data-layout-value="attackCoreOpacity"></output></div>
+      <div class="layout-setting-row stick-core-row"><label for="layoutStickCoreSize">摇杆内圈大小 (40-100%)</label><input id="layoutStickCoreSize" type="range" min="0.4" max="1" step="0.01"><output data-layout-value="stickCoreSize"></output></div>
+      <div class="layout-setting-row stick-core-row"><label for="layoutStickCoreOpacity">摇杆内圈透明度 (30-100%)</label><input id="layoutStickCoreOpacity" type="range" min="0.3" max="1" step="0.01"><output data-layout-value="stickCoreOpacity"></output></div>
       <div class="layout-actions" data-touch-adjust="actions"><button type="button" class="ghost-btn" data-layout-edit>进入拖动编辑</button><button type="button" class="ghost-btn" data-layout-save>保存方案 / 设为默认</button><button type="button" class="ghost-btn" data-layout-reset>恢复设计默认</button></div>
       <p class="layout-save-status" aria-live="polite">保存后当前布局成为刷新/重进后的默认方案。</p>
     </section>`;
@@ -296,6 +311,10 @@ export class TouchLayout {
     const coreSize = byId('layoutAttackCoreSize'), coreOpacity = byId('layoutAttackCoreOpacity');
     coreSize?.addEventListener('input', () => { this.layout.buttons.attack.coreSize = Number(coreSize.value); this.apply(); this.save(); });
     coreOpacity?.addEventListener('input', () => { this.layout.buttons.attack.coreOpacity = Number(coreOpacity.value); this.apply(); this.save(); });
+    // 摇杆内圈：独立于按钮选中态，拖动即时写 CSS 变量并持久化。
+    const stickCoreSize = byId('layoutStickCoreSize'), stickCoreOpacity = byId('layoutStickCoreOpacity');
+    stickCoreSize?.addEventListener('input', () => { this.layout.joystick.coreSize = Number(stickCoreSize.value); this.apply(); this.save(); });
+    stickCoreOpacity?.addEventListener('input', () => { this.layout.joystick.coreOpacity = Number(stickCoreOpacity.value); this.apply(); this.save(); });
     container.querySelector('[data-layout-edit]')?.addEventListener('click', (e) => {
       this.setEditing(!this.editing); e.currentTarget.textContent = this.editing ? '完成拖动编辑' : '进入拖动编辑';
       if (this.editing) {
@@ -335,6 +354,11 @@ export class TouchLayout {
       if (coreSize && Number(coreSize.value) !== item.coreSize) coreSize.value = item.coreSize;
       if (coreOpacity && Number(coreOpacity.value) !== item.coreOpacity) coreOpacity.value = item.coreOpacity;
     }
+    // 摇杆内圈两行始终显示（摇杆不可拖动选择）。
+    const js = this.layout.joystick || {};
+    const stickCoreSize = layout.querySelector('#layoutStickCoreSize'), stickCoreOpacity = layout.querySelector('#layoutStickCoreOpacity');
+    if (stickCoreSize && Number(stickCoreSize.value) !== (js.coreSize ?? STICK_CORE_DEFAULTS.size)) stickCoreSize.value = js.coreSize ?? STICK_CORE_DEFAULTS.size;
+    if (stickCoreOpacity && Number(stickCoreOpacity.value) !== (js.coreOpacity ?? STICK_CORE_DEFAULTS.opacity)) stickCoreOpacity.value = js.coreOpacity ?? STICK_CORE_DEFAULTS.opacity;
     for (const [id, el] of Object.entries(this.buttons)) el?.classList.toggle('layout-selected', this.editing && id === this.selected);
   }
 
