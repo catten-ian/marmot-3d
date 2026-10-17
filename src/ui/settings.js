@@ -51,6 +51,8 @@ export class SettingsUI {
     document.body.classList.remove('settings-open');
     this.capturing = null;
     if (this._onKey) window.removeEventListener('keydown', this._onKey, true);
+    // 关闭设置面板时结束触屏布局拖动编辑（会连带恢复自动暂停的游戏）。
+    if (this.touchLayout?.editing) this.touchLayout.setEditing(false);
   }
 
   /** 进入按键捕获状态 */
@@ -101,6 +103,12 @@ export class SettingsUI {
     html += '</div>';
 
     if (this.touchLayout) {
+      const adjustOn = !!this.touchLayout.adjustEnabled;
+      html += `<section class="touch-adjust-settings" aria-label="触屏布局调整开关">
+      <h4>触屏布局调整</h4>
+      <label class="touch-adjust-toggle"><input type="checkbox" id="touchAdjustToggle"${adjustOn ? ' checked' : ''}> 启用触屏布局调整</label>
+      <p>默认关闭：关闭时游戏画面上的“编辑”按钮和下方的拖动编辑入口都会隐藏。打开后进入调整会自动暂停游戏，退出调整自动继续。</p>
+    </section>`;
       html += this.touchLayout.settingsMarkup();
     }
 
@@ -158,6 +166,8 @@ export class SettingsUI {
     if (rb) rb.onclick = () => this.binds.resetCustom();
     const fb = this.el.body.querySelector('#settingsFeedback');
     if (fb) fb.onclick = () => this.feedback.open();
+    const adjustToggle = this.el.body.querySelector('#touchAdjustToggle');
+    adjustToggle?.addEventListener('change', () => this.touchLayout.setAdjustEnabled(adjustToggle.checked));
     this.touchLayout?.bindSettings(this.el.body);
   }
 }

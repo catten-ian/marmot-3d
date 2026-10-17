@@ -1701,6 +1701,7 @@ window.addEventListener('keydown', (e) => {
   if (binds.isAction(e.code, 'restart')) { resetAll(); startPlay(); return; }
   if (binds.isAction(e.code, 'retry')) { retryLevel(); return; }
   if (binds.isAction(e.code, 'pause')) {
+    if (touchLayout.editing) { touchLayout.setEditing(false); return; }
     if (game.mode === 'play') pause();
     else if (game.mode === 'pause') resume();
     return;
@@ -1841,6 +1842,12 @@ const feedbackUI = new FeedbackUI({
     game, version: VERSION_LABEL, thirdPerson, sandbox: SANDBOX_MODE,
     touch: TOUCH_DEVICE, performanceProfile: renderProfile,
   }),
+});
+// 进入触屏布局调整时自动暂停，退出时恢复；调整前已暂停则保持暂停。
+touchLayout.setPauseHooks({
+  pause: () => pause(),
+  resume: () => { if (game.mode === 'pause') resume(); },
+  isPaused: () => game.mode !== 'play',
 });
 const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI);
 

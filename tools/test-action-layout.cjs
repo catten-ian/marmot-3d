@@ -36,7 +36,7 @@ function chromePath() { return process.env.CHROME_PATH || '/usr/bin/google-chrom
   }
   const portrait = await shot('default', 390, 844);
   const landscape = await shot('default', 844, 390);
-  const edit = await shot('editing', 390, 844, `document.getElementById('touchLayoutEntry').click(); true`);
+  const edit = await shot('editing', 390, 844, `window.__layout.setAdjustEnabled(true); document.getElementById('touchLayoutEntry').click(); true`);
   const adjusted = await evaluate(`(() => { window.__layout.layout.buttons.attack.x=.62; window.__layout.layout.buttons.attack.y=.68; window.__layout.layout.scale=1.12; window.__layout.layout.opacity=.72; window.__layout.apply(); window.__layout.save(); return true; })()`);
   const persisted = await evaluate(`(() => { const l=JSON.parse(localStorage.getItem('marmot.touch-layout.v1')); return !!l && l.buttons.attack.x === .62 && l.scale === 1.12; })()`);
   // 同一会话内验证“恢复默认”：先确认已持久化的自定义值存在，再 restoreDefault()，
