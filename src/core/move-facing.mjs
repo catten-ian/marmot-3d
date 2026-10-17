@@ -34,13 +34,20 @@ export function wrapAngle(a) {
 }
 
 /**
- * 触屏跑动模型：摇杆是“油门 + 连续转向”，不是瞬时方向平移。
+ * 触屏跑动模型：
  *
+ * 第一人称（thirdPerson=false，默认）：摇杆是“油门 + 连续转向”，不是瞬时方向平移。
  * - 左右按住：bodyYaw 每帧持续朝该侧旋转，同时仍向前跑，所以持续左推会跑圈；
  * - 前推/斜推：沿当前身体朝向给油门，横向分量负责弧线；
  * - 后拉：平滑 U-turn 到镜头后方，掉头后继续向前跑（没有后退步）。
  *
- * cameraYaw 与 bodyYaw 分离：第三人称移动只转 bodyYaw，不转镜头。
+ * 第三人称（thirdPerson=true）：“滑向哪就跑向哪”。
+ * - 摇杆屏幕方向（x 右正、y 上正）经当前镜头朝向旋转后直接成为世界移动方向，
+ *   bodyYaw 即时对准该方向，cameraYaw 同步对准（镜头始终在身后）；
+ * - throttle 由推杆距离 mag 决定；横推 = 真的朝左/右跑，不再画圈；
+ * - 后拉自然映射为 cameraYaw+π（朝镜头后方掉头），不需要专门的 U-turn 状态。
+ *
+ * 输出新增 cameraYaw 字段：第三人称下为同步后的镜头朝向，其余路径原样回传。
  */
 export function resolveTouchDrive(input) {
   const {
@@ -48,17 +55,33 @@ export function resolveTouchDrive(input) {
     turnRate = 2.7,
     uTurnRate = 3.4,
     uTurn = false,
+    thirdPerson = false,
   } = input;
   const dead = 0.14;
   const ax = Math.abs(x);
   const ay = Math.abs(y);
   const mag = Math.hypot(x, y);
-  if (mag < dead) return { bodyYaw, throttle: 0, uTurn: false, finishedTurn: false };
+  if (mag < dead) return { bodyYaw, throttle: 0, uTurn: false, finishedTurn: false, cameraYaw };
 
   let nextYaw = bodyYaw;
+  let nextCameraYaw = cameraYaw;
   let throttle = Math.min(1, mag);
   let finishedTurn = false;
   let nextUTurn = uTurn;
+
+  if (thirdPerson) {
+    // 屏幕向量(x,y)（y 上为正）按当前镜头 yaw 旋转成世界向量：
+    // yaw=0（相机朝 -Z）时，屏幕正上 → 世界 -Z，屏幕正右 → 世界 +X。
+    const wx = Math.cos(cameraYaw) * x + Math.sin(cameraYaw) * y;
+    const wz = Math.sin(cameraYaw) * x - Math.cos(cameraYaw) * y;
+    // Three.js 约定 forward=(-sin yaw,-cos yaw)，故 yaw=atan2(wx,-wz)。
+    nextYaw = Math.atan2(wx, -wz);
+    // 镜头与身体同步：滑向哪，镜头立刻转到哪（后拉即朝向 cameraYaw+π）。
+    nextCameraYaw = nextYaw;
+    throttle = Math.min(1, mag);
+    nextUTurn = false;
+    return { bodyYaw: wrapAngle(nextYaw), throttle, uTurn: false, finishedTurn, cameraYaw: wrapAngle(nextCameraYaw) };
+  }
 
   if (y < -0.35) {
     // 后拉：以镜头正后方为目标做一次平滑掉头；掉正后自动退出。
@@ -84,7 +107,7 @@ export function resolveTouchDrive(input) {
     }
   }
 
-  return { bodyYaw: wrapAngle(nextYaw), throttle, uTurn: nextUTurn, finishedTurn };
+  return { bodyYaw: wrapAngle(nextYaw), throttle, uTurn: nextUTurn, finishedTurn, cameraYaw: nextCameraYaw };
 }
 
 export function classifyMoveFacing(mx, mz, thirdPerson = false) {

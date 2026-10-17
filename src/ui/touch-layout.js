@@ -1,12 +1,27 @@
 /**
  * 触屏技能盘的布局、编辑与持久化。坐标以视口归一化百分比保存，
  * 应用时按安全区和按钮半径夹紧，因此旋转屏幕/窄屏不会把按键挤出画面。
+ *
+ * 管理两类按钮：
+ * - 战斗键 data-touch-action（右下动作盘 + 暂停）；
+ * - 沙盒键 data-sandbox-action（#sandboxTouchLayer 内的浮动快捷按钮）。
+ * 两类 id 互不冲突，编辑态下点击/拖动任意一类都只做选中与布局，
+ * 非编辑态各自走原来的 onAction 逻辑。
  */
 const STORAGE_KEY = 'marmot.touch-layout.v1';
 // 疾跑已改为由摇杆拖动距离判定（见 touch-controls SPRINT_STICK_THRESHOLD），不再有独立按钮。
 const ACTIONS = ['attack', 'dodge', 'jump', 'interact', 'burst', 'ultimate', 'pause'];
-const LABELS = { attack: '攻击', dodge: '翻滚', jump: '跳跃', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停' };
-const SIZE = { attack: 76, dodge: 58, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38 };
+const SANDBOX_ACTIONS = ['refill', 'clearStress', 'charge', 'resetFood', 'spawnOne', 'spawnGroup', 'clearFoxes'];
+const ALL_IDS = [...ACTIONS, ...SANDBOX_ACTIONS];
+const LABELS = {
+  attack: '攻击', dodge: '翻滚', jump: '跳跃', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停',
+  refill: '沙盒·回满生命', clearStress: '沙盒·清零应激', charge: '沙盒·充满大招', resetFood: '沙盒·重置食物',
+  spawnOne: '沙盒·生成 1 只', spawnGroup: '沙盒·生成一群', clearFoxes: '沙盒·清除狐狸',
+};
+const SIZE = {
+  attack: 76, dodge: 58, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38,
+  refill: 54, clearStress: 54, charge: 54, resetFood: 54, spawnOne: 54, spawnGroup: 54, clearFoxes: 54,
+};
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const copy = (v) => JSON.parse(JSON.stringify(v));
 
@@ -28,11 +43,27 @@ export class TouchLayout {
       const scope = id === 'pause' ? this.root : this.actionLayer;
       return [id, scope?.querySelector(`[data-touch-action="${id}"]`)];
     }));
+    // 沙盒浮动层由 src/sandbox/panel.js 创建，时间上可能晚于本构造函数；
+    // 先按缺失处理，main.js 在创建面板后调用 collectSandboxButtons() 补绑。
+    this._collectSandboxButtons(false);
     this.editing = false;
     this.selected = 'attack';
     this.layout = this._load() || this.defaultLayout();
     this._bindEditor();
     this.apply();
+  }
+
+  // 沙盒按钮在屏幕左侧竖排（横屏时改为摇杆右侧一行），避开左下摇杆与“编辑”入口。
+  _sandboxPositions(w, h, safe, landscape) {
+    const pos = {};
+    if (landscape) {
+      const y = h - safe.bottom - 34;
+      SANDBOX_ACTIONS.forEach((id, i) => { pos[id] = [safe.left + 180 + i * 62, y]; });
+    } else {
+      const x = safe.left + 96;
+      SANDBOX_ACTIONS.forEach((id, i) => { pos[id] = [x, h - safe.bottom - (176 + i * 58)]; });
+    }
+    return pos;
   }
 
   defaultLayout() {
@@ -43,7 +74,7 @@ export class TouchLayout {
     const ax = landscape ? w - safe.right - Math.max(176, unit * .48) : w - safe.right - Math.max(150, w * .4);
     const ay = landscape ? h - safe.bottom - Math.max(154, h * .4) : h - safe.bottom - Math.max(230, h * .273);
     const dx = landscape ? Math.max(66, Math.min(78, unit * .2)) : Math.max(54, Math.min(70, w * .18));
-    const dy = landscape ? Math.max(57, Math.min(68, unit * .17)) : Math.max(62, Math.min(76, unit * .2));
+    const dy = landscape ? Math.max(57, Math.min(68, unit * .17)) : Math.max(62, Math.min(76, h * .2));
     // 攻击居中最大，跳跃正上方，交互/爆发/大招环绕两侧。
     const positions = {
       attack: [ax, ay],
@@ -53,9 +84,10 @@ export class TouchLayout {
       burst: [ax - dx, ay + dy],
       ultimate: [ax + dx, ay + dy],
       pause: [w - safe.right - 28, safe.top + 61],
+      ...this._sandboxPositions(w, h, safe, landscape),
     };
     const buttons = {};
-    for (const id of ACTIONS) buttons[id] = { x: positions[id][0] / w, y: positions[id][1] / h, scale: 1 };
+    for (const id of ALL_IDS) buttons[id] = { x: positions[id][0] / w, y: positions[id][1] / h, scale: 1 };
     return { scale: 1, opacity: 1, buttons };
   }
 
@@ -63,7 +95,7 @@ export class TouchLayout {
     const base = this.defaultLayout();
     if (!input || typeof input !== 'object') return base;
     const out = { scale: clamp(Number(input.scale) || 1, .65, 1.5), opacity: clamp(Number(input.opacity) || 1, .3, 1), buttons: {} };
-    for (const id of ACTIONS) {
+    for (const id of ALL_IDS) {
       const b = input.buttons?.[id] || base.buttons[id];
       out.buttons[id] = {
         x: clamp(Number.isFinite(Number(b.x)) ? Number(b.x) : base.buttons[id].x, 0, 1),
@@ -81,7 +113,7 @@ export class TouchLayout {
   }
 
   _safeCenter(id, x, y, scale, safe, w, h) {
-    const size = SIZE[id] * scale * this.layout.scale;
+    const size = (SIZE[id] || 54) * scale * this.layout.scale;
     const half = size / 2 + 4;
     return {
       x: clamp(x, safe.left + half, w - safe.right - half),
@@ -92,11 +124,11 @@ export class TouchLayout {
   apply() {
     if (!this.root) return;
     const w = innerWidth, h = innerHeight, safe = readInsets();
-    for (const id of ACTIONS) {
+    for (const id of ALL_IDS) {
       const el = this.buttons[id], item = this.layout.buttons[id];
-      if (!el) continue;
+      if (!el || !item) continue;
       const p = this._safeCenter(id, item.x * w, item.y * h, item.scale, safe, w, h);
-      const base = SIZE[id];
+      const base = SIZE[id] || 54;
       el.style.left = `${p.x}px`; el.style.top = `${p.y}px`;
       el.style.setProperty('--touch-button-size', `${base}px`);
       el.style.setProperty('--touch-button-scale', String(item.scale * this.layout.scale));
@@ -130,14 +162,34 @@ export class TouchLayout {
     this.apply();
   }
 
-  setSelected(id) { if (ACTIONS.includes(id)) { this.selected = id; this._syncEditor(); } }
+  setSelected(id) { if (ALL_IDS.includes(id)) { this.selected = id; this._syncEditor(); } }
+
+  // 绑定 #sandboxTouchLayer 内的沙盒按钮；面板创建后由 main.js 调用一次。
+  collectSandboxButtons() { this._collectSandboxButtons(true); }
+
+  _collectSandboxButtons(rebind) {
+    const layer = document.getElementById('sandboxTouchLayer');
+    if (!layer) return;
+    let changed = false;
+    for (const id of SANDBOX_ACTIONS) {
+      if (this.buttons?.[id]) continue;
+      const el = layer.querySelector(`[data-sandbox-action="${id}"]`);
+      if (el) {
+        this.buttons[id] = el;
+        if (rebind !== false) this._bindButton(id, el);
+        changed = true;
+      }
+    }
+    if (changed && rebind !== false) this.apply();
+  }
 
   settingsMarkup() {
+    const options = (ids) => ids.map((id) => `<option value="${id}" ${id === this.selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
     return `<section class="touch-layout-settings" aria-label="触屏技能盘设置">
-      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮；选择单键后可单独调尺寸和透明度。</p>
+      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮；选择单键后可单独调尺寸和透明度。沙盒按钮仅在自由测试沙盒（或编辑态）中显示。</p>
       <div class="layout-setting-row"><label for="layoutGlobalScale">整体大小</label><input id="layoutGlobalScale" type="range" min="0.75" max="1.3" step="0.05" value="${this.layout.scale}"><output data-layout-value="globalScale"></output></div>
       <div class="layout-setting-row"><label for="layoutGlobalOpacity">整体透明度</label><input id="layoutGlobalOpacity" type="range" min="0.35" max="1" step="0.05" value="${this.layout.opacity}"><output data-layout-value="globalOpacity"></output></div>
-      <div class="layout-setting-row"><label for="layoutSelected">单个按钮</label><select id="layoutSelected">${ACTIONS.map((id) => `<option value="${id}" ${id === this.selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('')}</select></div>
+      <div class="layout-setting-row"><label for="layoutSelected">单个按钮</label><select id="layoutSelected"><optgroup label="战斗动作">${options(ACTIONS)}</optgroup><optgroup label="沙盒控制">${options(SANDBOX_ACTIONS)}</optgroup></select></div>
       <div class="layout-setting-row"><label for="layoutButtonScale">单键大小</label><input id="layoutButtonScale" type="range" min="0.7" max="1.35" step="0.05"><output data-layout-value="buttonScale"></output></div>
       <div class="layout-setting-row"><label for="layoutButtonOpacity">单键透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
       <div class="layout-actions"><button type="button" class="ghost-btn" data-layout-edit>进入拖动编辑</button><button type="button" class="ghost-btn" data-layout-save>保存方案 / 设为默认</button><button type="button" class="ghost-btn" data-layout-reset>恢复设计默认</button></div>
@@ -190,42 +242,48 @@ export class TouchLayout {
     const entry = document.getElementById('touchLayoutEntry');
     entry?.addEventListener('click', () => this.setEditing());
     for (const [id, el] of Object.entries(this.buttons)) {
-      if (!el) continue;
-      el.addEventListener('click', (event) => { if (this.editing) { event.preventDefault(); event.stopImmediatePropagation(); this.setSelected(id); } }, true);
-      let drag = null;
-      const start = (x, y, event, pointerId = null) => {
-        if (!this.editing) return false;
-        event.preventDefault(); event.stopImmediatePropagation();
-        this.setSelected(id);
-        drag = { pointerId, dx: x - el.getBoundingClientRect().left - el.offsetWidth / 2, dy: y - el.getBoundingClientRect().top - el.offsetHeight / 2 };
-        el.classList.add('layout-dragging');
-        if (pointerId != null) { try { el.setPointerCapture(pointerId); } catch (_) {} }
-        return true;
-      };
-      const move = (x, y) => {
-        if (!drag) return;
-        const w = innerWidth, h = innerHeight, safe = readInsets();
-        const pos = this._safeCenter(id, x - drag.dx, y - drag.dy, this.layout.buttons[id].scale, safe, w, h);
-        this.layout.buttons[id].x = pos.x / w; this.layout.buttons[id].y = pos.y / h; this.apply();
-      };
-      const end = () => { if (drag) { drag = null; el.classList.remove('layout-dragging'); } };
-      el.addEventListener('pointerdown', (event) => { if (event.pointerType !== 'touch' && (event.pointerType === 'mouse' || this.editing)) start(event.clientX, event.clientY, event, event.pointerId); }, true);
-      el.addEventListener('pointermove', (event) => { if (drag?.pointerId === event.pointerId) { event.preventDefault(); event.stopImmediatePropagation(); move(event.clientX, event.clientY); } }, true);
-      for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(name, (event) => { if (drag?.pointerId === event.pointerId) end(); }, true);
-      el.addEventListener('touchstart', (event) => {
-        if (!this.editing || !event.changedTouches.length) return;
-        const t = event.changedTouches[0]; start(t.clientX, t.clientY, event, t.identifier);
-      }, { capture: true, passive: false });
-      el.addEventListener('touchmove', (event) => {
-        if (!drag || !this.editing) return;
-        const t = [...event.changedTouches].find((x) => x.identifier === drag.pointerId);
-        if (t) { event.preventDefault(); event.stopImmediatePropagation(); move(t.clientX, t.clientY); }
-      }, { capture: true, passive: false });
-      for (const name of ['touchend', 'touchcancel']) el.addEventListener(name, (event) => {
-        if (drag && [...event.changedTouches].some((x) => x.identifier === drag.pointerId)) end();
-      }, true);
+      if (el) this._bindButton(id, el);
     }
     window.addEventListener('resize', () => this.apply());
     window.addEventListener('orientationchange', () => setTimeout(() => this.apply(), 80));
+  }
+
+  // 单个按钮的编辑态选中/拖动绑定（幂等，collectSandboxButtons 后补绑时复用）。
+  _bindButton(id, el) {
+    if (!el || el.__touchLayoutBound) return;
+    el.__touchLayoutBound = true;
+    el.addEventListener('click', (event) => { if (this.editing) { event.preventDefault(); event.stopImmediatePropagation(); this.setSelected(id); } }, true);
+    let drag = null;
+    const start = (x, y, event, pointerId = null) => {
+      if (!this.editing) return false;
+      event.preventDefault(); event.stopImmediatePropagation();
+      this.setSelected(id);
+      drag = { pointerId, dx: x - el.getBoundingClientRect().left - el.offsetWidth / 2, dy: y - el.getBoundingClientRect().top - el.offsetHeight / 2 };
+      el.classList.add('layout-dragging');
+      if (pointerId != null) { try { el.setPointerCapture(pointerId); } catch (_) {} }
+      return true;
+    };
+    const move = (x, y) => {
+      if (!drag) return;
+      const w = innerWidth, h = innerHeight, safe = readInsets();
+      const pos = this._safeCenter(id, x - drag.dx, y - drag.dy, this.layout.buttons[id].scale, safe, w, h);
+      this.layout.buttons[id].x = pos.x / w; this.layout.buttons[id].y = pos.y / h; this.apply();
+    };
+    const end = () => { if (drag) { drag = null; el.classList.remove('layout-dragging'); } };
+    el.addEventListener('pointerdown', (event) => { if (event.pointerType !== 'touch' && (event.pointerType === 'mouse' || this.editing)) start(event.clientX, event.clientY, event, event.pointerId); }, true);
+    el.addEventListener('pointermove', (event) => { if (drag?.pointerId === event.pointerId) { event.preventDefault(); event.stopImmediatePropagation(); move(event.clientX, event.clientY); } }, true);
+    for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(name, (event) => { if (drag?.pointerId === event.pointerId) end(); }, true);
+    el.addEventListener('touchstart', (event) => {
+      if (!this.editing || !event.changedTouches.length) return;
+      const t = event.changedTouches[0]; start(t.clientX, t.clientY, event, t.identifier);
+    }, { capture: true, passive: false });
+    el.addEventListener('touchmove', (event) => {
+      if (!drag || !this.editing) return;
+      const t = [...event.changedTouches].find((x) => x.identifier === drag.pointerId);
+      if (t) { event.preventDefault(); event.stopImmediatePropagation(); move(t.clientX, t.clientY); }
+    }, { capture: true, passive: false });
+    for (const name of ['touchend', 'touchcancel']) el.addEventListener(name, (event) => {
+      if (drag && [...event.changedTouches].some((x) => x.identifier === drag.pointerId)) end();
+    }, true);
   }
 }
