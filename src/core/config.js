@@ -8,6 +8,36 @@
 export const FIELD_W = 130;
 export const FIELD_H = 78;
 
+/** Isolated renderer feature configuration. */
+export const config = {
+  splat: {
+    enabled: true,
+    canvasId: 'scene',
+    seed: 'marmot3d',
+    fieldW: FIELD_W,
+    fieldH: FIELD_H,
+    segX: 200,
+    segZ: 120,
+    mapSize: 1024,
+    textureSize: 512,
+    tileRepeat: 20,
+    bands: { sand: 0.3, grass: 1.5, rock: 3.5 },
+    bandSoft: 0.2,
+    slopeRockCos: 0.7,
+    noiseAmp: 0.45,
+    peaks: [
+      { x: 30, z: -14, h: 6.0, r: 20 },
+      { x: -30, z: 18, h: 2.0, r: 12 },
+    ],
+    sun: { dir: { x: 0.3, y: 0.8, z: 0.4 }, color: 0xfff4e0, intensity: 1.15 },
+    hemi: { sky: 0x87ceeb, ground: 0x6b8e23, intensity: 0.55 },
+    fog: { color: 0x87ceeb, near: 90, far: 260 },
+    mountains: { count: 6, height: 30, radius: 16, distance: 125 },
+  },
+};
+// Convenient named alias; both names point at the same toggle/config object.
+export const splat = config.splat;
+
 export const BURROW = { x: -52, z: 0, r: 8.2 }; // 洞穴：安全区，休息回储备、缓压
 
 // 洞穴布局：BURROW 保留为主洞兼容别名；其余为临时避难洞。

@@ -1854,3 +1854,7 @@ body.touch-playing .version-tag { display: none; }
 @supports not (background: conic-gradient(red, blue)) {
   .cooldown-overlay { background: rgba(90,100,100,.72); clip-path: circle(50% at 50% 50%); }
 }
+
+/* The isolated texture-splat demo reuses only the main canvas, not game HUD. */
+html.splat-mode #scene { cursor: crosshair; }
+html.splat-mode body > :not(#scene) { display: none !important; }
