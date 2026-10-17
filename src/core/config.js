@@ -290,7 +290,7 @@ export const LEVELS = [
   },
   {
     name: '双翼包抄',
-    brief: '疾行狐蓄力极短就冲，靠拉开距离比靠反应更快',
+    brief: '狐狸蓄力较短就冲，靠拉开距离比靠反应更快',
     count: 3,
     speed: 8.0,
     goal: 5,
@@ -298,7 +298,7 @@ export const LEVELS = [
     wind: 0.7,
     reinforce: 7.2,
     friend: [56, 19],
-    types: ['normal', 'fast'],
+    types: ['normal'],
     sky: ['#93a9bd', '#d3d6c8'],
     grass: ['#9cac70', '#778c58'],
     fog: '#9aa596',
@@ -308,7 +308,7 @@ export const LEVELS = [
   },
   {
     name: '持续应战',
-    brief: '厚皮狐会绕到你侧面，还可能中途虚晃骗你出手',
+    brief: '注意狐狸接近时的走位，利用预警线判断出手时机',
     count: 4,
     speed: 8.6,
     goal: 6,
@@ -316,7 +316,7 @@ export const LEVELS = [
     wind: 0.66,
     reinforce: 6.5,
     friend: [58, 24],
-    types: ['normal', 'fast', 'heavy'],
+    types: ['normal'],
     lureBias: 1.3,
     sky: ['#b0a679', '#e0d3a0'],
     grass: ['#a6a46a', '#838d5f'],
@@ -337,7 +337,7 @@ export const LEVELS = [
     wind: 0.62,
     reinforce: 6.0,
     friend: [57, 19],
-    types: ['normal', 'pup', 'fast'],
+    types: ['normal'],
     fog: '#9aa8ad',
     fogNear: 12,
     fogFar: 68,
@@ -357,7 +357,7 @@ export const LEVELS = [
     wind: 0.6,
     reinforce: 5.7,
     friend: [57, 19],
-    types: ['normal', 'pup', 'fast', 'heavy'],
+    types: ['normal'],
     lureBias: 1.2,
     sky: ['#a99a78', '#d8c79a'],
     grass: ['#a39877', '#827c62'],
@@ -378,7 +378,7 @@ export const LEVELS = [
     wind: 0.56,
     reinforce: 5.4,
     friend: [60, 22],
-    types: ['fast', 'fast', 'normal', 'heavy'],
+    types: ['normal'],
     windGust: 7.5,
     lureBias: 1.1,
     sky: ['#9db4c0', '#cfd9d6'],
@@ -399,7 +399,7 @@ export const LEVELS = [
     wind: 0.55,
     reinforce: 5.2,
     friend: [58, 26],
-    types: ['normal', 'pup', 'fast', 'heavy'],
+    types: ['normal'],
     fog: '#c2ab84',
     fogNear: 16,
     fogFar: 110,
@@ -412,8 +412,8 @@ export const LEVELS = [
     ambient: 0.5,
   },
   {
-    name: '首领围攻',
-    brief: '首领会三段连冲，每段都能修正方向 —— 连续躲三次',
+    name: '群狐围攻',
+    brief: '保持观察预警线，连续躲避来袭的狐狸',
     count: 8,
     speed: 10.6,
     goal: 8,
@@ -422,7 +422,7 @@ export const LEVELS = [
     reinforce: 5,
     friend: [58, 26],
     boss: true,
-    types: ['normal', 'pup', 'fast', 'heavy', 'boss'],
+    types: ['normal'],
     lureBias: 1.2,
     sky: ['#6f8087', '#aeb9b6'],
     grass: ['#839286', '#596d69'],
@@ -433,7 +433,7 @@ export const LEVELS = [
   },
   {
     name: '逆风回巢',
-    brief: '强阵风会持续改变走位，先稳住方向再处理疾行狐',
+    brief: '强阵风会持续改变走位，先稳住方向再应对来袭的狐狸',
     count: 6,
     speed: 10.4,
     goal: 7,
@@ -441,7 +441,7 @@ export const LEVELS = [
     wind: 0.56,
     reinforce: 5.2,
     friend: [56, 27],
-    types: ['fast', 'normal', 'fast', 'heavy'],
+    types: ['normal'],
     windGust: 11,
     sky: ['#84979c', '#c6d0c2'],
     grass: ['#899876', '#64745e'],
@@ -449,7 +449,7 @@ export const LEVELS = [
   },
   {
     name: '浓雾伏击',
-    brief: '低能见度中厚皮狐会绕行虚晃，靠预警线判断出手时机',
+    brief: '低能见度中靠预警线判断出手时机',
     count: 7,
     speed: 10.6,
     goal: 8,
@@ -457,7 +457,7 @@ export const LEVELS = [
     wind: 0.58,
     reinforce: 5.0,
     friend: [59, 24],
-    types: ['heavy', 'normal', 'fast', 'heavy', 'pup'],
+    types: ['normal'],
     fog: '#879494', fogNear: 8, fogFar: 54,
     lureBias: 1.65,
     sky: ['#77868a', '#a6b2af'],
@@ -474,7 +474,7 @@ export const LEVELS = [
     wind: 0.58,
     reinforce: 4.8,
     friend: [58, 29],
-    types: ['fast', 'pup', 'normal', 'heavy', 'fast'],
+    types: ['normal'],
     fog: '#b9a27c', fogNear: 14, fogFar: 96,
     sandstorm: true, windGust: 6.5, lureBias: 1.25,
     sky: ['#b9a276', '#ddc99d'],
@@ -483,7 +483,7 @@ export const LEVELS = [
   },
   {
     name: '草原守望者',
-    brief: '最终考验：首领连冲、疾行狐与沙尘同时施压，保住伙伴并回洞',
+    brief: '最终考验：高压与沙尘同时施压，保住伙伴并回洞',
     count: 9,
     speed: 11.2,
     goal: 9,
@@ -492,7 +492,7 @@ export const LEVELS = [
     reinforce: 4.6,
     friend: [60, 28],
     boss: true,
-    types: ['normal', 'pup', 'fast', 'heavy', 'fast', 'boss'],
+    types: ['normal'],
     fog: '#9a9582', fogNear: 15, fogFar: 105,
     sandstorm: true, windGust: 7.5, lureBias: 1.4,
     sky: ['#777e7b', '#b5b4a5'],
@@ -501,15 +501,9 @@ export const LEVELS = [
   },
 ];
 
-/** 关卡的子类（未显式指定 types 时按索引推断，保持旧关卡兼容） */
-export function typesForLevel(index) {
-  const cfg = LEVELS[index];
-  if (cfg && cfg.types && cfg.types.length) return cfg.types;
-  const pool = ['normal'];
-  if (index >= 1) pool.push('fast');
-  if (index >= 2) pool.push('heavy');
-  if (index >= 3) pool.push('pup');
-  return pool;
+/** Every campaign level now uses the single normal Tibetan fox species. */
+export function typesForLevel(_index) {
+  return ['normal'];
 }
 
 // 浆果与藏狐刷新点位（米制，绕开洞穴）

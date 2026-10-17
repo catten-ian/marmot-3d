@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import {
   LEVELS, BERRY_POINTS, SPAWN_POINTS, BURROW, PLAYER, FOX,
   BERRY_RADIUS, BERRY_ENERGY, BERRY_CHARGE, RESCUE_DIST,
-  typesForLevel, setPointScale, scalePoint, scaleCoord, scaleRadius,
+  setPointScale, scalePoint, scaleCoord, scaleRadius,
   getPointScale, fieldHalf, FIELD_W, FIELD_H,
 } from './core/config.js';
 import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/utils.js';
@@ -62,7 +62,7 @@ import { FEEDBACK } from './core/config.js';
 import { TouchLayout } from './ui/touch-layout.js';
 import { Minimap } from './ui/minimap.js';
 import { cooldownOverlayData } from './ui/cooldown-overlay.js';
-import { createSandboxState, SANDBOX_LEVEL } from './sandbox/state.js';
+import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDummy, setSandboxDummyDefeatable } from './sandbox/state.js';
 import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
@@ -499,45 +499,47 @@ const colBerry = new THREE.Color(0xc46a5e);
 const colHerb = new THREE.Color(0xa8c07a);
 const colHurt = new THREE.Color(0xeea091);
 
-/**
- * 按关卡的类型池生成一只藏狐。
- *
- * 原来的逻辑是 `level>=2 && i%3===2 ? 'heavy' : ...` 这种硬编码，
- * 结果每关的敌人构成几乎一样，玩法自然单一。
- * 现在由 LEVELS[i].types 显式指定每关的敌人构成，
- * 新增关卡时只要改配置表即可，不用动代码。
- */
+/** Create a campaign fox at its configured slot; level count and spawn point are unchanged. */
 function makeFox(i) {
-  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[game.level];
-  const boss = cfg.boss && i === cfg.count - 1;
-  const pool = typesForLevel(game.level);
+  const cfg = LEVELS[game.level];
   const [sx, sz] = scalePoint(SPAWN_POINTS[i % SPAWN_POINTS.length]);
-
-  let type;
-  if (boss) {
-    type = 'boss';
-  } else {
-    // 从池中取，但避免同一关全是同一种：用索引错位打散，
-    // 再留 30% 概率随机，保证池里每种都有出场机会。
-    const picked = pool[i % pool.length];
-    type = Math.random() < 0.3 ? pool[(Math.random() * pool.length) | 0] : picked;
-  }
+  // Campaigns retain their configured counts and spawn points, but every slot is a normal Tibetan fox.
   return new Fox(scene, sx + (Math.random() - 0.5) * 4, sz + (Math.random() - 0.5) * 4,
-    type, game.level, i, { lureBias: cfg.lureBias || 1 });
+    'normal', game.level, i, { lureBias: cfg.lureBias || 1 });
 }
 
-function spawnSandboxFox(type = sandboxState.selectedType, slot = foxes.length) {
-  const distance = 8 + (slot % 3) * 2.4;
-  const angle = controller.yaw + (slot - 1) * 0.24;
-  const fox = new Fox(scene, controller.position.x + Math.sin(angle) * distance,
-    controller.position.z + Math.cos(angle) * distance, type, 0, slot, { lureBias: 1.15 });
+function spawnSandboxFox(_type = 'normal', slot = foxes.filter((f) => !f.isSandboxDummy).length, opts = {}) {
+  let x, z;
+  if (opts.sandboxDummy) {
+    controller.forwardFlat(_fwd);
+    const distance = 5;
+    x = controller.position.x + _fwd.x * distance;
+    z = controller.position.z + _fwd.z * distance;
+  } else {
+    const distance = 8 + (slot % 3) * 2.4;
+    const angle = controller.yaw + (slot - 1) * 0.24;
+    x = controller.position.x + Math.sin(angle) * distance;
+    z = controller.position.z + Math.cos(angle) * distance;
+  }
+  const fox = new Fox(scene, x, z, 'normal', 0, slot,
+    { lureBias: 1.15, dummyDefeatable: sandboxState.dummyDefeatable, ...opts });
+  if (opts.sandboxDummy) {
+    fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
+  }
   fox.sandboxSpeedMul = sandboxState.speedMultiplier;
   fox.sandboxAlertMul = sandboxState.alertMultiplier;
   foxes.push(fox);
   return fox;
 }
 
-function disposeAllFoxes() { foxes.forEach((f) => f.dispose(scene)); foxes = []; }
+function disposeAllFoxes() {
+  try {
+    foxes.forEach((f) => f.dispose(scene));
+  } finally {
+    foxes = [];
+    sandboxState.dummy = null;
+  }
+}
 
 function enterSandbox() {
   hud.hidePanel(); sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
@@ -545,7 +547,7 @@ function enterSandbox() {
   testModeBtn.hidden = false; testModeBtn.textContent = '沙盒控制';
   testState.godMode = true; testState.freezeTimer = true;
   loadLevel(0, false); disposeAllFoxes();
-  for (let i = 0; i < 3; i++) spawnSandboxFox(i === 2 ? 'fast' : 'normal', i);
+  for (let i = 0; i < 3; i++) spawnSandboxFox('normal', i);
   game.time = Infinity; game.foodCount = 0; game.levelRepels = 0; game.player.hp = 100; game.player.energy = 100;
   game.player.stress = 0; game.charge = 100;
   applySandboxDifficulty(sandboxState, sandboxState.difficulty);
@@ -594,7 +596,7 @@ function loadLevel(index, announce = true) {
   game.friend = companion;
 
   game.levelRepels = 0;
-  game.bossDown = !cfg.boss;
+  game.bossDown = true; // No level contains a special boss after normal-only conversion.
   game.time = game.sandbox ? Infinity : cfg.time;
   game.elapsed = 0;
   for (const k of ['boost', 'boostCD', 'attackCD', 'social', 'socialCD',
@@ -1091,7 +1093,7 @@ function hitFox(f, damage, s) {
   particles.burst(f.x, fy + 0.5, f.z, colHit, 9, 1);
 
   // 体力耗尽 = 被驱退。它不会死，而是转身逃跑。
-  if (f.hp <= 0) {
+  if (f.hp <= 0 && !f.isSandboxDummy) {
     // 迎击练习：不驱退、不计数，立刻复位到玩家正前方重来。
     if (sandboxState.parryDrill) {
       audio.hit();
@@ -1109,10 +1111,6 @@ function hitFox(f, damage, s) {
     audio.repel();
     recordTestLog('fox-repelled', { foxType: f.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
     controller.hitShake(0.3);
-    if (f.type === 'boss') {
-      game.bossDown = true;
-      hud.say('狐首领掉头逃走了！完成剩余目标就回洞。', 4);
-    }
   } else {
     audio.hit();
     controller.hitShake(0.18);
@@ -1980,6 +1978,15 @@ const sandboxPanelUI = setupSandboxPanel({
     else if (action === 'spawnOne') spawnSandboxFoxes({ state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
     else if (action === 'spawnGroup') spawnSandboxFoxes({ count: 6, state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
     else if (action === 'clearFoxes') clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
+    else if (action === 'placeDummy') placeSandboxDummy({
+      state: sandboxState,
+      createDummy: () => spawnSandboxFox('normal', -1, { sandboxDummy: true, dummyDefeatable: sandboxState.dummyDefeatable }),
+      removeDummy: (dummy) => { foxes = foxes.filter((f) => f !== dummy); dummy.dispose(scene); },
+    });
+    else if (action === 'removeDummy') removeSandboxDummy({
+      state: sandboxState,
+      removeDummy: (dummy) => { foxes = foxes.filter((f) => f !== dummy); dummy.dispose(scene); },
+    });
   },
   onChange: (name, value) => {
     if (name === 'godMode') testState.godMode = value;
@@ -1996,7 +2003,11 @@ const sandboxPanelUI = setupSandboxPanel({
         foxes.forEach((f) => delete f.drillCtx);
       }
     }
-    if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; }); }
+    if (name === 'dummyDefeatable') {
+      sandboxState.dummyDefeatable = value;
+      setSandboxDummyDefeatable(sandboxState.dummy, value);
+    }
+    if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { if (!f.isSandboxDummy) { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; } }); }
   },
 });
 

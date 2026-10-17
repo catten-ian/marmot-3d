@@ -22,6 +22,7 @@ import { clamp } from '../core/utils.js';
 import { createProceduralFox } from './procedural-fox.js';
 import { createTibetanFox } from './tibetan-fox.js';
 import { foxRecoverySeconds, stepFoxTurn, stepFoxRecovery } from '../core/fox-motion.js';
+import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
 /** 手搓程序化狐狸：config 开关，或 beta 用 ?procfox=1 临时启用对比；默认仍走现有模型 */
 const USE_PROCEDURAL_FOX = FOX.useProcedural
   || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('procfox') === '1');
@@ -102,6 +103,8 @@ const TYPE_FUR = {
 
 export class Fox {
   constructor(scene, x, z, type, level, slot, opts = {}) {
+    // The game now has one real species; normalize legacy callers as well as campaign spawns.
+    type = 'normal';
     this.type = type;
     this.level = level;
     this.slot = slot;
@@ -127,6 +130,10 @@ export class Fox {
     this._proceduralFox = null;
     this._disposed = false;
     this.dead = false;
+    this.isSandboxDummy = !!opts.sandboxDummy;
+    this.dummyDefeatable = opts.dummyDefeatable !== false;
+    this.dummyNoHitTimer = 0;
+    if (this.isSandboxDummy) this.state = 'dummy';
     this._lastSafe = false;
     this.alertCooldown = 0;
     this.lingerBurrow = null;
@@ -210,12 +217,6 @@ export class Fox {
     this.hpBar = buildHpBar();
     this.hpBar.visible = false;
     scene.add(this.hpBar);
-
-    // 临时类型标签独立于血条：每种狐狸都能在头顶快速辨认。
-    this.labelSprite = buildLabelSprite(this.cfg.label || '普通狐', type);
-    this.labelSprite.visible = true;
-    this.labelSprite.scale.set(1.05, 0.34, 1);
-    scene.add(this.labelSprite);
 
     this.baseY = 0;
     this._bob = Math.random() * 6;
@@ -431,7 +432,7 @@ export class Fox {
     if (this.realModel) this.realModel.visible = useReal;
   }
 
-  get alive() { return this.hp > 0 && !this.fleeing; }
+  get alive() { return !this.isSandboxDummy && this.hp > 0 && !this.fleeing; }
   /** 是否正在被驱退（逃跑中），此时不再参与威胁计数与伤害 */
   get repelled() { return this.fleeing; }
 
@@ -449,6 +450,25 @@ export class Fox {
    * 且预警线长度 = 真实冲刺距离，否则玩家无法应对（详见 buildWarnIndicator）。
    */
   update(dt, p, safe, levelCfg, burrows, terrainAt, currentBurrow = null) {
+    if (this.isSandboxDummy) {
+      stepSandboxDummyRecovery(this, dt);
+      this.knockbackVX = this.knockbackVZ = 0;
+      this.stun = 0;
+      this.leap = 0;
+      this.fleeing = false;
+      this.state = this.hp > 0 ? 'dummy' : 'defeated';
+      this.mesh.visible = this.hp > 0;
+      this.warn.visible = false;
+      this.baseY = terrainAt(this.x, this.z);
+      this.mesh.position.set(this.x, this.baseY, this.z);
+      this.mesh.rotation.set(0, this.yaw, 0);
+      this.mesh.scale.setScalar(this.cfg.scale * FOX_MODEL_BASE);
+      this.hpBar.position.set(this.x, this.baseY + 1.55 * this.cfg.scale, this.z);
+      this._updateHpBar();
+      this.hpBar.visible = this.hp > 0 && this.hp < this.maxHp;
+      return;
+    }
+
     const allBurrows = Array.isArray(burrows) ? burrows : (burrows ? [burrows] : []);
     const previousX = this.x, previousZ = this.z;
     const y = terrainAt(this.x, this.z);
@@ -958,12 +978,6 @@ export class Fox {
     this.fleeTime += dt;
     this.mesh.position.set(this.x, terrainAt(this.x, this.z), this.z);
     this.mesh.rotation.y = this.fleeYaw;
-    this.labelSprite.visible = true;
-    this.labelSprite.position.set(
-      this.x,
-      terrainAt(this.x, this.z) + FOX_TARGET_HEIGHT * FOX_MODEL_BASE * this.cfg.scale + 0.28,
-      this.z,
-    );
     // 逃跑时身体压低、四肢急促摆动
     this._bob += dt * 16;
     this.mesh.position.y += Math.abs(Math.sin(this._bob)) * 0.14;
@@ -991,7 +1005,6 @@ export class Fox {
     this.state = 'flee';
     this.warn.visible = false;
     this.hpBar.visible = false;
-    this.labelSprite.visible = false;
     // 沿"远离玩家 + 推向最近边界"的方向跑，避免在原地来回
     const dx = this.x - awayFromX, dz = this.z - awayFromZ;
     const len = Math.hypot(dx, dz) || 1;
@@ -1008,12 +1021,6 @@ export class Fox {
   _applyTransform(dt, terrainAt) {
     this.mesh.position.set(this.x, terrainAt(this.x, this.z), this.z);
     this.mesh.rotation.y = this.yaw;
-    this.labelSprite.visible = this.hp > 0;
-    this.labelSprite.position.set(
-      this.x,
-      terrainAt(this.x, this.z) + FOX_TARGET_HEIGHT * FOX_MODEL_BASE * this.cfg.scale + 0.28,
-      this.z,
-    );
     // 奔跑/突进时的身体起伏
     const speedish = this.state === 'dash' ? 12 : this.state === 'roam' ? 2 : 0;
     this.mesh.rotation.x = this.state === 'rest' ? 0.12 : (this.leap ? -0.34 * Math.min(1, this.leap) : 0);
@@ -1068,10 +1075,9 @@ export class Fox {
   }
 
   _updateHpBar() {
-    // 只有受伤（或本来就是特殊种类）才显示血条/标签，避免画面 clutter
-    const special = !!this.cfg.label;
+    // 只在受伤时显示血条，避免画面 clutter。
     const damaged = this.hp < this.maxHp;
-    if (!damaged && !special) { this.hpBar.visible = false; return; }
+    if (!damaged) { this.hpBar.visible = false; return; }
 
     this.hpBar.visible = true;
     // 血条结构：group(不缩放) → bg 底框 + fill 填充条(userData.fill)。
@@ -1084,8 +1090,6 @@ export class Fox {
     fill.position.x = -(1 - ratio) * 0.48; // 填充条宽 0.96，左锚收缩
     fill.position.z = 0.001;
     this.hpBar.lookAt(this.hpBar.position.x, this.hpBar.position.y + 20, this.hpBar.position.z + 0.01);
-    // 特殊种类显示名称，帮玩家记住"哪种毛色对应哪种威胁"
-    if (this.labelSprite) this.labelSprite.visible = this.hp > 0 || this.fleeing;
   }
 
   /** 受击：扣血 + 击退 + 硬直 */
@@ -1095,6 +1099,18 @@ export class Fox {
    */
   hit(damage, knockback, stun, fromX, fromZ) {
     if (this.hp <= 0) return false;
+    if (this.isSandboxDummy) {
+      const floor = this.dummyDefeatable ? 0 : 1;
+      this.hp = Math.max(floor, this.hp - damage);
+      this.dummyNoHitTimer = SANDBOX_DUMMY_REGEN_DELAY;
+      this.knockbackVX = this.knockbackVZ = 0;
+      this.stun = 0;
+      this.leap = 0;
+      this.fleeing = false;
+      this.state = this.hp > 0 ? 'dummy' : 'defeated';
+      this.warn.visible = false;
+      return this.hp <= 0;
+    }
     this.hp = Math.max(0, this.hp - damage);
     const dx = this.x - fromX, dz = this.z - fromZ;
     const d = Math.hypot(dx, dz) || 1;
@@ -1151,13 +1167,11 @@ export class Fox {
     scene.remove(this.mesh);
     scene.remove(this.warn);
     scene.remove(this.hpBar);
-    scene.remove(this.labelSprite);
     disposeTree(this.proceduralMesh);
     disposeTree(this.hiFiMesh);
     disposeTree(this.realModel, { geometry: false, textures: false });
     disposeTree(this.warn);
     disposeTree(this.hpBar);
-    disposeTree(this.labelSprite);
   }
 }
 
@@ -1327,33 +1341,4 @@ function buildHpBar() {
   g.add(fill);
   g.userData.fill = fill;
   return g;
-}
-
-/**
- * 名称标签精灵（Canvas 纹理）。
- * 仅用于特殊种类，让玩家把毛色与威胁类型对应起来；
- * 普通狐没有标签，避免视觉噪音。
- */
-function buildLabelSprite(text) {
-  const c = document.createElement('canvas');
-  const w = 160, h = 64;
-  c.width = w * 2; c.height = h * 2;
-  const g = c.getContext('2d');
-  g.scale(2, 2);
-  g.font = '600 20px "Microsoft YaHei", sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.lineWidth = 4;
-  g.strokeStyle = 'rgba(0,0,0,0.8)';
-  g.strokeText(text, w / 2, h / 2);
-  g.fillStyle = '#f2e8d0';
-  g.fillText(text, w / 2, h / 2);
-  const tex = new THREE.CanvasTexture(c);
-  tex.needsUpdate = true;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: tex, transparent: true, depthTest: false, opacity: 0.92,
-  }));
-  sprite.userData.labelText = text;
-  sprite.renderOrder = 12;
-  return sprite;
 }

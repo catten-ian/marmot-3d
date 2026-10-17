@@ -256,13 +256,8 @@ export class HUD {
       items.push({
         ang: Math.atan2(dx, dz), d,
         kind: 'fox',
-        color: f.type === 'boss' ? '#ff2a1a' : f.state === 'wind' ? '#ff8a2a' : '#ff5a44',
-        // 蓄力/冲刺时标出它的攻击模式名（如"绕行虚晃"），
-        // 玩家从屏幕边缘就能读出"这只接下来会怎么做"，
-        // 而不是靠记忆每种狐的行为 —— 这是攻击模式多样性能被玩懂的前提。
-        label: (f.state === 'wind' || f.state === 'dash')
-          ? ((f.attack && f.attack.label) || '')
-          : '',
+        color: f.state === 'wind' ? '#ff8a2a' : '#ff5a44',
+        label: '',
       });
     }
 
