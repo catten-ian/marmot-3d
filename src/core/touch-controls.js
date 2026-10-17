@@ -1,4 +1,5 @@
 import { isTouchPrimary } from './performance.js';
+import { AttackGesture } from './combat-wheel.mjs';
 
 // 摇杆推过该归一化距离即进入疾跑（取代独立疾跑按钮）。
 const SPRINT_STICK_THRESHOLD = 0.78;
@@ -10,7 +11,7 @@ const SPRINT_STICK_THRESHOLD = 0.78;
  * 同时提供传统 Touch Events 路径，优先用 Touch Events 驱动手指操作。
  */
 export class TouchControls {
-  constructor({ canvas, controller, root, lookZone, joystick, stick, onAction, isActive }) {
+  constructor({ canvas, controller, root, lookZone, joystick, stick, onAction, onParryGesture, isActive }) {
     this.canvas = canvas;
     this.controller = controller;
     this.root = root;
@@ -18,6 +19,7 @@ export class TouchControls {
     this.joystick = joystick;
     this.stick = stick;
     this.onAction = onAction;
+    this.onParryGesture = onParryGesture;
     this.isActive = isActive;
 
     this.lookPointer = null;
@@ -140,7 +142,7 @@ export class TouchControls {
         this._capture(button, event.pointerId);
         this.pointerRoles.set(event.pointerId, 'button:' + action);
         button.classList.add('pressed');
-        if (action === 'attack') this.attackPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, dx: 0, dy: 0 });
+        if (action === 'attack') this.attackPointers.set(event.pointerId, this._startAttackPointer(event.pointerId, event.clientX, event.clientY));
         if (action === 'dodge') this.dodgePointers.set(event.pointerId, { x: event.clientX, y: event.clientY, dx: 0, dy: 0 });
         this.onAction(action, true, event.pointerId, { dx: 0, dy: 0, moved: false });
       });
@@ -150,11 +152,7 @@ export class TouchControls {
       button.addEventListener('pointermove', (event) => {
         const role = this.pointerRoles.get(event.pointerId);
         if (role === 'button:attack') {
-          const a = this.attackPointers.get(event.pointerId);
-          if (a) {
-            a.dx = event.clientX - a.x; a.dy = event.clientY - a.y;
-            this.onAction('attack', true, event.pointerId, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
-          }
+          this._trackAttackMove(event.pointerId, event.clientX, event.clientY);
         } else if (role === 'button:dodge') {
           const g = this.dodgePointers.get(event.pointerId);
           if (g) { g.dx = event.clientX - g.x; g.dy = event.clientY - g.y; }
@@ -169,10 +167,7 @@ export class TouchControls {
     window.addEventListener('pointermove', (event) => {
       const role = this.pointerRoles.get(event.pointerId);
       if (role === 'button:attack') {
-        const a = this.attackPointers.get(event.pointerId); if (a) {
-          a.dx = event.clientX - a.x; a.dy = event.clientY - a.y;
-          this.onAction('attack', true, event.pointerId, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
-        }
+        this._trackAttackMove(event.pointerId, event.clientX, event.clientY);
       } else if (role === 'button:dodge') {
         const g = this.dodgePointers.get(event.pointerId);
         if (g) { g.dx = event.clientX - g.x; g.dy = event.clientY - g.y; }
@@ -241,7 +236,7 @@ export class TouchControls {
           if (this.pointerRoles.has(touch.identifier)) continue;
           this.pointerRoles.set(touch.identifier, 'button:' + action);
           button.classList.add('pressed');
-          if (action === 'attack') this.attackPointers.set(touch.identifier, { x: touch.clientX, y: touch.clientY, dx: 0, dy: 0 });
+          if (action === 'attack') this.attackPointers.set(touch.identifier, this._startAttackPointer(touch.identifier, touch.clientX, touch.clientY));
           if (action === 'dodge') this.dodgePointers.set(touch.identifier, { x: touch.clientX, y: touch.clientY, dx: 0, dy: 0 });
           this.onAction(action, true, touch.identifier, { dx: 0, dy: 0, moved: false });
         }
@@ -252,11 +247,7 @@ export class TouchControls {
         for (const touch of event.changedTouches) {
           const role = this.pointerRoles.get(touch.identifier);
           if (role === 'button:attack') {
-            const a = this.attackPointers.get(touch.identifier);
-            if (a) {
-              a.dx = touch.clientX - a.x; a.dy = touch.clientY - a.y;
-              this.onAction('attack', true, touch.identifier, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
-            }
+            this._trackAttackMove(touch.identifier, touch.clientX, touch.clientY);
           } else if (role === 'button:dodge') {
             const g = this.dodgePointers.get(touch.identifier);
             if (g) { g.dx = touch.clientX - g.x; g.dy = touch.clientY - g.y; }
@@ -272,8 +263,7 @@ export class TouchControls {
       for (const touch of event.changedTouches) {
         const role = this.pointerRoles.get(touch.identifier);
         if (role === 'button:attack') {
-          const a = this.attackPointers.get(touch.identifier);
-          if (a) { a.dx = touch.clientX - a.x; a.dy = touch.clientY - a.y; }
+          this._trackAttackMove(touch.identifier, touch.clientX, touch.clientY, true);
         } else if (role === 'button:dodge') {
           const g = this.dodgePointers.get(touch.identifier);
           if (g) { g.dx = touch.clientX - g.x; g.dy = touch.clientY - g.y; }
@@ -283,6 +273,29 @@ export class TouchControls {
     };
     window.addEventListener('touchend', finishTouches, { passive: false });
     window.addEventListener('touchcancel', finishTouches, { passive: false });
+  }
+
+  /** 攻击键按下：建立单指手势状态（起点 + 时间）。 */
+  _startAttackPointer(pointerId, clientX, clientY) {
+    const gesture = new AttackGesture(pointerId);
+    gesture.x = clientX;
+    gesture.y = clientY;
+    return gesture;
+  }
+
+  /**
+   * 攻击键按住中的拖动：更新位移；左滑跨过阈值的当帧通过 onParryGesture
+   * 立即触发一次迎击（AttackGesture 内部闩锁保证一次按住只触发一次）。
+   * silent=true 用于 touchend 兜底位移：只更新状态/可能触发迎击，不再补发按下回调。
+   */
+  _trackAttackMove(pointerId, clientX, clientY, silent = false) {
+    const a = this.attackPointers.get(pointerId);
+    if (!a) return;
+    const dx = clientX - a.x;
+    const dy = clientY - a.y;
+    const parryCtx = a.update(dx, dy);
+    if (parryCtx && this.onParryGesture) this.onParryGesture(parryCtx);
+    if (!silent) this.onAction('attack', true, pointerId, { dx, dy, moved: Math.hypot(dx, dy) > 18, parried: a.parried });
   }
 
   _isTouchPointer(event) {
@@ -360,9 +373,15 @@ export class TouchControls {
       const action = role.slice(7);
       const a = this.attackPointers.get(pointerId);
       const g = this.dodgePointers.get(pointerId);
-      const data = action === 'dodge' && g
-        ? { dx: g.dx, dy: g.dy, moved: Math.hypot(g.dx, g.dy) > 22 }
-        : (a ? { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 } : { dx: 0, dy: 0, moved: false });
+      let data;
+      if (action === 'dodge' && g) {
+        data = { dx: g.dx, dy: g.dy, moved: Math.hypot(g.dx, g.dy) > 22 };
+      } else if (a) {
+        const out = a.release();
+        data = { dx: out.dx, dy: out.dy, moved: Math.hypot(out.dx, out.dy) > 18, parried: out.parried, holdMs: out.holdMs };
+      } else {
+        data = { dx: 0, dy: 0, moved: false };
+      }
       this.onAction(action, false, pointerId, data);
       this.attackPointers.delete(pointerId);
       this.dodgePointers.delete(pointerId);

@@ -97,8 +97,9 @@ export const PLAYER = {
       // 迎击：在狐狸冲刺接触前的短暂窗口内正面迎上，抵消伤害并反打。
       parryWindow: 0.3, parryHalfAngle: 80 * Math.PI / 180 },
     lunge: { damageMul: 1.45, cost: 4, distance: 2.8, recovery: 0.42 },
-    // 攻击键“按住升级”的蓄力时间阈值（秒）：点按→推击；跨过 t1→迎击；跨过 t2→扑咬。
-    charge: { parryHold: 0.28, lungeHold: 0.58 },
+    // 攻击键“按住升级”的蓄力时间阈值（秒）：点按/早松(<0.28)→短刺；
+    // 0.28-0.65→中刺；≥0.65→重刺。迎击不再看蓄力时长，改为按住时左滑（见 combat-wheel PARRY_DRAG_THRESHOLD）。
+    charge: { shortHold: 0.28, heavyHold: 0.65 },
   },
 };
 
