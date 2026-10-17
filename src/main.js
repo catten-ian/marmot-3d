@@ -1166,17 +1166,43 @@ function doJump() {
     new THREE.Color(0xbfae8e), 6, 0.7);
 }
 
+// 屏幕平面向量（右+、上+）按相机朝向换算为世界水平单位向量。
+function screenToWorldDir(rightAmt, upAmt) {
+  const yaw = controller.yaw;
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);   // 相机前方
+  const rx = Math.cos(yaw), rz = -Math.sin(yaw);     // 相机右方
+  let wx = rx * rightAmt + fx * upAmt;
+  let wz = rz * rightAmt + fz * upAmt;
+  const l = Math.hypot(wx, wz) || 1;
+  return { x: wx / l, z: wz / l };
+}
+
+// 翻滚方向：优先拖动定向，其次摇杆推动方向，最后身体朝向。
+function rollDirFromGesture(gesture) {
+  // 1) 独立翻滚键被拖动：按拖动方向（屏幕右+、上拖为负 dy）。
+  if (gesture && gesture.moved && (Math.abs(gesture.dx) > 0 || Math.abs(gesture.dy) > 0)) {
+    return screenToWorldDir(gesture.dx, -gesture.dy);
+  }
+  // 2) 移动摇杆正在推动：按轮盘方向（即便角色刚起步、速度还没起来也成立）。
+  const ax = controller.touchAxes || { x: 0, y: 0 };
+  if (Math.hypot(ax.x, ax.y) > 0.18) {
+    return screenToWorldDir(ax.x, ax.y);
+  }
+  // 3) 回退：实际移动速度方向；静止则身体朝向（yaw=0 朝 -Z）。
+  return rollDirection({
+    velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw,
+  });
+}
+
 // 翻滚：朝当前移动方向（否则身体朝向）滚动，整段无敌。
-function doRoll() {
+function doRoll(gesture = null) {
   const p = game.player;
   const wheel = PLAYER.combatWheel.dodge;
   if (game.attackCD > 0 || game.inBurrow || (controller.rollT || 0) > 0.02) return false;
   const atkMul = devOn('famineTolerance') ? HERBIVORE.attackCostMul : 1;
   if (p.energy < wheel.cost * atkMul) { hud.say('储备不足，无法翻滚', 1.2); return false; }
   p.energy -= wheel.cost * atkMul;
-  const dir = rollDirection({
-    velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw,
-  });
+  const dir = rollDirFromGesture(gesture);
   controller.roll(dir, 7.2);
   p.invuln = Math.max(p.invuln, wheel.invuln);
   game.attackCD = wheel.recovery || 0.12;
@@ -1617,11 +1643,11 @@ touchControls = new TouchControls({
   joystick: document.getElementById('touchJoystick'),
   stick: document.getElementById('touchStick'),
   isActive: () => game.mode === 'play',
-  onAction: (action, pressed, pointerId) => {
+  onAction: (action, pressed, pointerId, gesture) => {
     if (action === 'attack') {
       if (pressed) beginAttack('touch', pointerId);
       else { if (attackCharge.pointerId === pointerId) releaseAttack(); }
-    } else if (pressed && action === 'dodge') doRoll();
+    } else if (!pressed && action === 'dodge') doRoll(gesture);
     else if (pressed && action === 'jump') doJump();
     else if (pressed && action === 'interact') doInteract();
     else if (pressed && action === 'burst') doBurst();

@@ -25,6 +25,8 @@ export class TouchControls {
     this.movePointer = null;
     this.pointerRoles = new Map();
     this.attackPointers = new Map();
+    // 独立翻滚键的拖动定向：记录起点与当前拖动（屏幕坐标，右+、上-）。
+    this.dodgePointers = new Map();
     this.move = { x: 0, y: 0, mag: 0 };
     this.maxStick = 48;
     this.enabled = isTouchPrimary();
@@ -139,17 +141,24 @@ export class TouchControls {
         this.pointerRoles.set(event.pointerId, 'button:' + action);
         button.classList.add('pressed');
         if (action === 'attack') this.attackPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, dx: 0, dy: 0 });
+        if (action === 'dodge') this.dodgePointers.set(event.pointerId, { x: event.clientX, y: event.clientY, dx: 0, dy: 0 });
         this.onAction(action, true, event.pointerId, { dx: 0, dy: 0, moved: false });
       });
       button.addEventListener('pointerup', (event) => this._release(event.pointerId));
       button.addEventListener('pointercancel', (event) => this._release(event.pointerId));
       button.addEventListener('lostpointercapture', (event) => this._release(event.pointerId));
       button.addEventListener('pointermove', (event) => {
-        if (this.pointerRoles.get(event.pointerId) !== 'button:attack') return;
-        const a = this.attackPointers.get(event.pointerId);
-        if (!a) return;
-        a.dx = event.clientX - a.x; a.dy = event.clientY - a.y;
-        this.onAction('attack', true, event.pointerId, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
+        const role = this.pointerRoles.get(event.pointerId);
+        if (role === 'button:attack') {
+          const a = this.attackPointers.get(event.pointerId);
+          if (a) {
+            a.dx = event.clientX - a.x; a.dy = event.clientY - a.y;
+            this.onAction('attack', true, event.pointerId, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
+          }
+        } else if (role === 'button:dodge') {
+          const g = this.dodgePointers.get(event.pointerId);
+          if (g) { g.dx = event.clientX - g.x; g.dy = event.clientY - g.y; }
+        }
         event.preventDefault();
       });
       button.addEventListener('contextmenu', (event) => event.preventDefault());
@@ -158,10 +167,16 @@ export class TouchControls {
     window.addEventListener('pointerup', (event) => this._release(event.pointerId));
     window.addEventListener('pointercancel', (event) => this._release(event.pointerId));
     window.addEventListener('pointermove', (event) => {
-      if (this.pointerRoles.get(event.pointerId) !== 'button:attack') return;
-      const a = this.attackPointers.get(event.pointerId); if (!a) return;
-      a.dx = event.clientX - a.x; a.dy = event.clientY - a.y;
-      this.onAction('attack', true, event.pointerId, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
+      const role = this.pointerRoles.get(event.pointerId);
+      if (role === 'button:attack') {
+        const a = this.attackPointers.get(event.pointerId); if (a) {
+          a.dx = event.clientX - a.x; a.dy = event.clientY - a.y;
+          this.onAction('attack', true, event.pointerId, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
+        }
+      } else if (role === 'button:dodge') {
+        const g = this.dodgePointers.get(event.pointerId);
+        if (g) { g.dx = event.clientX - g.x; g.dy = event.clientY - g.y; }
+      }
     });
   }
 
@@ -227,6 +242,7 @@ export class TouchControls {
           this.pointerRoles.set(touch.identifier, 'button:' + action);
           button.classList.add('pressed');
           if (action === 'attack') this.attackPointers.set(touch.identifier, { x: touch.clientX, y: touch.clientY, dx: 0, dy: 0 });
+          if (action === 'dodge') this.dodgePointers.set(touch.identifier, { x: touch.clientX, y: touch.clientY, dx: 0, dy: 0 });
           this.onAction(action, true, touch.identifier, { dx: 0, dy: 0, moved: false });
         }
         event.preventDefault();
@@ -235,11 +251,16 @@ export class TouchControls {
       add(button, 'touchmove', (event) => {
         for (const touch of event.changedTouches) {
           const role = this.pointerRoles.get(touch.identifier);
-          if (role !== 'button:attack') continue;
-          const a = this.attackPointers.get(touch.identifier);
-          if (!a) continue;
-          a.dx = touch.clientX - a.x; a.dy = touch.clientY - a.y;
-          this.onAction('attack', true, touch.identifier, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
+          if (role === 'button:attack') {
+            const a = this.attackPointers.get(touch.identifier);
+            if (a) {
+              a.dx = touch.clientX - a.x; a.dy = touch.clientY - a.y;
+              this.onAction('attack', true, touch.identifier, { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 });
+            }
+          } else if (role === 'button:dodge') {
+            const g = this.dodgePointers.get(touch.identifier);
+            if (g) { g.dx = touch.clientX - g.x; g.dy = touch.clientY - g.y; }
+          }
         }
         event.preventDefault();
       });
@@ -253,6 +274,9 @@ export class TouchControls {
         if (role === 'button:attack') {
           const a = this.attackPointers.get(touch.identifier);
           if (a) { a.dx = touch.clientX - a.x; a.dy = touch.clientY - a.y; }
+        } else if (role === 'button:dodge') {
+          const g = this.dodgePointers.get(touch.identifier);
+          if (g) { g.dx = touch.clientX - g.x; g.dy = touch.clientY - g.y; }
         }
         this._release(touch.identifier);
       }
@@ -335,8 +359,13 @@ export class TouchControls {
     if (role.indexOf('button:') === 0) {
       const action = role.slice(7);
       const a = this.attackPointers.get(pointerId);
-      this.onAction(action, false, pointerId, a ? { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 } : { dx: 0, dy: 0, moved: false });
+      const g = this.dodgePointers.get(pointerId);
+      const data = action === 'dodge' && g
+        ? { dx: g.dx, dy: g.dy, moved: Math.hypot(g.dx, g.dy) > 22 }
+        : (a ? { dx: a.dx, dy: a.dy, moved: Math.hypot(a.dx, a.dy) > 18 } : { dx: 0, dy: 0, moved: false });
+      this.onAction(action, false, pointerId, data);
       this.attackPointers.delete(pointerId);
+      this.dodgePointers.delete(pointerId);
       const button = this.root.querySelector('[data-touch-action="' + action + '"]');
       if (button) button.classList.remove('pressed');
     }

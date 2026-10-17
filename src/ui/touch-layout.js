@@ -21,7 +21,13 @@ function readInsets() {
 export class TouchLayout {
   constructor() {
     this.root = document.getElementById('touchControls');
-    this.buttons = Object.fromEntries(ACTIONS.map((id) => [id, this.root?.querySelector(`[data-touch-action="${id}"]`)]));
+    // 布局编辑只管右侧动作栏里的可拖动键；摇杆上的固定 .stick-dodge 绝不参与定位，
+    // 否则会被从轮盘上扯走。pause 在动作栏外，单独取。
+    this.actionLayer = this.root?.querySelector('.touch-actions') || this.root;
+    this.buttons = Object.fromEntries(ACTIONS.map((id) => {
+      const scope = id === 'pause' ? this.root : this.actionLayer;
+      return [id, scope?.querySelector(`[data-touch-action="${id}"]`)];
+    }));
     this.editing = false;
     this.selected = 'attack';
     this.layout = this._load() || this.defaultLayout();

@@ -1136,6 +1136,25 @@ body.touch-playing .touch-controls { display: block; }
   will-change: transform;
 }
 .touch-joystick span { position: absolute; bottom: 11px; text-shadow: 0 1px 3px #000; }
+/* 摇杆上的翻滚键：固定在轮盘上方边缘，点击按轮盘方向滚；独立于中心摇杆拖动 */
+.stick-dodge {
+  position: absolute;
+  top: -6px; left: 50%;
+  width: 40px; height: 40px;
+  margin-left: -20px;
+  display: grid; place-items: center;
+  border: 1px solid rgba(200,226,255,.55);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(120,170,225,.9), rgba(40,70,110,.78));
+  box-shadow: 0 2px 8px #0008;
+  color: #eaf3ff;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 3;
+}
+.stick-dodge b { font-size: 17px; line-height: 1; }
+.stick-dodge.pressed { background: radial-gradient(circle at 35% 30%, rgba(170,210,255,1), rgba(60,100,160,.9)); transform: scale(.94); }
 /* 疾跑档位环：摇杆推过该环（约 78% 半径）自动疾跑 */
 .stick-sprint-ring {
   position: absolute; left: 50%; top: 50%;
