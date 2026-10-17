@@ -50,8 +50,8 @@ export class Burrow {
     );
     const shaftMat = new THREE.MeshStandardMaterial({
       color: wallColor,
-      emissive: isBase ? 0x1a0f04 : 0x040808,
-      emissiveIntensity: isBase ? 0.55 : 0.18,
+      emissive: isBase ? 0x4a2e10 : 0x0b1515,
+      emissiveIntensity: isBase ? 1.35 : 0.5,
       roughness: 1,
       side: THREE.BackSide,
     });
@@ -65,8 +65,8 @@ export class Burrow {
     const floorGeo = new THREE.CircleGeometry(underground.chamberRadius, 28);
     const floorMat = new THREE.MeshStandardMaterial({
       color: isBase ? 0x3a2817 : 0x1a2423,
-      emissive: isBase ? 0x221205 : 0x040808,
-      emissiveIntensity: isBase ? 0.6 : 0.2,
+      emissive: isBase ? 0x3a2008 : 0x060c0c,
+      emissiveIntensity: isBase ? 1.1 : 0.35,
       roughness: 1,
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -96,16 +96,21 @@ export class Burrow {
     this.group.add(mouth);
     this.mouth = mouth;
 
-    // 开口天光：洞口向下打的聚光灯，形成光柱并照亮井壁上半部。
-    const shaftLight = new THREE.SpotLight(0xcfe0ff, isBase ? 2.4 : 0.5, underground.chamberDepth + 3, 0.72, 0.6, 1.6);
-    shaftLight.position.set(0, 0.35, 0);
+    // 开口天光：洞口向下打的聚光灯，放宽光锥，照亮井壁上半部与地板。
+    const shaftLight = new THREE.SpotLight(0xdfeaff, isBase ? 3.0 : 0.7, underground.chamberDepth + 4, 0.95, 0.9, 1.4);
+    shaftLight.position.set(0, 0.3, 0);
     const shaftTarget = new THREE.Object3D();
-    shaftTarget.position.set(0, -underground.chamberDepth, 0);
+    shaftTarget.position.set(0, -underground.chamberDepth * 0.55, 0);
     this.group.add(shaftTarget);
     shaftLight.target = shaftTarget;
     this.group.add(shaftLight);
+    // 腔室中上部一盏弱暖填充：向上打亮整圈井壁，避免正前方井壁死黑、
+    // 读不出“被圆筒腔室包围”。
+    const wallFill = new THREE.PointLight(0xffb36b, isBase ? 3.2 : 0.4, underground.chamberRadius * 3.4, 2);
+    wallFill.position.set(0, -underground.chamberDepth * 0.45, 0);
+    this.group.add(wallFill);
     // 洞口附近一点冷色填充，模拟井口漏下来的漫反射。
-    const skylight = new THREE.PointLight(0xbfd6ff, isBase ? 0.5 : 0.08, underground.slopeRadius * 3.2, 2);
+    const skylight = new THREE.PointLight(0xbfd6ff, isBase ? 0.6 : 0.1, underground.slopeRadius * 3.2, 2);
     skylight.position.set(0, -0.4, 0);
     this.group.add(skylight);
 
