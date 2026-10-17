@@ -2,9 +2,9 @@
 // 纯战斗输入选择（触屏 / 键盘 / 鼠标共用）
 // ============================================================
 // 攻击只有三种招式（ATTACK_MOVES）：
-//   tap   推击：点按 / 普通松手（非奔跑长按也落回推击，不存在第四种攻击）
-//   stand 迎击：按住攻击键【向左滑】过阈值立即触发（正面接住狐狸冲刺时反打）
-//   lunge 扑击：仅【奔跑中】长按达到扑击阈值，松手时触发
+//   tap   推击：地面短按 / 650ms 前松手
+//   stand 迎击：按住攻击键【向左滑】过阈值立即触发（空中先快落地再执行）
+//   lunge 扑击：地面蓄力到阈值、或任意空中松手；1500ms 自动释放
 // 翻滚(dodge)是移动动作、不是攻击：按住攻击键【向右滑】过阈值立即翻滚一次，
 // 或使用页面右侧独立的翻滚键；一次按住最多触发一个方向招式（左/右闩锁互斥）。
 //
@@ -13,7 +13,9 @@ export const ATTACK_MOVES = ['tap', 'stand', 'lunge']; // 推击 / 迎击 / 扑�
 export const ATTACK_DEAD_ZONE = 18;
 
 // —— 攻击键手势时间 / 距离常量 ——
-export const POUNCE_HOLD_MS = 650;        // 奔跑长按扑击阈值（沿用既有手感）
+export const POUNCE_HOLD_MS = 650;        // 地面蓄力达到此阈值后松手为扑击
+export const MAX_ATTACK_CHARGE_MS = 1500; // 防止蓄力无限持续；满格自动扑击
+export const AERIAL_POUNCE_DAMAGE_MUL = 0.55;
 export const PARRY_DRAG_THRESHOLD = 22;   // 迎击：左滑 dx ≤ -22px
 export const ROLL_DRAG_THRESHOLD = 22;    // 翻滚：右滑 dx ≥ +22px
 // 方向识别必须水平主导：|dx| 要明显大于 |dy|，纵向摇动不误触发迎击/翻滚。
@@ -27,26 +29,48 @@ const clampNum = (v, lo, hi, fallback) => {
 
 /**
  * 松手结算（毫秒输入，纯函数）：
- *   - 本次按住已触发过左滑迎击或右滑翻滚（fired 非空）→ null，松手不补招；
- *   - 奔跑中长按达到扑击阈值 → 'lunge'（扑击）；
- *   - 其他一切情况（点按、早松、非奔跑长按）→ 'tap'（推击）。
+ *   - 已触发方向手势或已被真实命中打断 → null，不补招；
+ *   - 空中松手总是扑击（短按会由调用方应用较低伤害倍率）；
+ *   - 地面短按/早松为推击，蓄力达到阈值为扑击。
  */
-export function resolveAttackRelease({ holdMs = 0, sprinting = false, fired = null, parried = false } = {}) {
-  if (fired || parried) return null;
+export function resolveAttackRelease({ holdMs = 0, grounded = true, sprinting = false, fired = null, parried = false, interrupted = false } = {}) {
+  if (interrupted || fired || parried) return null;
   const t = Math.max(0, Number(holdMs) || 0);
-  if (sprinting && t >= POUNCE_HOLD_MS) return 'lunge';
+  if (!grounded || t >= POUNCE_HOLD_MS) return 'lunge';
   return 'tap';
 }
 
+/** 只有空中短按扑击使用弱伤害；已充满的空中扑击仍保持完整扑击倍率。 */
+export function isWeakAerialPounce({ holdMs = 0, grounded = true } = {}) {
+  return !grounded && Math.max(0, Number(holdMs) || 0) < POUNCE_HOLD_MS;
+}
+
+/** Advance a charge clock in milliseconds and clamp it at the forced-release limit. */
+export function advanceAttackCharge(holdMs = 0, deltaMs = 0) {
+  const next = Math.max(0, Number(holdMs) || 0) + Math.max(0, Number(deltaMs) || 0);
+  const capped = Math.min(MAX_ATTACK_CHARGE_MS, next);
+  return { holdMs: capped, progress: capped / MAX_ATTACK_CHARGE_MS, autoRelease: next >= MAX_ATTACK_CHARGE_MS };
+}
+
+/** 单次真实狐狸命中会清空蓄力并使之后到来的释放事件无效。 */
+export function interruptAttackCharge(state = {}) {
+  return { ...state, held: false, t: 0, pointerId: null, via: null, fired: null, interrupted: true };
+}
+
+/** 空中迎击只挂起一次；首次落地时消费并执行。 */
+export function resolvePendingAerialParry(pending = false, grounded = false) {
+  const execute = !!pending && !!grounded;
+  return { pending: !!pending && !execute, execute };
+}
+
 /**
- * 兼容主循环旧调用：hold 单位为秒，sprinting 为当前是否奔跑姿态。
+ * 兼容主循环旧调用：hold 单位为秒，保留 sprinting 参数以兼容旧调用。
  * cfg 可覆盖扑击阈值（秒）：{ heavyHold }（兼容旧键 { lungeHold }）。
- * 非奔跑时无论按多久都只返回推击 'tap'。
  */
 export function selectChargedMove(hold = 0, sprinting = false, cfg = {}) {
   const t = Math.max(0, Number(hold) || 0) * 1000;
   const pounceSec = clampNum(cfg.heavyHold ?? cfg.lungeHold, 0.1, Infinity, POUNCE_HOLD_MS / 1000);
-  return sprinting && t >= pounceSec * 1000 ? 'lunge' : 'tap';
+  return t >= pounceSec * 1000 ? 'lunge' : 'tap';
 }
 
 /**

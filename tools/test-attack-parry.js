@@ -1,7 +1,7 @@
 /**
  * 攻击键真实三招手势回归测试（纯逻辑，无需浏览器）：
- *   1. tap / 非奔跑长按松手          → 推击(tap)
- *   2. 奔跑中长按过扑击阈值松手       → 扑击(lunge)
+ *   1. 地面短按 / 阈值前松手          → 推击(tap)
+ *   2. 地面长按过扑击阈值松手         → 扑击(lunge)
  *   3. 左滑过阈                       → 立即迎击(stand)一次，松手不补招
  *   4. 右滑过阈                       → 立即翻滚(roll)一次，松手不补攻击
  *   5. 左右闩锁互斥：一次按住最多触发一个方向招式
@@ -21,7 +21,7 @@ const assert = require('node:assert/strict');
   assert.equal(ROLL_DRAG_THRESHOLD, 22);
   assert.equal(POUNCE_HOLD_MS, 650);
 
-  // 1) 点按 / 非奔跑长按 → 推击
+  // 1) 点按 / 阈值前地面松手 → 推击
   {
     const g = new AttackGesture(1, 0);
     const out = g.release(80);
@@ -30,19 +30,19 @@ const assert = require('node:assert/strict');
   }
   {
     const g = new AttackGesture(2, 0);
-    for (let t = 16; t <= 900; t += 16) assert.equal(g.update(0, 0, t), null);
-    const out = g.release(900);
-    assert.equal(resolveAttackRelease({ ...out, sprinting: false }), 'tap', '非奔跑长按 900ms 仍是推击');
+    for (let t = 16; t <= 500; t += 16) assert.equal(g.update(0, 0, t), null);
+    const out = g.release(500);
+    assert.equal(resolveAttackRelease({ ...out, grounded: true }), 'tap', '地面早松仍是推击');
   }
 
-  // 2) 奔跑长按 ≥650ms → 扑击；奔跑但不足阈值 → 推击
+  // 2) 地面长按 ≥650ms → 扑击；不足阈值 → 推击
   {
     const g = new AttackGesture(3, 0);
     const out = g.release(700);
-    assert.equal(resolveAttackRelease({ ...out, sprinting: true }), 'lunge');
+    assert.equal(resolveAttackRelease({ ...out, grounded: true }), 'lunge');
     const g2 = new AttackGesture(4, 0);
     const out2 = g2.release(500);
-    assert.equal(resolveAttackRelease({ ...out2, sprinting: true }), 'tap');
+    assert.equal(resolveAttackRelease({ ...out2, grounded: true }), 'tap');
   }
 
   // 3) 左滑 → 立即迎击；松手结算 null

@@ -1817,6 +1817,14 @@ body.touch-playing .version-tag { display: none; }
 }
 .touch-actions button[data-touch-action="attack"] b { font-size: 22px; }
 .touch-actions button[data-touch-action="attack"] small { font-size: 10px; }
+/* 触屏闲置时只保留中央爪心；按下显示完整图标与文字。桌面保持完整按钮艺术。 */
+.touch-mode .touch-actions button[data-touch-action="attack"]:not(.pressed) {
+  border-color: transparent; background: transparent; background-image: none; box-shadow: none;
+}
+.touch-mode .touch-actions button[data-touch-action="attack"] b,
+.touch-mode .touch-actions button[data-touch-action="attack"] small { opacity: 0; transition: opacity .12s ease; }
+.touch-mode .touch-actions button[data-touch-action="attack"].pressed b,
+.touch-mode .touch-actions button[data-touch-action="attack"].pressed small { opacity: 1; }
 /* 攻击键分两层：外圈=整圆渐变/光晕（按下缩放等升级动画仍绑在外圈 button 上），
    内圈=.attack-core 触发核心；尺寸/透明度由布局编辑面板经 CSS 变量
    --attack-core-scale / --attack-core-opacity 调节（持久化在 marmot.touch-layout.v1）。 */
@@ -1916,9 +1924,11 @@ body.touch-layout-editing .touch-controls { z-index: 41; }
   .cooldown-overlay { background: rgba(90,100,100,.72); clip-path: circle(50% at 50% 50%); }
 }
 
-.attack-charge-hint{position:fixed;right:calc(28px + var(--safe-right,0px));bottom:calc(168px + var(--safe-bottom,0px));display:none;gap:6px;z-index:45;pointer-events:none;}
+.attack-charge-hint{position:fixed;left:50%;bottom:calc(22px + var(--safe-bottom,0px));display:none;align-items:center;gap:9px;width:min(320px,68vw);z-index:45;pointer-events:none;transform:translateX(-50%);}
 .attack-charge-hint.visible{display:flex;}
-.attack-charge-hint .seg{font-style:normal;font-size:12px;padding:3px 10px;border-radius:14px;border:1px solid rgba(220,235,200,.35);background:rgba(12,24,16,.66);color:#9fb098;}
-.attack-charge-hint[data-tier="tap"] .s-tap,
-.attack-charge-hint[data-tier="stand"] .s-stand,
-.attack-charge-hint[data-tier="lunge"] .s-lunge{color:#fff3b0;border-color:#ffcf6b;background:rgba(120,86,30,.72);text-shadow:0 0 8px #ffcf6b;}
+.attack-charge-track{height:12px;flex:1;overflow:hidden;border:1px solid rgba(220,235,200,.55);border-radius:999px;background:rgba(12,24,16,.78);box-shadow:0 2px 8px #0009,inset 0 1px 3px #0008;}
+.attack-charge-fill{display:block;width:var(--charge-progress,0%);height:100%;border-radius:inherit;background:linear-gradient(90deg,#dba45e,#ffcf6b 62%,#f38a65);box-shadow:0 0 9px rgba(255,194,105,.6);transition:width .04s linear;}
+.attack-charge-label{min-width:58px;color:#fff1cb;font-size:11px;text-align:center;text-shadow:0 1px 3px #000;white-space:nowrap;}
+.attack-charge-hint.full .attack-charge-track{border-color:#ffe0a1;box-shadow:0 0 12px rgba(255,190,90,.75),0 2px 8px #0009;}
+.attack-charge-hint.full .attack-charge-fill{background:linear-gradient(90deg,#ffce6b,#fff0ad);box-shadow:0 0 14px #ffca5f;}
+.attack-charge-hint.full .attack-charge-label{color:#fff1a8;font-weight:800;}

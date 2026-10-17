@@ -16,13 +16,13 @@ const assert = require('node:assert/strict');
   assert.equal(ATTACK_DEAD_ZONE, 18);
   assert.ok(GESTURE_HORIZONTAL_RATIO > 1);
 
-  // —— 松手结算：普通松手恒为推击；只有奔跑长按过阈才是扑击 ——
+  // —— 地面松手结算：短按推击，蓄力过阈值扑击 ——
   assert.equal(resolveAttackRelease({ holdMs: 80 }), 'tap', '点按 → 推击');
-  assert.equal(resolveAttackRelease({ holdMs: 500 }), 'tap', '非奔跑长按 500ms 仍是推击（无中刺/重刺）');
-  assert.equal(resolveAttackRelease({ holdMs: 900 }), 'tap', '非奔跑长按 900ms 仍是推击');
-  assert.equal(resolveAttackRelease({ holdMs: 500, sprinting: true }), 'tap', '奔跑但未到扑击阈值 → 推击');
-  assert.equal(resolveAttackRelease({ holdMs: 650, sprinting: true }), 'lunge', '奔跑 650ms → 扑击');
-  assert.equal(resolveAttackRelease({ holdMs: 900, sprinting: true }), 'lunge', '奔跑长按 → 扑击');
+  assert.equal(resolveAttackRelease({ holdMs: 500 }), 'tap', '蓄力阈值前松手为推击');
+  assert.equal(resolveAttackRelease({ holdMs: 900 }), 'lunge', '地面长按过阈值为扑击');
+  assert.equal(resolveAttackRelease({ holdMs: 500, sprinting: true }), 'tap', '未到蓄力阈值 → 推击');
+  assert.equal(resolveAttackRelease({ holdMs: 650 }), 'lunge', '地面 650ms → 扑击');
+  assert.equal(resolveAttackRelease({ holdMs: 900, sprinting: true }), 'lunge', '地面长按 → 扑击');
   // 已触发左滑迎击 / 右滑翻滚后松手一律不补招。
   assert.equal(resolveAttackRelease({ holdMs: 80, fired: 'parry' }), null);
   assert.equal(resolveAttackRelease({ holdMs: 900, sprinting: true, fired: 'roll' }), null);
@@ -31,7 +31,7 @@ const assert = require('node:assert/strict');
   // —— 秒单位兼容入口 selectChargedMove ——
   assert.equal(selectChargedMove(0.08), 'tap');
   assert.equal(selectChargedMove(0.5), 'tap');
-  assert.equal(selectChargedMove(0.9, false), 'tap', '非奔跑站立长按也只是推击');
+  assert.equal(selectChargedMove(0.9, false), 'lunge', '地面长按过阈值为扑击');
   assert.equal(selectChargedMove(0.65, true), 'lunge');
   assert.equal(selectChargedMove(0.9, true), 'lunge');
   assert.equal(selectChargedMove(0.5, true), 'tap');

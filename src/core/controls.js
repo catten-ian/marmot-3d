@@ -169,6 +169,14 @@ export class FirstPersonController {
     }
   }
 
+  /** 请求受控快速落地：只调整竖直速度，不改位置或地面状态。 */
+  requestFastLanding(speed = 5.2) {
+    if (this.grounded) return false;
+    const fallSpeed = Math.max(0, Number(speed) || 0);
+    this.vy = Math.min(this.vy, -fallSpeed);
+    return true;
+  }
+
   /**
    * 跳跃。返回是否成功起跳。
    * 土拨鼠是挖掘动物，跳跃能力有限 —— 给一个短促的小跳，
