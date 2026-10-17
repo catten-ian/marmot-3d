@@ -1,26 +1,23 @@
 // ============================================================
 // 纯战斗输入选择（触屏 / 键盘 / 鼠标共用）
 // ============================================================
-// 攻击键是【唯一】的攻击 / 迎击入口（没有独立 parry 键）。
-// “按住升级三招”与“左滑迎击”的协调规则：
-//   tap  (< 120ms)                 轻击 → 短刺(tap)
-//   tap  (< 120ms) + dx ≤ -22px    tap 窗口内左滑 → 立即迎击(stand)，不等松手，松手不再出招
-//   hold 早松 (120-280ms)          短刺(tap)
-//   hold 中松 (280-650ms)          中刺(stand)
-//   hold 晚松 (> 650ms)            重刺(lunge)
-//   hold + dx ≤ -22px             hold 期间任意时刻左滑 → 立即迎击(stand)，
-//                                  parried 闩锁保证一次按住只触发一次，命中后松手不再出招
-// 迎击的左滑阈值就放在本文件（PARRY_DRAG_THRESHOLD），不要散落到通用 onAction 里。
-// 翻滚(dodge)是独立按键，不进这个选择器。
-
-export const ATTACK_MOVES = ['tap', 'dodge', 'stand', 'lunge'];
+// 攻击只有三种招式（ATTACK_MOVES）：
+//   tap   推击：点按 / 普通松手（非奔跑长按也落回推击，不存在第四种攻击）
+//   stand 迎击：按住攻击键【向左滑】过阈值立即触发（正面接住狐狸冲刺时反打）
+//   lunge 扑击：仅【奔跑中】长按达到扑击阈值，松手时触发
+// 翻滚(dodge)是移动动作、不是攻击：按住攻击键【向右滑】过阈值立即翻滚一次，
+// 或使用页面右侧独立的翻滚键；一次按住最多触发一个方向招式（左/右闩锁互斥）。
+//
+// 时间单位除特别注明外均为毫秒，距离为 CSS px。
+export const ATTACK_MOVES = ['tap', 'stand', 'lunge']; // 推击 / 迎击 / 扑击
 export const ATTACK_DEAD_ZONE = 18;
 
-// —— 攻击键手势时间 / 距离常量（时间为毫秒，距离为 CSS px）——
-export const TAP_MAX_MS = 120;          // 点按窗口
-export const SHORT_HOLD_MAX_MS = 280;   // 短刺上限：120-280ms 早松同为短刺
-export const MID_HOLD_MAX_MS = 650;     // 中刺上限：280-650ms；超过为重刺
-export const PARRY_DRAG_THRESHOLD = 22; // 迎击左滑阈值：dx ≤ -22px 立即迎击
+// —— 攻击键手势时间 / 距离常量 ——
+export const POUNCE_HOLD_MS = 650;        // 奔跑长按扑击阈值（沿用既有手感）
+export const PARRY_DRAG_THRESHOLD = 22;   // 迎击：左滑 dx ≤ -22px
+export const ROLL_DRAG_THRESHOLD = 22;    // 翻滚：右滑 dx ≥ +22px
+// 方向识别必须水平主导：|dx| 要明显大于 |dy|，纵向摇动不误触发迎击/翻滚。
+export const GESTURE_HORIZONTAL_RATIO = 1.1;
 
 const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 const clampNum = (v, lo, hi, fallback) => {
@@ -29,43 +26,36 @@ const clampNum = (v, lo, hi, fallback) => {
 };
 
 /**
- * 按住时长选招（毫秒输入，纯函数）：
- *   <280ms → tap 短刺；280-650ms → stand 中刺；≥650ms → lunge 重刺。
- * cfg 可覆盖阈值（毫秒）：{ shortHoldMs, heavyHoldMs }。
+ * 松手结算（毫秒输入，纯函数）：
+ *   - 本次按住已触发过左滑迎击或右滑翻滚（fired 非空）→ null，松手不补招；
+ *   - 奔跑中长按达到扑击阈值 → 'lunge'（扑击）；
+ *   - 其他一切情况（点按、早松、非奔跑长按）→ 'tap'（推击）。
  */
-export function selectHoldMove(holdMs = 0, cfg = {}) {
+export function resolveAttackRelease({ holdMs = 0, sprinting = false, fired = null, parried = false } = {}) {
+  if (fired || parried) return null;
   const t = Math.max(0, Number(holdMs) || 0);
-  const heavyMs = clampNum(cfg.heavyHoldMs, MID_HOLD_MAX_MS, Infinity, MID_HOLD_MAX_MS);
-  const shortMs = clampNum(cfg.shortHoldMs, 0, heavyMs, SHORT_HOLD_MAX_MS);
-  if (t >= heavyMs) return 'lunge';
-  if (t >= shortMs) return 'stand';
+  if (sprinting && t >= POUNCE_HOLD_MS) return 'lunge';
   return 'tap';
 }
 
 /**
- * 松手结算：迎击已通过左滑即时触发后，松手不再出攻击招（返回 null）。
+ * 兼容主循环旧调用：hold 单位为秒，sprinting 为当前是否奔跑姿态。
+ * cfg 可覆盖扑击阈值（秒）：{ heavyHold }（兼容旧键 { lungeHold }）。
+ * 非奔跑时无论按多久都只返回推击 'tap'。
  */
-export function resolveAttackRelease({ holdMs = 0, parried = false } = {}) {
-  return parried ? null : selectHoldMove(holdMs);
-}
-
-/**
- * 兼容旧调用：hold 单位为秒；sprinting 参数已废弃（重刺不再要求奔跑姿态），
- * 仅为保持调用签名而保留。cfg 支持新键（秒）：{ shortHold, heavyHold }，
- * 同时兼容旧的 { parryHold, lungeHold }。
- */
-export function selectChargedMove(hold = 0, _sprinting = false, cfg = {}) {
+export function selectChargedMove(hold = 0, sprinting = false, cfg = {}) {
   const t = Math.max(0, Number(hold) || 0) * 1000;
-  const shortSec = cfg.shortHold ?? cfg.parryHold ?? SHORT_HOLD_MAX_MS / 1000;
-  const heavySec = cfg.heavyHold ?? cfg.lungeHold ?? MID_HOLD_MAX_MS / 1000;
-  return selectHoldMove(t, { shortHoldMs: shortSec * 1000, heavyHoldMs: heavySec * 1000 });
+  const pounceSec = clampNum(cfg.heavyHold ?? cfg.lungeHold, 0.1, Infinity, POUNCE_HOLD_MS / 1000);
+  return sprinting && t >= pounceSec * 1000 ? 'lunge' : 'tap';
 }
 
 /**
- * 攻击键单指手势状态机：一次按下一个实例。
- * update() 在左滑跨过 PARRY_DRAG_THRESHOLD 的那一帧返回迎击 ctx
- * （{ pointerId, tStart, tNow }），parried 闩锁保证同一次按住只 fire 一次；
- * release() 输出 { holdMs, parried, dx, dy } 供松手结算。
+ * 攻击键单指手势状态机：一次按下一个实例，pointerId 归属手指。
+ * update() 返回跨阈值当帧的事件 { kind: 'parry' | 'roll', pointerId, tStart, tNow, dx, dy }：
+ *   dx ≤ -PARRY_DRAG_THRESHOLD 且水平主导 → 'parry'（迎击）
+ *   dx ≥ +ROLL_DRAG_THRESHOLD 且水平主导  → 'roll'（翻滚）
+ * fired 闩锁保证一次按住最多触发一个方向招式，且只触发一次。
+ * release() 输出 { holdMs, fired, parried, rolled, dx, dy } 供松手结算。
  */
 export class AttackGesture {
   constructor(pointerId, tNow = nowMs()) {
@@ -74,33 +64,54 @@ export class AttackGesture {
     this.tNow = tNow;
     this.dx = 0;
     this.dy = 0;
-    this.parried = false;
+    this.fired = null; // null | 'parry' | 'roll'
   }
 
-  /** 拖动更新：dx 为相对按下起点的水平位移（屏幕坐标，左负右正）。跨阈值当帧返回 ctx，否则 null。 */
+  get parried() { return this.fired === 'parry'; }
+  get rolled() { return this.fired === 'roll'; }
+
+  /** 拖动更新：dx 相对按下起点的水平位移（左负右正），dy 竖直位移（下正上负）。 */
   update(dx = this.dx, dy = this.dy, tNow = nowMs()) {
     this.dx = Number(dx) || 0;
     this.dy = Number(dy) || 0;
     this.tNow = tNow;
-    if (!this.parried && this.dx <= -PARRY_DRAG_THRESHOLD) {
-      this.parried = true;
-      return this.context();
+    if (this.fired) return null; // 闩锁：本次按住已出过一个方向招式
+    const horizontal = Math.abs(this.dx) >= Math.abs(this.dy) * GESTURE_HORIZONTAL_RATIO;
+    if (horizontal && this.dx <= -PARRY_DRAG_THRESHOLD) {
+      this.fired = 'parry';
+      return this.context('parry');
+    }
+    if (horizontal && this.dx >= ROLL_DRAG_THRESHOLD) {
+      this.fired = 'roll';
+      return this.context('roll');
     }
     return null;
   }
 
-  context() {
-    return { pointerId: this.pointerId, tStart: this.tStart, tNow: this.tNow };
+  context(kind = this.fired) {
+    return {
+      kind,
+      pointerId: this.pointerId,
+      tStart: this.tStart,
+      tNow: this.tNow,
+      dx: this.dx,
+      dy: this.dy,
+    };
   }
 
-  /** 松手：返回按住时长（毫秒）、是否已迎击、末次位移。 */
+  /** 松手：返回按住时长（毫秒）、已触发的方向招式、末次位移。 */
   release(tNow = nowMs()) {
     this.tNow = tNow;
-    return { holdMs: Math.max(0, tNow - this.tStart), parried: this.parried, dx: this.dx, dy: this.dy };
+    return {
+      holdMs: Math.max(0, tNow - this.tStart),
+      fired: this.fired,
+      parried: this.parried,
+      rolled: this.rolled,
+      dx: this.dx,
+      dy: this.dy,
+    };
   }
 }
-
-// 兼容旧引用：四向手势轮盘已废弃。
 
 // 翻滚方向：优先当前实际移动方向（速度方向），否则用身体朝向。
 // 返回归一化 {x,z} 与是否朝身体后方。

@@ -2,48 +2,15 @@ import { SANDBOX_DIFFICULTIES, SANDBOX_TYPES } from './state.js';
 
 const typeLabels = { normal: '普通', fast: '疾行', heavy: '厚皮', pup: '幼狐', boss: '首领' };
 
-// 沙盒浮动触屏按钮：挂在 #sandboxTouchLayer 里，由 TouchLayout 统一布局/调尺寸/透明度。
-// 测试面板（.sandbox-controls）里保留同一套 data-sandbox-action 按钮供鼠标调试，
-// TouchLayout 只接管浮动层内的按钮，两者互不影响。
-export const SANDBOX_TOUCH_ACTIONS = [
-  { id: 'refill', label: '回满', title: '回满生命 / 储备' },
-  { id: 'clearStress', label: '减压', title: '清零应激' },
-  { id: 'charge', label: '满大', title: '充满大招' },
-  { id: 'resetFood', label: '食物', title: '重置食物' },
-  { id: 'spawnOne', label: '+1狐', title: '前方生成 1 只' },
-  { id: 'spawnGroup', label: '+群狐', title: '前方生成一群' },
-  { id: 'clearFoxes', label: '清狐', title: '清除全部狐狸' },
-];
-
-function setupSandboxTouchLayer(onAction) {
-  let layer = document.getElementById('sandboxTouchLayer');
-  if (!layer) {
-    layer = document.createElement('div');
-    layer.id = 'sandboxTouchLayer';
-    layer.className = 'sandbox-touch-layer';
-    layer.innerHTML = SANDBOX_TOUCH_ACTIONS
-      .map((a) => `<button type="button" data-sandbox-action="${a.id}" title="${a.title}" aria-label="${a.title}">${a.label}</button>`)
-      .join('');
-    document.body.appendChild(layer);
-    // 编辑布局时 TouchLayout 会在捕获阶段截下点击；非编辑态才走到这里触发动作。
-    layer.addEventListener('click', (event) => {
-      const action = event.target.closest('[data-sandbox-action]')?.dataset.sandboxAction;
-      if (action) onAction?.(action);
-    });
-  }
-  return layer;
-}
-
 export function setupSandboxPanel({ root, state, onAction, onChange }) {
   if (!root) return null;
   const existing = root.querySelector('.sandbox-controls');
   if (existing) existing.remove();
-  setupSandboxTouchLayer(onAction);
   const section = document.createElement('section');
   section.className = 'sandbox-controls';
   section.innerHTML = `
     <div class="sandbox-heading">自由测试沙盒</div>
-    <div class="sandbox-subline">无关卡 · 无时间限制 · 不计入正式进度<br>沙盒快捷按钮浮在屏幕左侧，可在「设置 → 触屏技能盘」里拖动 / 调大小与透明度</div>
+    <div class="sandbox-subline">无关卡 · 无时间限制 · 不计入正式进度</div>
     <label class="test-toggle"><input id="sandboxGodMode" type="checkbox"> 无敌</label>
     <label class="test-toggle"><input id="sandboxFreezeTimer" type="checkbox" checked> 冻结 / 关闭计时</label>
     <label class="test-toggle"><input id="sandboxParryDrill" type="checkbox"> 迎击练习（单狐正面冲刺，击退即重来）</label>

@@ -134,7 +134,7 @@ export class ViewModel {
         const L = p.userData.left, R = p.userData.right;
         if (L && R) { L.position.x = -0.03; R.position.x = 0.03; L.rotation.z = 0.5 * ease; R.rotation.z = -0.5 * ease; }
       } else if (moveType === 'lunge') {
-        // 扑咬：身体大幅前探、双爪前伸下压（明显的“扑”）。
+        // 扑击：身体大幅前探、双爪前伸下压（明显的“扑”）。
         p.position.z -= ease * 0.22;
         p.position.y += ease * 0.05;
         p.rotation.x -= ease * 0.62;

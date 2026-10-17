@@ -65,6 +65,7 @@ import { cooldownOverlayData } from './ui/cooldown-overlay.js';
 import { createSandboxState, SANDBOX_LEVEL } from './sandbox/state.js';
 import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
 import { setupSandboxPanel } from './sandbox/panel.js';
+import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 
 // ============================================================
 // 初始化
@@ -996,8 +997,8 @@ function strike(move = 'tap', { fromParryGesture = false } = {}) {
   const s = combatStats(game);
   const running = isSprintingNow();
 
-  // 重刺（按住 >0.65s 松手）站立/奔跑皆可；奔跑中出招时自动停步、强制起身。
-  // 迎击站立/奔跑都可用；奔跑中使用时自动停步、强制起身（进入站立迎击）。
+  // 迎击（按住攻击键左滑）站立/奔跑都可用；奔跑中迎击自动停步、强制起身。
+  // 扑击(lunge)只在奔跑长按后出现，保留前冲惯性，不停步。
   if (move === 'stand' && running) {
     controller.velocity.set(0, controller.velocity.y, 0);
     controller.externalVelocity.multiplyScalar(0.2);
@@ -1025,7 +1026,7 @@ function strike(move = 'tap', { fromParryGesture = false } = {}) {
   playerAttackDur = Math.max(0.28, wheel.recovery || 0.2) + 0.18;
   playerAttackT = playerAttackDur;
 
-  // 迎击无敌帧窗口只由“按住左滑”的即时迎击开启；蓄力中松手出的中刺不再附带迎击窗口。
+  // 迎击无敌帧窗口只由“按住左滑”的即时迎击开启；推击/扑击都不附带迎击窗口。
   if (move === 'stand' && fromParryGesture) parryWindowT = Math.max(parryWindowT, wheel.parryWindow || 0.3);
 
   controller.forwardFlat(_fwd);
@@ -1066,15 +1067,15 @@ function strike(move = 'tap', { fromParryGesture = false } = {}) {
 // 迎击练习：狐狸被击退后立即在玩家正前方重新出现，不逃跑、不计驱退/回能。
 function scheduleDrillReset(f) {
   if (!f) return;
-  const pyaw = controller.bodyYaw;
-  const dist = 7;
+  // 坐标/朝向必须在 setTimeout 之前捕获（旧实现回调里引用了不存在的变量 p，350ms 后必崩）。
+  const pose = drillRespawnPose({
+    px: controller.position.x, pz: controller.position.z, yaw: controller.bodyYaw,
+  });
   setTimeout(() => {
     if (!sandboxState.parryDrill) return;
-    f.respawnAt(p.x + (-Math.sin(pyaw)) * dist, p.z + (-Math.cos(pyaw)) * dist);
-    f.hp = f.maxHp;
-    f.state = 'roam';
-    // 清掉迎击击退的残留动量，否则复位瞬间会滑行偏移。
-    f.knockbackVX = 0; f.knockbackVZ = 0; f.leap = 0;
+    f.respawnAt(pose.x, pose.z);
+    // 复位血量、状态与击退残留动量，否则复位瞬间会滑行偏移。
+    resetDrillFox(f);
     f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.bodyYaw };
   }, 350);
 }
@@ -1279,7 +1280,7 @@ function update(dt) {
   game.attackMoveLock = Math.max(0, game.attackMoveLock - dt);
   controller.movementLocked = game.attackMoveLock > 0;
   // 攻击键蓄力计时与动作/翻滚/迎击窗口衰减。
-  if (attackCharge.held) { attackCharge.t += dt; setAttackHint(attackCharge.t); }
+  if (attackCharge.held) { attackCharge.t += dt; setAttackHint(attackCharge.t, isSprintingNow()); }
   if (controller.rollT > 0) controller.rollT = Math.max(0, controller.rollT - dt);
   if (parryWindowT > 0) parryWindowT = Math.max(0, parryWindowT - dt);
   if (playerAttackT > 0) {
@@ -1514,7 +1515,7 @@ function update(dt) {
     const L = arms.left, R = arms.right;
     L.rotation.x = 0; R.rotation.x = 0; L.rotation.z = 0; R.rotation.z = 0;
     if (playerAttackAnim === 'lunge') {
-      // 扑咬：前肢大前伸（绕本地 X 向前抬）+ 身体下压
+      // 扑击：前肢大前伸（绕本地 X 向前抬）+ 身体下压
       L.rotation.x = -1.2 * atkK; R.rotation.x = -1.2 * atkK;
       playerBody.rotation.x -= 0.35 * atkK;
     } else if (playerAttackAnim === 'stand') {
@@ -1580,23 +1581,26 @@ const binds = new Keybinds();
 
 let mouseDown = false;
 let touchControls = null;
-// 攻击键“按住升级”状态：按下记录时间，帧循环累加，松开按当前蓄力档位出招。
-const attackCharge = { held: false, t: 0, pointerId: null, via: null, parried: false };
+// 攻击键按住状态：按下记录时间，帧循环累加，松开按真实三招语义结算。
+// fired: null | 'parry'（左滑迎击已即时触发）| 'roll'（右滑翻滚已即时触发）。
+const attackCharge = { held: false, t: 0, pointerId: null, via: null, fired: null };
 // 首次点击用于捕获鼠标指针时，把这次攻击记下来，等锁定成功后补上
 let pendingClickAttack = false;
 let pendingClickTimer = 0;
 // 攻击蓄力提示环（贴在攻击键上的三段档位）
 const attackHint = document.createElement('div');
 attackHint.className = 'attack-charge-hint';
-attackHint.innerHTML = '<b class="seg s-tap">短刺</b><b class="seg s-stand">中刺</b><b class="seg s-lunge">重刺</b>';
+// 攻击只有三种招式：推击 / 迎击 / 扑击（翻滚是移动动作，不在攻击提示里）。
+attackHint.innerHTML = '<b class="seg s-tap">推击</b><b class="seg s-stand">迎击</b><b class="seg s-lunge">扑击</b>';
 attackHint.setAttribute('aria-hidden', 'true');
 document.body.appendChild(attackHint);
-function setAttackHint(hold = 0) {
+function setAttackHint(hold = 0, sprinting = isSprintingNow()) {
   const cfg = PLAYER.combatWheel.charge;
-  let tier = 'tap';
-  if (hold >= cfg.heavyHold) tier = 'lunge';
-  else if (hold >= cfg.shortHold) tier = 'stand';
-  attackHint.classList.toggle('visible', attackCharge.held);
+  // 普通按住/点按松手都是推击；只有奔跑中长按超过扑击阈值才进入扑击；
+  // 迎击由左滑即时触发（triggerParryGesture 会把 tier 置为 stand）。
+  const tier = (sprinting && hold >= cfg.heavyHold) ? 'lunge' : 'tap';
+  // 左滑迎击/右滑翻滚已即时触发后，本次按住的剩余时间不再显示蓄力提示。
+  attackHint.classList.toggle('visible', attackCharge.held && !attackCharge.fired);
   attackHint.dataset.tier = tier;
 }
 function hideAttackHint() {
@@ -1611,40 +1615,56 @@ function beginAttack(via, pointerId = null) {
   attackCharge.t = 0;
   attackCharge.pointerId = pointerId;
   attackCharge.via = via;
-  attackCharge.parried = false;
+  attackCharge.fired = null;
   setAttackHint(0);
 }
 function releaseAttack() {
   if (!attackCharge.held) return;
   const hold = attackCharge.t;
-  const wasParried = attackCharge.parried;
+  const fired = attackCharge.fired;
   attackCharge.held = false;
   attackCharge.t = 0;
   attackCharge.pointerId = null;
   attackCharge.via = null;
-  attackCharge.parried = false;
+  attackCharge.fired = null;
   hideAttackHint();
   if (game.mode !== 'play') return;
-  // 迎击已在左滑跨阈时即时触发，本次松手不再出攻击招。
-  if (wasParried) return;
+  // 左滑迎击 / 右滑翻滚都已在跨阈时即时触发，本次松手不再补招。
+  if (fired) return;
+  // 只有三种攻击：普通松手（含非奔跑长按）= 推击；奔跑中长按过阈 = 扑击。
   const move = selectChargedMove(hold, isSprintingNow(), PLAYER.combatWheel.charge);
   strike(move);
 }
 
 /**
- * 攻击键“按住左滑”迎击：dx ≤ -PARRY_DRAG_THRESHOLD 当帧由触控层回调，
- * 不等待松手立即出招。AttackGesture 自身有一次按住一次的闩锁，
- * 这里再按当前蓄力指针去重（只接受正在蓄力的那根手指）。
+ * 攻击键“按住左滑”迎击：左滑跨阈值当帧由触控层回调，不等待松手立即出招。
+ * AttackGesture 自身有一次按住只出一个方向招式的闩锁，这里再按当前蓄力
+ * 指针去重（只接受正在按住攻击键的那根手指，其他手指不结算此攻击）。
  * 沙盒模式额外弹一次“迎击成功”提示；正式模式走 strike('stand')
  * 原有的无敌帧窗口 + 正面反击逻辑（沙盒迎击练习同样依赖该窗口，故也执行）。
  */
 function triggerParryGesture(ctx) {
   if (game.mode !== 'play') return;
-  if (!ctx || !attackCharge.held || attackCharge.parried) return;
+  if (!ctx || !attackCharge.held || attackCharge.fired) return;
   if (attackCharge.pointerId !== ctx.pointerId) return;
-  attackCharge.parried = true;
+  attackCharge.fired = 'parry';
+  attackHint.dataset.tier = 'stand';
   if (game.sandbox) hud.say('迎击成功', 1.2);
   strike('stand', { fromParryGesture: true });
+}
+
+/**
+ * 攻击键“按住右滑”翻滚：右滑跨阈值当帧立即翻滚一次（复用既有 doRoll 动作），
+ * 方向按右滑向量相对当前相机换算；本次松手不再补打攻击。
+ * 不新增任何翻滚按钮——右侧独立翻滚键仍然保留。
+ */
+function triggerRollGesture(ctx) {
+  if (game.mode !== 'play') return;
+  if (!ctx || !attackCharge.held || attackCharge.fired) return;
+  if (attackCharge.pointerId !== ctx.pointerId) return;
+  attackCharge.fired = 'roll';
+  hideAttackHint();
+  doRoll({ moved: true, dx: ctx.dx, dy: ctx.dy });
 }
 // 是否处于奔跑姿态：疾跑按键 / 触屏疾跑 / 身体俯伏超过阈值。
 function isSprintingNow() {
@@ -1664,6 +1684,7 @@ touchControls = new TouchControls({
   stick: document.getElementById('touchStick'),
   isActive: () => game.mode === 'play',
   onParryGesture: (ctx) => triggerParryGesture(ctx),
+  onRollGesture: (ctx) => triggerRollGesture(ctx),
   onAction: (action, pressed, pointerId, gesture) => {
     if (action === 'attack') {
       if (pressed) beginAttack('touch', pointerId);
@@ -1870,6 +1891,10 @@ touchLayout.setPauseHooks({
   resume: () => { if (game.mode === 'pause') resume(); },
   isPaused: () => game.mode !== 'play',
 });
+// 疾跑触发范围：布局数据是唯一持久化来源，触控层实时消费；滑块变化经回调即时生效。
+touchControls.setSprintThreshold(touchLayout.layout.joystick.sprintThreshold);
+touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
+
 const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI);
 
 // 开发测试面板通过 ?test=1 显式启用，不进入普通用户界面。
@@ -1966,7 +1991,7 @@ const sandboxPanelUI = setupSandboxPanel({
         clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
         const f = spawnSandboxFox('normal');
         if (f) { f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.bodyYaw }; }
-        hud.say('迎击练习：等狐狸正面冲刺时用迎击（按住攻击到“迎击”档）顶回去', 3.2);
+        hud.say('迎击练习：等狐狸正面冲刺时，按住攻击键向左滑出迎击顶回去', 3.2);
       } else {
         foxes.forEach((f) => delete f.drillCtx);
       }
@@ -1974,8 +1999,6 @@ const sandboxPanelUI = setupSandboxPanel({
     if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; }); }
   },
 });
-// 沙盒浮动按钮在上面的面板里创建，晚于 TouchLayout 构造，这里补绑到布局编辑系统。
-touchLayout.collectSandboxButtons();
 
 function updateCooldownButtons() {
   for (const id of ['burst', 'ultimate']) {
@@ -2009,7 +2032,7 @@ function syncHelpKeys() {
     <div class="keys">
       <span><kbd>鼠标</kbd> 视角</span>
       ${movement}
-      <span><kbd>${get('attack')}</kbd> 攻击（可按住）</span>
+      <span><kbd>${get('attack')}</kbd> 攻击：松手推击 · 奔跑长按扑击 · 按住左滑迎击 · 按住右滑翻滚</span>
       <span><kbd>${get('jump')}</kbd> 或 <kbd>鼠标右键</kbd> 跳跃</span>
       <span><kbd>${get('burst')}</kbd> 应急爆发</span>
       <span><kbd>${get('ultimate')}</kbd> 协同大招</span>

@@ -253,9 +253,8 @@ export class FirstPersonController {
         speedScale: 1,
       };
       if (this.thirdPerson) {
-        // 第三人称“滑向哪就跑向哪”：推杆时镜头与身体同步对准屏幕方向；
-        // 但右手正在拉视角时保留用户环视机位，不被推杆拽回。
-        if (Number.isFinite(drive.cameraYaw) && !this.touchLookActive) this.yaw = wrapAngle(drive.cameraYaw);
+        // 第三人称：摇杆只决定身体朝向/移动方向，镜头 yaw 永远不被摇杆回写。
+        // 相机视角只由右手 #touchLookZone 指针（或键鼠视角）改变，两指并行互不抢权。
         this.moveFacingYaw = this.bodyYaw;
       } else if (this.touchLookActive) {
         // 拉视角中：镜头保持在手指拖到的位置，身体按摇杆独立转向，松手后再平滑追上。

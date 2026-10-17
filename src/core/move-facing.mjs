@@ -42,12 +42,13 @@ export function wrapAngle(a) {
  * - 后拉：平滑 U-turn 到镜头后方，掉头后继续向前跑（没有后退步）。
  *
  * 第三人称（thirdPerson=true）：“滑向哪就跑向哪”。
- * - 摇杆屏幕方向（x 右正、y 上正）经当前镜头朝向旋转后直接成为世界移动方向，
- *   bodyYaw 即时对准该方向，cameraYaw 同步对准（镜头始终在身后）；
+ * - 摇杆屏幕方向（x 右正、y 上正）经【当前镜头朝向】旋转后直接成为世界移动方向，
+ *   bodyYaw 即时对准该方向，旱獭朝移动方向转身；
  * - throttle 由推杆距离 mag 决定；横推 = 真的朝左/右跑，不再画圈；
- * - 后拉自然映射为 cameraYaw+π（朝镜头后方掉头），不需要专门的 U-turn 状态。
+ * - 后拉自然映射为 cameraYaw+π（朝镜头后方跑），不需要专门的 U-turn 状态。
  *
- * 输出新增 cameraYaw 字段：第三人称下为同步后的镜头朝向，其余路径原样回传。
+ * 关键：第三人称下摇杆【绝不驱动镜头】。cameraYaw 原样回传，镜头 yaw 只允许
+ * 由 #touchLookZone 右手 look 指针（或键鼠视角）改变——移动与环视是两根独立指针。
  */
 export function resolveTouchDrive(input) {
   const {
@@ -70,17 +71,17 @@ export function resolveTouchDrive(input) {
   let nextUTurn = uTurn;
 
   if (thirdPerson) {
-    // 屏幕向量(x,y)（y 上为正）按当前镜头 yaw 旋转成世界向量：
+    // 屏幕向量(x,y)（y 上为正）按【当前镜头】yaw 旋转成世界向量：
     // yaw=0（相机朝 -Z）时，屏幕正上 → 世界 -Z，屏幕正右 → 世界 +X。
     const wx = Math.cos(cameraYaw) * x + Math.sin(cameraYaw) * y;
     const wz = Math.sin(cameraYaw) * x - Math.cos(cameraYaw) * y;
     // Three.js 约定 forward=(-sin yaw,-cos yaw)，故 yaw=atan2(wx,-wz)。
     nextYaw = Math.atan2(wx, -wz);
-    // 镜头与身体同步：滑向哪，镜头立刻转到哪（后拉即朝向 cameraYaw+π）。
-    nextCameraYaw = nextYaw;
+    // 只转身/移动，不动镜头：cameraYaw 必须原样回传。
+    // 镜头 yaw 只由右手 lookZone（或键鼠视角）改变，摇杆推到任何方向都不得回写。
     throttle = Math.min(1, mag);
     nextUTurn = false;
-    return { bodyYaw: wrapAngle(nextYaw), throttle, uTurn: false, finishedTurn, cameraYaw: wrapAngle(nextCameraYaw) };
+    return { bodyYaw: wrapAngle(nextYaw), throttle, uTurn: false, finishedTurn, cameraYaw };
   }
 
   if (y < -0.35) {

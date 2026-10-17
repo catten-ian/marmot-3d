@@ -94,12 +94,13 @@ export const PLAYER = {
     },
     dodge: { damageMul: 0, cost: 3, distance: 2.2, invuln: 0.42, recovery: 0.12 },
     stand: { damageMul: 1.8, cost: 4, stun: 1.2, lock: 0.4, knockback: 2.8, recovery: 0.35,
-      // 迎击：在狐狸冲刺接触前的短暂窗口内正面迎上，抵消伤害并反打。
+      // 迎击（攻击键按住左滑）：在狐狸冲刺接触前的短暂窗口内正面迎上，抵消伤害并反打。
       parryWindow: 0.3, parryHalfAngle: 80 * Math.PI / 180 },
+    // 扑击：仅奔跑中长按攻击键达到 heavyHold 秒后松手触发。
     lunge: { damageMul: 1.45, cost: 4, distance: 2.8, recovery: 0.42 },
-    // 攻击键“按住升级”的蓄力时间阈值（秒）：点按/早松(<0.28)→短刺；
-    // 0.28-0.65→中刺；≥0.65→重刺。迎击不再看蓄力时长，改为按住时左滑（见 combat-wheel PARRY_DRAG_THRESHOLD）。
-    charge: { shortHold: 0.28, heavyHold: 0.65 },
+    // 攻击只有三种招式：推击(tap) / 迎击(stand，按住左滑) / 扑击(lunge，奔跑长按)。
+    // heavyHold = 奔跑长按扑击阈值（秒）；非奔跑长按不产生第四招，松手落回推击。
+    charge: { heavyHold: 0.65 },
   },
 };
 

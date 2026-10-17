@@ -1,8 +1,9 @@
 import { isTouchPrimary } from './performance.js';
 import { AttackGesture } from './combat-wheel.mjs';
-
-// 摇杆推过该归一化距离即进入疾跑（取代独立疾跑按钮）。
-const SPRINT_STICK_THRESHOLD = 0.78;
+import {
+  SPRINT_STICK_THRESHOLD,
+  clampSprintThreshold,
+} from './touch-settings.mjs';
 
 /**
  * 触屏输入层。
@@ -11,7 +12,7 @@ const SPRINT_STICK_THRESHOLD = 0.78;
  * 同时提供传统 Touch Events 路径，优先用 Touch Events 驱动手指操作。
  */
 export class TouchControls {
-  constructor({ canvas, controller, root, lookZone, joystick, stick, onAction, onParryGesture, isActive }) {
+  constructor({ canvas, controller, root, lookZone, joystick, stick, onAction, onParryGesture, onRollGesture, isActive }) {
     this.canvas = canvas;
     this.controller = controller;
     this.root = root;
@@ -20,6 +21,7 @@ export class TouchControls {
     this.stick = stick;
     this.onAction = onAction;
     this.onParryGesture = onParryGesture;
+    this.onRollGesture = onRollGesture;
     this.isActive = isActive;
 
     this.lookPointer = null;
@@ -31,6 +33,8 @@ export class TouchControls {
     this.dodgePointers = new Map();
     this.move = { x: 0, y: 0, mag: 0 };
     this.maxStick = 48;
+    // 疾跑触发范围（摇杆归一化行程阈值），可由设置面板实时调整。
+    this.sprintThreshold = clampSprintThreshold(SPRINT_STICK_THRESHOLD);
     this.enabled = isTouchPrimary();
 
     // 老 X5 / Android WebView 对 Touch Events 的支持最稳定。
@@ -41,7 +45,35 @@ export class TouchControls {
 
     if (!root || !lookZone || !joystick || !stick) return;
     this._bind();
+    this._applySprintRing();
     if (this.enabled) this._apply();
+  }
+
+  /**
+   * 调整疾跑触发范围（归一化行程，0.55-0.95），立即生效：
+   * 疾跑判定与可视档位环同步更新；布局层负责持久化。
+   */
+  setSprintThreshold(v) {
+    this.sprintThreshold = clampSprintThreshold(v);
+    this._applySprintRing();
+    // 手指正推在杆上时，立刻按新阈值重算疾跑状态，无需等下一帧移动。
+    if (this.movePointer !== null) {
+      const wantSprint = this.move.mag >= this.sprintThreshold;
+      this.controller.touchSprint = wantSprint;
+      this.joystick.classList.toggle('stick-sprint', wantSprint);
+    }
+  }
+
+  /** 档位环半径(px) = 阈值 × 归一化满行程(maxStick)，与疾跑判定同一口径。 */
+  _applySprintRing() {
+    if (!this.joystick) return;
+    const radius = this.sprintThreshold * this.maxStick;
+    const radiusPx = `${radius.toFixed(2)}px`;
+    // 用预先计算的长度避免 CSS `calc(2 * var(...))`：老 QQ/微信 X5
+    // 可能不支持乘法 calc，但自定义属性中的具体 px 长度可直接解析。
+    this.joystick.style.setProperty('--stick-sprint-radius', radiusPx);
+    this.joystick.style.setProperty('--stick-sprint-size', `${(radius * 2).toFixed(2)}px`);
+    this.joystick.style.setProperty('--stick-sprint-offset', `${(-radius).toFixed(2)}px`);
   }
 
   /** 激活触控模式（幂等）。可由加载时判定或首次真实触摸调用。 */
@@ -286,18 +318,27 @@ export class TouchControls {
   }
 
   /**
-   * 攻击键按住中的拖动：更新位移；左滑跨过阈值的当帧通过 onParryGesture
-   * 立即触发一次迎击（AttackGesture 内部闩锁保证一次按住只触发一次）。
-   * silent=true 用于 touchend 兜底位移：只更新状态/可能触发迎击，不再补发按下回调。
+   * 攻击键按住中的拖动：更新位移；水平主导且跨过方向阈值的当帧，
+   * 左滑通过 onParryGesture 立即触发一次迎击，右滑通过 onRollGesture
+   * 立即触发一次翻滚（AttackGesture 闩锁保证一次按住最多触发一个方向招式）。
+   * silent=true 用于 touchend 兜底位移：只更新状态/可能触发招式，不再补发按下回调。
    */
   _trackAttackMove(pointerId, clientX, clientY, silent = false) {
     const a = this.attackPointers.get(pointerId);
     if (!a) return;
     const dx = clientX - a.x;
     const dy = clientY - a.y;
-    const parryCtx = a.update(dx, dy);
-    if (parryCtx && this.onParryGesture) this.onParryGesture(parryCtx);
-    if (!silent) this.onAction('attack', true, pointerId, { dx, dy, moved: Math.hypot(dx, dy) > 18, parried: a.parried });
+    const ev = a.update(dx, dy);
+    if (ev) {
+      if (ev.kind === 'parry' && this.onParryGesture) this.onParryGesture(ev);
+      if (ev.kind === 'roll' && this.onRollGesture) this.onRollGesture(ev);
+    }
+    if (!silent) {
+      this.onAction('attack', true, pointerId, {
+        dx, dy, moved: Math.hypot(dx, dy) > 18,
+        fired: a.fired, parried: a.parried, rolled: a.rolled,
+      });
+    }
   }
 
   _isTouchPointer(event) {
@@ -349,7 +390,7 @@ export class TouchControls {
     this.move.y = y;
     // 疾跑由摇杆拖动距离决定（取代独立疾跑按钮）：推过档位环即疾跑。
     this.move.mag = Math.min(1, magnitude);
-    const wantSprint = this.move.mag >= SPRINT_STICK_THRESHOLD;
+    const wantSprint = this.move.mag >= this.sprintThreshold;
     this.controller.touchSprint = wantSprint;
     this.joystick.classList.toggle('stick-sprint', wantSprint);
     this.stick.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
@@ -383,7 +424,10 @@ export class TouchControls {
         data = { dx: g.dx, dy: g.dy, moved: Math.hypot(g.dx, g.dy) > 22 };
       } else if (a) {
         const out = a.release();
-        data = { dx: out.dx, dy: out.dy, moved: Math.hypot(out.dx, out.dy) > 18, parried: out.parried, holdMs: out.holdMs };
+        data = {
+          dx: out.dx, dy: out.dy, moved: Math.hypot(out.dx, out.dy) > 18,
+          holdMs: out.holdMs, fired: out.fired, parried: out.parried, rolled: out.rolled,
+        };
       } else {
         data = { dx: 0, dy: 0, moved: false };
       }
