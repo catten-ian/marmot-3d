@@ -989,15 +989,14 @@ let playerAttackDur = 1;
 let parryWindowT = 0;
 
 /** 攻击：扇形范围判定，原版是圆形范围，第一人称下改为朝向前方扇形更合理 */
-function strike(move = 'tap') {
+function strike(move = 'tap', { fromParryGesture = false } = {}) {
   const p = game.player;
   if (game.attackCD > 0 || game.inBurrow || game.observing) return false;
   const wheel = PLAYER.combatWheel[move] || PLAYER.combatWheel.tap;
   const s = combatStats(game);
   const running = isSprintingNow();
 
-  // 扑咬仅奔跑姿态可用：非奔跑时降级为推击。
-  if (move === 'lunge' && !running) move = 'tap';
+  // 重刺（按住 >0.65s 松手）站立/奔跑皆可；奔跑中出招时自动停步、强制起身。
   // 迎击站立/奔跑都可用；奔跑中使用时自动停步、强制起身（进入站立迎击）。
   if (move === 'stand' && running) {
     controller.velocity.set(0, controller.velocity.y, 0);
@@ -1026,8 +1025,8 @@ function strike(move = 'tap') {
   playerAttackDur = Math.max(0.28, wheel.recovery || 0.2) + 0.18;
   playerAttackT = playerAttackDur;
 
-  // 迎击窗口：在这个时间内正面接住 dash 可抵消伤害。
-  if (move === 'stand') parryWindowT = Math.max(parryWindowT, wheel.parryWindow || 0.3);
+  // 迎击无敌帧窗口只由“按住左滑”的即时迎击开启；蓄力中松手出的中刺不再附带迎击窗口。
+  if (move === 'stand' && fromParryGesture) parryWindowT = Math.max(parryWindowT, wheel.parryWindow || 0.3);
 
   controller.forwardFlat(_fwd);
   const right = new THREE.Vector3(-_fwd.z, 0, _fwd.x);
@@ -1280,7 +1279,7 @@ function update(dt) {
   game.attackMoveLock = Math.max(0, game.attackMoveLock - dt);
   controller.movementLocked = game.attackMoveLock > 0;
   // 攻击键蓄力计时与动作/翻滚/迎击窗口衰减。
-  if (attackCharge.held) { attackCharge.t += dt; setAttackHint(attackCharge.t, isSprintingNow()); }
+  if (attackCharge.held) { attackCharge.t += dt; setAttackHint(attackCharge.t); }
   if (controller.rollT > 0) controller.rollT = Math.max(0, controller.rollT - dt);
   if (parryWindowT > 0) parryWindowT = Math.max(0, parryWindowT - dt);
   if (playerAttackT > 0) {
@@ -1582,21 +1581,21 @@ const binds = new Keybinds();
 let mouseDown = false;
 let touchControls = null;
 // 攻击键“按住升级”状态：按下记录时间，帧循环累加，松开按当前蓄力档位出招。
-const attackCharge = { held: false, t: 0, pointerId: null, via: null };
+const attackCharge = { held: false, t: 0, pointerId: null, via: null, parried: false };
 // 首次点击用于捕获鼠标指针时，把这次攻击记下来，等锁定成功后补上
 let pendingClickAttack = false;
 let pendingClickTimer = 0;
 // 攻击蓄力提示环（贴在攻击键上的三段档位）
 const attackHint = document.createElement('div');
 attackHint.className = 'attack-charge-hint';
-attackHint.innerHTML = '<b class="seg s-tap">推击</b><b class="seg s-stand">迎击</b><b class="seg s-lunge">扑咬</b>';
+attackHint.innerHTML = '<b class="seg s-tap">短刺</b><b class="seg s-stand">中刺</b><b class="seg s-lunge">重刺</b>';
 attackHint.setAttribute('aria-hidden', 'true');
 document.body.appendChild(attackHint);
-function setAttackHint(hold = 0, sprinting = false) {
+function setAttackHint(hold = 0) {
   const cfg = PLAYER.combatWheel.charge;
   let tier = 'tap';
-  if (hold >= cfg.lungeHold && sprinting) tier = 'lunge';
-  else if (hold >= cfg.parryHold) tier = 'stand';
+  if (hold >= cfg.heavyHold) tier = 'lunge';
+  else if (hold >= cfg.shortHold) tier = 'stand';
   attackHint.classList.toggle('visible', attackCharge.held);
   attackHint.dataset.tier = tier;
 }
@@ -1612,19 +1611,40 @@ function beginAttack(via, pointerId = null) {
   attackCharge.t = 0;
   attackCharge.pointerId = pointerId;
   attackCharge.via = via;
-  setAttackHint(0, isSprintingNow());
+  attackCharge.parried = false;
+  setAttackHint(0);
 }
 function releaseAttack() {
   if (!attackCharge.held) return;
   const hold = attackCharge.t;
+  const wasParried = attackCharge.parried;
   attackCharge.held = false;
   attackCharge.t = 0;
   attackCharge.pointerId = null;
   attackCharge.via = null;
+  attackCharge.parried = false;
   hideAttackHint();
   if (game.mode !== 'play') return;
+  // 迎击已在左滑跨阈时即时触发，本次松手不再出攻击招。
+  if (wasParried) return;
   const move = selectChargedMove(hold, isSprintingNow(), PLAYER.combatWheel.charge);
   strike(move);
+}
+
+/**
+ * 攻击键“按住左滑”迎击：dx ≤ -PARRY_DRAG_THRESHOLD 当帧由触控层回调，
+ * 不等待松手立即出招。AttackGesture 自身有一次按住一次的闩锁，
+ * 这里再按当前蓄力指针去重（只接受正在蓄力的那根手指）。
+ * 沙盒模式额外弹一次“迎击成功”提示；正式模式走 strike('stand')
+ * 原有的无敌帧窗口 + 正面反击逻辑（沙盒迎击练习同样依赖该窗口，故也执行）。
+ */
+function triggerParryGesture(ctx) {
+  if (game.mode !== 'play') return;
+  if (!ctx || !attackCharge.held || attackCharge.parried) return;
+  if (attackCharge.pointerId !== ctx.pointerId) return;
+  attackCharge.parried = true;
+  if (game.sandbox) hud.say('迎击成功', 1.2);
+  strike('stand', { fromParryGesture: true });
 }
 // 是否处于奔跑姿态：疾跑按键 / 触屏疾跑 / 身体俯伏超过阈值。
 function isSprintingNow() {
@@ -1643,6 +1663,7 @@ touchControls = new TouchControls({
   joystick: document.getElementById('touchJoystick'),
   stick: document.getElementById('touchStick'),
   isActive: () => game.mode === 'play',
+  onParryGesture: (ctx) => triggerParryGesture(ctx),
   onAction: (action, pressed, pointerId, gesture) => {
     if (action === 'attack') {
       if (pressed) beginAttack('touch', pointerId);
