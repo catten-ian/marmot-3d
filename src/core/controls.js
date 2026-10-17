@@ -237,6 +237,7 @@ export class FirstPersonController {
         bodyYaw: this.bodyYaw, cameraYaw: this.yaw,
         x: this.touchAxes.x, y: this.touchAxes.y, dt,
         turnRate: 2.7, uTurnRate: 3.4, uTurn: this.touchUTurn,
+        thirdPerson: this.thirdPerson,
       });
       this.bodyYaw = wrapAngle(drive.bodyYaw);
       this.touchUTurn = drive.uTurn;
@@ -250,7 +251,9 @@ export class FirstPersonController {
         speedScale: 1,
       };
       if (this.thirdPerson) {
-        // 第三人称：镜头不随身体转向，保持玩家观察方向；但身体/模型朝向跟 bodyYaw。
+        // 第三人称“滑向哪就跑向哪”：镜头与身体同步对准推杆屏幕方向，
+        // 镜头始终落在身后；拖动视角区仍可在未推杆时自由环视。
+        if (Number.isFinite(drive.cameraYaw)) this.yaw = wrapAngle(drive.cameraYaw);
         this.moveFacingYaw = this.bodyYaw;
       } else {
         // 第一人称：眼睛即身体，镜头平滑追上身体朝向（无突变）。

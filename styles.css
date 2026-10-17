@@ -1842,6 +1842,33 @@ body.touch-playing .version-tag { display: none; }
 .touch-controls.layout-editing .touch-actions button { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
 .touch-controls.layout-editing .touch-actions button.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
 .touch-controls.layout-editing .touch-actions button.layout-dragging { cursor: grabbing; filter: brightness(1.25); }
+/* 沙盒浮动快捷按钮：仅沙盒中或布局编辑时显示，位置/尺寸/透明度由 TouchLayout 写 inline 样式。 */
+.sandbox-touch-layer {
+  position: fixed; inset: 0; z-index: 22;
+  pointer-events: none; display: none;
+  -webkit-user-select: none; user-select: none;
+}
+body.sandbox-active .sandbox-touch-layer,
+body.touch-layout-editing .sandbox-touch-layer { display: block; }
+.sandbox-touch-layer button {
+  position: absolute; left: 0; top: 0;
+  width: var(--touch-button-size, 54px); height: var(--touch-button-size, 54px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 2px; border-radius: 15px;
+  font: 600 10px/1.15 inherit; text-align: center; color: #eef4df;
+  background: rgba(20, 34, 26, .82);
+  border: 1px solid rgba(166, 192, 142, .7);
+  box-shadow: 0 2px 9px #0007;
+  opacity: var(--touch-button-opacity, 1);
+  transform: translate(-50%, -50%) scale(var(--touch-button-scale, 1));
+  transform-origin: center;
+  pointer-events: auto; touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+body.touch-layout-editing .sandbox-touch-layer button { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
+.sandbox-touch-layer button.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
+.sandbox-touch-layer button.layout-dragging { cursor: grabbing; filter: brightness(1.25); }
 .touch-layout-settings { margin: 18px 0 14px; padding: 13px; border: 1px solid rgba(214, 232, 189, .24); border-radius: 10px; background: rgba(8, 20, 13, .5); }
 .touch-layout-settings h4 { margin: 0 0 5px; color: var(--gold); font-size: 14px; }
 .touch-layout-settings p { margin: 4px 0 10px; color: var(--soft); font-size: 11px; line-height: 1.5; }

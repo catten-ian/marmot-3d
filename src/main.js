@@ -1946,6 +1946,8 @@ const sandboxPanelUI = setupSandboxPanel({
     if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; }); }
   },
 });
+// 沙盒浮动按钮在上面的面板里创建，晚于 TouchLayout 构造，这里补绑到布局编辑系统。
+touchLayout.collectSandboxButtons();
 
 function updateCooldownButtons() {
   for (const id of ['burst', 'ultimate']) {
