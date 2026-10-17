@@ -3,6 +3,16 @@
  * 应用时按安全区和按钮半径夹紧，因此旋转屏幕/窄屏不会把按键挤出画面。
  */
 const STORAGE_KEY = 'marmot.touch-layout.v1';
+// “启用触屏布局调整”开关：默认关闭。关闭时所有调整入口隐藏，setEditing(true) 被拒绝。
+const ADJUST_STORAGE_KEY = 'marmot.settings.touchLayoutAdjust';
+export function touchAdjustEnabled() {
+  try { return localStorage.getItem(ADJUST_STORAGE_KEY) === '1'; }
+  catch (_) { return false; }
+}
+export function setTouchAdjustStored(on) {
+  try { localStorage.setItem(ADJUST_STORAGE_KEY, on ? '1' : '0'); }
+  catch (error) { console.warn('触屏布局调整开关无法写入本地存储', error); }
+}
 // 疾跑已改为由摇杆拖动距离判定（见 touch-controls SPRINT_STICK_THRESHOLD），不再有独立按钮。
 const ACTIONS = ['attack', 'dodge', 'jump', 'interact', 'burst', 'ultimate', 'pause'];
 const LABELS = { attack: '攻击', dodge: '翻滚', jump: '跳跃', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停' };
@@ -21,9 +31,13 @@ function readInsets() {
 export class TouchLayout {
   constructor() {
     this.root = document.getElementById('touchControls');
-    // 布局编辑只管右侧动作栏里的可拖动键；摇杆上的固定 .stick-dodge 绝不参与定位，
-    // 否则会被从轮盘上扯走。pause 在动作栏外，单独取。
+    // 可拖动键都在右侧 .touch-actions 动作栏里；pause 在动作栏外，单独从 root 取。
     this.actionLayer = this.root?.querySelector('.touch-actions') || this.root;
+    this.adjustEnabled = touchAdjustEnabled();
+    // 由 main.js 注入的游戏暂停/恢复钩子；调整态进出时自动暂停/继续。
+    this.pauseHooks = null;
+    // 本次调整是否由编辑器发起的暂停（调整前已在暂停态则退出调整时保持暂停）。
+    this._pausedByEditor = false;
     this.buttons = Object.fromEntries(ACTIONS.map((id) => {
       const scope = id === 'pause' ? this.root : this.actionLayer;
       return [id, scope?.querySelector(`[data-touch-action="${id}"]`)];
@@ -32,7 +46,25 @@ export class TouchLayout {
     this.selected = 'attack';
     this.layout = this._load() || this.defaultLayout();
     this._bindEditor();
+    this._syncAdjustVisibility();
     this.apply();
+  }
+
+  /** main.js 注入暂停钩子：{ pause(), resume(), isPaused() } */
+  setPauseHooks(hooks) { this.pauseHooks = hooks || null; }
+
+  _syncAdjustVisibility() {
+    // CSS 据此隐藏/显示所有带 data-touch-adjust 的“调整键”。
+    document.documentElement?.setAttribute('data-touch-adjust-enabled', this.adjustEnabled ? 'true' : 'false');
+  }
+
+  /** 设置面板里的“启用触屏布局调整”总开关 */
+  setAdjustEnabled(on) {
+    this.adjustEnabled = !!on;
+    setTouchAdjustStored(this.adjustEnabled);
+    this._syncAdjustVisibility();
+    if (!this.adjustEnabled && this.editing) this.setEditing(false);
+    else this.apply();
   }
 
   defaultLayout() {
@@ -114,9 +146,38 @@ export class TouchLayout {
   }
 
   setEditing(value = !this.editing) {
-    this.editing = !!value;
-    if (this.editing) this.selected = this.selected || 'attack';
+    const next = !!value;
+    // 总开关关闭时拒绝进入编辑态（即便有残留的编辑状态也立即退出）。
+    if (next && !this.adjustEnabled) {
+      if (this.editing) this._stopEditing();
+      else { this.editing = false; this.apply(); }
+      return;
+    }
+    if (next === this.editing) { this.apply(); return; }
+    if (next) this._startEditing();
+    else this._stopEditing();
     this.apply();
+  }
+
+  _startEditing() {
+    this.editing = true;
+    this.selected = this.selected || 'attack';
+    const alreadyPaused = !!this.pauseHooks?.isPaused?.();
+    if (alreadyPaused) {
+      this._pausedByEditor = false;
+    } else {
+      this._pausedByEditor = true;
+      this.pauseHooks?.pause?.();
+    }
+  }
+
+  _stopEditing() {
+    this.editing = false;
+    // 只在暂停确由本次调整发起时才恢复；调整前已暂停则保持暂停。
+    if (this._pausedByEditor) {
+      this._pausedByEditor = false;
+      this.pauseHooks?.resume?.();
+    }
   }
 
   save() {
@@ -140,7 +201,7 @@ export class TouchLayout {
       <div class="layout-setting-row"><label for="layoutSelected">单个按钮</label><select id="layoutSelected">${ACTIONS.map((id) => `<option value="${id}" ${id === this.selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('')}</select></div>
       <div class="layout-setting-row"><label for="layoutButtonScale">单键大小</label><input id="layoutButtonScale" type="range" min="0.7" max="1.35" step="0.05"><output data-layout-value="buttonScale"></output></div>
       <div class="layout-setting-row"><label for="layoutButtonOpacity">单键透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
-      <div class="layout-actions"><button type="button" class="ghost-btn" data-layout-edit>进入拖动编辑</button><button type="button" class="ghost-btn" data-layout-save>保存方案 / 设为默认</button><button type="button" class="ghost-btn" data-layout-reset>恢复设计默认</button></div>
+      <div class="layout-actions" data-touch-adjust="actions"><button type="button" class="ghost-btn" data-layout-edit>进入拖动编辑</button><button type="button" class="ghost-btn" data-layout-save>保存方案 / 设为默认</button><button type="button" class="ghost-btn" data-layout-reset>恢复设计默认</button></div>
       <p class="layout-save-status" aria-live="polite">保存后当前布局成为刷新/重进后的默认方案。</p>
     </section>`;
   }
