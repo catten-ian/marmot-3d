@@ -89,7 +89,12 @@ export class Burrow {
     // 在地表下方 6cm 盖一张近黑双面圆盘。地表侧看是深不见底的洞口，
     // 腔室内抬头时它遮住上方的绿色地形，只留黑暗的竖井。
     const mouthGeo = new THREE.CircleGeometry(underground.openingRadius * 0.97, 32);
-    const mouthMat = new THREE.MeshStandardMaterial({ color: 0x050302, roughness: 1, side: THREE.DoubleSide });
+    const mouthMat = new THREE.MeshStandardMaterial({
+      // 极弱冷色自发光：从洞内抬头读成洞口漏下的微暗天光，不是死黑虚空；
+      // 亮度很低，从地表看仍是深不见底的洞口。
+      color: 0x050302, emissive: 0x182333, emissiveIntensity: 0.8,
+      roughness: 1, side: THREE.DoubleSide,
+    });
     const mouth = new THREE.Mesh(mouthGeo, mouthMat);
     mouth.rotation.x = -Math.PI / 2;
     mouth.position.y = -0.06;
