@@ -93,6 +93,7 @@ export class TouchControls {
       this.lookLast.x = event.clientX;
       this.lookLast.y = event.clientY;
       this.pointerRoles.set(event.pointerId, 'look');
+      this.controller.touchLookActive = true;
       this._capture(this.lookZone, event.pointerId);
       event.preventDefault();
       event.stopPropagation();
@@ -193,6 +194,7 @@ export class TouchControls {
         this.lookLast.x = touch.clientX;
         this.lookLast.y = touch.clientY;
         this.pointerRoles.set(touch.identifier, 'look');
+        this.controller.touchLookActive = true;
       }
       event.preventDefault();
       event.stopPropagation();
@@ -358,7 +360,10 @@ export class TouchControls {
     const role = this.pointerRoles.get(pointerId);
     if (!role) return;
     this.pointerRoles.delete(pointerId);
-    if (role === 'look' && this.lookPointer === pointerId) this.lookPointer = null;
+    if (role === 'look' && this.lookPointer === pointerId) {
+      this.lookPointer = null;
+      this.controller.touchLookActive = false;
+    }
     if (role === 'move' && this.movePointer === pointerId) {
       this.movePointer = null;
       this.move.x = 0;
@@ -397,6 +402,7 @@ export class TouchControls {
     this.move.y = 0;
     this.move.mag = 0;
     this.controller.touchSprint = false;
+    this.controller.touchLookActive = false;
     if (this.joystick) this.joystick.classList.remove('active', 'stick-sprint');
     if (this.stick) this.stick.style.transform = 'translate(0, 0)';
     if (this.root) {

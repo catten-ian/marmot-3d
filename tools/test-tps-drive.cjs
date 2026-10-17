@@ -174,6 +174,7 @@ const angleErr = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))
   eq(new Set(Object.keys(layout.buttons)).size, 7 + 7, '沙盒键与战斗键 id 互不冲突');
 
   // 编辑态点击沙盒按钮：选中且拦截点击（不触发 onAction）。
+  layout.setAdjustEnabled(true); // 合并 dodge-consol 后：编辑前须先在设置中启用总开关
   layout.setEditing(true);
   const spawnOne = layout.buttons.spawnOne;
   const editClick = spawnOne.dispatch('click', {});

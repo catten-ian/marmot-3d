@@ -27,6 +27,7 @@ export class FirstPersonController {
     this.touchLookSensitivity = 0.006;
     this.touchAxes = { x: 0, y: 0 };
     this.touchSprint = false;
+    this.touchLookActive = false; // 右手正在拉视角：抑制镜头回弹与身体串扰
     this.touchEnabled = false;
     this.moveFacingYaw = 0;
     this.isBackpedal = false;
@@ -234,7 +235,8 @@ export class FirstPersonController {
       // 持续左/右推会让土拨鼠一直转头同时向前跑 → 跑圈；后拉做平滑 U-turn。
       // 第三人称下移动绝不带动镜头；第一人称镜头跟随身体。
       const drive = resolveTouchDrive({
-        bodyYaw: this.bodyYaw, cameraYaw: this.yaw,
+        // 拉视角中：第一人称用身体朝向做转向参考，避免手指环视的 yaw 串入 U-turn/回正。
+        bodyYaw: this.bodyYaw, cameraYaw: (!this.thirdPerson && this.touchLookActive) ? this.bodyYaw : this.yaw,
         x: this.touchAxes.x, y: this.touchAxes.y, dt,
         turnRate: 2.7, uTurnRate: 3.4, uTurn: this.touchUTurn,
         thirdPerson: this.thirdPerson,
@@ -251,9 +253,12 @@ export class FirstPersonController {
         speedScale: 1,
       };
       if (this.thirdPerson) {
-        // 第三人称“滑向哪就跑向哪”：镜头与身体同步对准推杆屏幕方向，
-        // 镜头始终落在身后；拖动视角区仍可在未推杆时自由环视。
-        if (Number.isFinite(drive.cameraYaw)) this.yaw = wrapAngle(drive.cameraYaw);
+        // 第三人称“滑向哪就跑向哪”：推杆时镜头与身体同步对准屏幕方向；
+        // 但右手正在拉视角时保留用户环视机位，不被推杆拽回。
+        if (Number.isFinite(drive.cameraYaw) && !this.touchLookActive) this.yaw = wrapAngle(drive.cameraYaw);
+        this.moveFacingYaw = this.bodyYaw;
+      } else if (this.touchLookActive) {
+        // 拉视角中：镜头保持在手指拖到的位置，身体按摇杆独立转向，松手后再平滑追上。
         this.moveFacingYaw = this.bodyYaw;
       } else {
         // 第一人称：眼睛即身体，镜头平滑追上身体朝向（无突变）。
