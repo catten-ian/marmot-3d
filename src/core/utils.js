@@ -107,20 +107,11 @@ export function depressionAt(d, p) {
 }
 
 export function terrainHeight(x, z) {
-  // 外部高度场优先（GS 版）
+  // 外部高度场优先（GS 版）。
+  // 地表网格必须保持完整，不能被压成露天绿碗；真正的地下地板由
+  // undergroundFloorY() 单独提供，props.js 的封闭井壁负责遮住开口外地表。
   if (_heightField) return _heightField(x, z);
-  let y = baseTerrainHeight(x, z);
-  // Procedural terrain gets a real depression. GS heightfields remain untouched;
-  // the underground module supplies the visual/logic approximation there.
-  for (const b of BURROWS) {
-    const [dx, dz] = scalePoint([b.x, b.z]);
-    const slope = scaleRadius(b.slopeRadius ?? 3.6);
-    const opening = scaleRadius(b.openingRadius ?? 2.2);
-    const depth = b.chamberDepth ?? 3.8;
-    const d = Math.hypot(x - dx, z - dz);
-    if (d < slope) y -= depth * depressionAt(d, { openingRadius: opening, slopeRadius: slope });
-  }
-  return y;
+  return baseTerrainHeight(x, z);
 }
 
 /** 地形法线（用于让草丛/石块贴合坡面） */

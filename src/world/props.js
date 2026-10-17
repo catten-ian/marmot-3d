@@ -72,6 +72,17 @@ export class Burrow {
     rim.receiveShadow = true;
     this.group.add(rim);
 
+    // 洞口黑封盖：地形网格无法在开口处真实挖洞（尤其 GS 高度场），
+    // 在地表下方 6cm 盖一张近黑双面圆盘。地表侧看是深不见底的洞口，
+    // 腔室内抬头时它遮住上方的绿色地形，只留黑暗的竖井。
+    const mouthGeo = new THREE.CircleGeometry(underground.openingRadius * 0.97, 32);
+    const mouthMat = new THREE.MeshStandardMaterial({ color: 0x050302, roughness: 1, side: THREE.DoubleSide });
+    const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+    mouth.rotation.x = -Math.PI / 2;
+    mouth.position.y = -0.06;
+    this.group.add(mouth);
+    this.mouth = mouth;
+
     // 开口天光：从井口洒下的一束柔光（临时洞几乎不可见）。
     const skylight = new THREE.PointLight(0xbfd6ff, isBase ? 0.5 : 0.08, underground.slopeRadius * 3.2, 2);
     skylight.position.set(0, -0.4, 0);

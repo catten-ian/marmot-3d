@@ -1198,6 +1198,9 @@ function update(dt) {
   game.currentBurrow = burrowVolumeAt(p.x, controller.position.y, p.z, burrowDefs);
   game.inBurrow = !!game.currentBurrow;
   game.inBaseBurrow = game.currentBurrow?.type === 'base';
+  // 进洞平滑压暗全局光：避免一闪而过，露出 burrow 自带暖光与黑井。
+  game._undergroundK = THREE.MathUtils.lerp(game._undergroundK || 0, game.inBurrow ? 1 : 0, Math.min(1, dt * 5));
+  sky.setUnderground(game._undergroundK);
   game.observing = controller.crouch < 0.08 && controller.postureSpeed < 0.04 && !moving && !game.inBurrow;
 
   // 移动消耗储备
