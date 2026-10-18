@@ -332,6 +332,11 @@ body.overloaded .overload-mark { animation: pulseMark .7s ease-in-out infinite; 
   border: 1px solid #435744;
   color: #8fa083;
 }
+.version-tag.beta {
+  background: #243b50;
+  border: 1px solid #4f83a7;
+  color: #a9dcff;
+}
 
 /* ---------- 提示气泡 ---------- */
 .toast {

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-touch-adjust-enabled="false">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
@@ -9,7 +9,7 @@
 <link rel="icon" href="/marmot3d-beta/assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/marmot3d-beta/assets/favicon-192.png">
 <meta name="theme-color" content="#101a15">
-<link rel="stylesheet" href="/marmot3d-beta/styles.css?v=rev5">
+<link rel="stylesheet" href="/marmot3d-beta/styles.css?v=rev9">
 <script type="importmap">
 { "imports": {
     "three": "/marmot3d-beta/vendor/three.module.js",
@@ -87,6 +87,11 @@
   <div class="objective" id="objective"></div>
 </div>
 
+<!-- 沙盒专用状态卡：与普通关卡目标卡分离，布局归入 cards 命名空间。 -->
+<div class="sandbox-status" id="sandboxStatus" aria-hidden="true">
+  <div class="obj-title">沙盒状态</div>
+</div>
+
 <!-- ========== 提示气泡 ========== -->
 <div id="toast" class="toast"></div>
 
@@ -110,22 +115,24 @@
   <div id="touchLookZone" class="touch-look-zone" aria-label="拖动以转动视角">
     <span>右侧拖动视角</span>
   </div>
-  <div id="touchJoystick" class="touch-joystick" role="application" aria-label="虚拟摇杆：移动，推过外圈为疾跑">
+  <div id="touchJoystick" class="touch-joystick" role="application" aria-label="虚拟摇杆：只管移动，推过疾跑环自动疾跑">
     <i class="stick-sprint-ring" aria-hidden="true"></i>
     <div class="touch-stick" id="touchStick"></div>
-    <button type="button" class="stick-dodge" data-touch-action="dodge" aria-label="翻滚：按轮盘方向滚动并短暂无敌"><b>⟳</b></button>
     <span>移动</span>
   </div>
   <button class="touch-pause" type="button" data-touch-action="pause" aria-label="暂停游戏">Ⅱ</button>
   <div class="touch-actions" aria-label="动作按钮">
-    <button type="button" data-touch-action="attack" aria-label="攻击（按住升级：点按推击/迎击/扑咬）"><b>爪</b><small>攻击</small></button>
+    <button type="button" class="touch-btn attack" data-touch-action="attack" data-swipe-preview="" data-swipe-fired="" aria-label="攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚">
+      <span class="attack-swipe-ring" aria-hidden="true"><i class="attack-swipe-hint parry">← 迎击</i><i class="attack-swipe-hint roll">翻滚 →</i></span>
+      <span class="attack-core" aria-hidden="true"></span><b>爪</b><small>攻击</small>
+    </button>
     <button type="button" data-touch-action="dodge" aria-label="翻滚：拖动可朝拖动方向滚动，或按轮盘方向"><b>⟳</b><small>翻滚</small></button>
     <button type="button" data-touch-action="jump" aria-label="跳跃"><b>↟</b><small>跳跃</small></button>
     <button type="button" data-touch-action="interact" aria-label="救援或陪伴"><b>✦</b><small>交互</small></button>
     <button type="button" data-touch-action="burst" aria-label="应急爆发"><b>J</b><small>爆发</small><span class="cooldown-overlay"><em></em></span></button>
     <button type="button" data-touch-action="ultimate" aria-label="协同大招"><b>K</b><small>大招</small><span class="cooldown-overlay"><em></em></span></button>
   </div>
-  <button class="touch-layout-entry" id="touchLayoutEntry" type="button" aria-pressed="false">编辑</button>
+  <button class="touch-layout-entry" id="touchLayoutEntry" type="button" aria-pressed="false" data-touch-adjust="entry">编辑</button>
 </div>
 
 <!-- ========== 加载 ========== -->
@@ -179,8 +186,8 @@
     <span class="touch-help"><kbd>触屏</kbd> 左侧摇杆移动 · 右侧拖动视角 · 屏幕按钮执行动作</span>
     <span><kbd>鼠标</kbd> 视角</span>
     <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span>
-    <span><kbd>左键</kbd> / <kbd>空格</kbd> 攻击（按住升级：点按推击·按住迎击·奔跑长按扑咬）</span>
-    <span><kbd>G</kbd> / 触屏<b>翻滚</b> 朝轮盘方向滚动，短暂无敌；翻滚键可拖动定向</span>
+    <span><kbd>左键</kbd> / <kbd>空格</kbd> 攻击（短按/松手=推击；地面按住约0.65秒后松手=扑击，蓄满自动扑出；空中短按=较弱扑击；按住左滑=迎击）</span>
+    <span><kbd>G</kbd> / 触屏<b>翻滚</b> 短暂无敌：右侧翻滚键可拖动定向；攻击键按住向右滑也能立即翻滚</span>
     <span><kbd>J</kbd> 应急爆发</span>
     <span><kbd>K</kbd> 蓄满后的大招</span>
     <span><kbd>E</kbd> 救援 / 陪伴</span>
@@ -191,7 +198,7 @@
   </div>
   <p class="note">洞穴内不能攻击。完成<b>采食 + 伙伴到家</b>后回洞，自动进入下一关。<br>
   <b>奔跑时会自动俯身冲刺，停下则起身</b> —— 起身比趴下稍慢，就像真的在用四肢撑起身体。<br>
-  <b>攻击键按住升级</b>：点按=推击（站立高击退、奔跑伤害高）；短按住=迎击（站/跑皆可，正面接住狐狸冲刺可无伤反打）；奔跑中长按住=扑咬（仅奔跑）。<b>翻滚是独立按键</b>：键盘 G、摇杆上方小翻滚键或右侧大翻滚键；点按按<b>轮盘推动方向</b>滚出（未推杆则朝身后），在右侧翻滚键上<b>按住拖动</b>可朝手指方向翻滚。沙盒里可开<b>迎击练习</b>专项训练。<br>
+  攻击只有<b>三种招式</b>：<b>推击</b>（地面短按或快速松手，站立/奔跑都可连续出招；站立高击退、奔跑伤害高）、<b>迎击</b>（按住攻击键<b>向左滑</b>，站/跑皆可；仅在狐狸<b>正在冲刺命中</b>的短暂窗口内正面相抵才算成功——狐狸空闲/蓄力、出手过早或过晚都不算，成功则无伤反打）、<b>扑击</b>（地面<b>按住约0.65秒后松手</b>即扑出，蓄满1.5秒自动扑出，<b>不再需要奔跑</b>；<b>空中短按</b>则是伤害较低的弱化扑击）；地面按住不足0.65秒松手仍是推击，没有第四招。<b>翻滚</b>是移动动作不是攻击：键盘 <b>G</b> 或右侧独立<b>翻滚键</b>，点按按<b>轮盘推动方向</b>滚出（未推杆则朝身后），在翻滚键上<b>按住拖动</b>可朝手指方向滚；在攻击键上<b>按住向右滑</b>也会立即朝滑动方向翻滚一次。沙盒里可开<b>迎击练习</b>专项训练。<br>
   被困伙伴会周期性<b>呼救</b>，屏幕边缘的<b>绿色箭头</b>指向它；红色箭头则是正在逼近的藏狐。</p>
   <button class="primary" id="helpClose">知道了</button>
 </div>
@@ -217,8 +224,8 @@
   稳定版不需要 WebGPU，引导层会立刻放行，开销可忽略。
 -->
 <script type="module">
-import { devOn, FORCE_WEBGL, GS_OVERRIDE } from '/marmot3d-beta/src/core/version.js?v=rev5';
-import { probeWebGPU } from '/marmot3d-beta/src/core/renderer.js?v=rev5';
+import { devOn, FORCE_WEBGL, GS_OVERRIDE } from '/marmot3d-beta/src/core/version.js?v=rev9';
+import { probeWebGPU } from '/marmot3d-beta/src/core/renderer.js?v=rev9';
 
 const boot = {
   gsWorld: false,      // 是否要用 GS 作为全部场景
@@ -247,7 +254,8 @@ if (boot.gsWorld) {
 }
 
 window.__boot = boot;
-await import('/marmot3d-beta/src/main.js?v=rev5');
+await import('/marmot3d-beta/src/main.js?v=rev9');
 </script>
-<script src="/marmot3d-beta/version-switch.js?v=mvs2" data-current="beta"></script></body>
+<script src="/marmot3d-beta/version-switch.js?v=mvs2" data-current="beta"></script>
+</body>
 </html>

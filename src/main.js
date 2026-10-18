@@ -77,7 +77,8 @@ import { createBurrows } from './world/burrows.js';
 import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
+import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
 } from './core/ecology.js';
@@ -385,43 +386,34 @@ hud.setLoading(96);
 {
   const tag = document.getElementById('versionTag');
   if (tag) {
-    tag.className = `version-tag ${IS_DEV ? 'dev' : 'stable'}`;
+    tag.className = `version-tag ${IS_DEV ? 'dev' : IS_BETA ? 'beta' : 'stable'}`;
     tag.textContent = IS_DEV
       ? 'DEV · 旱獭生态学改写（草食 / 耐饥渴 / 季节食物）'
       : VERSION_LABEL;
     tag.title = IS_DEV
       ? '当前为 dev 实验版：采食对象为当季草本植物，储备消耗更低。正式版请去掉 ?version=dev'
-      : '正式版。追加 ?version=dev 可体验生态学改写';
+      : IS_BETA
+        ? '当前为 Beta 体验版：默认开放全部关卡，完成记录与正式版隔离。'
+        : '正式版。追加 ?version=dev 可体验生态学改写';
   }
   document.body.classList.toggle('dev-version', IS_DEV);
+  document.body.classList.toggle('beta-version', IS_BETA);
 }
 
 // ============================================================
 // 游戏状态
 // ============================================================
-const PROGRESS_KEY = 'marmot3d.progress.v1';
-function readProgress() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
-    const maxUnlocked = Number.isInteger(saved.maxUnlocked) ? saved.maxUnlocked : 0;
-    const completedLevels = Array.isArray(saved.completedLevels)
-      ? saved.completedLevels.filter((n) => Number.isInteger(n) && n >= 0 && n < LEVELS.length)
-      : [];
-    return {
-      maxUnlocked: clamp(maxUnlocked, 0, LEVELS.length - 1),
-      completedLevels: new Set(completedLevels),
-    };
-  } catch (_) {
-    return { maxUnlocked: 0, completedLevels: new Set() };
-  }
-}
-const progress = readProgress();
+// Beta uses an independent record and an in-memory all-level unlock default;
+// stable retains the original shared key and sequential unlock behavior.
+const progressStorage = {
+  getItem: (...args) => localStorage.getItem(...args),
+  setItem: (...args) => localStorage.setItem(...args),
+};
+const progress = readProgress(progressStorage, LEVELS.length, IS_BETA);
+if (IS_BETA) progress.maxUnlocked = LEVELS.length - 1;
 function saveProgress() {
   try {
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify({
-      maxUnlocked: progress.maxUnlocked,
-      completedLevels: [...progress.completedLevels],
-    }));
+    writeProgress(progressStorage, progress, IS_BETA);
   } catch (err) {
     console.warn('[progress] 无法保存关卡进度:', err);
   }
@@ -840,7 +832,7 @@ function showLevelSelect() {
     <p>已解锁至第 ${unlocked + 1} 关。完成当前关卡即可解锁下一关，已完成关卡可随时重玩。</p>
     <div class="level-select-grid">
       ${LEVELS.map((level, i) => {
-    const locked = i > unlocked;
+    const locked = !isLevelUnlocked(progress, i);
     const done = progress.completedLevels.has(i);
     return `<button class="level-option ${locked ? 'locked' : ''} ${done ? 'done' : ''}"
         data-level="${i}" ${locked ? 'disabled aria-disabled="true"' : ''}>
@@ -2366,7 +2358,7 @@ window.__game = {
   burrowObj: burrow, burrows: burrowDefs, scenery, sky, claw, shockwave, particles, damageText, aura, minimap,
   viewModel, playerModel, playerBody, setViewMode, get thirdPerson() { return thirdPerson; },
   binds, findConflicts, ACTIONS, FoxClass: Fox,
-  isDev: IS_DEV, ecology: { energyOfPlant, eatLine, seasonForLevel, plantsForLevel, HERBIVORE },
+  isDev: IS_DEV, isBeta: IS_BETA, progress, ecology: { energyOfPlant, eatLine, seasonForLevel, plantsForLevel, HERBIVORE },
   touchControls, renderProfile: () => getRenderProfile(),
   DEBUG_HIDE,
   // 摄影测量远景（异步加载完成后可用）

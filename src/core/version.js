@@ -1,5 +1,7 @@
+import { resolveVersion } from './version-mode.mjs';
+
 /**
- * 版本开关：?version=dev
+ * 版本开关：?version=dev / ?version=beta
  *
  * 目的：把「按旱獭真实生态学改写」的实验性改动隔离在 dev 版，
  * 正式版（默认）保持原样，便于随时对照与回退。
@@ -13,22 +15,24 @@
  * 这样即使 dev 分支出问题，也不会污染正式版路径。
  */
 
-/** 当前版本模式 */
+/** 当前版本模式：stable、beta 或 dev。 */
 export const VERSION = (() => {
   try {
-    const q = new URLSearchParams(location.search).get('version');
-    return q === 'dev' ? 'dev' : 'stable';
+    return resolveVersion({ search: location.search, pathname: location.pathname });
   } catch (e) {
     return 'stable';
   }
 })();
 
 export const IS_DEV = VERSION === 'dev';
+export const IS_BETA = VERSION === 'beta';
 
 /** 供 UI 显示当前版本角标 */
 export const VERSION_LABEL = IS_DEV
   ? 'DEV · 旱獭生态 + GS 全场景'
-  : '神经—体液调节 · 抽象玩法演示';
+  : IS_BETA
+    ? 'BETA · 体验版（全部关卡开放）'
+    : '神经—体液调节 · 抽象玩法演示';
 
 /**
  * dev 版专属特性清单。

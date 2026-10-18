@@ -194,8 +194,8 @@ export class HUD {
 
   _updateObjective(g, cfg) {
     if (g.sandbox) {
-      // beta index.html has a dedicated sandbox card; keep the legacy public shell
-      // usable when it has only the original objective element.
+      // Keep a defensive fallback for any embedded shell without a dedicated
+      // sandbox card; the canonical beta shells provide #sandboxStatus.
       if (!this.el.sandboxStatus) {
         this.el.objective.hidden = false;
         if (this._lastObjective !== 'sandbox') {
