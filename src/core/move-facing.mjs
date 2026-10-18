@@ -72,11 +72,14 @@ export function resolveTouchDrive(input) {
 
   if (thirdPerson) {
     // 屏幕向量(x,y)（y 上为正）按【当前镜头】yaw 旋转成世界向量：
-    // yaw=0（相机朝 -Z）时，屏幕正上 → 世界 -Z，屏幕正右 → 世界 +X。
-    const wx = Math.cos(cameraYaw) * x + Math.sin(cameraYaw) * y;
-    const wz = Math.sin(cameraYaw) * x - Math.cos(cameraYaw) * y;
-    // Three.js 约定 forward=(-sin yaw,-cos yaw)，故 yaw=atan2(wx,-wz)。
-    nextYaw = Math.atan2(wx, -wz);
+    //   镜头前方 = (-sin cy, -cos cy)，镜头右方 = (cos cy, -sin cy)。
+    //   world = x*右 + y*前，yaw=0（相机朝 -Z）时：屏幕正上 → 世界 -Z，正右 → +X。
+    const wx = Math.cos(cameraYaw) * x - Math.sin(cameraYaw) * y;
+    const wz = -Math.sin(cameraYaw) * x - Math.cos(cameraYaw) * y;
+    // Three.js 约定 forward(yaw)=(-sin yaw,-cos yaw)，
+    // 要让身体正对世界移动方向 (wx,wz)，必须 yaw=atan2(-wx,-wz)。
+    // （旧写法 atan2(wx,-wz) 使移动方向 = (-wx,wz)：前后正确、左右恒反。）
+    nextYaw = Math.atan2(-wx, -wz);
     // 只转身/移动，不动镜头：cameraYaw 必须原样回传。
     // 镜头 yaw 只由右手 lookZone（或键鼠视角）改变，摇杆推到任何方向都不得回写。
     throttle = Math.min(1, mag);
@@ -132,4 +135,13 @@ export function firstPersonStrafeTarget(mx, yaw) {
   const amount = Math.min(1, Math.abs(mx));
   const targetYaw = yaw - Math.sign(mx) * (Math.PI / 2) * amount;
   return { targetYaw, moveX: -Math.sin(targetYaw), moveZ: -Math.cos(targetYaw) };
+}
+
+/**
+ * 攻击朝向来源（纯函数）：
+ *   第三人称：攻击沿角色身体朝向/移动朝向发起 → bodyYaw；
+ *   第一人称：镜头即眼睛，攻击沿视线 → cameraYaw（保持现有正确行为）。
+ */
+export function resolveAttackYaw({ thirdPerson = false, cameraYaw = 0, bodyYaw = 0 } = {}) {
+  return thirdPerson ? bodyYaw : cameraYaw;
 }

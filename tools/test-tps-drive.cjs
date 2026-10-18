@@ -1,6 +1,7 @@
 /* fix/touch-intent-corrections 验收测试（纯 Node，不启动浏览器）：
  * A. resolveTouchDrive 第三人称：身体按当前相机 yaw 转向，但 cameraYaw 必须原样回传
- *    （摇杆绝不驱动镜头）；第一人称行为保持不变。
+ *    （摇杆绝不驱动镜头）；左右符号必须正确（推右 = 镜头右侧，旧实现横向恒反）；
+ *    第一人称行为保持不变。
  * B. 沙盒只有一个可调整入口：现有的 #testModeBtn（沙盒中文字“沙盒控制”），
  *    不再有 #sandboxTouchLayer / 七个浮动按钮 / collectSandboxButtons。
  */
@@ -21,7 +22,7 @@ const angleErr = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))
   const base = { bodyYaw: 0, cameraYaw: 0, dt: 1 / 60, thirdPerson: true };
 
   const right = resolveTouchDrive({ ...base, x: 1, y: 0 });
-  approxEq(right.bodyYaw, Math.PI / 2, 1e-9, 'TP 纯横推右 → bodyYaw π/2');
+  approxEq(right.bodyYaw, -Math.PI / 2, 1e-9, 'TP 纯横推右 → bodyYaw -π/2（forward=(-sin,-cos)=+X=镜头右侧）');
   approxEq(right.cameraYaw, 0, 1e-9, 'TP 横推右：cameraYaw 必须原样保持 0');
   approxEq(right.throttle, 1, 1e-9, 'TP 满杆 throttle=1');
   eq(right.uTurn, false, 'TP 不走 U-turn 状态');
@@ -31,12 +32,12 @@ const angleErr = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))
   approxEq(up.cameraYaw, 0, 1e-9, 'TP 正上推：cameraYaw 不变');
 
   const diag = resolveTouchDrive({ ...base, x: 0.7, y: 0.7 });
-  approxEq(diag.bodyYaw, Math.PI / 4, 1e-9, 'TP 斜推 → bodyYaw π/4');
+  approxEq(diag.bodyYaw, -Math.PI / 4, 1e-9, 'TP 斜推 → bodyYaw -π/4');
   approxEq(diag.cameraYaw, 0, 1e-9, 'TP 斜推：cameraYaw 不被身体带走');
   approxEq(diag.throttle, Math.hypot(0.7, 0.7), 1e-9, 'TP throttle=推杆距离');
 
   const left = resolveTouchDrive({ ...base, x: -1, y: 0 });
-  approxEq(left.bodyYaw, -Math.PI / 2, 1e-9, 'TP 纯横推左 → bodyYaw -π/2');
+  approxEq(left.bodyYaw, Math.PI / 2, 1e-9, 'TP 纯横推左 → bodyYaw +π/2（世界 -X=镜头左侧）');
   approxEq(left.cameraYaw, 0, 1e-9, 'TP 横推左：cameraYaw 不变');
 
   // 后拉：身体朝镜头后方跑，镜头本身不转。
@@ -53,12 +54,13 @@ const angleErr = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))
   }
   const turned = { ...base, cameraYaw: Math.PI / 2, bodyYaw: Math.PI / 2 };
   approxEq(resolveTouchDrive({ ...turned, x: 0, y: 1 }).bodyYaw, Math.PI / 2, 1e-9, 'TP 转镜头后正上跟随镜头');
-  approxEq(resolveTouchDrive({ ...turned, x: 1, y: 0 }).bodyYaw, Math.PI, 1e-9, 'TP 转镜头后正右=镜头右侧(π)');
+  // cy=π/2 时镜头右方 = (cos,-sin) = (0,-1) = 世界 -Z → forward(bodyYaw=0)。
+  approxEq(resolveTouchDrive({ ...turned, x: 1, y: 0 }).bodyYaw, 0, 1e-9, 'TP 转镜头后正右=镜头右侧(世界 -Z → yaw 0)');
 
   // 连续两帧正右推（相机不动）：身体朝世界 +X 后保持，不再因相机 yaw 被改写而连续画圈。
   const f1 = resolveTouchDrive({ ...base, x: 1, y: 0 });
   const f2 = resolveTouchDrive({ ...base, bodyYaw: f1.bodyYaw, cameraYaw: 0, x: 1, y: 0 });
-  approxEq(f2.bodyYaw, Math.PI / 2, 1e-9, 'TP 连续右推身体稳定在 π/2（非累加画圈）');
+  approxEq(f2.bodyYaw, -Math.PI / 2, 1e-9, 'TP 连续右推身体稳定在 -π/2（非累加画圈）');
   approxEq(f2.cameraYaw, 0, 1e-9, 'TP 连续右推相机始终 0');
 
   // dead zone：原样回传 cameraYaw，bodyYaw 不动。
@@ -66,6 +68,21 @@ const angleErr = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))
   eq(idle.throttle, 0, 'TP dead zone 内 throttle=0');
   approxEq(idle.cameraYaw, 1.23, 1e-9, 'TP dead zone 回传原 cameraYaw');
   approxEq(idle.bodyYaw, 0, 1e-9, 'TP dead zone bodyYaw 不动');
+
+  // ---------- A1.5 任意镜头 yaw 下，由 bodyYaw 推出的移动方向必须等于 摇杆屏幕向量×镜头 ----------
+  // 这覆盖“第三人称左右符号”根因：身体 forward=(-sin,-cos) 即实际控制移动的方向。
+  for (const cy of [0, Math.PI / 2, Math.PI, -Math.PI / 2, 0.77, -2.31]) {
+    for (const [x, y] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0.6, 0.8], [-0.5, 0.3], [0.2, -0.9]]) {
+      const r = resolveTouchDrive({ bodyYaw: 0.33, cameraYaw: cy, dt: 1 / 60, thirdPerson: true, x, y });
+      const m = Math.hypot(x, y);
+      const fwdX = -Math.sin(cy), fwdZ = -Math.cos(cy);      // 镜头前方
+      const rightX = Math.cos(cy), rightZ = -Math.sin(cy);   // 镜头右方
+      const wantX = (rightX * x + fwdX * y) / m, wantZ = (rightZ * x + fwdZ * y) / m;
+      const gotX = -Math.sin(r.bodyYaw), gotZ = -Math.cos(r.bodyYaw);
+      approxEq(gotX, wantX, 1e-9, `TP cy=${cy} 输入(${x},${y}) 移动方向 x 分量`);
+      approxEq(gotZ, wantZ, 1e-9, `TP cy=${cy} 输入(${x},${y}) 移动方向 z 分量`);
+    }
+  }
 
   // ---------- A2. 第一人称行为完全保持（旧“油门+连续转向”模型） ----------
   const fp = { bodyYaw: 0, cameraYaw: 0, dt: 1 / 60 };

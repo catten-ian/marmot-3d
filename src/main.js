@@ -15,11 +15,12 @@ import {
 } from './core/config.js';
 import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/utils.js';
 import { FirstPersonController } from './core/controls.js';
-import { dampAngle } from './core/move-facing.mjs';
+import { dampAngle, resolveAttackYaw } from './core/move-facing.mjs';
 import {
   rollDirection, resolveAttackRelease, isWeakAerialPounce,
   interruptAttackCharge, resolvePendingAerialParry, advanceAttackCharge,
   AERIAL_POUNCE_DAMAGE_MUL, MAX_ATTACK_CHARGE_MS,
+  strikeGateOpen, resolveParryOutcome,
 } from './core/combat-wheel.mjs';
 import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
@@ -1010,13 +1011,14 @@ function clearPendingAerialParry() { pendingAerialParry = false; }
 function tryResolvePendingAerialParry() {
   const state = resolvePendingAerialParry(pendingAerialParry, controller.grounded);
   pendingAerialParry = state.pending;
-  if (state.execute && game.mode === 'play') strike('stand', { fromParryGesture: true, allowObserving: true });
+  if (state.execute && game.mode === 'play') strike('stand', { fromParryGesture: true });
 }
 
 /** 攻击：扇形范围判定，原版是圆形范围，第一人称下改为朝向前方扇形更合理 */
-function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul = null, allowObserving = false } = {}) {
+function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul = null } = {}) {
   const p = game.player;
-  if (game.attackCD > 0 || game.inBurrow || (game.observing && !allowObserving)) return false;
+  // 站立/静止观察不阻塞出招：站立也必须能短按推击，连续短按按冷却节奏稳定触发。
+  if (!strikeGateOpen(game)) return false;
   const wheel = PLAYER.combatWheel[move] || PLAYER.combatWheel.tap;
   const s = combatStats(game);
   const running = isSprintingNow();
@@ -1054,7 +1056,11 @@ function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul 
   // 迎击无敌帧窗口只由“按住左滑”的即时迎击开启；推击/扑击都不附带迎击窗口。
   if (move === 'stand' && fromParryGesture) parryWindowT = Math.max(parryWindowT, wheel.parryWindow || 0.3);
 
-  controller.forwardFlat(_fwd);
+  // 攻击朝向：第三人称沿角色身体/移动朝向，第一人称沿视线（保持原有正确行为）。
+  const attackYaw = resolveAttackYaw({
+    thirdPerson: controller.thirdPerson, cameraYaw: controller.yaw, bodyYaw: controller.bodyYaw,
+  });
+  _fwd.set(-Math.sin(attackYaw), 0, -Math.cos(attackYaw));
   const right = new THREE.Vector3(-_fwd.z, 0, _fwd.x);
   if (move === 'dodge') {
     const dir = rollDirection({ velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw });
@@ -1067,7 +1073,7 @@ function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul 
   const originY = terrainHeight(controller.position.x, controller.position.z);
   const color = move === 'stand' ? 0xd6a1ff : move === 'lunge' ? 0xffa36f : game.overdrive > 0 ? 0xe4b1ff : game.boost > 0 ? 0xffd17a : 0xfff1a9;
   const baseRange = s.range * rangeMul + (move === 'lunge' ? 0.8 : 0);
-  claw.fire(controller.position.x, originY + 0.32, controller.position.z, controller.yaw, baseRange, color);
+  claw.fire(controller.position.x, originY + 0.32, controller.position.z, attackYaw, baseRange, color);
   controller.attackKick(move === 'lunge' ? 1.6 : 1);
   audio.swing();
   let hits = 0;
@@ -1404,12 +1410,19 @@ function update(dt) {
         groundAttackHeight: FOX.groundAttackHeight, mode: f.attack?.mode, state: f.state,
       });
       if (d < reach && verticalOverlap) {
-        // 迎击判定：迎击窗口内，且狐狸从玩家正面（约 ±80°）冲来 → 抵消本次接触并反打。
+        // 迎击判定（振刀式）：迎击窗口未过期 + 狐狸正在 dash 攻击窗口内 +
+        // 接触距离内 + 狐狸从玩家攻击朝向正面（约 ±80°）冲来 → 抵消本次接触并反打。
+        // 狐狸空闲/巡逻/蓄力(wind)/喘息(rest)、玩家输入过早或过晚，都不算迎击。
         const parryCfg = PLAYER.combatWheel.stand;
         const toFoxX = (f.x - p.x) / (d || 1), toFoxZ = (f.z - p.z) / (d || 1);
-        const facingDot = toFoxX * (-Math.sin(controller.bodyYaw)) + toFoxZ * (-Math.cos(controller.bodyYaw));
-        const parryOK = parryWindowT > 0 && f.state === 'dash'
-          && facingDot >= Math.cos(parryCfg.parryHalfAngle ?? 80 * Math.PI / 180);
+        const parryYaw = resolveAttackYaw({
+          thirdPerson: controller.thirdPerson, cameraYaw: controller.yaw, bodyYaw: controller.bodyYaw,
+        });
+        const facingDot = toFoxX * (-Math.sin(parryYaw)) + toFoxZ * (-Math.cos(parryYaw));
+        const parryOK = resolveParryOutcome({
+          parryWindowT, foxState: f.state, dist: d, reach, facingDot,
+          parryHalfAngle: parryCfg.parryHalfAngle,
+        }).success;
         if (parryOK) {
           parryWindowT = 0;
           p.invuln = Math.max(p.invuln, 0.35);
@@ -1418,6 +1431,7 @@ function update(dt) {
           f.hit(0, (parryCfg.knockback || 2.8) + 1.2, parryCfg.stun || 1.2, p.x, p.z);
           const fy0 = terrainHeight(p.x, p.z);
           damageText.spawn(p.x, fy0 + 1.5, p.z, '迎击！', '#e7c4ff');
+          if (game.sandbox) hud.say('迎击成功：正面顶住了狐狸的冲刺！', 1.6);
           particles.burst(p.x + toFoxX * 1.2, fy0 + 0.6, p.z + toFoxZ * 1.2, 0xd6a1ff, 18, 1.3);
           audio.parry ? audio.parry() : audio.hit();
           controller.hitShake(0.35, toFoxX * 2.2, toFoxZ * 2.2);
@@ -1716,7 +1730,7 @@ function triggerParryGesture(ctx) {
   attackCharge.fired = 'parry';
   attackCharge.t = 0;
   hideAttackHint();
-  if (game.sandbox) hud.say('迎击成功', 1.2);
+  // 注意：这里只是迎击出手，不等于招架成立；成功反馈只在真正抵住狐狸 dash 时给出。
   if (!controller.grounded) {
     pendingAerialParry = true;
     controller.requestFastLanding();
@@ -2145,7 +2159,7 @@ function syncHelpKeys() {
     <div class="keys">
       <span><kbd>鼠标</kbd> 视角</span>
       ${movement}
-      <span><kbd>${get('attack')}</kbd> 攻击：短按/松手推击 · 地面按住0.65秒后松手扑击（空中短按为较弱扑击）· 按住左滑迎击 · 按住右滑翻滚</span>
+      <span><kbd>${get('attack')}</kbd> 攻击：短按/松手推击（站立也可）· 地面按住0.65秒后松手扑击（空中短按为较弱扑击）· 按住左滑迎击（仅在狐狸冲刺命中瞬间成立）· 按住右滑翻滚</span>
       <span><kbd>${get('jump')}</kbd> 或 <kbd>鼠标右键</kbd> 跳跃</span>
       <span><kbd>${get('burst')}</kbd> 应急爆发</span>
       <span><kbd>${get('ultimate')}</kbd> 协同大招</span>
