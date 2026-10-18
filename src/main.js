@@ -1820,28 +1820,8 @@ touchControls = new TouchControls({
   },
 });
 
-// 离开攻击按钮边界也按正常松手结算；锁住该 pointerId，避免触控层后续 move 重开蓄力。
-const touchAttackButton = document.querySelector('[data-touch-action="attack"]');
-function finishTouchAttackOutside(pointerId, clientX, clientY) {
-  if (attackCharge.via !== 'touch' || attackCharge.pointerId !== pointerId || !touchAttackButton) return;
-  const r = touchAttackButton.getBoundingClientRect();
-  if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return;
-  releasedTouchAttackPointers.add(pointerId);
-  releaseAttack();
-  touchAttackButton.classList.remove('pressed');
-}
-touchAttackButton?.addEventListener('pointerleave', (event) => {
-  finishTouchAttackOutside(event.pointerId, event.clientX, event.clientY);
-});
-window.addEventListener('pointermove', (event) => {
-  if (event.pointerType === 'touch' || event.pointerType === 'pen') {
-    finishTouchAttackOutside(event.pointerId, event.clientX, event.clientY);
-  }
-}, { passive: true });
-window.addEventListener('touchmove', (event) => {
-  for (const touch of event.changedTouches) finishTouchAttackOutside(touch.identifier, touch.clientX, touch.clientY);
-}, { passive: true });
-
+// 攻击手势使用 pointer capture / Touch Events 的原始触摸目标持续接收 move；
+// 滑出按钮边界只是手势的一部分，不提前 release，否则 22px 阈值会被按钮边缘截断。
 // 老内核兜底：媒体查询/UA 未识别时，收到真实手指触摸立即启用触控层（capture 最早、不拦截）。
 // 是否允许升级由输入模式决定：仅自动模式生效，强制键鼠/强制触屏下为幂等 no-op。
 for (const evName of ['pointerdown', 'touchstart']) {

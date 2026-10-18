@@ -10,8 +10,8 @@
  * - 移动摇杆 #touchJoystick：编辑态可拖动位置，设置面板可调整体大小；
  *   摇杆内圈（疾跑判定圈）大小即 joystick.sprintThreshold，滑动即时写回
  *   TouchControls.setSprintThreshold 并持久化。
- * - 三张常驻 HUD 信息卡（顶部状态 .vitals / 关卡信息 .mission /
- *   本关目标 .objective），布局存在独立的 cards 命名空间。
+ * - 常驻 HUD 信息卡（顶部状态 .vitals / 关卡信息 .mission /
+ *   本关目标 .objective / 沙盒状态 .sandbox-status），布局存在独立的 cards 命名空间。
  * 四类 id 互不冲突，编辑态下点击/拖动任意一类都只做选中与布局，
  * 非编辑态各自走原来的输入/点击逻辑（摇杆照常移动，沙盒按钮仍开/关测试面板）。
  *
@@ -44,9 +44,9 @@ const JOYSTICK = 'joystick';
 const SELECTABLE_IDS = [...ALL_IDS, JOYSTICK];
 // 摇杆整体大小滑块范围（相对 CSS 基准尺寸的倍数）。
 const JOYSTICK_SCALE_MIN = 0.7, JOYSTICK_SCALE_MAX = 1.4;
-// 三张可调整的常驻 HUD 信息卡：布局 id → 页面元素。
-const CARDS = ['hudVitals', 'hudMission', 'hudObjective'];
-const CARD_SELECTORS = { hudVitals: '.vitals', hudMission: '.mission', hudObjective: '.objective' };
+// 可调整的常驻 HUD 信息卡：布局 id → 页面元素。
+const CARDS = ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox'];
+const CARD_SELECTORS = { hudVitals: '.vitals', hudMission: '.mission', hudObjective: '.objective', hudSandbox: '.sandbox-status' };
 // 卡片单卡缩放/透明度范围（比按钮更保守，避免卡片被缩到不可读）。
 const CARD_SCALE = [0.75, 1.25];
 const CARD_OPACITY = [0.35, 1];
@@ -64,6 +64,7 @@ const LABELS = {
   hudVitals: '顶部状态卡（生命/储备/负荷）',
   hudMission: '关卡信息卡（第 X 关/时间/位置）',
   hudObjective: '本关目标卡',
+  hudSandbox: '沙盒状态卡',
 };
 const SIZE = {
   attack: 76, dodge: 58, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38,
@@ -150,7 +151,7 @@ export class TouchLayout {
     else this.apply();
   }
 
-  /** 记录三张 HUD 卡的 CSS 设计位置/尺寸（在任何 inline 样式写入之前调用）。 */
+  /** 记录常驻 HUD 卡的 CSS 设计位置/尺寸（在任何 inline 样式写入之前调用）。 */
   _measureCards() {
     const out = {};
     for (const id of CARDS) {
@@ -198,6 +199,11 @@ export class TouchLayout {
     if (id === 'hudVitals') return [safe.left + 214, safe.top + (landscape ? 30 : 42)];
     if (id === 'hudMission') return [Math.min(w / 2, safe.left + 560), safe.top + (landscape ? 30 : 42)];
     // hudObjective：桌面右下；触屏实玩/窄屏放右上安全区（顶部 HUD 下方，避开动作轮盘）。
+    if (id === 'hudSandbox') {
+      // 小地图位于右上（移动端约 96/142px 起，宽度 142px；横屏约 42px 起，宽度 128px），
+      // 沙盒卡固定放在其下方并保留一段间距，避免覆盖地图。
+      return [w - safe.right - (landscape ? 76 : 86), safe.top + (landscape ? 222 : 300)];
+    }
     if (w <= 860 || landscape) return [w - safe.right - 86, safe.top + (landscape ? 122 : 196)];
     return [w - safe.right - 116, h - safe.bottom - 100];
   }
@@ -211,6 +217,7 @@ export class TouchLayout {
     const ay = landscape ? h - safe.bottom - Math.max(154, h * .4) : h - safe.bottom - Math.max(230, h * .273);
     const dx = landscape ? Math.max(66, Math.min(78, unit * .2)) : Math.max(54, Math.min(70, w * .18));
     const dy = landscape ? Math.max(57, Math.min(68, unit * .17)) : Math.max(62, Math.min(76, h * .2));
+    const jSize = joystickBaseSize(w, h);
     // 攻击居中最大，跳跃正上方，交互/爆发/大招环绕两侧。
     const positions = {
       attack: [ax, ay],
@@ -221,7 +228,8 @@ export class TouchLayout {
       ultimate: [ax + dx, ay + dy],
       pause: [w - safe.right - 28, safe.top + 61],
       // 与既有 .test-mode-btn CSS 默认位置一致：左下角（left≈12, bottom≈42 的小按钮）。
-      sandboxControl: [safe.left + 44, h - safe.bottom - 56],
+      // 沙盒控制入口放在摇杆上方，避免与左侧移动输入重叠；旧存档位置仍照常保留。
+      sandboxControl: [safe.left + 56, h - safe.bottom - jSize - 26],
     };
     const buttons = {};
     for (const id of ALL_IDS) buttons[id] = { x: positions[id][0] / w, y: positions[id][1] / h, scale: 1 };
@@ -233,7 +241,6 @@ export class TouchLayout {
       const fb = d ? [d.cx, d.cy] : this._cardFallback(id, w, h, safe, w > h);
       cards[id] = { x: fb[0] / w, y: fb[1] / h, scale: 1, opacity: 1 };
     }
-    const jSize = joystickBaseSize(w, h);
     return {
       scale: 1,
       opacity: 1,

@@ -1,5 +1,5 @@
 import { isTouchPrimary } from './performance.js';
-import { AttackGesture } from './combat-wheel.mjs';
+import { AttackGesture, resolveAttackGesturePreview } from './combat-wheel.mjs';
 import {
   SPRINT_STICK_THRESHOLD,
   clampSprintThreshold,
@@ -216,7 +216,10 @@ export class TouchControls {
         this._capture(button, event.pointerId);
         this.pointerRoles.set(event.pointerId, 'button:' + action);
         button.classList.add('pressed');
-        if (action === 'attack') this.attackPointers.set(event.pointerId, this._startAttackPointer(event.pointerId, event.clientX, event.clientY));
+        if (action === 'attack') {
+          this.attackPointers.set(event.pointerId, this._startAttackPointer(event.pointerId, event.clientX, event.clientY));
+          this._setAttackVisual(button, this.attackPointers.get(event.pointerId));
+        }
         if (action === 'dodge') this.dodgePointers.set(event.pointerId, { x: event.clientX, y: event.clientY, dx: 0, dy: 0 });
         this.onAction(action, true, event.pointerId, { dx: 0, dy: 0, moved: false });
       });
@@ -311,7 +314,10 @@ export class TouchControls {
           if (this.pointerRoles.has(touch.identifier)) continue;
           this.pointerRoles.set(touch.identifier, 'button:' + action);
           button.classList.add('pressed');
-          if (action === 'attack') this.attackPointers.set(touch.identifier, this._startAttackPointer(touch.identifier, touch.clientX, touch.clientY));
+          if (action === 'attack') {
+            this.attackPointers.set(touch.identifier, this._startAttackPointer(touch.identifier, touch.clientX, touch.clientY));
+            this._setAttackVisual(button, this.attackPointers.get(touch.identifier));
+          }
           if (action === 'dodge') this.dodgePointers.set(touch.identifier, { x: touch.clientX, y: touch.clientY, dx: 0, dy: 0 });
           this.onAction(action, true, touch.identifier, { dx: 0, dy: 0, moved: false });
         }
@@ -364,12 +370,21 @@ export class TouchControls {
    * 立即触发一次翻滚（AttackGesture 闩锁保证一次按住最多触发一个方向招式）。
    * silent=true 用于 touchend 兜底位移：只更新状态/可能触发招式，不再补发按下回调。
    */
+  _setAttackVisual(button, gesture, dx = gesture?.dx || 0, dy = gesture?.dy || 0) {
+    if (!button) return;
+    const direction = resolveAttackGesturePreview({ dx, dy, fired: gesture?.fired });
+    button.dataset.swipePreview = direction || '';
+    button.dataset.swipeFired = gesture?.fired || '';
+  }
+
   _trackAttackMove(pointerId, clientX, clientY, silent = false) {
     const a = this.attackPointers.get(pointerId);
     if (!a) return;
     const dx = clientX - a.x;
     const dy = clientY - a.y;
+    const button = this.root.querySelector('[data-touch-action="attack"]');
     const ev = a.update(dx, dy);
+    this._setAttackVisual(button, a, dx, dy);
     if (ev) {
       if (ev.kind === 'parry' && this.onParryGesture) this.onParryGesture(ev);
       if (ev.kind === 'roll' && this.onRollGesture) this.onRollGesture(ev);
@@ -483,7 +498,13 @@ export class TouchControls {
       this.attackPointers.delete(pointerId);
       this.dodgePointers.delete(pointerId);
       const button = this.root.querySelector('[data-touch-action="' + action + '"]');
-      if (button) button.classList.remove('pressed');
+      if (button) {
+        button.classList.remove('pressed');
+        if (action === 'attack') {
+          button.dataset.swipePreview = '';
+          button.dataset.swipeFired = '';
+        }
+      }
     }
   }
 
@@ -500,6 +521,8 @@ export class TouchControls {
     if (this.root) {
       const buttons = this.root.querySelectorAll('.pressed');
       for (const button of buttons) button.classList.remove('pressed');
+      const attack = this.root.querySelector('[data-touch-action="attack"]');
+      if (attack) { attack.dataset.swipePreview = ''; attack.dataset.swipeFired = ''; }
     }
   }
 }

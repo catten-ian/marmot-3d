@@ -23,6 +23,7 @@ export class HUD {
       cortisolStatus: document.getElementById('cortisolStatus'),
       socialStatus: document.getElementById('socialStatus'),
       objective: document.getElementById('objective'),
+      sandboxStatus: document.getElementById('sandboxStatus'),
       toast: document.getElementById('toast'),
       banner: document.getElementById('banner'),
       overlay: document.getElementById('overlay'),
@@ -193,11 +194,27 @@ export class HUD {
 
   _updateObjective(g, cfg) {
     if (g.sandbox) {
+      // beta index.html has a dedicated sandbox card; keep the legacy public shell
+      // usable when it has only the original objective element.
+      if (!this.el.sandboxStatus) {
+        this.el.objective.hidden = false;
+        if (this._lastObjective !== 'sandbox') {
+          this._lastObjective = 'sandbox';
+          this.el.objective.innerHTML = '<div class="obj-title">沙盒状态</div><div class="obj-row done"><span>关卡目标</span><b>关闭</b></div><div class="obj-row done"><span>时间限制</span><b>关闭</b></div>';
+        }
+        return;
+      }
+      this.el.objective.hidden = true;
+      this.el.sandboxStatus.classList.add('on');
+      this.el.sandboxStatus.setAttribute('aria-hidden', 'false');
       if (this._lastObjective === 'sandbox') return;
       this._lastObjective = 'sandbox';
-      this.el.objective.innerHTML = '<div class="obj-title">沙盒状态</div><div class="obj-row done"><span>关卡目标</span><b>关闭</b></div><div class="obj-row done"><span>时间限制</span><b>关闭</b></div>';
+      this.el.sandboxStatus.innerHTML = '<div class="obj-title">沙盒状态</div><div class="obj-row done"><span>关卡目标</span><b>关闭</b></div><div class="obj-row done"><span>时间限制</span><b>关闭</b></div>';
       return;
     }
+    this.el.objective.hidden = false;
+    this.el.sandboxStatus?.classList.remove('on');
+    this.el.sandboxStatus?.setAttribute('aria-hidden', 'true');
     const f = g.friend;
     const key = `${g.level}/${g.foodCount}/${f.rescued}/${f.saved}/${g.inBurrow}/${cfg.goal}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
     if (key === this._lastObjective) return;

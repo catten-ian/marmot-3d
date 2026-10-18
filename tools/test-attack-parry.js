@@ -13,13 +13,17 @@ const assert = require('node:assert/strict');
 
 (async () => {
   const {
-    AttackGesture, resolveAttackRelease,
+    AttackGesture, resolveAttackRelease, resolveAttackGesturePreview,
     PARRY_DRAG_THRESHOLD, ROLL_DRAG_THRESHOLD, POUNCE_HOLD_MS,
   } = await import('../src/core/combat-wheel.mjs');
 
   assert.equal(PARRY_DRAG_THRESHOLD, 22);
   assert.equal(ROLL_DRAG_THRESHOLD, 22);
   assert.equal(POUNCE_HOLD_MS, 650);
+  assert.equal(resolveAttackGesturePreview({ dx: -22, dy: 0 }), 'parry');
+  assert.equal(resolveAttackGesturePreview({ dx: 22, dy: 0 }), 'roll');
+  assert.equal(resolveAttackGesturePreview({ dx: -40, dy: 40 }), null, '预览与 AttackGesture 一样要求水平主导');
+  assert.equal(resolveAttackGesturePreview({ dx: 3, dy: 0, fired: 'roll' }), 'roll', '预览保留 fired 闩锁');
 
   // 1) 点按 / 阈值前地面松手 → 推击
   {

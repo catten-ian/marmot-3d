@@ -21,6 +21,17 @@ export const ROLL_DRAG_THRESHOLD = 22;    // 翻滚：右滑 dx ≥ +22px
 // 方向识别必须水平主导：|dx| 要明显大于 |dy|，纵向摇动不误触发迎击/翻滚。
 export const GESTURE_HORIZONTAL_RATIO = 1.1;
 
+/** Return the visible swipe affordance using the exact same threshold/axis rules as AttackGesture. */
+export function resolveAttackGesturePreview({ dx = 0, dy = 0, fired = null } = {}) {
+  if (fired === 'parry' || fired === 'roll') return fired;
+  const x = Number(dx) || 0;
+  const y = Number(dy) || 0;
+  const horizontal = Math.abs(x) >= Math.abs(y) * GESTURE_HORIZONTAL_RATIO;
+  if (horizontal && x <= -PARRY_DRAG_THRESHOLD) return 'parry';
+  if (horizontal && x >= ROLL_DRAG_THRESHOLD) return 'roll';
+  return null;
+}
+
 const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 const clampNum = (v, lo, hi, fallback) => {
   const n = Number(v);
@@ -100,12 +111,12 @@ export class AttackGesture {
     this.dy = Number(dy) || 0;
     this.tNow = tNow;
     if (this.fired) return null; // 闩锁：本次按住已出过一个方向招式
-    const horizontal = Math.abs(this.dx) >= Math.abs(this.dy) * GESTURE_HORIZONTAL_RATIO;
-    if (horizontal && this.dx <= -PARRY_DRAG_THRESHOLD) {
+    const preview = resolveAttackGesturePreview({ dx: this.dx, dy: this.dy });
+    if (preview === 'parry') {
       this.fired = 'parry';
       return this.context('parry');
     }
-    if (horizontal && this.dx >= ROLL_DRAG_THRESHOLD) {
+    if (preview === 'roll') {
       this.fired = 'roll';
       return this.context('roll');
     }

@@ -87,6 +87,11 @@
   <div class="objective" id="objective"></div>
 </div>
 
+<!-- 沙盒专用状态卡：与普通关卡目标卡分离，布局归入 cards 命名空间。 -->
+<div class="sandbox-status" id="sandboxStatus" aria-hidden="true">
+  <div class="obj-title">沙盒状态</div>
+</div>
+
 <!-- ========== 提示气泡 ========== -->
 <div id="toast" class="toast"></div>
 
@@ -117,7 +122,10 @@
   </div>
   <button class="touch-pause" type="button" data-touch-action="pause" aria-label="暂停游戏">Ⅱ</button>
   <div class="touch-actions" aria-label="动作按钮">
-    <button type="button" class="touch-btn attack" data-touch-action="attack" aria-label="攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"><span class="attack-core" aria-hidden="true"></span><b>爪</b><small>攻击</small></button>
+    <button type="button" class="touch-btn attack" data-touch-action="attack" data-swipe-preview="" data-swipe-fired="" aria-label="攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚">
+      <span class="attack-swipe-ring" aria-hidden="true"><i class="attack-swipe-hint parry">← 迎击</i><i class="attack-swipe-hint roll">翻滚 →</i></span>
+      <span class="attack-core" aria-hidden="true"></span><b>爪</b><small>攻击</small>
+    </button>
     <button type="button" data-touch-action="dodge" aria-label="翻滚：拖动可朝拖动方向滚动，或按轮盘方向"><b>⟳</b><small>翻滚</small></button>
     <button type="button" data-touch-action="jump" aria-label="跳跃"><b>↟</b><small>跳跃</small></button>
     <button type="button" data-touch-action="interact" aria-label="救援或陪伴"><b>✦</b><small>交互</small></button>

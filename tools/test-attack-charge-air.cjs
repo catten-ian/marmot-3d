@@ -44,22 +44,27 @@ const fs = require('node:fs');
   assert.equal(roll.update(-30, 0, 60), null);
   assert.equal(resolveAttackRelease({ holdMs: 900, fired: roll.fired }), null);
 
-  // UI regression: fixed lower-center charge progress, phone idle core-only/pressed art,
-  // desktop full artwork. The attack colors remain in the original stylesheet rules.
+  // UI regression: fixed lower-center charge progress and an attack key that is
+  // visible before first touch, with explicit left/right swipe affordances.
   const css = fs.readFileSync('styles.css', 'utf8');
   const controls = fs.readFileSync('src/core/controls.js', 'utf8');
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(css, /\.attack-charge-hint\s*\{[^}]*left:\s*50%[^}]*bottom:/s);
   assert.match(css, /\.attack-charge-fill\s*\{[^}]*width:\s*var\(--charge-progress/s);
-  assert.match(css, /\.touch-mode \.touch-actions button\[data-touch-action="attack"\] b,[\s\S]*?opacity:\s*0/);
-  assert.match(css, /\.touch-mode \.touch-actions button\[data-touch-action="attack"\]\.pressed b,[\s\S]*?opacity:\s*1/);
+  assert.match(css, /\.touch-mode \.touch-actions button\[data-touch-action="attack"\]\s*\{[^}]*border-color:/s);
+  assert.doesNotMatch(css, /\.touch-mode \.touch-actions button\[data-touch-action="attack"\]:not\(\.pressed\)[\s\S]*?opacity:\s*0/, '触屏攻击键不得在闲置首帧透明');
   assert.match(css, /button\[data-touch-action="attack"\][\s\S]*?background-image:\s*linear-gradient/s);
-  assert.match(css, /\.touch-mode \.touch-actions button\[data-touch-action="attack"\] b[\s\S]*?opacity:\s*0/, 'idle art hiding is restricted to touch mode; desktop stays complete');
+  assert.match(css, /\.attack-swipe-ring/);
+  assert.match(css, /data-swipe-preview=\"parry\"/);
+  assert.match(css, /data-swipe-preview=\"roll\"/);
   const landingMethod = controls.match(/requestFastLanding\(speed = 5\.2\)[\s\S]*?\n  }/);
   assert.ok(landingMethod, 'controller exposes a quick-landing request');
   assert.match(landingMethod[0], /this\.vy = Math\.min\(this\.vy, -fallSpeed\)/);
   assert.doesNotMatch(landingMethod[0], /teleport|position\.(set|y\s*\+=?)/i, 'quick landing uses velocity rather than teleporting');
   assert.match(html, /class="attack-core"/);
+  assert.match(html, /class="attack-swipe-ring"/);
+  assert.match(html, /← 迎击/);
+  assert.match(html, /翻滚 →/);
   assert.match(html, /data-touch-action="attack"/);
 
   // Incoming-hit interruption belongs only to the player's actual contact-damage path.

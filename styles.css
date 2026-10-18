@@ -1792,14 +1792,13 @@ body.touch-layout-editing .objective.layout-dragging { cursor: grabbing; filter:
 }
 .touch-actions button[data-touch-action="attack"] b { font-size: 22px; }
 .touch-actions button[data-touch-action="attack"] small { font-size: 10px; }
-/* 触屏闲置时只保留中央爪心；按下显示完整图标与文字。桌面保持完整按钮艺术。 */
-.touch-mode .touch-actions button[data-touch-action="attack"]:not(.pressed) {
-  border-color: transparent; background: transparent; background-image: none; box-shadow: none;
+/* 触屏和桌面都保持完整攻击主键；左右滑时由外侧提示环显示对应招式。 */
+.touch-mode .touch-actions button[data-touch-action="attack"] {
+  /* 攻击键首帧即显示完整主键；此前闲置态透明化会让首次触摸看起来像“点击后才出现”。 */
+  border-color: rgba(255, 203, 141, .95);
+  background-image: linear-gradient(rgba(91, 38, 25, .78), rgba(44, 24, 22, .74)), linear-gradient(135deg, #ffdfae, #bd705e 50%, #ffc879);
+  box-shadow: 0 0 0 4px rgba(255, 190, 126, .14), 0 4px 15px #000a, inset 0 1px 4px #fff7;
 }
-.touch-mode .touch-actions button[data-touch-action="attack"] b,
-.touch-mode .touch-actions button[data-touch-action="attack"] small { opacity: 0; transition: opacity .12s ease; }
-.touch-mode .touch-actions button[data-touch-action="attack"].pressed b,
-.touch-mode .touch-actions button[data-touch-action="attack"].pressed small { opacity: 1; }
 /* 攻击键分两层：外圈=整圆渐变/光晕（按下缩放等升级动画仍绑在外圈 button 上），
    内圈=.attack-core 触发核心；尺寸/透明度由布局编辑面板经 CSS 变量
    --attack-core-scale / --attack-core-opacity 调节（持久化在 marmot.touch-layout.v1）。 */
@@ -1817,6 +1816,38 @@ body.touch-layout-editing .objective.layout-dragging { cursor: grabbing; filter:
   pointer-events: none;
   transition: opacity .12s ease;
 }
+
+/* 攻击主键外侧是左右滑提示环；预览状态由 TouchControls 使用 AttackGesture 同一阈值写入 data-swipe-preview。 */
+.attack-swipe-ring {
+  position: absolute; inset: -12px; border: 1px solid rgba(255, 225, 163, .34);
+  border-radius: 50%; pointer-events: none; transition: border-color .1s ease, box-shadow .1s ease;
+}
+.attack-swipe-ring::before, .attack-swipe-ring::after {
+  content: ''; position: absolute; top: 50%; width: 19px; height: 19px; margin-top: -10px;
+  border-top: 2px solid rgba(214, 232, 189, .5); border-bottom: 2px solid rgba(214, 232, 189, .5);
+  opacity: .7; transition: opacity .1s ease, border-color .1s ease;
+}
+.attack-swipe-ring::before { left: -3px; border-left: 3px solid rgba(255, 207, 107, .72); transform: skewX(-16deg); }
+.attack-swipe-ring::after { right: -3px; border-right: 3px solid rgba(255, 207, 107, .72); transform: skewX(16deg); }
+.attack-swipe-hint {
+  position: absolute; top: 50%; margin-top: -6px; color: rgba(239, 244, 222, .7);
+  font-size: 8px; font-style: normal; font-weight: 800; white-space: nowrap; text-shadow: 0 1px 3px #000;
+  opacity: .72; transition: color .1s ease, opacity .1s ease, transform .1s ease;
+}
+.attack-swipe-hint.parry { right: calc(100% + 10px); }
+.attack-swipe-hint.roll { left: calc(100% + 10px); }
+.touch-actions button[data-touch-action="attack"][data-swipe-preview="parry"] .attack-swipe-ring,
+.touch-actions button[data-touch-action="attack"][data-swipe-fired="parry"] .attack-swipe-ring {
+  border-color: rgba(143, 232, 176, .95); box-shadow: 0 0 14px rgba(143, 232, 176, .6);
+}
+.touch-actions button[data-touch-action="attack"][data-swipe-preview="roll"] .attack-swipe-ring,
+.touch-actions button[data-touch-action="attack"][data-swipe-fired="roll"] .attack-swipe-ring {
+  border-color: rgba(255, 207, 107, .98); box-shadow: 0 0 14px rgba(255, 207, 107, .68);
+}
+.touch-actions button[data-touch-action="attack"][data-swipe-preview="parry"] .attack-swipe-hint.parry,
+.touch-actions button[data-touch-action="attack"][data-swipe-fired="parry"] .attack-swipe-hint.parry { color: #9ff0bb; opacity: 1; transform: translateX(-3px); }
+.touch-actions button[data-touch-action="attack"][data-swipe-preview="roll"] .attack-swipe-hint.roll,
+.touch-actions button[data-touch-action="attack"][data-swipe-fired="roll"] .attack-swipe-hint.roll { color: #ffe092; opacity: 1; transform: translateX(3px); }
 .touch-actions button[data-touch-action="jump"] { border-color: rgba(247, 224, 150, .88); }
 .touch-actions button[data-touch-action="sprint"] { border-color: rgba(164, 220, 146, .88); }
 .touch-actions button[data-touch-action="interact"] { border-color: rgba(150, 218, 205, .9); }
@@ -1930,3 +1961,24 @@ body.touch-layout-editing .touch-controls { z-index: 41; }
 .attack-charge-hint.full .attack-charge-track{border-color:#ffe0a1;box-shadow:0 0 12px rgba(255,190,90,.75),0 2px 8px #0009;}
 .attack-charge-hint.full .attack-charge-fill{background:linear-gradient(90deg,#ffce6b,#fff0ad);box-shadow:0 0 14px #ffca5f;}
 .attack-charge-hint.full .attack-charge-label{color:#fff1a8;font-weight:800;}
+
+/* 沙盒状态独立于普通关卡目标卡；默认位于小地图下方，布局系统可独立拖动/缩放/调透明度。 */
+.sandbox-status {
+  position: fixed; top: calc(258px + var(--safe-top, 0px)); right: calc(14px + var(--safe-right, 0px));
+  width: min(174px, 30vw); min-width: 168px; padding: 10px 13px;
+  color: var(--ink); background-image: linear-gradient(rgba(8, 19, 12, .52), rgba(8, 19, 12, .52)),
+    linear-gradient(120deg, rgba(255, 207, 107, .3), rgba(106, 151, 107, .16) 58%, rgba(225, 239, 196, .32));
+  border: 1px solid transparent; border-radius: 10px; background-origin: border-box; background-clip: padding-box, border-box;
+  backdrop-filter: blur(6px); z-index: 24; pointer-events: none; visibility: hidden; opacity: 0;
+  transition: opacity .16s ease, visibility .16s ease;
+}
+.sandbox-status.on { visibility: visible; opacity: 1; }
+body.touch-layout-editing .sandbox-status { pointer-events: auto; touch-action: none; cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
+body.touch-layout-editing .sandbox-status.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
+body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; filter: brightness(1.18); }
+@media (max-width: 860px) {
+  .sandbox-status { top: calc(258px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: min(150px, 34vw); min-width: 0; padding: 5px 7px; font-size: 9.5px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .sandbox-status { top: calc(188px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: min(140px, 24vw); }
+}

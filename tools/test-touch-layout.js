@@ -1,6 +1,6 @@
 /**
  * 触屏布局调整：总开关可见性/编辑守卫 + 进出调整自动暂停 的纯逻辑回归，
- * 以及三张常驻 HUD 信息卡（.vitals/.mission/.objective）纳入布局系统的回归：
+ * 以及常驻 HUD 信息卡（.vitals/.mission/.objective）纳入布局系统的回归：
  * 旧版 buttons/joystick 存档兼容、卡片 _normalize 夹紧、apply 写样式、
  * 设置面板选项、普通关卡目标常驻与触控实玩可见性的静态契约。
  * 不依赖浏览器：用最小 DOM shim 载入 src/ui/touch-layout.js（ESM）。
@@ -78,11 +78,12 @@ function installDomShim() {
     return m ? buttons[m[1]] || null : null;
   };
   const ids = { touchControls: root, touchLayoutEntry: entry, touchSafeInsets: probe, touchJoystick: joystick, testModeBtn };
-  // 三张常驻 HUD 信息卡（TouchLayout 通过 document.querySelector 获取）。
+  // 常驻 HUD 信息卡（TouchLayout 通过 document.querySelector 获取）。
   const cards = {
     '.vitals': new FakeEl('hudVitals'),
     '.mission': new FakeEl('hudMission'),
     '.objective': new FakeEl('hudObjective'),
+    '.sandbox-status': new FakeEl('hudSandbox'),
   };
   global.document = {
     documentElement: html,
@@ -140,13 +141,19 @@ function staticChecks() {
 
   // —— HUD 卡片可调整 + 触控实玩可见（任务 B/C）——
   assert.ok(css.includes('.vitals, .mission, .objective { pointer-events: none; }'),
-    '非编辑态三张 HUD 卡必须 pointer-events:none，不能挡视角/按键');
+    '非编辑态HUD 卡必须 pointer-events:none，不能挡视角/按键');
   assert.ok(/body\.touch-layout-editing \.vitals,[\s\S]*?\.objective \{[^}]*pointer-events:\s*auto/.test(css),
-    '编辑态下三张 HUD 卡必须 pointer-events:auto 以支持点选/拖动');
+    '编辑态下HUD 卡必须 pointer-events:auto 以支持点选/拖动');
   assert.ok(css.includes('body.touch-layout-editing .objective.layout-selected'),
     '编辑态 HUD 卡必须有选中描边样式');
   assert.ok(/body\.touch-playing \.hud-right \{[^}]*display:\s*block/.test(css),
     '触控实玩（body.touch-playing）时目标卡 .hud-right 必须可见');
+  assert.ok(html.includes('id="sandboxStatus"'), '必须有独立沙盒状态卡 DOM');
+  assert.ok(layoutSrc.includes('hudSandbox'), '布局 cards 命名空间必须包含 hudSandbox');
+  assert.ok(css.includes('.sandbox-status'), '沙盒状态卡必须有独立样式');
+  assert.ok(hudSrc.includes('sandboxStatus'), 'HUD 必须渲染独立沙盒状态卡');
+  assert.ok(hudSrc.includes('this.el.objective.hidden = true'), '沙盒模式不能把普通目标卡改成沙盒内容');
+  assert.ok(hudSrc.includes('this.el.objective.hidden = false'), '退出沙盒后普通目标卡必须恢复');
 }
 
 (async () => {
@@ -222,9 +229,9 @@ function staticChecks() {
   setTouchAdjustStored(false);
   assert.equal(touchAdjustEnabled(), false);
 
-  // 6) HUD 卡片：默认布局三张卡齐全；apply() 写出 left/top/scale/opacity
+  // 6) HUD 卡片：默认布局所有卡齐全；apply() 写出 left/top/scale/opacity
   const layout3 = new TouchLayout();
-  for (const id of ['hudVitals', 'hudMission', 'hudObjective']) {
+  for (const id of ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox']) {
     const c = layout3.layout.cards[id];
     assert.ok(c, `默认布局必须包含卡片 ${id}`);
     assert.ok(c.x >= 0 && c.x <= 1 && c.y >= 0 && c.y <= 1, `${id} 默认中心点必须归一化在 0-1`);
@@ -232,7 +239,7 @@ function staticChecks() {
     assert.equal(c.opacity, 1);
   }
   layout3.apply();
-  for (const [sel, id] of [['.vitals', 'hudVitals'], ['.mission', 'hudMission'], ['.objective', 'hudObjective']]) {
+  for (const [sel, id] of [['.vitals', 'hudVitals'], ['.mission', 'hudMission'], ['.objective', 'hudObjective'], ['.sandbox-status', 'hudSandbox']]) {
     const el = shim.cards[sel];
     assert.ok(String(el.style.left).endsWith('px'), `${id} apply 后必须写 left`);
     assert.ok(String(el.style.top).endsWith('px'), `${id} apply 后必须写 top`);
@@ -269,7 +276,7 @@ function staticChecks() {
   assert.equal(legacy.layout.buttons.attack.scale, 1.2, '旧存档的攻击键大小必须保留');
   assert.equal(legacy.layout.scale, 1.1, '旧存档的整体大小必须保留');
   assert.equal(legacy.layout.joystick.sprintThreshold, 0.8, '旧存档的疾跑阈值必须保留');
-  for (const id of ['hudVitals', 'hudMission', 'hudObjective']) {
+  for (const id of ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox']) {
     const c = legacy.layout.cards[id];
     assert.ok(c, `旧存档缺 cards 时 ${id} 必须落到默认布局`);
     assert.equal(c.scale, 1);
@@ -278,9 +285,9 @@ function staticChecks() {
   }
   shim.storage.removeItem('marmot.touch-layout.v1');
 
-  // 9) 设置面板包含三张卡选项，且整体大小/透明度文案限定于动作按钮
+  // 9) 设置面板包含HUD 卡选项，且整体大小/透明度文案限定于动作按钮
   const markup = layout3.settingsMarkup();
-  for (const id of ['hudVitals', 'hudMission', 'hudObjective']) {
+  for (const id of ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox']) {
     assert.ok(markup.includes(`value="${id}"`), `设置面板单个控件选择器必须包含 ${id}`);
   }
   assert.ok(markup.includes('HUD 卡片'), '设置面板必须有 HUD 卡片分组');
@@ -322,6 +329,9 @@ function staticChecks() {
   assert.ok(Number.isFinite(joystickLayout.layout.joystick.x) && Number.isFinite(joystickLayout.layout.joystick.y), '摇杆必须有归一化位置');
   assert.equal(joystickLayout.layout.joystick.scale, 1);
   assert.equal(joystickLayout.layout.joystick.sprintThreshold, 0.78);
+  const sandboxButton = joystickLayout.layout.buttons.sandboxControl;
+  assert.ok(sandboxButton.y < joystickLayout.layout.joystick.y - 0.05, '沙盒入口默认必须位于摇杆上方，不能覆盖移动区域');
+  assert.ok(joystickLayout.layout.cards.hudSandbox.y > 250 / 844, '沙盒状态卡默认必须落在小地图下方的安全位置');
   const joystickMarkup = joystickLayout.settingsMarkup();
   for (const needle of ['value="sandboxControl"', 'value="joystick"', 'layoutJoystickScale', 'layoutSprintThreshold']) {
     assert.ok(joystickMarkup.includes(needle), `设置面板缺少 ${needle}`);

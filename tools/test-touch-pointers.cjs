@@ -113,12 +113,16 @@ class El {
 
   // 攻击手指（第三根指针）：左滑迎击，look/move 均不受影响
   attack.dispatch('touchstart', touchEvent([touch(2, 300, 500)]));
+  assert.equal(attack.dataset.swipePreview, '', '攻击键按下时预览处于中性');
   assert.equal(tc.pointerRoles.get(2), 'button:attack');
   assert.equal(tc.lookPointer, 1, '攻击手指不顶替 look');
   assert.equal(tc.movePointer, 0, '攻击手指不顶替 move');
   attack.dispatch('touchmove', touchEvent([touch(2, 280, 500)])); // dx=-20 未到阈值
+  assert.equal(attack.dataset.swipePreview, '', '阈值前不显示迎击');
   assert.equal(parryFires.length, 0);
   attack.dispatch('touchmove', touchEvent([touch(2, 268, 500)])); // dx=-32 迎击
+  assert.equal(attack.dataset.swipePreview, 'parry', '左滑跨阈显示迎击，并与 fired 闩锁同源');
+  assert.equal(attack.dataset.swipeFired, 'parry');
   assert.equal(parryFires.length, 1, '左滑跨阈立即迎击一次');
   assert.equal(parryFires[0].kind, 'parry');
   assert.equal(parryFires[0].pointerId, 2);
@@ -129,6 +133,7 @@ class El {
   assert.equal(controller.touchLookActive, true, '攻击手势期间右手 look 始终有效');
   // window touchend 兜底
   handlers.touchend.find((x) => !x.capture).fn(touchEvent([touch(2, 200, 500)]));
+  assert.equal(attack.dataset.swipePreview, '', '攻击松手清除方向预览');
   const releaseAttack = actions.findLast((a) => a.action === 'attack' && !a.pressed && a.id === 2);
   assert.ok(releaseAttack, '松手结算攻击');
   assert.equal(releaseAttack.data.fired, 'parry');
@@ -143,6 +148,7 @@ class El {
   assert.equal(parryFires.length, 1, '斜向（纵向主导）不触发迎击');
   assert.equal(rollFires.length, 0);
   attack.dispatch('touchmove', touchEvent([touch(3, 330, 498)])); // dx=30 水平主导 → 翻滚
+  assert.equal(attack.dataset.swipePreview, 'roll', '右滑跨阈显示翻滚');
   assert.equal(rollFires.length, 1, '右滑跨阈立即翻滚一次');
   assert.equal(rollFires[0].kind, 'roll');
   attack.dispatch('touchmove', touchEvent([touch(3, 400, 500)]));
