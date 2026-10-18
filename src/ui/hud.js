@@ -151,7 +151,7 @@ export class HUD {
     this.el.stressText.textContent = Math.round(p.stress) + (stats.overloaded ? ' · 过载' : '');
 
     // Keep only level identity and live status in the always-visible mission
-    // chip. Instructional text stays available in the expanded objective.
+    // chip. Instructional text lives in the always-visible objective card.
     this.el.mission.innerHTML = g.sandbox
       ? '<b>自由测试 · 无关卡 / 无时间限制</b><br>移动、攻击与狐狸机动均可反复测试'
       : `第 <b>${g.level + 1}</b> / ${LEVELS.length} 关 · ${cfg.name}<br>` +
@@ -206,11 +206,8 @@ export class HUD {
     const row = (label, cur, need) =>
       `<div class="obj-row ${cur >= need ? 'done' : ''}"><span>${label}</span><b>${cur}/${need}</b></div>`;
 
-    const expanded = this.el.objective.classList.contains('expanded');
-    const toggleLabel = expanded ? '收起本关目标' : '展开本关目标';
-    let html = `<button type="button" class="obj-toggle" aria-expanded="${expanded}" aria-controls="objectiveDetails" aria-label="${toggleLabel}">`
-      + `<span>本关目标</span><b>采食 ${g.foodCount}/${cfg.goal}</b><i aria-hidden="true">${expanded ? '−' : '+'}</i></button>`;
-    html += `<div class="obj-details" id="objectiveDetails" aria-hidden="${!expanded}">`;
+    // 普通关卡：目标卡常驻显示（与沙盒状态卡一致，不再需要点击展开）。
+    let html = '<div class="obj-title">本关目标</div>';
     // dev 版：采食对象随季节变化，标签应随之改变
     const eatLabel = g.season ? `采食 · ${g.season.season}` : '采食浆果';
     html += row(eatLabel, g.foodCount, cfg.goal);
@@ -218,11 +215,10 @@ export class HUD {
     html += `<div class="obj-row ${g.inBaseBurrow ? 'done' : ''}"><span>回大本营结算</span><b>${g.inBaseBurrow ? '在大本营' : g.inBurrow ? '临时避难中' : '未回洞'}</b></div>`;
     const levelHint = cfg.subtitle || cfg.brief;
     if (levelHint) html += `<div class="obj-hint">关卡提示：${levelHint}</div>`;
-    // dev 版：显示当季说明，把季节性与进食强度联系起来
+    // dev 版：显示当季说明，把季节性与进食强度联系起来（移动端 CSS 隐藏以控制高度）
     if (g.season) {
       html += `<div class="obj-season">${g.season.seasonNote}</div>`;
     }
-    html += '</div>';
     this.el.objective.innerHTML = html;
   }
 

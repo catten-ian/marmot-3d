@@ -2003,20 +2003,6 @@ if (hudDetailsBtn) {
   };
 }
 
-// 目标摘要点击展开/收起，不抢占中央瞄准与移动区域。
-document.getElementById('objective')?.addEventListener('click', (event) => {
-  const toggle = event.target.closest('.obj-toggle');
-  if (!toggle) return;
-  const objective = toggle.closest('.objective');
-  if (!objective) return;
-  const expanded = objective.classList.toggle('expanded');
-  toggle.setAttribute('aria-expanded', String(expanded));
-  toggle.setAttribute('aria-label', expanded ? '收起本关目标' : '展开本关目标');
-  const icon = toggle.querySelector('i');
-  if (icon) icon.textContent = expanded ? '−' : '+';
-  objective.querySelector('.obj-details')?.setAttribute('aria-hidden', String(!expanded));
-});
-
 // 帮助面板
 const helpBtn = document.getElementById('helpBtn');
 const helpSheet = document.getElementById('helpSheet');
@@ -2306,6 +2292,8 @@ function frame(now) {
   const touchPlaying = TOUCH_DEVICE && game.mode === 'play';
   if (document.body.classList.contains('touch-playing') !== touchPlaying) {
     document.body.classList.toggle('touch-playing', touchPlaying);
+    // 触控实玩类切换会改变 HUD 卡片的 CSS 默认位置，未拖动过的卡跟随新设计位置。
+    touchLayout.refreshCardDefaults();
   }
   update(dt);
   playerModel.position.set(controller.position.x, controller.position.y, controller.position.z);
