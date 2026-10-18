@@ -26,9 +26,11 @@ export function hasRealTouch() {
     || 'ontouchstart' in globalThis;
 }
 
-/** Device-aware render budget shared by the stable and GS-world builds. */
-export function getRenderProfile() {
-  const coarse = isTouchPrimary();
+/** Device-aware render budget shared by the stable and GS-world builds.
+ * touchOverride：设置里强制输入模式时传入有效模式（true=触屏预算），
+ * 省略时保持原有 isTouchPrimary() 静态检测。 */
+export function getRenderProfile(touchOverride) {
+  const coarse = typeof touchOverride === 'boolean' ? touchOverride : isTouchPrimary();
   const dpr = Math.max(1, Number(globalThis.devicePixelRatio) || 1);
   if (!coarse) {
     return {

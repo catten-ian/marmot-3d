@@ -1869,12 +1869,21 @@ body.touch-playing .version-tag { display: none; }
 /* 调整开关（设置 → 启用触屏布局调整）关闭时，所有"调整键"隐藏：
    画面上的编辑入口、设置里的拖动编辑按钮组等。默认在 <html> 上即为 false。 */
 [data-touch-adjust-enabled="false"] [data-touch-adjust] { display: none !important; }
+/* 有效输入模式为键鼠（强制键鼠或未升级的自动模式）时：隐藏所有触屏布局编辑入口，
+   不允许编辑浮动触控控件；触屏层的显示仍由 body.touch-mode/touch-playing 控制。 */
+[data-input-effective="keyboard"] [data-touch-adjust],
+[data-input-effective="keyboard"] .touch-layout-entry { display: none !important; }
 /* 进入调整时游戏自动暂停，但暂停面板会盖住按键导致无法拖动，调整态下隐藏它 */
 body.touch-layout-editing #overlay { display: none !important; }
 body.touch-layout-editing .touch-controls { z-index: 41; }
 .touch-controls.layout-editing .touch-actions button { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
 .touch-controls.layout-editing .touch-actions button.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
 .touch-controls.layout-editing .touch-actions button.layout-dragging { cursor: grabbing; filter: brightness(1.25); }
+.input-mode-settings { margin: 0 0 14px; padding: 13px; border: 1px solid rgba(214, 232, 189, .24); border-radius: 10px; background: rgba(8, 20, 13, .5); }
+.input-mode-settings h4 { margin: 0 0 7px; color: var(--gold); font-size: 14px; }
+.input-mode-row { margin-top: 4px; }
+.input-mode-status { margin: 8px 0 0; color: var(--soft); font-size: 11.5px; line-height: 1.5; }
+.input-mode-status b { color: var(--gold); }
 .touch-adjust-settings { margin: 18px 0 0; padding: 13px; border: 1px solid rgba(214, 232, 189, .24); border-radius: 10px; background: rgba(8, 20, 13, .5); }
 .touch-adjust-settings h4 { margin: 0 0 7px; color: var(--gold); font-size: 14px; }
 .touch-adjust-settings p { margin: 6px 0 0; color: var(--soft); font-size: 11px; line-height: 1.5; }

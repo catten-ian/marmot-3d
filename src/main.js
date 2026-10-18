@@ -27,16 +27,44 @@ import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
-import { getRenderProfile, isTouchPrimary } from './core/performance.js';
+import { getRenderProfile, hasRealTouch } from './core/performance.js';
+import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
 import { TouchControls } from './core/touch-controls.js';
 
-let TOUCH_DEVICE = isTouchPrimary();
-/** 微信/QQ X5 等内置浏览器可能谎报指针能力；首次真实触摸时升级为触屏模式。 */
-function enableTouchRuntime() {
-  if (TOUCH_DEVICE) return;
-  TOUCH_DEVICE = true;
-  try { touchControls?.activate?.(); } catch (_) {}
-  document.body.classList.add('touch-mode');
+/** 输入模式（设置面板可强制）：auto=设备检测+首次触摸升级，touch=强制触屏，keyboard=强制键鼠。 */
+const inputMode = new InputModeManager();
+let TOUCH_DEVICE = inputMode.isTouch();
+
+/**
+ * 输入模式统一生效入口：全局标记、body class、触控层、渲染 profile 与面板文案。
+ * 切换即时生效，无需刷新；各子系统均做幂等/防御处理，初始化早期调用也安全。
+ */
+function applyInputMode() {
+  TOUCH_DEVICE = inputMode.isTouch();
+  document.body.classList.toggle('touch-mode', TOUCH_DEVICE);
+  if (!TOUCH_DEVICE) document.body.classList.remove('touch-playing');
+  document.documentElement.setAttribute('data-input-effective', TOUCH_DEVICE ? 'touch' : 'keyboard');
+  try {
+    if (touchControls) {
+      // 强制触屏 + 无真实触摸能力的桌面调试：允许鼠标驱动摇杆/按钮/look zone。
+      touchControls.allowMouse = TOUCH_DEVICE && inputMode.preference === INPUT_MODE_TOUCH && !hasRealTouch();
+      if (TOUCH_DEVICE) touchControls.activate();
+      else touchControls.deactivate();
+    }
+  } catch (_) {}
+  try {
+    touchLayout?.setTouchModeAvailable?.(TOUCH_DEVICE);
+    if (!TOUCH_DEVICE && touchLayout?.editing) touchLayout.setEditing(false);
+  } catch (_) {}
+  // 渲染预算跟随有效模式：强制触屏降级、强制键鼠恢复桌面质量。
+  try {
+    renderProfile = getRenderProfile(TOUCH_DEVICE);
+    renderer.setPixelRatio(renderProfile.pixelRatio);
+    if ('shadowMap' in renderer) renderer.shadowMap.enabled = renderProfile.shadows;
+  } catch (_) {}
+  try { settingsUI?.render?.(); } catch (_) {}
+  // 帮助/暂停/结算等面板按 TOUCH_DEVICE 分支渲染；标题面板打开时即时重渲染。
+  try { if (game.mode === 'title') title(); } catch (_) {}
 }
 
 /** 真实模型加载结果（供调试接口查看） */
@@ -100,7 +128,7 @@ const WANT_GS = BOOT.gsWorld === true;
 
 let renderer;
 let rendererStatus = { backend: 'webgl', supportsSplat: false, gpuReason: '' };
-let renderProfile = getRenderProfile();
+let renderProfile = getRenderProfile(TOUCH_DEVICE);
 
 if (WANT_GS) {
   const result = await createRenderer(canvas, {
@@ -122,7 +150,7 @@ if (WANT_GS) {
   });
 }
 
-renderProfile = getRenderProfile();
+renderProfile = getRenderProfile(TOUCH_DEVICE);
 renderer.setPixelRatio(renderProfile.pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 if ('shadowMap' in renderer) {
@@ -1762,6 +1790,10 @@ function isSprintingNow() {
 touchControls = new TouchControls({
   canvas,
   controller,
+  enabled: TOUCH_DEVICE,
+  // 只有自动模式允许首次真实触摸运行时升级；强制键鼠收到 touchstart 也不得切换。
+  allowAutoActivate: () => inputMode.canRuntimeUpgrade(),
+  allowMouse: TOUCH_DEVICE && inputMode.preference === INPUT_MODE_TOUCH && !hasRealTouch(),
   root: document.getElementById('touchControls'),
   lookZone: document.getElementById('touchLookZone'),
   joystick: document.getElementById('touchJoystick'),
@@ -1811,11 +1843,12 @@ window.addEventListener('touchmove', (event) => {
 }, { passive: true });
 
 // 老内核兜底：媒体查询/UA 未识别时，收到真实手指触摸立即启用触控层（capture 最早、不拦截）。
+// 是否允许升级由输入模式决定：仅自动模式生效，强制键鼠/强制触屏下为幂等 no-op。
 for (const evName of ['pointerdown', 'touchstart']) {
   window.addEventListener(evName, (ev) => {
     if (TOUCH_DEVICE) return;
     const realTouch = ev.pointerType === 'touch' || ev.pointerType === 'pen' || evName === 'touchstart';
-    if (realTouch) enableTouchRuntime();
+    if (realTouch) inputMode.notifyRealTouch();
   }, { passive: true, capture: true });
 }
 
@@ -1996,7 +2029,7 @@ const feedbackUI = new FeedbackUI({
   endpoint: FEEDBACK.endpoint,
   getSnapshot: () => collectGameSnapshot({
     game, version: VERSION_LABEL, thirdPerson, sandbox: SANDBOX_MODE,
-    touch: TOUCH_DEVICE, performanceProfile: renderProfile,
+    touch: TOUCH_DEVICE, inputMode: inputMode.describe(), performanceProfile: renderProfile,
   }),
 });
 // 进入触屏布局调整时自动暂停，退出时恢复；调整前已暂停则保持暂停。
@@ -2009,7 +2042,10 @@ touchLayout.setPauseHooks({
 touchControls.setSprintThreshold(touchLayout.layout.joystick.sprintThreshold);
 touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
 
-const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI);
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode);
+// 设置面板切换输入模式 → 即时生效；启动时也同步一次（html 属性 / 鼠标兜底 / 布局入口可用性）。
+inputMode.onChange(() => applyInputMode());
+applyInputMode();
 
 // 开发测试面板通过 ?test=1 显式启用，不进入普通用户界面。
 const testModeBtn = document.getElementById('testModeBtn');
@@ -2224,13 +2260,8 @@ if (fsBtn) fsBtn.onclick = toggleFullscreen;
 document.addEventListener('fullscreenchange', syncFullscreenUI);
 document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
 
-if (TOUCH_DEVICE) {
-  const blockGesture = (event) => event.preventDefault();
-  document.addEventListener('contextmenu', blockGesture);
-  document.addEventListener('dblclick', blockGesture, { passive: false });
-  document.addEventListener('gesturestart', blockGesture, { passive: false });
-  document.addEventListener('gesturechange', blockGesture, { passive: false });
-}
+// 触屏手势拦截（contextmenu/dblclick/gesture*）由 TouchControls 在激活时安装、
+// 停用时移除，保证强制键鼠模式下恢复浏览器默认行为。
 
 // 窗口尺寸 / 全屏切换共用
 function resizeRenderer() {
@@ -2238,7 +2269,7 @@ function resizeRenderer() {
   camera.aspect = w / h;
   // 保持基准 FOV：控制器会按姿态在其基础上收窄
   camera.updateProjectionMatrix();
-  renderProfile = getRenderProfile();
+  renderProfile = getRenderProfile(TOUCH_DEVICE);
   renderer.setPixelRatio(renderProfile.pixelRatio);
   renderer.setSize(w, h);
   if ('shadowMap' in renderer) renderer.shadowMap.enabled = renderProfile.shadows;

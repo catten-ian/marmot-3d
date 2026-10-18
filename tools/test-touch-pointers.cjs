@@ -65,8 +65,11 @@ class El {
   const rollFires = [];
   const actions = [];
   const controller = { yaw: 0, pitch: 0, touchLookSensitivity: 0.006, touchSprint: false, touchLookActive: false };
+  // Node 24 的 navigator 全局不可被普通赋值覆盖，isTouchPrimary() 在桩环境下为 false；
+  // 显式 enabled:true 表达"这是触屏设备"的测试意图。
   const tc = new TouchControls({
     canvas: {}, controller, root, lookZone, joystick, stick,
+    enabled: true,
     isActive: () => true,
     onParryGesture: (ctx) => parryFires.push(ctx),
     onRollGesture: (ctx) => rollFires.push(ctx),
@@ -182,6 +185,34 @@ class El {
   assert.equal(controller.touchSprint, false, 'releaseAll 复位疾跑');
   assert.equal(tc.move.mag, 0);
   assert.equal(tc.pointerRoles.size, 0);
+
+  // —— 输入模式联动：deactivate / 自动激活策略（强制键鼠不升级）——
+  assert.equal(tc.enabled, true);
+  tc.deactivate();
+  assert.equal(tc.enabled, false, 'deactivate 关闭触控层');
+  assert.equal(tc.applied, false);
+  assert.equal(controller.touchEnabled, false, 'deactivate 脱离控制器');
+  assert.equal(globalThis.document.body.classList.contains('touch-mode'), false, 'deactivate 移除 touch-mode');
+  // 停用后 touchstart 不再驱动摇杆/按钮
+  joystick.dispatch('touchstart', touchEvent([touch(9, 95, 50)]));
+  assert.equal(tc.movePointer, null, '停用后摇杆不响应');
+  // 默认策略允许首次真实触摸自动激活（capture touchstart）
+  handlers.touchstart.find((x) => x.capture).fn(touchEvent([touch(10, 1, 1)]));
+  assert.equal(tc.enabled, true, '默认策略下真实触摸自动激活');
+  assert.equal(controller.touchEnabled, true);
+  tc.deactivate();
+  // 强制键鼠策略：拒绝自动激活
+  tc.allowAutoActivate = () => false;
+  handlers.touchstart.find((x) => x.capture).fn(touchEvent([touch(11, 1, 1)]));
+  assert.equal(tc.enabled, false, '强制键鼠策略下 touchstart 不激活');
+  // 显式 activate 仍可用（强制触屏路径），幂等
+  tc.activate();
+  assert.equal(tc.enabled, true);
+  tc.activate();
+  assert.equal(tc.applied, true, '重复 activate 幂等');
+  tc.deactivate();
+  tc.deactivate();
+  assert.equal(tc.enabled, false, '重复 deactivate 幂等');
 
   console.log('touch pointer roles/gestures/sprint: all assertions passed');
 })().catch((e) => { console.error(e); process.exit(1); });
