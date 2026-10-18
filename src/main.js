@@ -1022,7 +1022,8 @@ function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul 
   const running = isSprintingNow();
 
   // 迎击（按住攻击键左滑）站立/奔跑都可用；奔跑中迎击自动停步、强制起身。
-  // 扑击(lunge)只在奔跑长按后出现，保留前冲惯性，不停步。
+  // 扑击(lunge)由地面按住达到蓄力阈值（650ms）后松手、或蓄满1500ms自动触发，
+  // 不再要求奔跑；触发时保留前冲惯性，不停步。空中短按结算为弱化扑击。
   if (move === 'stand' && running) {
     controller.velocity.set(0, controller.velocity.y, 0);
     controller.externalVelocity.multiplyScalar(0.2);
@@ -2144,7 +2145,7 @@ function syncHelpKeys() {
     <div class="keys">
       <span><kbd>鼠标</kbd> 视角</span>
       ${movement}
-      <span><kbd>${get('attack')}</kbd> 攻击：松手推击 · 奔跑长按扑击 · 按住左滑迎击 · 按住右滑翻滚</span>
+      <span><kbd>${get('attack')}</kbd> 攻击：短按/松手推击 · 地面按住0.65秒后松手扑击（空中短按为较弱扑击）· 按住左滑迎击 · 按住右滑翻滚</span>
       <span><kbd>${get('jump')}</kbd> 或 <kbd>鼠标右键</kbd> 跳跃</span>
       <span><kbd>${get('burst')}</kbd> 应急爆发</span>
       <span><kbd>${get('ultimate')}</kbd> 协同大招</span>
