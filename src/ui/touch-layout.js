@@ -9,6 +9,11 @@
  *   不创建任何额外的浮动沙盒快捷按钮。
  * 两类 id 互不冲突，编辑态下点击/拖动任意一类都只做选中与布局，
  * 非编辑态各自走原来的点击逻辑（沙盒按钮仍开/关测试面板）。
+ *
+ * 此外管理三张常驻 HUD 信息卡（顶部状态 .vitals / 关卡信息 .mission /
+ * 本关目标 .objective），布局存在独立的 cards 命名空间：
+ * 旧版只有 buttons / joystick 的存档照常兼容，卡片自动落到设计默认位置，
+ * 不会覆盖或重置用户的动作按钮布局。
  */
 import {
   SPRINT_STICK_THRESHOLD,
@@ -31,9 +36,18 @@ const ACTIONS = ['attack', 'dodge', 'jump', 'interact', 'burst', 'ultimate', 'pa
 // 唯一可调整的沙盒入口：index.html 里既有的 #testModeBtn。
 const SANDBOX_CONTROL = 'sandboxControl';
 const ALL_IDS = [...ACTIONS, SANDBOX_CONTROL];
+// 三张可调整的常驻 HUD 信息卡：布局 id → 页面元素。
+const CARDS = ['hudVitals', 'hudMission', 'hudObjective'];
+const CARD_SELECTORS = { hudVitals: '.vitals', hudMission: '.mission', hudObjective: '.objective' };
+// 卡片单卡缩放/透明度范围（比按钮更保守，避免卡片被缩到不可读）。
+const CARD_SCALE = [0.75, 1.25];
+const CARD_OPACITY = [0.35, 1];
 const LABELS = {
   attack: '攻击', dodge: '翻滚', jump: '跳跃', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停',
   sandboxControl: '沙盒控制（入口按钮）',
+  hudVitals: '顶部状态卡（生命/储备/负荷）',
+  hudMission: '关卡信息卡（第 X 关/时间/位置）',
+  hudObjective: '本关目标卡',
 };
 const SIZE = {
   attack: 76, dodge: 58, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38,
@@ -69,9 +83,23 @@ export class TouchLayout {
     }));
     // 现有「沙盒控制」入口按钮（在 #touchControls 之外，直接取 id）。
     this.buttons[SANDBOX_CONTROL] = document.getElementById('testModeBtn');
+    // 常驻 HUD 信息卡。布局系统用 position:fixed 接管定位，
+    // 因此先在改动任何样式之前量出 CSS 设计位置，作为默认布局与卡片宽度基准。
+    this.cards = Object.fromEntries(CARDS.map((id) => [id, document.querySelector?.(CARD_SELECTORS[id]) || null]));
+    this._design = this._measureCards();
+    // 用户拖过的卡片位置：refreshCardDefaults 只跟随仍为默认位置的卡，
+    // 用户拖过（或存档里已有）的卡片位置永远以用户方案为准。
+    this._cardPosTouched = {};
     this.editing = false;
     this.selected = 'attack';
     this.layout = this._load() || this.defaultLayout();
+    // 存档里已带 cards 位置 = 用户已保存的方案，刷新默认时不得覆盖。
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      for (const id of CARDS) {
+        if (raw?.cards?.[id] && Number.isFinite(Number(raw.cards[id].x))) this._cardPosTouched[id] = true;
+      }
+    } catch (_) { /* 存档损坏时按全新默认处理 */ }
     this._bindEditor();
     this._syncAdjustVisibility();
     this.apply();
@@ -92,6 +120,58 @@ export class TouchLayout {
     this._syncAdjustVisibility();
     if (!this.adjustEnabled && this.editing) this.setEditing(false);
     else this.apply();
+  }
+
+  /** 记录三张 HUD 卡的 CSS 设计位置/尺寸（在任何 inline 样式写入之前调用）。 */
+  _measureCards() {
+    const out = {};
+    for (const id of CARDS) {
+      const d = this._measureCard(this.cards[id]);
+      if (d) out[id] = d;
+    }
+    return out;
+  }
+
+  /**
+   * 量单张卡的 CSS 设计位置：先临时清掉布局系统写入的 inline 定位样式，
+   * 让元素回到样式表位置再测，测完恢复。元素缺失/隐藏时返回 null。
+   */
+  _measureCard(el) {
+    if (!el?.getBoundingClientRect) return null;
+    const PROPS = ['position', 'left', 'top', 'right', 'bottom', 'margin', 'width', 'maxWidth', 'transform', 'transformOrigin', 'opacity', 'zIndex'];
+    const saved = {};
+    for (const p of PROPS) { saved[p] = el.style[p] || ''; el.style[p] = ''; }
+    const rect = el.getBoundingClientRect();
+    for (const p of PROPS) el.style[p] = saved[p];
+    if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+    return { cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, w: rect.width, h: rect.height };
+  }
+
+  /**
+   * 重新测量仍为默认位置的 HUD 卡并重新应用布局。
+   * body.touch-playing 切换、旋转/resize 会改变卡片的 CSS 设计位置；
+   * 用户拖过或已保存过位置的卡（_cardPosTouched）保持用户方案不动。
+   */
+  refreshCardDefaults() {
+    const w = Math.max(320, innerWidth || 390), h = Math.max(320, innerHeight || 844);
+    for (const id of CARDS) {
+      if (this._cardPosTouched[id]) continue;
+      const d = this._measureCard(this.cards[id]);
+      if (!d) continue;
+      this._design[id] = d;
+      const item = this.layout.cards?.[id];
+      if (item) { item.x = d.cx / w; item.y = d.cy / h; }
+    }
+    this.apply();
+  }
+
+  /** 卡片元素缺失/不可测量（窄屏隐藏或测试环境）时的兜底默认中心点。 */
+  _cardFallback(id, w, h, safe, landscape) {
+    if (id === 'hudVitals') return [safe.left + 214, safe.top + (landscape ? 30 : 42)];
+    if (id === 'hudMission') return [Math.min(w / 2, safe.left + 560), safe.top + (landscape ? 30 : 42)];
+    // hudObjective：桌面右下；触屏实玩/窄屏放右上安全区（顶部 HUD 下方，避开动作轮盘）。
+    if (w <= 860 || landscape) return [w - safe.right - 86, safe.top + (landscape ? 122 : 196)];
+    return [w - safe.right - 116, h - safe.bottom - 100];
   }
 
   defaultLayout() {
@@ -119,10 +199,18 @@ export class TouchLayout {
     for (const id of ALL_IDS) buttons[id] = { x: positions[id][0] / w, y: positions[id][1] / h, scale: 1 };
     buttons.attack.coreSize = ATTACK_CORE_DEFAULTS.size;
     buttons.attack.coreOpacity = ATTACK_CORE_DEFAULTS.opacity;
+    const cards = {};
+    for (const id of CARDS) {
+      const d = this._design?.[id];
+      const fb = d ? [d.cx, d.cy] : this._cardFallback(id, w, h, safe, w > h);
+      cards[id] = { x: fb[0] / w, y: fb[1] / h, scale: 1, opacity: 1 };
+    }
     return {
       scale: 1,
       opacity: 1,
       buttons,
+      // HUD 卡片：独立命名空间；旧存档没有该字段时由 _normalize 补默认值。
+      cards,
       // 真实疾跑触发范围（摇杆归一化行程），不是装饰圆。
       joystick: { sprintThreshold: SPRINT_STICK_THRESHOLD },
     };
@@ -148,6 +236,17 @@ export class TouchLayout {
         out.buttons[id].coreOpacity = clamp(Number.isFinite(Number(opacitySrc)) ? Number(opacitySrc) : ATTACK_CORE_DEFAULTS.opacity, .3, 1);
       }
     }
+    // HUD 卡片：旧存档缺 cards 字段时用设计默认位置，不影响 buttons / joystick。
+    out.cards = {};
+    for (const id of CARDS) {
+      const c = input.cards?.[id] || base.cards[id];
+      out.cards[id] = {
+        x: clamp(Number.isFinite(Number(c.x)) ? Number(c.x) : base.cards[id].x, 0, 1),
+        y: clamp(Number.isFinite(Number(c.y)) ? Number(c.y) : base.cards[id].y, 0, 1),
+        scale: clamp(Number(c.scale) || 1, CARD_SCALE[0], CARD_SCALE[1]),
+        opacity: clamp(Number(c.opacity) || 1, CARD_OPACITY[0], CARD_OPACITY[1]),
+      };
+    }
     // 摇杆：只保存真实疾跑触发范围；旧布局缺字段时安全补默认值。
     // 旧版的 joystick.coreSize / coreOpacity（装饰圆）字段直接忽略。
     const jsInput = input.joystick || {};
@@ -161,11 +260,27 @@ export class TouchLayout {
   }
 
   _safeCenter(id, x, y, scale, safe, w, h) {
+    if (CARDS.includes(id)) return this._safeCardCenter(id, x, y, scale, safe, w, h);
     const size = (SIZE[id] || 54) * scale * this.layout.scale;
     const half = size / 2 + 4;
     return {
       x: clamp(x, safe.left + half, w - safe.right - half),
       y: clamp(y, safe.top + half, h - safe.bottom - half),
+    };
+  }
+
+  /** 卡片按实际渲染尺寸（getBoundingClientRect）夹紧，文字变长也不会被拖出屏幕。 */
+  _safeCardCenter(id, x, y, scale, safe, w, h) {
+    const el = this.cards[id];
+    const rect = el?.getBoundingClientRect?.();
+    const cur = this.layout?.cards?.[id]?.scale || 1;
+    const bw = rect?.width ? rect.width / cur : (this._design?.[id]?.w || 170);
+    const bh = rect?.height ? rect.height / cur : (this._design?.[id]?.h || 92);
+    const hx = Math.min(bw * scale / 2 + 4, w / 2);
+    const hy = Math.min(bh * scale / 2 + 4, h / 2);
+    return {
+      x: clamp(x, safe.left + hx, w - safe.right - hx),
+      y: clamp(y, safe.top + hy, h - safe.bottom - hy),
     };
   }
 
@@ -193,6 +308,29 @@ export class TouchLayout {
         el.style.setProperty('--attack-core-opacity', String(item.coreOpacity ?? ATTACK_CORE_DEFAULTS.opacity));
       }
       el.style.zIndex = id === 'attack' ? '2' : '1';
+    }
+    // HUD 卡片：统一 position:fixed + 中心点定位，默认位置来自构造时量到的设计位置。
+    for (const id of CARDS) {
+      const el = this.cards[id], item = this.layout.cards?.[id];
+      if (!el || !item) continue;
+      const scale = clamp(item.scale, CARD_SCALE[0], CARD_SCALE[1]);
+      const opacity = clamp(item.opacity, CARD_OPACITY[0], CARD_OPACITY[1]);
+      const p = this._safeCardCenter(id, item.x * w, item.y * h, scale, safe, w, h);
+      el.style.position = 'fixed';
+      el.style.left = `${p.x}px`;
+      el.style.top = `${p.y}px`;
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.margin = '0';
+      // 卡片脱离 flex/grid 后必须显式给宽度，否则 shrink-to-fit 改变默认观感；
+      // 宽度用设计时量到的值，并按当前视口夹紧，旋转/窄屏不溢出。
+      const dw = this._design?.[id]?.w;
+      if (dw) el.style.width = `${Math.min(dw, Math.max(120, w - safe.left - safe.right - 16))}px`;
+      el.style.maxWidth = 'calc(100vw - 16px)';
+      el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      el.style.transformOrigin = 'center';
+      el.style.opacity = String(opacity);
+      el.style.zIndex = '24';
     }
     this.root.classList.toggle('layout-editing', this.editing);
     document.body.classList.toggle('touch-layout-editing', this.editing);
@@ -249,23 +387,27 @@ export class TouchLayout {
   }
 
   restoreDefault() {
+    this._cardPosTouched = {};
     this.layout = this.defaultLayout();
     this.save();
-    this.apply();
+    this.refreshCardDefaults();
     this.onSprintThreshold?.(this.layout.joystick.sprintThreshold);
   }
 
-  setSelected(id) { if (ALL_IDS.includes(id)) { this.selected = id; this._syncEditor(); } }
+  /** 当前选中项的布局记录（动作按钮 / 沙盒入口 / HUD 卡）。 */
+  _entry(id) { return this.layout.buttons[id] || this.layout.cards?.[id] || null; }
+
+  setSelected(id) { if (ALL_IDS.includes(id) || CARDS.includes(id)) { this.selected = id; this._syncEditor(); } }
 
   settingsMarkup() {
     const options = (ids) => ids.map((id) => `<option value="${id}" ${id === this.selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
     return `<section class="touch-layout-settings" aria-label="触屏技能盘设置">
-      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮；选择单键后可单独调尺寸和透明度。「沙盒控制」是唯一可调整的沙盒入口（即打开测试/沙盒面板的那个按钮），不会新增其他浮动按钮。</p>
+      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮和 HUD 卡片；选择单个控件后可单独调尺寸和透明度。「沙盒控制」是唯一可调整的沙盒入口（即打开测试/沙盒面板的那个按钮），不会新增其他浮动按钮。「整体大小 / 整体透明度」只作用于动作按钮，HUD 卡片请用下单项控制。</p>
       <div class="layout-setting-row"><label for="layoutGlobalScale">整体大小</label><input id="layoutGlobalScale" type="range" min="0.75" max="1.3" step="0.05" value="${this.layout.scale}"><output data-layout-value="globalScale"></output></div>
       <div class="layout-setting-row"><label for="layoutGlobalOpacity">整体透明度</label><input id="layoutGlobalOpacity" type="range" min="0.35" max="1" step="0.05" value="${this.layout.opacity}"><output data-layout-value="globalOpacity"></output></div>
-      <div class="layout-setting-row"><label for="layoutSelected">单个按钮</label><select id="layoutSelected"><optgroup label="战斗动作">${options(ACTIONS)}</optgroup><optgroup label="沙盒控制">${options([SANDBOX_CONTROL])}</optgroup></select></div>
-      <div class="layout-setting-row"><label for="layoutButtonScale">单键大小</label><input id="layoutButtonScale" type="range" min="0.7" max="1.35" step="0.05"><output data-layout-value="buttonScale"></output></div>
-      <div class="layout-setting-row"><label for="layoutButtonOpacity">单键透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
+      <div class="layout-setting-row"><label for="layoutSelected">单个控件</label><select id="layoutSelected"><optgroup label="动作按钮">${options(ACTIONS)}</optgroup><optgroup label="沙盒控制">${options([SANDBOX_CONTROL])}</optgroup><optgroup label="HUD 卡片">${options(CARDS)}</optgroup></select></div>
+      <div class="layout-setting-row"><label for="layoutButtonScale">单项大小</label><input id="layoutButtonScale" type="range" min="0.7" max="1.35" step="0.05"><output data-layout-value="buttonScale"></output></div>
+      <div class="layout-setting-row"><label for="layoutButtonOpacity">单项透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreSize">攻击键内圈大小 (40-100%)</label><input id="layoutAttackCoreSize" type="range" min="0.4" max="1" step="0.01"><output data-layout-value="attackCoreSize"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreOpacity">攻击键内圈透明度 (30-100%)</label><input id="layoutAttackCoreOpacity" type="range" min="0.3" max="1" step="0.01"><output data-layout-value="attackCoreOpacity"></output></div>
       <div class="layout-setting-row"><label for="layoutSprintThreshold">疾跑触发范围 (55-95%)</label><input id="layoutSprintThreshold" type="range" min="0.55" max="0.95" step="0.01" value="${this.layout.joystick.sprintThreshold}"><output data-layout-value="sprintThreshold"></output></div>
@@ -282,8 +424,20 @@ export class TouchLayout {
     globalScale?.addEventListener('input', () => { this.layout.scale = Number(globalScale.value); this.apply(); });
     globalOpacity?.addEventListener('input', () => { this.layout.opacity = Number(globalOpacity.value); this.apply(); });
     selected?.addEventListener('change', () => this.setSelected(selected.value));
-    btnScale?.addEventListener('input', () => { this.layout.buttons[this.selected].scale = Number(btnScale.value); this.apply(); });
-    btnOpacity?.addEventListener('input', () => { this.layout.buttons[this.selected].opacity = Number(btnOpacity.value); this.apply(); });
+    btnScale?.addEventListener('input', () => {
+      const item = this._entry(this.selected);
+      if (!item) return;
+      const isCard = CARDS.includes(this.selected);
+      item.scale = clamp(Number(btnScale.value), isCard ? CARD_SCALE[0] : 0.65, isCard ? CARD_SCALE[1] : 1.5);
+      this.apply();
+    });
+    btnOpacity?.addEventListener('input', () => {
+      const item = this._entry(this.selected);
+      if (!item) return;
+      const isCard = CARDS.includes(this.selected);
+      item.opacity = clamp(Number(btnOpacity.value), isCard ? CARD_OPACITY[0] : 0.3, 1);
+      this.apply();
+    });
     // 攻击键内圈：拖动即时写 CSS 变量（apply 内），并立即持久化到既有布局字典。
     const coreSize = byId('layoutAttackCoreSize'), coreOpacity = byId('layoutAttackCoreOpacity');
     coreSize?.addEventListener('input', () => { this.layout.buttons.attack.coreSize = Number(coreSize.value); this.apply(); this.save(); });
@@ -318,7 +472,7 @@ export class TouchLayout {
   _syncEditor() {
     const layout = document.getElementById('setBody');
     if (!layout) return;
-    const item = this.layout.buttons[this.selected];
+    const item = this._entry(this.selected);
     const isAttack = this.selected === 'attack';
     const corePairs = isAttack
       ? [['attackCoreSize', item?.coreSize ?? ATTACK_CORE_DEFAULTS.size], ['attackCoreOpacity', item?.coreOpacity ?? ATTACK_CORE_DEFAULTS.opacity]]
@@ -348,7 +502,7 @@ export class TouchLayout {
     const sprint = layout.querySelector('#layoutSprintThreshold');
     const sprintValue = this.layout.joystick?.sprintThreshold ?? SPRINT_STICK_THRESHOLD;
     if (sprint && Number(sprint.value) !== sprintValue) sprint.value = sprintValue;
-    for (const [id, el] of Object.entries(this.buttons)) {
+    for (const [id, el] of [...Object.entries(this.buttons), ...Object.entries(this.cards)]) {
       el?.classList?.toggle('layout-selected', this.editing && id === this.selected);
     }
   }
@@ -356,11 +510,11 @@ export class TouchLayout {
   _bindEditor() {
     const entry = document.getElementById('touchLayoutEntry');
     entry?.addEventListener('click', () => this.setEditing());
-    for (const [id, el] of Object.entries(this.buttons)) {
+    for (const [id, el] of [...Object.entries(this.buttons), ...Object.entries(this.cards)]) {
       if (el) this._bindButton(id, el);
     }
-    window.addEventListener('resize', () => this.apply());
-    window.addEventListener('orientationchange', () => setTimeout(() => this.apply(), 80));
+    window.addEventListener('resize', () => this.refreshCardDefaults());
+    window.addEventListener('orientationchange', () => setTimeout(() => this.refreshCardDefaults(), 80));
   }
 
   // 单个按钮的编辑态选中/拖动绑定（幂等）。
@@ -373,7 +527,8 @@ export class TouchLayout {
       if (!this.editing) return false;
       event.preventDefault(); event.stopImmediatePropagation();
       this.setSelected(id);
-      drag = { pointerId, dx: x - el.getBoundingClientRect().left - el.offsetWidth / 2, dy: y - el.getBoundingClientRect().top - el.offsetHeight / 2 };
+      const rect = el.getBoundingClientRect();
+      drag = { pointerId, dx: x - (rect.left + rect.width / 2), dy: y - (rect.top + rect.height / 2) };
       el.classList.add('layout-dragging');
       if (pointerId != null) { try { el.setPointerCapture(pointerId); } catch (_) {} }
       return true;
@@ -381,8 +536,11 @@ export class TouchLayout {
     const move = (x, y) => {
       if (!drag) return;
       const w = innerWidth, h = innerHeight, safe = readInsets();
-      const pos = this._safeCenter(id, x - drag.dx, y - drag.dy, this.layout.buttons[id].scale, safe, w, h);
-      this.layout.buttons[id].x = pos.x / w; this.layout.buttons[id].y = pos.y / h; this.apply();
+      const item = this._entry(id);
+      if (!item) return;
+      if (CARDS.includes(id)) this._cardPosTouched[id] = true;
+      const pos = this._safeCenter(id, x - drag.dx, y - drag.dy, item.scale, safe, w, h);
+      item.x = pos.x / w; item.y = pos.y / h; this.apply();
     };
     const end = () => { if (drag) { drag = null; el.classList.remove('layout-dragging'); } };
     el.addEventListener('pointerdown', (event) => { if (event.pointerType !== 'touch' && (event.pointerType === 'mouse' || this.editing)) start(event.clientX, event.clientY, event, event.pointerId); }, true);
