@@ -1875,6 +1875,10 @@ body.touch-layout-editing .touch-controls { z-index: 41; }
 .touch-controls.layout-editing .touch-actions button { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
 .touch-controls.layout-editing .touch-actions button.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
 .touch-controls.layout-editing .touch-actions button.layout-dragging { cursor: grabbing; filter: brightness(1.25); }
+/* 编辑态下摇杆可拖动换位（非编辑态仍是移动输入，不加任何编辑视觉）。 */
+.touch-controls.layout-editing .touch-joystick { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 4px; }
+.touch-controls.layout-editing .touch-joystick.layout-selected { outline: 2px solid #ffe0a1; }
+.touch-controls.layout-editing .touch-joystick.layout-dragging { cursor: grabbing; }
 .touch-adjust-settings { margin: 18px 0 0; padding: 13px; border: 1px solid rgba(214, 232, 189, .24); border-radius: 10px; background: rgba(8, 20, 13, .5); }
 .touch-adjust-settings h4 { margin: 0 0 7px; color: var(--gold); font-size: 14px; }
 .touch-adjust-settings p { margin: 6px 0 0; color: var(--soft); font-size: 11px; line-height: 1.5; }
