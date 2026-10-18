@@ -29,6 +29,7 @@ export const ACTIONS = [
   { id: 'turnLeft',   label: '视角左转', type: 'move' },
   { id: 'turnRight',  label: '视角右转', type: 'move' },
   { id: 'attack',     label: '攻击',   type: 'combat' },
+  { id: 'parry',      label: '迎击',   type: 'combat' },
   { id: 'dodge',      label: '翻滚',   type: 'combat' },
   { id: 'jump',       label: '跳跃',   type: 'combat' },
   { id: 'burst',      label: '应急爆发', type: 'combat' },
@@ -44,7 +45,7 @@ export const ACTIONS = [
 /** 兼容方案：与 v1.0 完全一致 */
 const COMPAT = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
-  attack: 'Space', dodge: 'KeyC', jump: 'KeyF', burst: 'KeyJ', ultimate: 'KeyK',
+  attack: 'Space', parry: 'KeyB', dodge: 'KeyC', jump: 'KeyF', burst: 'KeyJ', ultimate: 'KeyK',
   interact: 'KeyE', sprint: 'ShiftLeft',
   pause: 'KeyP', retry: 'KeyT', restart: 'KeyR', fullscreen: 'F11',
 };
@@ -60,8 +61,9 @@ const OPTIMIZED = {
   left: IS_DEV ? null : 'KeyA', right: IS_DEV ? null : 'KeyD',
   turnLeft: IS_DEV ? 'KeyA' : null,
   turnRight: IS_DEV ? 'KeyD' : null,
-  // 攻击：鼠标左键（KeyboardEvent 里为空数组）
+  // 攻击：鼠标左键（KeyboardEvent 里为空数组）；迎击保留 B，鼠标中键为额外快捷键。
   attack: [],
+  parry: 'KeyB',
   // 跳跃：右键 或 空格（空格在 WASD 正下方，右手下垂可及）
   // 注意：不能再绑 KeyF —— F 已分配给 interact，双键同绑会导致一次按键
   // 同时触发跳跃与交互（跳跃的键盘备选靠空格，右键由鼠标处理）。

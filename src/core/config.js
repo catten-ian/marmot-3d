@@ -86,18 +86,22 @@ export const PLAYER = {
   fov: { firstPerson: 78, thirdPerson: 68 },
   combatWheel: {
     tap: {
-      damageMul: 1, costMul: 1, cooldown: 0.58,
+      damageMul: 1, costMul: 1, cooldown: 0.58, cooldownMul: 1, recovery: 0,
+      // range 是米制追加距离，rangeMul 在原姿态/增益范围上乘算；默认保持原判定。
+      range: 0, rangeMul: 1,
       // 推击在站立 / 奔跑两种姿态下的范围与伤害分档：
       // 站立：短距离、高击退（把扑来的狐狸顶开）；奔跑：更长前伸、更高伤害、击退略低。
       stand: { rangeMul: 0.92, damageMul: 0.9, knockbackMul: 1.5, stunMul: 1.1 },
       run:   { rangeMul: 1.22, damageMul: 1.25, knockbackMul: 1.0, stunMul: 0.9 },
     },
     dodge: { damageMul: 0, cost: 3, distance: 2.2, invuln: 0.42, recovery: 0.12 },
-    stand: { damageMul: 1.8, cost: 4, stun: 1.2, lock: 0.4, knockback: 2.8, recovery: 0.35,
+    stand: { damageMul: 1.8, cost: 4, stun: 1.2, lock: 0.4, knockback: 2.8,
+      range: 0, rangeMul: 1, cooldown: 0.18, cooldownMul: 1, recovery: 0.35,
       // 迎击（攻击键按住左滑）：在狐狸冲刺接触前的短暂窗口内正面迎上，抵消伤害并反打。
       parryWindow: 0.3, parryHalfAngle: 80 * Math.PI / 180 },
-    // 扑击：仅奔跑中长按攻击键达到 heavyHold 秒后松手触发。
-    lunge: { damageMul: 1.45, cost: 4, distance: 2.8, recovery: 0.42 },
+    // 扑击：地面长按攻击键达到 heavyHold 秒后松手触发；空中短按也会结算为弱化扑击。
+    lunge: { damageMul: 1.45, cost: 4, distance: 2.8,
+      range: 0.8, rangeMul: 1, cooldown: 0.18, cooldownMul: 1, recovery: 0.42 },
     // 攻击只有三种招式：推击(tap) / 迎击(stand，按住左滑) / 扑击(lunge，奔跑长按)。
     // heavyHold = 奔跑长按扑击阈值（秒）；非奔跑长按不产生第四招，松手落回推击。
     charge: { heavyHold: 0.65 },
@@ -237,6 +241,8 @@ export const FOX = {
   fleeMaxTime: 4.0,
   // 接触判定：土拨鼠体型小，接触距离相应放大到体型的一半以上才合理
   contact: { boss: 2.2, heavy: 1.95, pup: 1.45, default: 1.7 },
+  // 水平接触按双方半径相加，与旧 contact 触发距离完全等价；可在调试面板中独立调节。
+  collisionRadius: { normal: 1.28, pup: 1.03, fast: 1.28, heavy: 1.53, boss: 1.78 },
   collisionHeight: { normal: 0.48, pup: 0.34, fast: 0.4, heavy: 0.52, boss: 0.68 },
   damage: { boss: 22, heavy: 18, pup: 8, default: 12 },
   /** 攻击模式档案（定义在本文件上方 FOX_ATTACKS） */

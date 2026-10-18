@@ -83,7 +83,7 @@ import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
 } from './core/ecology.js';
 import {
-  combatStats, strikeVolumeHit, foxAttackVerticalHit, burst, ultimate, interact,
+  combatStats, strikeVolumeHit, foxAttackVerticalHit, resolveStrikeProfile, burst, ultimate, interact,
   STRIKE_COST, ULT,
 } from './systems/combat.js';
 import { ClawSwing, Shockwave, Particles, DamageText, PlayerAura } from './systems/effects.js';
@@ -291,6 +291,7 @@ function buildFoods(levelIndex) {
 berries = buildFoods(0);
 const companion = new Companion(scene);
 const minimap = new Minimap();
+let debugVolumes = null;
 let foxes = [];
 hud.setLoading(86);
 
@@ -303,6 +304,13 @@ const damageText = new DamageText(scene);
 const aura = new PlayerAura(scene);
 const viewModel = new ViewModel();
 viewModel.resize(window.innerWidth / window.innerHeight);
+
+// 独立数据显示模式默认完全不加载 lil-gui，也不创建额外几何体。
+if (new URLSearchParams(location.search).get('debugvolumes') === '1') {
+  import('./systems/debug-volumes.js').then(({ DebugVolumes }) => {
+    debugVolumes = new DebugVolumes({ scene, controller, foxes: () => foxes });
+  }).catch((error) => console.warn('[debugvolumes] disabled:', error));
+}
 
 const playerModel = new THREE.Group();
 const playerBody = buildMarmotMesh();
@@ -897,6 +905,7 @@ function title() {
       <span><kbd>V</kbd> 第一 / 第三人称切换</span>
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span>
       <span><kbd>左键</kbd> 攻击（可按住）</span>
+      <span><kbd>中键</kbd> / <kbd>B</kbd> 迎击</span>
       <span><kbd>右键</kbd> / <kbd>F</kbd> 跳跃（可躲扑击）</span>
       <span><kbd>J</kbd> 短时应急爆发</span>
       <span><kbd>K</kbd> 蓄满后的范围大招</span>
@@ -995,7 +1004,7 @@ function pause() {
   hud.showPanel(`
     <div class="eyebrow">PAUSED</div>
     <h2>喘口气。</h2>
-    <p>${TOUCH_DEVICE ? '左侧摇杆移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : `${IS_DEV && binds.scheme === 'optimized' ? 'W/S 前后 · A/D 转向 · 方向键横移' : 'WASD 移动'} · 左键/空格 攻击 · J 爆发 · K 大招 · E 救援。`}<br>暂停不会消耗时间。</p>
+    <p>${TOUCH_DEVICE ? '左侧摇杆移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : `${IS_DEV && binds.scheme === 'optimized' ? 'W/S 前后 · A/D 转向 · 方向键横移' : 'WASD 移动'} · 左键/空格 攻击 · 中键 / B 迎击 · J 爆发 · K 大招 · E 救援。`}<br>暂停不会消耗时间。</p>
     <div class="row">
       <button class="primary" id="resumeBtn">继续 · P / Enter</button>
       <button class="ghost" id="pRetryBtn">重试本关 · T</button>
@@ -1068,15 +1077,15 @@ function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul 
   const cost = rawCost * atkMul;
   if (p.energy < cost) return false;
   p.energy -= cost;
-  game.attackCD = Math.max(s.cooldown, wheel.cooldown || 0.18) + (wheel.recovery || 0);
+  const profile = resolveStrikeProfile({ move, baseRange: s.range, baseCooldown: s.cooldown, wheel, running });
+  game.attackCD = profile.cooldown;
   if (move === 'stand') controller.movementLocked = true;
 
   // 推击在站/跑姿态下的范围与伤害分档。
-  let rangeMul = 1, damagePostureMul = 1, knockbackPostureMul = 1, stunPostureMul = 1;
+  let damagePostureMul = 1, knockbackPostureMul = 1, stunPostureMul = 1;
   if (move === 'tap') {
     const pose = running ? wheel.run : wheel.stand;
-    rangeMul = pose.rangeMul; damagePostureMul = pose.damageMul;
-    knockbackPostureMul = pose.knockbackMul; stunPostureMul = pose.stunMul;
+    damagePostureMul = pose.damageMul; knockbackPostureMul = pose.knockbackMul; stunPostureMul = pose.stunMul;
   }
 
   // 记录动作类型与时长，供双视角动作表现。
@@ -1103,7 +1112,7 @@ function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul 
   if (move === 'stand') game.attackMoveLock = wheel.lock || 0.4;
   const originY = terrainHeight(controller.position.x, controller.position.z);
   const color = move === 'stand' ? 0xd6a1ff : move === 'lunge' ? 0xffa36f : game.overdrive > 0 ? 0xe4b1ff : game.boost > 0 ? 0xffd17a : 0xfff1a9;
-  const baseRange = s.range * rangeMul + (move === 'lunge' ? 0.8 : 0);
+  const baseRange = profile.range;
   claw.fire(controller.position.x, originY + 0.32, controller.position.z, attackYaw, baseRange, color);
   controller.attackKick(move === 'lunge' ? 1.6 : 1);
   audio.swing();
@@ -1116,7 +1125,7 @@ function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul 
     const playerBottom = terrainHeight(controller.position.x, controller.position.z) + controller.airHeight;
     const foxBottom = terrainHeight(f.x, f.z) + f.leap;
     const foxHeight = FOX.collisionHeight[f.type] ?? FOX.collisionHeight.normal;
-    if (!strikeVolumeHit({ forward, lateral, playerBottom, targetBottom: foxBottom, targetHeight: foxHeight, range: baseRange })) continue;
+    if (!strikeVolumeHit({ forward, lateral, playerBottom, targetBottom: foxBottom, targetHeight: foxHeight, range: baseRange, move })) continue;
     const aerialMul = move === 'lunge' && !controller.grounded ? (aerialPounceDamageMul ?? 1) : 1;
     const dmg = s.damage * (wheel.damageMul || 1) * damagePostureMul * aerialMul;
     const kb = (wheel.knockback || s.knockback) * knockbackPostureMul;
@@ -1262,7 +1271,9 @@ function doRoll(gesture = null) {
   if (p.energy < wheel.cost * atkMul) { hud.say('储备不足，无法翻滚', 1.2); return false; }
   p.energy -= wheel.cost * atkMul;
   const dir = rollDirFromGesture(gesture);
-  controller.roll(dir, 7.2);
+  // 默认 distance=2.2 / invuln=0.42 时精确保持旧 7.2；调试面板改值会同步改变冲量。
+  const rollSpeed = 7.2 * (wheel.distance / 2.2) * (0.42 / Math.max(0.05, wheel.invuln));
+  controller.roll(dir, rollSpeed);
   p.invuln = Math.max(p.invuln, wheel.invuln);
   game.attackCD = wheel.recovery || 0.12;
   audio.swing();
@@ -1437,7 +1448,7 @@ function update(dt) {
     // 接触伤害
     if (f.alive && !game.inBurrow && p.invuln <= 0) {
       const d = Math.hypot(f.x - p.x, f.z - p.z);
-      const reach = FOX.contact[f.type] ?? FOX.contact.default;
+      const reach = (PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal));
       // 水平接触仍受原半径限制；高度则比较双方碰撞区间，
       // 避免地面玩家被从头顶跃过的狐狸击中。
       const foxBottom = terrainHeight(f.x, f.z) + f.leap;
@@ -1446,7 +1457,7 @@ function update(dt) {
       const playerHitHeight = PLAYER.collisionHeight;
       const verticalOverlap = foxAttackVerticalHit({
         playerBottom, playerHeight: playerHitHeight, foxBottom, foxHeight: foxHitHeight,
-        groundAttackHeight: FOX.groundAttackHeight, mode: f.attack?.mode, state: f.state,
+        groundAttackHeight: FOX.groundAttackHeight, dodgeHeight: PLAYER.jump.dodgeHeight, mode: f.attack?.mode, state: f.state,
       });
       if (d < reach && verticalOverlap) {
         // 迎击判定（振刀式）：迎击窗口未过期 + 狐狸正在 dash 攻击窗口内 +
@@ -1638,6 +1649,7 @@ function update(dt) {
     shelters: burrowDefs.filter((b) => b.type === 'shelter'),
     berries, companion, foxes,
   });
+  debugVolumes?.update?.({ game, controller, foxes, stats, playerAttackAnim, attackYaw: resolveAttackYaw({ thirdPerson: controller.thirdPerson, cameraYaw: controller.yaw, bodyYaw: controller.bodyYaw }), terrainHeight });
 
   // 低血量警告音
   if (p.hp < 30) {
@@ -1762,13 +1774,17 @@ function releaseAttack({ auto = false } = {}) {
 }
 
 /** 攻击键“按住左滑”迎击：地面即刻执行；空中请求快落地后消费一次。 */
-function triggerParryGesture(ctx) {
-  if (game.mode !== 'play') return;
-  if (!ctx || !attackCharge.held || attackCharge.fired) return;
-  if (attackCharge.pointerId !== ctx.pointerId) return;
-  attackCharge.fired = 'parry';
-  attackCharge.t = 0;
-  hideAttackHint();
+function triggerParryGesture(ctx = null) {
+  if (game.mode !== 'play') return false;
+  // 触屏左滑与 PC 中键 / B 都走这里；PC 直接触发时不需要先按住攻击键。
+  const directPc = ctx?.source === 'pc';
+  if (!directPc) {
+    if (!ctx || !attackCharge.held || attackCharge.fired) return false;
+    if (attackCharge.pointerId !== ctx.pointerId) return false;
+    attackCharge.fired = 'parry';
+    attackCharge.t = 0;
+    hideAttackHint();
+  }
   // 注意：这里只是迎击出手，不等于招架成立；成功反馈只在真正抵住狐狸 dash 时给出。
   if (!controller.grounded) {
     pendingAerialParry = true;
@@ -1776,6 +1792,7 @@ function triggerParryGesture(ctx) {
   } else {
     strike('stand', { fromParryGesture: true });
   }
+  return true;
 }
 
 /** 攻击键“按住右滑”翻滚：跨阈值立即触发一次，松手不补招。 */
@@ -1897,6 +1914,7 @@ window.addEventListener('keydown', (e) => {
 
   // —— 战斗类动作 ——
   keys.add(e.code);
+  if (binds.isAction(e.code, 'parry')) triggerParryGesture({ source: 'pc', kind: 'parry' });
   if (binds.isAction(e.code, 'attack')) beginAttack('key');
   if (binds.isAction(e.code, 'dodge')) doRoll();
   if (binds.isAction(e.code, 'burst')) doBurst();
@@ -1915,6 +1933,13 @@ window.addEventListener('keyup', (e) => {
 canvas.addEventListener('mousedown', (e) => {
   if (controller.touchEnabled) return;
   audio.ensure();
+
+  // 中键 = 迎击；阻止浏览器自动滚动，并与触屏左滑复用同一迎击函数。
+  if (e.button === 1) {
+    e.preventDefault();
+    triggerParryGesture({ source: 'pc', kind: 'parry' });
+    return;
+  }
 
   // 右键 = 跳跃（需在 pointer lock 下才生效，未锁定时先捕获指针）
   if (e.button === 2) {
@@ -2176,6 +2201,7 @@ function syncHelpKeys() {
       <span><kbd>鼠标</kbd> 视角</span>
       ${movement}
       <span><kbd>${get('attack')}</kbd> 攻击：短按/松手推击（站立也可）· 地面按住0.65秒后松手扑击（空中短按为较弱扑击）· 按住左滑迎击（仅在狐狸冲刺命中瞬间成立）· 按住右滑翻滚</span>
+      <span><kbd>${get('parry')}</kbd> / <kbd>中键</kbd> 迎击：地面立即出手，空中快落地后出手</span>
       <span><kbd>${get('jump')}</kbd> 或 <kbd>鼠标右键</kbd> 跳跃</span>
       <span><kbd>${get('burst')}</kbd> 应急爆发</span>
       <span><kbd>${get('ultimate')}</kbd> 协同大招</span>

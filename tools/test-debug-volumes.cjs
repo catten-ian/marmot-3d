@@ -1,0 +1,23 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+(async () => {
+  const { PLAYER, FOX } = await import('../src/core/config.js');
+  const { STRIKE_VOLUMES, resolveStrikeProfile } = await import('../src/systems/combat.js');
+  const { strikeVolumeGeometryData, rollGeometryData, foxAttackGeometryData } = await import('../src/systems/debug-volume-data.js');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  assert.match(main, /if \(new URLSearchParams\(location\.search\)\.get\('debugvolumes'\) === '1'\) \{[\s\S]*?import\('\.\/systems\/debug-volumes\.js'\)/, 'debug GUI is dynamically imported only when enabled');
+  assert.doesNotMatch(main, /import .*debug-volumes\.js';/, 'main has no static debug GUI import');
+  const p = resolveStrikeProfile({ move: 'lunge', baseRange: 2.4, baseCooldown: 0.58, wheel: PLAYER.combatWheel.lunge });
+  const fan = strikeVolumeGeometryData(p);
+  assert.equal(fan.lower, STRIKE_VOLUMES.lunge.lower);
+  assert.equal(fan.upper, STRIKE_VOLUMES.lunge.upper);
+  assert.equal(fan.range, p.range);
+  const roll = rollGeometryData();
+  assert.equal(roll.distance, PLAYER.combatWheel.dodge.distance);
+  assert.equal(roll.radius, PLAYER.radius);
+  const leap = foxAttackGeometryData({ attack: FOX.attacks.pup, dashTime: FOX.attacks.pup.dashTime, yaw: 0 });
+  assert.equal(leap.leapHeight, FOX.attacks.pup.leapHeight);
+  assert.equal(leap.groundAttackHeight, FOX.groundAttackHeight);
+  console.log('debug volume data regression ok');
+})();
