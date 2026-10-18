@@ -33,6 +33,9 @@ export class TouchControls {
     this.dodgePointers = new Map();
     this.move = { x: 0, y: 0, mag: 0 };
     this.maxStick = 48;
+    // 摇杆整体缩放倍数（布局层经 setJoystickScale 同步，transform 视觉缩放同口径）。
+    // 杆位移/夹紧/归一化都在摇杆本地坐标系进行，因此 client 位移需除以该倍率。
+    this.joystickScale = 1;
     // 疾跑触发范围（摇杆归一化行程阈值），可由设置面板实时调整。
     this.sprintThreshold = clampSprintThreshold(SPRINT_STICK_THRESHOLD);
     // 初始启用状态可由外层（输入模式设置）显式指定，省略时维持原有设备检测。
@@ -67,6 +70,15 @@ export class TouchControls {
       this.controller.touchSprint = wantSprint;
       this.joystick.classList.toggle('stick-sprint', wantSprint);
     }
+  }
+
+  /**
+   * 同步摇杆整体缩放倍数（0.6-1.6，布局层滑块范围 0.7-1.4 内的值原样通过），立即生效：
+   * 下一次推杆的 client→local 换算即用新倍率；归一化行程与疾跑判定不受缩放影响。
+   */
+  setJoystickScale(scale) {
+    const n = Number(scale);
+    this.joystickScale = Number.isFinite(n) && n > 0 ? Math.min(1.6, Math.max(0.6, n)) : 1;
   }
 
   /** 档位环半径(px) = 阈值 × 归一化满行程(maxStick)，与疾跑判定同一口径。 */
@@ -402,8 +414,11 @@ export class TouchControls {
     const rect = this.joystick.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
-    let dx = clientX - cx;
-    let dy = clientY - cy;
+    // getBoundingClientRect 已含 transform 缩放（中心正确），但杆位移在摇杆本地
+    // 坐标系（未缩放）计算，client 位移需除回缩放倍率，否则放大摇杆时杆跟不上手指。
+    const scale = this.joystickScale || 1;
+    let dx = (clientX - cx) / scale;
+    let dy = (clientY - cy) / scale;
     const length = Math.hypot(dx, dy);
     if (length > this.maxStick) {
       dx *= this.maxStick / length;

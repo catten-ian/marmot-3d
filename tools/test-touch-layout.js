@@ -34,6 +34,8 @@ class FakeEl {
     this.textContent = '';
     this.hidden = false;
     this._rect = null; // 设为 {left,top,width,height} 可模拟可测量元素
+    this.offsetWidth = 112;
+    this.offsetHeight = 112;
   }
   addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
   setAttribute(k, v) { this.attrs[k] = String(v); }
@@ -59,6 +61,8 @@ function installDomShim() {
   const makeHooks = () => ({ pause: 0, resume: 0, paused: false });
   for (const id of ['attack', 'dodge', 'jump', 'interact', 'burst', 'ultimate']) buttons[id] = new FakeEl('btn-' + id);
   const pauseBtn = new FakeEl('btn-pause');
+  const joystick = new FakeEl('touchJoystick');
+  const testModeBtn = new FakeEl('testModeBtn');
   const entry = new FakeEl('touchLayoutEntry');
   const probe = new FakeEl('touchSafeInsets');
   const html = new FakeEl('html');
@@ -73,7 +77,7 @@ function installDomShim() {
     const m = sel.match(/data-touch-action="(\w+)"/);
     return m ? buttons[m[1]] || null : null;
   };
-  const ids = { touchControls: root, touchLayoutEntry: entry, touchSafeInsets: probe };
+  const ids = { touchControls: root, touchLayoutEntry: entry, touchSafeInsets: probe, touchJoystick: joystick, testModeBtn };
   // 三张常驻 HUD 信息卡（TouchLayout 通过 document.querySelector 获取）。
   const cards = {
     '.vitals': new FakeEl('hudVitals'),
@@ -92,7 +96,7 @@ function installDomShim() {
   global.addEventListener = () => {};
   global.innerWidth = 390;
   global.innerHeight = 844;
-  return { storage, root, html, bodyClass, makeHooks, cards };
+  return { storage, root, html, bodyClass, makeHooks, cards, joystick };
 }
 
 /* ---------------- 静态资源检查（任务 A/B） ---------------- */
@@ -114,6 +118,16 @@ function staticChecks() {
   // —— 普通关卡目标常驻（任务 A）——
   const hudSrc = fs.readFileSync(path.join(rootDir, 'src/ui/hud.js'), 'utf8');
   const mainSrc = fs.readFileSync(path.join(rootDir, 'src/main.js'), 'utf8');
+  const controlsSrc = fs.readFileSync(path.join(rootDir, 'src/core/touch-controls.js'), 'utf8');
+  const layoutSrc = fs.readFileSync(path.join(rootDir, 'src/ui/touch-layout.js'), 'utf8');
+  assert.ok(html.includes('id="touchJoystick"'), 'index.html 必须保留 #touchJoystick 摇杆');
+  assert.ok(layoutSrc.includes("getElementById('touchJoystick')"), 'touch-layout 必须接管 #touchJoystick 布局');
+  assert.ok(layoutSrc.includes('layoutJoystickScale'), '设置面板必须包含摇杆整体大小滑块');
+  assert.ok(layoutSrc.includes('layoutSprintThreshold'), '设置面板必须包含摇杆内圈疾跑范围滑块');
+  assert.ok(controlsSrc.includes('setSprintThreshold'), 'TouchControls 必须支持设置疾跑阈值');
+  assert.ok(controlsSrc.includes('setJoystickScale'), 'TouchControls 必须支持摇杆缩放');
+  assert.ok(mainSrc.includes('onJoystickScale'), 'main.js 必须接入摇杆缩放回调');
+  assert.ok(css.includes('.layout-editing .touch-joystick'), '编辑态摇杆必须有拖动视觉提示');
   assert.ok(!hudSrc.includes('obj-toggle') && !hudSrc.includes('obj-details'),
     'hud.js 的 campaign objective 不得再依赖 .obj-toggle/.obj-details 展开交互');
   assert.ok(!mainSrc.includes('obj-toggle'), 'main.js 里旧的 .obj-toggle 展开事件必须移除');
@@ -302,5 +316,60 @@ function staticChecks() {
   shim.storage.removeItem('marmot.touch-layout.v1');
   shim.cards['.objective']._rect = null;
 
-  console.log('touch layout adjust gate + auto-pause + HUD cards: all assertions passed');
+  // 12) 摇杆/沙盒控制：默认字段、设置项、持久化和越界夹紧。
+  const joystickLayout = new TouchLayout();
+  assert.ok(joystickLayout.layout.buttons.sandboxControl, '默认布局必须包含沙盒控制按钮');
+  assert.ok(Number.isFinite(joystickLayout.layout.joystick.x) && Number.isFinite(joystickLayout.layout.joystick.y), '摇杆必须有归一化位置');
+  assert.equal(joystickLayout.layout.joystick.scale, 1);
+  assert.equal(joystickLayout.layout.joystick.sprintThreshold, 0.78);
+  const joystickMarkup = joystickLayout.settingsMarkup();
+  for (const needle of ['value="sandboxControl"', 'value="joystick"', 'layoutJoystickScale', 'layoutSprintThreshold']) {
+    assert.ok(joystickMarkup.includes(needle), `设置面板缺少 ${needle}`);
+  }
+  joystickLayout.layout.joystick.x = 0.3;
+  joystickLayout.layout.joystick.y = 0.6;
+  joystickLayout.layout.joystick.scale = 1.2;
+  joystickLayout.layout.joystick.sprintThreshold = 0.66;
+  joystickLayout.layout.buttons.sandboxControl.x = 0.5;
+  joystickLayout.save();
+  const reloadedJoystick = new TouchLayout();
+  assert.equal(reloadedJoystick.layout.joystick.x, 0.3);
+  assert.equal(reloadedJoystick.layout.joystick.y, 0.6);
+  assert.equal(reloadedJoystick.layout.joystick.scale, 1.2);
+  assert.equal(reloadedJoystick.layout.joystick.sprintThreshold, 0.66);
+  assert.equal(reloadedJoystick.layout.buttons.sandboxControl.x, 0.5);
+  shim.storage.setItem('marmot.touch-layout.v1', JSON.stringify({
+    buttons: { sandboxControl: { x: -1, y: 9, scale: 0.01, opacity: 9 } },
+    joystick: { x: 9, y: -9, scale: 9, sprintThreshold: 0.01 },
+  }));
+  const dirtyJoystick = new TouchLayout();
+  assert.equal(dirtyJoystick.layout.joystick.x, 1);
+  assert.equal(dirtyJoystick.layout.joystick.y, 0);
+  assert.equal(dirtyJoystick.layout.joystick.scale, 1.4);
+  assert.equal(dirtyJoystick.layout.joystick.sprintThreshold, 0.55);
+  assert.equal(dirtyJoystick.layout.buttons.sandboxControl.x, 0);
+  assert.equal(dirtyJoystick.layout.buttons.sandboxControl.y, 1);
+  shim.storage.removeItem('marmot.touch-layout.v1');
+
+  // 13) 编辑态拖动摇杆，非编辑态不得拦截移动输入。
+  // 多个 TouchLayout 实例共用 shim 元素时，清理幂等绑定标记以模拟新页面实例。
+  delete shim.joystick.__touchLayoutBound;
+  for (const key of Object.keys(shim.joystick.listeners)) shim.joystick.listeners[key] = [];
+  const dragLayout = new TouchLayout();
+  const beforeJoystick = { x: dragLayout.layout.joystick.x, y: dragLayout.layout.joystick.y };
+  const fireTouch = (type, x, y) => {
+    const event = { changedTouches: [{ identifier: 7, clientX: x, clientY: y }], preventDefault() {}, stopImmediatePropagation() {} };
+    for (const fn of shim.joystick.listeners[type] || []) fn(event);
+  };
+  fireTouch('touchstart', 100, 700); fireTouch('touchmove', 140, 660);
+  assert.equal(dragLayout.layout.joystick.x, beforeJoystick.x, '非编辑态不得移动摇杆布局');
+  dragLayout.setAdjustEnabled(true);
+  dragLayout.setEditing(true);
+  fireTouch('touchstart', 100, 700); fireTouch('touchmove', 140, 660);
+  assert.equal(dragLayout.selected, 'joystick');
+  assert.ok(dragLayout.layout.joystick.x !== beforeJoystick.x, '编辑态拖动必须更新摇杆位置');
+  fireTouch('touchend', 140, 660);
+  assert.ok(!shim.joystick.classList.contains('layout-dragging'));
+
+  console.log('touch layout adjust gate + auto-pause + HUD cards + joystick: all assertions passed');
 })().catch((err) => { console.error(err); process.exitCode = 1; });

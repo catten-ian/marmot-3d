@@ -2,18 +2,21 @@
  * 触屏技能盘的布局、编辑与持久化。坐标以视口归一化百分比保存，
  * 应用时按安全区和按钮半径夹紧，因此旋转屏幕/窄屏不会把按键挤出画面。
  *
- * 管理两类控件：
+ * 管理四类控件：
  * - 战斗键 data-touch-action（右下动作盘 + 暂停）；
  * - 现有的「沙盒控制」入口按钮 #testModeBtn（沙盒中文字为“沙盒控制”，
  *   点击打开既有 #testPanel）。它是唯一可调整的沙盒入口；
  *   不创建任何额外的浮动沙盒快捷按钮。
- * 两类 id 互不冲突，编辑态下点击/拖动任意一类都只做选中与布局，
- * 非编辑态各自走原来的点击逻辑（沙盒按钮仍开/关测试面板）。
+ * - 移动摇杆 #touchJoystick：编辑态可拖动位置，设置面板可调整体大小；
+ *   摇杆内圈（疾跑判定圈）大小即 joystick.sprintThreshold，滑动即时写回
+ *   TouchControls.setSprintThreshold 并持久化。
+ * - 三张常驻 HUD 信息卡（顶部状态 .vitals / 关卡信息 .mission /
+ *   本关目标 .objective），布局存在独立的 cards 命名空间。
+ * 四类 id 互不冲突，编辑态下点击/拖动任意一类都只做选中与布局，
+ * 非编辑态各自走原来的输入/点击逻辑（摇杆照常移动，沙盒按钮仍开/关测试面板）。
  *
- * 此外管理三张常驻 HUD 信息卡（顶部状态 .vitals / 关卡信息 .mission /
- * 本关目标 .objective），布局存在独立的 cards 命名空间：
- * 旧版只有 buttons / joystick 的存档照常兼容，卡片自动落到设计默认位置，
- * 不会覆盖或重置用户的动作按钮布局。
+ * 旧版只有 buttons / joystick（甚至只有 sprintThreshold）的存档照常兼容：
+ * 卡片自动落到设计默认位置，摇杆缺失字段补默认，不会覆盖或重置用户的动作按钮布局。
  */
 import {
   SPRINT_STICK_THRESHOLD,
@@ -36,15 +39,28 @@ const ACTIONS = ['attack', 'dodge', 'jump', 'interact', 'burst', 'ultimate', 'pa
 // 唯一可调整的沙盒入口：index.html 里既有的 #testModeBtn。
 const SANDBOX_CONTROL = 'sandboxControl';
 const ALL_IDS = [...ACTIONS, SANDBOX_CONTROL];
+// 移动摇杆：不在 buttons 字典里，布局挂在 layout.joystick 上，但同样可选中/拖动。
+const JOYSTICK = 'joystick';
+const SELECTABLE_IDS = [...ALL_IDS, JOYSTICK];
+// 摇杆整体大小滑块范围（相对 CSS 基准尺寸的倍数）。
+const JOYSTICK_SCALE_MIN = 0.7, JOYSTICK_SCALE_MAX = 1.4;
 // 三张可调整的常驻 HUD 信息卡：布局 id → 页面元素。
 const CARDS = ['hudVitals', 'hudMission', 'hudObjective'];
 const CARD_SELECTORS = { hudVitals: '.vitals', hudMission: '.mission', hudObjective: '.objective' };
 // 卡片单卡缩放/透明度范围（比按钮更保守，避免卡片被缩到不可读）。
 const CARD_SCALE = [0.75, 1.25];
 const CARD_OPACITY = [0.35, 1];
+// 与 styles.css 中 .touch-joystick 的响应式基准直径保持一致（媒体查询同口径）。
+function joystickBaseSize(w = innerWidth || 390, h = innerHeight || 844) {
+  if (w > h && h <= 520) return 104; // 横屏低高度
+  if (w <= 420) return 112;
+  if (w <= 860) return 120;
+  return 128;
+}
 const LABELS = {
   attack: '攻击', dodge: '翻滚', jump: '跳跃', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停',
   sandboxControl: '沙盒控制（入口按钮）',
+  joystick: '移动摇杆（含疾跑内圈）',
   hudVitals: '顶部状态卡（生命/储备/负荷）',
   hudMission: '关卡信息卡（第 X 关/时间/位置）',
   hudObjective: '本关目标卡',
@@ -79,12 +95,16 @@ export class TouchLayout {
     this._pausedByEditor = false;
     // 疾跑触发范围变化时由 main.js 注入 TouchControls 实时生效。
     this.onSprintThreshold = null;
+    // 摇杆整体大小变化时由 main.js 注入 TouchControls.setJoystickScale 实时生效。
+    this.onJoystickScale = null;
     this.buttons = Object.fromEntries(ACTIONS.map((id) => {
       const scope = id === 'pause' ? this.root : this.actionLayer;
       return [id, scope?.querySelector(`[data-touch-action="${id}"]`)];
     }));
     // 现有「沙盒控制」入口按钮（在 #touchControls 之外，直接取 id）。
     this.buttons[SANDBOX_CONTROL] = document.getElementById('testModeBtn');
+    // 移动摇杆本体（位置/大小可调整；非编辑态仍是 TouchControls 的移动输入）。
+    this.joystickEl = document.getElementById('touchJoystick');
     // 常驻 HUD 信息卡。布局系统用 position:fixed 接管定位，
     // 因此先在改动任何样式之前量出 CSS 设计位置，作为默认布局与卡片宽度基准。
     this.cards = Object.fromEntries(CARDS.map((id) => [id, document.querySelector?.(CARD_SELECTORS[id]) || null]));
@@ -213,14 +233,20 @@ export class TouchLayout {
       const fb = d ? [d.cx, d.cy] : this._cardFallback(id, w, h, safe, w > h);
       cards[id] = { x: fb[0] / w, y: fb[1] / h, scale: 1, opacity: 1 };
     }
+    const jSize = joystickBaseSize(w, h);
     return {
       scale: 1,
       opacity: 1,
       buttons,
       // HUD 卡片：独立命名空间；旧存档没有该字段时由 _normalize 补默认值。
       cards,
-      // 真实疾跑触发范围（摇杆归一化行程），不是装饰圆。
-      joystick: { sprintThreshold: SPRINT_STICK_THRESHOLD },
+      // 摇杆：中心（归一化）/ 整体大小倍数 / 真实疾跑触发范围（摇杆归一化行程，非装饰圆）。
+      joystick: {
+        x: (safe.left + 14 + jSize / 2) / w,
+        y: (h - safe.bottom - 14 - jSize / 2) / h,
+        scale: 1,
+        sprintThreshold: SPRINT_STICK_THRESHOLD,
+      },
     };
   }
 
@@ -255,10 +281,17 @@ export class TouchLayout {
         opacity: clamp(Number(c.opacity) || 1, CARD_OPACITY[0], CARD_OPACITY[1]),
       };
     }
-    // 摇杆：只保存真实疾跑触发范围；旧布局缺字段时安全补默认值。
-    // 旧版的 joystick.coreSize / coreOpacity（装饰圆）字段直接忽略。
+    // 摇杆：位置/整体大小/真实疾跑触发范围；旧布局缺字段时安全补默认值。
+    // 旧版的 joystick.coreSize / coreOpacity（装饰圆）字段直接忽略；
+    // 仅含 sprintThreshold 的旧数据（rev7 之前）保留阈值、其余取默认，不清空存储。
     const jsInput = input.joystick || {};
-    out.joystick = { sprintThreshold: clampSprintThreshold(jsInput.sprintThreshold) };
+    const jsBase = base.joystick;
+    out.joystick = {
+      x: clamp(Number.isFinite(Number(jsInput.x)) ? Number(jsInput.x) : jsBase.x, 0, 1),
+      y: clamp(Number.isFinite(Number(jsInput.y)) ? Number(jsInput.y) : jsBase.y, 0, 1),
+      scale: clamp(Number.isFinite(Number(jsInput.scale)) ? Number(jsInput.scale) : 1, JOYSTICK_SCALE_MIN, JOYSTICK_SCALE_MAX),
+      sprintThreshold: clampSprintThreshold(jsInput.sprintThreshold),
+    };
     return out;
   }
 
@@ -271,6 +304,14 @@ export class TouchLayout {
     if (CARDS.includes(id)) return this._safeCardCenter(id, x, y, scale, safe, w, h);
     const size = (SIZE[id] || 54) * scale * this.layout.scale;
     const half = size / 2 + 4;
+    return {
+      x: clamp(x, safe.left + half, w - safe.right - half),
+      y: clamp(y, safe.top + half, h - safe.bottom - half),
+    };
+  }
+
+  _safeJoystickCenter(x, y, scale, safe, w, h) {
+    const half = (joystickBaseSize(w, h) * scale) / 2 + 4;
     return {
       x: clamp(x, safe.left + half, w - safe.right - half),
       y: clamp(y, safe.top + half, h - safe.bottom - half),
@@ -317,6 +358,18 @@ export class TouchLayout {
       }
       el.style.zIndex = id === 'attack' ? '2' : '1';
     }
+    // 摇杆：中心定位 + transform 整体缩放（视觉、摇杆行程、疾跑内圈同比例缩放；
+    // TouchControls 经 onJoystickScale 拿到同一倍率做 client→local 坐标换算）。
+    const js = this.layout.joystick;
+    if (this.joystickEl && js) {
+      const p = this._safeJoystickCenter(js.x * w, js.y * h, js.scale, safe, w, h);
+      this.joystickEl.style.left = `${p.x}px`;
+      this.joystickEl.style.top = `${p.y}px`;
+      // 原 CSS 用 left/bottom 锚定左上角；布局系统改为 left/top 中心点定位。
+      this.joystickEl.style.bottom = 'auto';
+      this.joystickEl.style.transform = `translate(-50%, -50%) scale(${js.scale})`;
+    }
+    this.onJoystickScale?.(js?.scale ?? 1);
     // HUD 卡片：统一 position:fixed + 中心点定位，默认位置来自构造时量到的设计位置。
     for (const id of CARDS) {
       const el = this.cards[id], item = this.layout.cards?.[id];
@@ -398,27 +451,34 @@ export class TouchLayout {
     this._cardPosTouched = {};
     this.layout = this.defaultLayout();
     this.save();
+    // refreshCardDefaults() 内部会 apply()，顺带触发 onJoystickScale 同步摇杆大小。
     this.refreshCardDefaults();
     this.onSprintThreshold?.(this.layout.joystick.sprintThreshold);
   }
 
-  /** 当前选中项的布局记录（动作按钮 / 沙盒入口 / HUD 卡）。 */
-  _entry(id) { return this.layout.buttons[id] || this.layout.cards?.[id] || null; }
+  /** 当前选中项的布局记录（动作按钮 / 沙盒入口 / HUD 卡）。摇杆走独立分支，返回 null。 */
+  _entry(id) {
+    if (id === JOYSTICK) return null;
+    return this.layout.buttons[id] || this.layout.cards?.[id] || null;
+  }
 
-  setSelected(id) { if (ALL_IDS.includes(id) || CARDS.includes(id)) { this.selected = id; this._syncEditor(); } }
+  setSelected(id) {
+    if (SELECTABLE_IDS.includes(id) || CARDS.includes(id)) { this.selected = id; this._syncEditor(); }
+  }
 
   settingsMarkup() {
     const options = (ids) => ids.map((id) => `<option value="${id}" ${id === this.selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
     return `<section class="touch-layout-settings" aria-label="触屏技能盘设置">
-      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮和 HUD 卡片；选择单个控件后可单独调尺寸和透明度。「沙盒控制」是唯一可调整的沙盒入口（即打开测试/沙盒面板的那个按钮），不会新增其他浮动按钮。「整体大小 / 整体透明度」只作用于动作按钮，HUD 卡片请用下单项控制。</p>
+      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮、移动摇杆和 HUD 卡片；选择单个控件后可单独调尺寸和透明度。「沙盒控制」是唯一可调整的沙盒入口（即打开测试/沙盒面板的那个按钮），不会新增其他浮动按钮。「整体大小 / 整体透明度」只作用于动作按钮；摇杆、HUD 卡片请选中后用对应单项控制。摇杆内圈决定推多远进入疾跑，档位环会同步显示真实位置。</p>
       <div class="layout-setting-row"><label for="layoutGlobalScale">整体大小</label><input id="layoutGlobalScale" type="range" min="0.75" max="1.3" step="0.05" value="${this.layout.scale}"><output data-layout-value="globalScale"></output></div>
       <div class="layout-setting-row"><label for="layoutGlobalOpacity">整体透明度</label><input id="layoutGlobalOpacity" type="range" min="0.35" max="1" step="0.05" value="${this.layout.opacity}"><output data-layout-value="globalOpacity"></output></div>
-      <div class="layout-setting-row"><label for="layoutSelected">单个控件</label><select id="layoutSelected"><optgroup label="动作按钮">${options(ACTIONS)}</optgroup><optgroup label="沙盒控制">${options([SANDBOX_CONTROL])}</optgroup><optgroup label="HUD 卡片">${options(CARDS)}</optgroup></select></div>
-      <div class="layout-setting-row"><label for="layoutButtonScale">单项大小</label><input id="layoutButtonScale" type="range" min="0.7" max="1.35" step="0.05"><output data-layout-value="buttonScale"></output></div>
-      <div class="layout-setting-row"><label for="layoutButtonOpacity">单项透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
+      <div class="layout-setting-row"><label for="layoutSelected">单个控件</label><select id="layoutSelected"><optgroup label="动作按钮">${options(ACTIONS)}</optgroup><optgroup label="沙盒控制">${options([SANDBOX_CONTROL])}</optgroup><optgroup label="移动摇杆">${options([JOYSTICK])}</optgroup><optgroup label="HUD 卡片">${options(CARDS)}</optgroup></select></div>
+      <div class="layout-setting-row button-row"><label for="layoutButtonScale">单项大小</label><input id="layoutButtonScale" type="range" min="0.7" max="1.35" step="0.05"><output data-layout-value="buttonScale"></output></div>
+      <div class="layout-setting-row button-row"><label for="layoutButtonOpacity">单项透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
+      <div class="layout-setting-row joystick-row"><label for="layoutJoystickScale">摇杆整体大小 (70-140%)</label><input id="layoutJoystickScale" type="range" min="${JOYSTICK_SCALE_MIN}" max="${JOYSTICK_SCALE_MAX}" step="0.05" value="${this.layout.joystick.scale}"><output data-layout-value="joystickScale"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreSize">攻击键内圈大小 (40-100%)</label><input id="layoutAttackCoreSize" type="range" min="0.4" max="1" step="0.01"><output data-layout-value="attackCoreSize"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreOpacity">攻击键内圈透明度 (30-100%)</label><input id="layoutAttackCoreOpacity" type="range" min="0.3" max="1" step="0.01"><output data-layout-value="attackCoreOpacity"></output></div>
-      <div class="layout-setting-row"><label for="layoutSprintThreshold">疾跑触发范围 (55-95%)</label><input id="layoutSprintThreshold" type="range" min="0.55" max="0.95" step="0.01" value="${this.layout.joystick.sprintThreshold}"><output data-layout-value="sprintThreshold"></output></div>
+      <div class="layout-setting-row"><label for="layoutSprintThreshold">摇杆内圈·疾跑触发范围 (55-95%)</label><input id="layoutSprintThreshold" type="range" min="0.55" max="0.95" step="0.01" value="${this.layout.joystick.sprintThreshold}"><output data-layout-value="sprintThreshold"></output></div>
       <div class="layout-actions" data-touch-adjust="actions"><button type="button" class="ghost-btn" data-layout-edit>进入拖动编辑</button><button type="button" class="ghost-btn" data-layout-save>保存方案 / 设为默认</button><button type="button" class="ghost-btn" data-layout-reset>恢复设计默认</button></div>
       <p class="layout-save-status" aria-live="polite">保存后当前布局成为刷新/重进后的默认方案。疾跑触发范围决定摇杆推多远开始疾跑，档位环会同步显示真实位置。</p>
     </section>`;
@@ -446,6 +506,13 @@ export class TouchLayout {
       item.opacity = clamp(Number(btnOpacity.value), isCard ? CARD_OPACITY[0] : 0.3, 1);
       this.apply();
     });
+    // 摇杆整体大小：滑块即时缩放（apply 内经 onJoystickScale 同步 TouchControls），并立即持久化。
+    const jsScale = byId('layoutJoystickScale');
+    jsScale?.addEventListener('input', () => {
+      this.layout.joystick.scale = clamp(Number(jsScale.value) || 1, JOYSTICK_SCALE_MIN, JOYSTICK_SCALE_MAX);
+      this.apply();
+      this.save();
+    });
     // 攻击键内圈：拖动即时写 CSS 变量（apply 内），并立即持久化到既有布局字典。
     const coreSize = byId('layoutAttackCoreSize'), coreOpacity = byId('layoutAttackCoreOpacity');
     coreSize?.addEventListener('input', () => { this.layout.buttons.attack.coreSize = Number(coreSize.value); this.apply(); this.save(); });
@@ -472,6 +539,7 @@ export class TouchLayout {
     container.querySelector('[data-layout-reset]')?.addEventListener('click', () => {
       this.restoreDefault(); if (globalScale) globalScale.value = this.layout.scale; if (globalOpacity) globalOpacity.value = this.layout.opacity;
       if (sprint) sprint.value = this.layout.joystick.sprintThreshold;
+      if (jsScale) jsScale.value = this.layout.joystick.scale;
       const status = container.querySelector('.layout-save-status'); if (status) status.textContent = '已恢复并保存设计默认排布。';
     });
     this._syncEditor();
@@ -480,7 +548,8 @@ export class TouchLayout {
   _syncEditor() {
     const layout = document.getElementById('setBody');
     if (!layout) return;
-    const item = this._entry(this.selected);
+    const isJoystick = this.selected === JOYSTICK;
+    const item = isJoystick ? null : this._entry(this.selected);
     const isAttack = this.selected === 'attack';
     const corePairs = isAttack
       ? [['attackCoreSize', item?.coreSize ?? ATTACK_CORE_DEFAULTS.size], ['attackCoreOpacity', item?.coreOpacity ?? ATTACK_CORE_DEFAULTS.opacity]]
@@ -491,6 +560,7 @@ export class TouchLayout {
       ['buttonScale', item?.scale],
       ['buttonOpacity', item?.opacity],
       ['sprintThreshold', this.layout.joystick?.sprintThreshold ?? SPRINT_STICK_THRESHOLD],
+      ['joystickScale', this.layout.joystick?.scale ?? 1],
       ...corePairs,
     ]) {
       const output = layout.querySelector(`[data-layout-value="${key}"]`);
@@ -499,6 +569,12 @@ export class TouchLayout {
     const scale = layout.querySelector('#layoutButtonScale'), opacity = layout.querySelector('#layoutButtonOpacity');
     if (scale && item && Number(scale.value) !== item.scale) scale.value = item.scale;
     if (opacity && item && Number(opacity.value) !== item.opacity) opacity.value = item.opacity;
+    // 单键两行只在选中按钮/卡片时出现；摇杆大小行只在选中摇杆时出现。
+    layout.querySelectorAll('.button-row').forEach((row) => { row.style.display = isJoystick ? 'none' : ''; });
+    layout.querySelectorAll('.joystick-row').forEach((row) => { row.style.display = isJoystick ? '' : 'none'; });
+    const jsScale = layout.querySelector('#layoutJoystickScale');
+    const jsScaleValue = this.layout.joystick?.scale ?? 1;
+    if (jsScale && Number(jsScale.value) !== jsScaleValue) jsScale.value = jsScaleValue;
     // 攻击键内圈两行只在选中攻击键时出现。
     const coreSize = layout.querySelector('#layoutAttackCoreSize'), coreOpacity = layout.querySelector('#layoutAttackCoreOpacity');
     layout.querySelectorAll('.attack-core-row').forEach((row) => { row.style.display = isAttack ? '' : 'none'; });
@@ -506,13 +582,14 @@ export class TouchLayout {
       if (coreSize && Number(coreSize.value) !== item.coreSize) coreSize.value = item.coreSize;
       if (coreOpacity && Number(coreOpacity.value) !== item.coreOpacity) coreOpacity.value = item.coreOpacity;
     }
-    // 疾跑触发范围滑块始终显示（摇杆不可拖动选择）。
+    // 疾跑触发范围滑块始终显示（即便选中卡片也可调摇杆内圈）。
     const sprint = layout.querySelector('#layoutSprintThreshold');
     const sprintValue = this.layout.joystick?.sprintThreshold ?? SPRINT_STICK_THRESHOLD;
     if (sprint && Number(sprint.value) !== sprintValue) sprint.value = sprintValue;
     for (const [id, el] of [...Object.entries(this.buttons), ...Object.entries(this.cards)]) {
       el?.classList?.toggle('layout-selected', this.editing && id === this.selected);
     }
+    this.joystickEl?.classList?.toggle('layout-selected', this.editing && this.selected === JOYSTICK);
   }
 
   _bindEditor() {
@@ -521,11 +598,12 @@ export class TouchLayout {
     for (const [id, el] of [...Object.entries(this.buttons), ...Object.entries(this.cards)]) {
       if (el) this._bindButton(id, el);
     }
+    if (this.joystickEl) this._bindJoystick();
     window.addEventListener('resize', () => this.refreshCardDefaults());
     window.addEventListener('orientationchange', () => setTimeout(() => this.refreshCardDefaults(), 80));
   }
 
-  // 单个按钮的编辑态选中/拖动绑定（幂等）。
+  // 单个按钮 / HUD 卡的编辑态选中/拖动绑定（幂等）。卡片拖动路由到 _safeCardCenter。
   _bindButton(id, el) {
     if (!el || el.__touchLayoutBound) return;
     el.__touchLayoutBound = true;
@@ -549,6 +627,47 @@ export class TouchLayout {
       if (CARDS.includes(id)) this._cardPosTouched[id] = true;
       const pos = this._safeCenter(id, x - drag.dx, y - drag.dy, item.scale, safe, w, h);
       item.x = pos.x / w; item.y = pos.y / h; this.apply();
+    };
+    const end = () => { if (drag) { drag = null; el.classList.remove('layout-dragging'); } };
+    el.addEventListener('pointerdown', (event) => { if (event.pointerType !== 'touch' && (event.pointerType === 'mouse' || this.editing)) start(event.clientX, event.clientY, event, event.pointerId); }, true);
+    el.addEventListener('pointermove', (event) => { if (drag?.pointerId === event.pointerId) { event.preventDefault(); event.stopImmediatePropagation(); move(event.clientX, event.clientY); } }, true);
+    for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(name, (event) => { if (drag?.pointerId === event.pointerId) end(); }, true);
+    el.addEventListener('touchstart', (event) => {
+      if (!this.editing || !event.changedTouches.length) return;
+      const t = event.changedTouches[0]; start(t.clientX, t.clientY, event, t.identifier);
+    }, { capture: true, passive: false });
+    el.addEventListener('touchmove', (event) => {
+      if (!drag || !this.editing) return;
+      const t = [...event.changedTouches].find((x) => x.identifier === drag.pointerId);
+      if (t) { event.preventDefault(); event.stopImmediatePropagation(); move(t.clientX, t.clientY); }
+    }, { capture: true, passive: false });
+    for (const name of ['touchend', 'touchcancel']) el.addEventListener(name, (event) => {
+      if (drag && [...event.changedTouches].some((x) => x.identifier === drag.pointerId)) end();
+    }, true);
+  }
+
+  // 摇杆本体的编辑态选中/拖动绑定（幂等）。非编辑态完全放行给 TouchControls 的移动输入。
+  _bindJoystick() {
+    const el = this.joystickEl;
+    if (!el || el.__touchLayoutBound) return;
+    el.__touchLayoutBound = true;
+    el.addEventListener('click', (event) => { if (this.editing) { event.preventDefault(); event.stopImmediatePropagation(); this.setSelected(JOYSTICK); } }, true);
+    let drag = null;
+    const start = (x, y, event, pointerId = null) => {
+      if (!this.editing) return false;
+      event.preventDefault(); event.stopImmediatePropagation();
+      this.setSelected(JOYSTICK);
+      const rect = el.getBoundingClientRect();
+      drag = { pointerId, dx: x - (rect.left + rect.width / 2), dy: y - (rect.top + rect.height / 2) };
+      el.classList.add('layout-dragging');
+      if (pointerId != null) { try { el.setPointerCapture(pointerId); } catch (_) {} }
+      return true;
+    };
+    const move = (x, y) => {
+      if (!drag) return;
+      const w = innerWidth, h = innerHeight, safe = readInsets();
+      const pos = this._safeJoystickCenter(x - drag.dx, y - drag.dy, this.layout.joystick.scale, safe, w, h);
+      this.layout.joystick.x = pos.x / w; this.layout.joystick.y = pos.y / h; this.apply();
     };
     const end = () => { if (drag) { drag = null; el.classList.remove('layout-dragging'); } };
     el.addEventListener('pointerdown', (event) => { if (event.pointerType !== 'touch' && (event.pointerType === 'mouse' || this.editing)) start(event.clientX, event.clientY, event, event.pointerId); }, true);

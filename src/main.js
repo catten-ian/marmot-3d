@@ -2024,9 +2024,12 @@ touchLayout.setPauseHooks({
   resume: () => { if (game.mode === 'pause') resume(); },
   isPaused: () => game.mode !== 'play',
 });
-// 疾跑触发范围：布局数据是唯一持久化来源，触控层实时消费；滑块变化经回调即时生效。
+// 疾跑触发范围（摇杆内圈）：布局数据是唯一持久化来源，触控层实时消费；滑块变化经回调即时生效。
 touchControls.setSprintThreshold(touchLayout.layout.joystick.sprintThreshold);
 touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
+// 摇杆整体大小：布局层 transform 缩放与触控层坐标换算保持同一倍率。
+touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
+touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
 const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode);
 // 设置面板切换输入模式 → 即时生效；启动时也同步一次（html 属性 / 鼠标兜底 / 布局入口可用性）。
