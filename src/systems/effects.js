@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { clamp, terrainHeight } from '../core/utils.js';
 
-/** 爪击：一道扇形挥砍面，从相机前方扫出 */
+/** 爪击：一道扇形挥砍面，沿调用方提供的真实攻击前向扫出。 */
 export class ClawSwing {
   constructor(scene) {
     this.group = new THREE.Group();
@@ -52,7 +52,10 @@ export class ClawSwing {
 
   fire(x, y, z, yaw, radius, color = 0xfff1a9) {
     this.group.position.set(x, y + 0.05, z);
-    this.group.rotation.y = yaw;
+    // 攻击前向约定是 (-sin(yaw), -cos(yaw))，而局部竖直面法线是 +Z；
+    // 加 π 让特效的朝向语义与 strike() 的命中扇形一致，而不是把相机 yaw 当方向。
+    this.group.rotation.y = yaw + Math.PI;
+    this.group.userData.attackYaw = yaw;
     this.mat.color.setHex(color);
     this.edge.material.color.setHex(color);
     this.t = 0;

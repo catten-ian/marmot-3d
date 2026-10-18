@@ -844,11 +844,18 @@ body.touch-layout-editing #testModeBtn { display: inline-block; cursor: grab; ou
 #testModeBtn.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
 #testModeBtn.layout-dragging { cursor: grabbing; filter: brightness(1.25); }
 .test-panel {
+  /* The sandbox/test panel is a separate fixed surface.  It must not inherit
+     the draggable #testModeBtn left/top/transform/z-index layout state. */
   position: fixed;
-  left: 12px;
-  bottom: 78px;
+  left: max(12px, calc(12px + var(--safe-left, 0px)));
+  right: max(12px, calc(12px + var(--safe-right, 0px)));
+  bottom: max(78px, calc(78px + var(--safe-bottom, 0px)));
   z-index: 32;
-  width: min(340px, calc(100vw - 24px));
+  box-sizing: border-box;
+  width: min(340px, calc(100vw - 24px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+  max-height: calc(100vh - 24px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+  max-height: calc(100dvh - 24px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+  overflow: auto;
   padding: 12px;
   border: 1px solid #78683f;
   border-radius: 7px;
@@ -875,7 +882,7 @@ body.touch-layout-editing #testModeBtn { display: inline-block; cursor: grab; ou
   cursor: pointer;
 }
 .test-panel button:hover { border-color: #d7ba72; background: #344531; }
-.test-panel header button { width: 28px; min-height: 26px; padding: 0; font-size: 18px; }
+.test-panel header button { width: 28px; min-height: 26px; flex: 0 0 28px; margin-left: auto; padding: 0; font-size: 18px; transform: none; }
 .test-toggle { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 .test-toggle input { accent-color: #d8b65c; }
 .test-actions, .test-log-actions { margin-top: 8px; }
@@ -1013,7 +1020,12 @@ body.touch-layout-editing #testModeBtn { display: inline-block; cursor: grab; ou
 /* ---------- 窄屏 ---------- */
 @media (max-width: 860px) {
   .test-mode-btn { bottom: 34px; left: 8px; }
-  .test-panel { left: 8px; bottom: 68px; width: min(340px, calc(100vw - 16px)); }
+  .test-panel {
+    left: max(8px, calc(8px + var(--safe-left, 0px)));
+    right: max(8px, calc(8px + var(--safe-right, 0px)));
+    bottom: max(68px, calc(68px + var(--safe-bottom, 0px)));
+    width: min(340px, calc(100vw - 16px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+  }
   .hud-top {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -1273,7 +1285,12 @@ body.touch-playing .touch-controls { display: block; }
   .footbar { display: none; }
   .version-tag { bottom: calc(5px + var(--safe-bottom)); }
   .test-mode-btn { bottom: calc(34px + var(--safe-bottom)); left: calc(8px + var(--safe-left)); }
-  .test-panel { bottom: calc(68px + var(--safe-bottom)); left: calc(8px + var(--safe-left)); }
+  .test-panel {
+    bottom: max(68px, calc(68px + var(--safe-bottom, 0px)));
+    left: max(8px, calc(8px + var(--safe-left, 0px)));
+    right: max(8px, calc(8px + var(--safe-right, 0px)));
+    width: min(340px, calc(100vw - 16px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+  }
 }
 @media (max-width: 420px) {
   .vlabel { font-size: 8.5px; }

@@ -701,12 +701,16 @@ function applyEnvModifiers(cfg) {
 }
 
 /** 每帧推进环境修饰，返回当前需要给 HUD 的提示文案 */
-function updateEnv(dt) {
+function updateEnv(dt, inBurrow = false) {
+  // 洞穴判定沿用 burrowVolumeAt/inBurrow 语义：天气时间继续走，
+  // 但洞内不接收阵风，也不显示/听到沙尘影响。离洞后按当前天气相位恢复。
+  const weatherSuppressed = !!inBurrow;
+
   // —— 阵风：正弦叠加两个不同周期，产生不规则的阵风节奏 ——
   if (env.gustMax > 0) {
     env.gustPhase += dt * 0.55;
     const s = Math.sin(env.gustPhase) * 0.62 + Math.sin(env.gustPhase * 2.37 + 1.1) * 0.38;
-    env.gust = env.gustMax * s;
+    env.gust = weatherSuppressed ? 0 : env.gustMax * s;
   } else {
     env.gust = 0;
   }
@@ -717,7 +721,8 @@ function updateEnv(dt) {
     env.sandT = (env.sandT + dt) % (env.sandPeriod * 2);
     const t = env.sandT;
     // 前 1/4 周期起风、中间 1/2 维持、后 1/4 散去
-    env.sandOn = t > env.sandPeriod * 0.25 && t < env.sandPeriod * 1.25;
+    const stormOn = t > env.sandPeriod * 0.25 && t < env.sandPeriod * 1.25;
+    env.sandOn = !weatherSuppressed && stormOn;
     if (env.sandOn) {
       const k = 1 - Math.abs(t - env.sandPeriod * 0.75) / (env.sandPeriod * 0.5);
       // 沙尘不能把能见度压到接近 0 —— 那样连**地面预警线**都看不见，
@@ -731,11 +736,17 @@ function updateEnv(dt) {
       sandMsg = '沙尘弥漫 · 贴近预警线';
     }
   }
-  if (!env.sandOn && env.sandPeriod > 0) {
+  // 洞内以及沙尘结束后都恢复关卡本来的雾；洞穴照明仍由 sky.setUnderground 单独处理。
+  if (!env.sandOn) {
     scene.fog.near = env.fogBase;
     scene.fog.far = env.fogFarBase;
   }
   return sandMsg;
+}
+
+function updateEnvNotice(envMsg) {
+  if (envMsg && !env._msgOn) { hud.say(envMsg, 2.6); env._msgOn = true; }
+  else if (!envMsg && env._msgOn) env._msgOn = false;
 }
 
 function completeLevel() {
@@ -1321,10 +1332,12 @@ function update(dt) {
   const stats = combatStats(game);
   stats_cache = stats;
 
-  // 环境修饰（雾 / 阵风 / 沙尘）每帧推进
-  const envMsg = updateEnv(dt);
-  if (envMsg && !env._msgOn) { env._msgOn = true; hud.say(envMsg, 2.6); }
-  else if (!envMsg && env._msgOn) env._msgOn = false;
+  // 环境修饰（雾 / 阵风 / 沙尘）每帧推进。先用当前位置按同一 burrowVolumeAt 语义
+  // 预判洞内状态，避免进入洞穴的这一帧仍吃到横风。
+  const weatherInBurrow = game.inBurrow || !!burrowVolumeAt(
+    controller.position.x, controller.position.y, controller.position.z, burrowDefs,
+  );
+  updateEnvNotice(updateEnv(dt, weatherInBurrow));
 
   // 计时器
   const prevOverdrive = game.overdrive;
@@ -1363,12 +1376,15 @@ function update(dt) {
     || binds.isAction('ShiftRight', 'sprint')
     || keys.has('ShiftLeft') || keys.has('ShiftRight');
   if (sprinting && p.energy > 5) speedMul *= 1.42;
+  // 阵风走 controller.externalVelocity.x；洞内先清掉上一帧残留的横向风速，
+  // 避免只把本帧 gust 设为 0 却让风继续把玩家拖行。
+  if (weatherInBurrow) controller.externalVelocity.x = 0;
   controller.update(
     dt,
     keys,
     game.attackMoveLock > 0 ? 0 : speedMul,
     binds.moveMap,
-    env.gust * env.gustDir,
+    weatherInBurrow ? 0 : env.gust * env.gustDir,
     binds.turnMap,
   );
 
@@ -1383,6 +1399,9 @@ function update(dt) {
   game.currentBurrow = burrowVolumeAt(p.x, controller.position.y, p.z, burrowDefs);
   game.inBurrow = !!game.currentBurrow;
   game.inBaseBurrow = game.currentBurrow?.type === 'base';
+  // 移动可能在本帧跨过洞口；立刻切换天气可见性/听感，避免沙尘雾留在洞内，
+  // 同时保留普通关卡雾和洞内照明的独立语义。
+  if (game.inBurrow !== weatherInBurrow) updateEnvNotice(updateEnv(0, game.inBurrow));
   // 进洞平滑压暗全局光：避免一闪而过，露出 burrow 自带暖光与黑井。
   game._undergroundK = THREE.MathUtils.lerp(game._undergroundK || 0, game.inBurrow ? 1 : 0, Math.min(1, dt * 5));
   sky.setUnderground(game._undergroundK);
@@ -1419,9 +1438,9 @@ function update(dt) {
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
-      if (prevState !== 'wind') audio.foxWind();
+      if (!game.inBurrow && prevState !== 'wind') audio.foxWind();
     }
-    if (f.alive && prevState === 'wind' && f.state === 'dash') audio.foxDash();
+    if (f.alive && !game.inBurrow && prevState === 'wind' && f.state === 'dash') audio.foxDash();
 
     // 接触伤害
     if (f.alive && !game.inBurrow && p.invuln <= 0) {
