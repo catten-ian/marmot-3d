@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 
 (async () => {
-  const { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget, firstPersonStrafeTarget } = await import('../src/core/move-facing.mjs');
+  const { resolveMoveIntent, dampAngle, classifyMoveFacing, thirdPersonStrafeTarget, firstPersonStrafeTarget, resolveAttackYaw } = await import('../src/core/move-facing.mjs');
   const yaw = 0;
   const angleError = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
   const direction = (mx, mz) => {
@@ -63,6 +63,14 @@ const assert = require('node:assert/strict');
   assert.ok(Math.abs(fpLeft.targetYaw - Math.PI / 2) < 1e-9, 'FP left turns view counter-clockwise');
   assert.equal(firstPersonStrafeTarget(0, 0), null, 'FP target null without lateral input');
   assert.ok(Math.abs(Math.hypot(fpLeft.moveX, fpLeft.moveZ) - 1) < 1e-9);
+
+  // —— 攻击 yaw 来源：第三人称沿身体朝向，第一人称沿镜头（第一人称不回归） ——
+  assert.equal(resolveAttackYaw({ thirdPerson: true, cameraYaw: 0.9, bodyYaw: -0.4 }), -0.4,
+    'TP 攻击沿角色身体朝向而非相机 yaw');
+  assert.equal(resolveAttackYaw({ thirdPerson: false, cameraYaw: 0.9, bodyYaw: -0.4 }), 0.9,
+    'FP 攻击沿镜头朝向（保持现有正确行为）');
+  assert.equal(resolveAttackYaw({ cameraYaw: 2.2, bodyYaw: 1.1 }), 2.2,
+    '默认（缺省 thirdPerson）按第一人称处理');
 
   console.log('move-facing logic: all assertions passed');
 })();

@@ -144,3 +144,47 @@ export function rollDirection({ velX = 0, velZ = 0, bodyYaw = 0 } = {}) {
   if (v > 0.05) return { x: velX / v, z: velZ / v, moving: true };
   return { x: -Math.sin(bodyYaw), z: -Math.cos(bodyYaw), moving: false };
 }
+
+// ============================================================
+// 攻击门控 / 迎击判定（纯函数，供 Node 测试与主循环共用）
+// ============================================================
+
+/**
+ * 出招门控：只拦冷却与洞穴。
+ * 站立/静止观察（observing）不再阻塞攻击 —— 站立也必须能短按推击，
+ * 连续短按在冷却结束后按攻击节奏稳定触发。
+ */
+export function strikeGateOpen({ attackCD = 0, inBurrow = false } = {}) {
+  return !(attackCD > 0) && !inBurrow;
+}
+
+/** 狐狸攻击有效窗口：只有 dash（正在发动的攻击）可被迎击。 */
+export const FOX_ATTACK_STATE = 'dash';
+export const DEFAULT_PARRY_HALF_ANGLE = 80 * Math.PI / 180;
+
+/**
+ * 振刀式迎击判定（纯函数）：只有成功抵住狐狸正在发动的攻击才算成功。
+ *   timing        玩家输入时机：迎击窗口仍在（输入过早窗口已过期 / 过晚未开都不算）
+ *   foxAttacking  狐狸处于攻击有效窗口（dash）；空闲/巡逻/蓄力(wind)/喘息(rest)都不算
+ *   inRange       接触距离内
+ *   facing        狐狸从玩家正面（攻击朝向 ±parryHalfAngle）冲来
+ * 全部满足才 success；reason 给出首个失败原因，便于测试与调试。
+ */
+export function resolveParryOutcome({
+  parryWindowT = 0, foxState = '', dist = Infinity, reach = 0,
+  facingDot = -1, parryHalfAngle = DEFAULT_PARRY_HALF_ANGLE,
+} = {}) {
+  const timing = parryWindowT > 0;
+  const foxAttacking = foxState === FOX_ATTACK_STATE;
+  const inRange = dist <= reach;
+  const facing = facingDot >= Math.cos(parryHalfAngle);
+  const success = timing && foxAttacking && inRange && facing;
+  let reason = 'success';
+  if (!success) {
+    reason = !timing ? 'timing'
+      : !foxAttacking ? 'fox-not-attacking'
+        : !inRange ? 'out-of-range'
+          : 'not-facing';
+  }
+  return { success, timing, foxAttacking, inRange, facing, reason };
+}
