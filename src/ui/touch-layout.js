@@ -57,6 +57,8 @@ export class TouchLayout {
     // 可拖动键都在右侧 .touch-actions 动作栏里；pause 在动作栏外，单独从 root 取。
     this.actionLayer = this.root?.querySelector('.touch-actions') || this.root;
     this.adjustEnabled = touchAdjustEnabled();
+    // 有效输入模式为触屏时才允许编辑浮动触控控件（由 main.js 注入）。
+    this.touchModeAvailable = true;
     // 由 main.js 注入的游戏暂停/恢复钩子；调整态进出时自动暂停/继续。
     this.pauseHooks = null;
     // 本次调整是否由编辑器发起的暂停（调整前已在暂停态则退出调整时保持暂停）。
@@ -83,6 +85,12 @@ export class TouchLayout {
   _syncAdjustVisibility() {
     // CSS 据此隐藏/显示所有带 data-touch-adjust 的"调整键"。
     document.documentElement?.setAttribute('data-touch-adjust-enabled', this.adjustEnabled ? 'true' : 'false');
+  }
+
+  /** 有效输入模式变化：键鼠模式下隐藏/禁用编辑入口，进行中的编辑立即退出。 */
+  setTouchModeAvailable(on) {
+    this.touchModeAvailable = on !== false;
+    if (!this.touchModeAvailable && this.editing) this.setEditing(false);
   }
 
   /** 设置面板里的"启用触屏布局调整"总开关 */
@@ -203,8 +211,8 @@ export class TouchLayout {
 
   setEditing(value = !this.editing) {
     const next = !!value;
-    // 总开关关闭时拒绝进入编辑态（即便有残留的编辑状态也立即退出）。
-    if (next && !this.adjustEnabled) {
+    // 总开关关闭或有效模式不是触屏时拒绝进入编辑态（即便有残留的编辑状态也立即退出）。
+    if (next && (!this.adjustEnabled || !this.touchModeAvailable)) {
       if (this.editing) this._stopEditing();
       else { this.editing = false; this.apply(); }
       return;

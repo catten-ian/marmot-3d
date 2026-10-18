@@ -4,12 +4,20 @@
  */
 import { Keybinds, ACTIONS, findConflicts } from '../core/keybinds.js';
 import { IS_DEV } from '../core/version.js';
+import { INPUT_MODES } from '../core/input-mode.mjs';
+
+const INPUT_MODE_OPTIONS = [
+  { id: 'auto', name: '自动', desc: '按设备自动判断；手机/平板首次触摸会自动启用触屏。' },
+  { id: 'touch', name: '强制触屏', desc: '始终显示触屏摇杆与动作按钮；桌面端可借此调试触屏布局。' },
+  { id: 'keyboard', name: '强制键鼠', desc: '始终使用键盘 + 鼠标视角，即使设备支持触摸也不切换。' },
+];
 
 export class SettingsUI {
-  constructor(binds, touchLayout = null, feedback = null) {
+  constructor(binds, touchLayout = null, feedback = null, inputMode = null) {
     this.binds = binds;
     this.touchLayout = touchLayout;
     this.feedback = feedback;
+    this.inputMode = inputMode;
     this.el = {
       btn: document.getElementById('setBtn'),
       sheet: document.getElementById('setSheet'),
@@ -102,7 +110,28 @@ export class SettingsUI {
     }
     html += '</div>';
 
-    if (this.touchLayout) {
+    if (this.inputMode) {
+      const pref = INPUT_MODES.includes(this.inputMode.preference) ? this.inputMode.preference : 'auto';
+      const effTouch = this.inputMode.isTouch();
+      html += `<section class="input-mode-settings" aria-label="输入模式">
+      <h4>输入模式</h4>
+      <div class="scheme-row input-mode-row">${INPUT_MODE_OPTIONS.map((m) => `
+        <button class="scheme-card ${pref === m.id ? 'cur' : ''}" data-input-mode="${m.id}">
+          <div class="scheme-name">${m.name}</div>
+          <div class="scheme-desc">${m.desc}</div>
+        </button>`).join('')}
+      </div>
+      <p class="input-mode-status">当前生效：<b>${effTouch ? '触屏' : '键鼠'}</b>${
+        pref === 'auto'
+          ? `（自动判定${this.inputMode.runtimeTouch && !this.inputMode.deviceTouch ? ' · 已由首次真实触摸升级' : ''}；切换立即生效）`
+          : '（强制模式，切换立即生效）'
+      }</p>
+    </section>`;
+    }
+
+    // 触屏布局编辑入口只在有效模式为触屏时可用；键鼠模式隐藏整段，不允许编辑浮动触控控件。
+    const touchEffective = this.inputMode ? this.inputMode.isTouch() : true;
+    if (this.touchLayout && touchEffective) {
       const adjustOn = !!this.touchLayout.adjustEnabled;
       html += `<section class="touch-adjust-settings" aria-label="触屏布局调整开关">
       <h4>触屏布局调整</h4>
@@ -166,6 +195,9 @@ export class SettingsUI {
     if (rb) rb.onclick = () => this.binds.resetCustom();
     const fb = this.el.body.querySelector('#settingsFeedback');
     if (fb) fb.onclick = () => this.feedback.open();
+    this.el.body.querySelectorAll('[data-input-mode]').forEach((el) => {
+      el.onclick = () => { this.inputMode?.setPreference(el.dataset.inputMode); this.render(); };
+    });
     const adjustToggle = this.el.body.querySelector('#touchAdjustToggle');
     adjustToggle?.addEventListener('change', () => this.touchLayout.setAdjustEnabled(adjustToggle.checked));
     this.touchLayout?.bindSettings(this.el.body);

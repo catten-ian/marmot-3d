@@ -12,7 +12,7 @@ import {
  * 同时提供传统 Touch Events 路径，优先用 Touch Events 驱动手指操作。
  */
 export class TouchControls {
-  constructor({ canvas, controller, root, lookZone, joystick, stick, onAction, onParryGesture, onRollGesture, isActive }) {
+  constructor({ canvas, controller, root, lookZone, joystick, stick, onAction, onParryGesture, onRollGesture, isActive, enabled, allowAutoActivate, allowMouse }) {
     this.canvas = canvas;
     this.controller = controller;
     this.root = root;
@@ -35,7 +35,12 @@ export class TouchControls {
     this.maxStick = 48;
     // 疾跑触发范围（摇杆归一化行程阈值），可由设置面板实时调整。
     this.sprintThreshold = clampSprintThreshold(SPRINT_STICK_THRESHOLD);
-    this.enabled = isTouchPrimary();
+    // 初始启用状态可由外层（输入模式设置）显式指定，省略时维持原有设备检测。
+    this.enabled = typeof enabled === 'boolean' ? enabled : isTouchPrimary();
+    // 首次真实触摸 / 触摸型 pointer 是否允许运行时自动激活（强制键鼠时返回 false）。
+    this.allowAutoActivate = typeof allowAutoActivate === 'function' ? allowAutoActivate : () => true;
+    // 强制触屏且无真实触摸能力的桌面调试：允许鼠标指针驱动摇杆/按钮/look zone。
+    this.allowMouse = !!allowMouse;
 
     // 老 X5 / Android WebView 对 Touch Events 的支持最稳定。
     // 只要设备具备触摸能力，手指输入优先走 Touch Events；Pointer Events 保留给笔/鼠标。
@@ -82,6 +87,17 @@ export class TouchControls {
     this._apply();
   }
 
+  /** 停用触控模式（幂等）：释放所有指针、脱离控制器、移除触屏 body class 与手势拦截。 */
+  deactivate() {
+    this.enabled = false;
+    if (!this.applied) return;
+    this.applied = false;
+    this.releaseAll();
+    this.controller.touchEnabled = false;
+    document.body.classList.remove('touch-mode');
+    this._removeGestureBlockers();
+  }
+
   /** 真正把触控层接入控制器/页面（幂等，不能因 enabled 已为 true 而跳过）。 */
   _apply() {
     if (this.applied) return;
@@ -110,17 +126,30 @@ export class TouchControls {
     if (this.gestureBlocked) return;
     this.gestureBlocked = true;
     const block = (event) => event.preventDefault();
+    this._gestureBlock = block;
     document.addEventListener('contextmenu', block);
     document.addEventListener('dblclick', block);
     document.addEventListener('gesturestart', block);
     document.addEventListener('gesturechange', block);
   }
 
+  _removeGestureBlockers() {
+    if (!this.gestureBlocked) return;
+    this.gestureBlocked = false;
+    const block = this._gestureBlock;
+    this._gestureBlock = null;
+    if (!block) return;
+    document.removeEventListener?.('contextmenu', block);
+    document.removeEventListener?.('dblclick', block);
+    document.removeEventListener?.('gesturestart', block);
+    document.removeEventListener?.('gesturechange', block);
+  }
+
   _bindPointerInput() {
     this.lookZone.addEventListener('pointerdown', (event) => {
       // 触摸设备由 Touch Events 专门处理，避免现代浏览器双路径重复触发。
       if (this.useTouchEvents && (event.pointerType === 'touch' || event.pointerType === 'pen')) return;
-      if (!this._isTouchPointer(event) || !this.isActive() || this.lookPointer !== null) return;
+      if (!this.enabled || !this._isTouchPointer(event) || !this.isActive() || this.lookPointer !== null) return;
       this.lookPointer = event.pointerId;
       this.lookLast.x = event.clientX;
       this.lookLast.y = event.clientY;
@@ -144,7 +173,7 @@ export class TouchControls {
 
     this.joystick.addEventListener('pointerdown', (event) => {
       if (this.useTouchEvents && (event.pointerType === 'touch' || event.pointerType === 'pen')) return;
-      if (!this._isTouchPointer(event) || !this.isActive() || this.movePointer !== null) return;
+      if (!this.enabled || !this._isTouchPointer(event) || !this.isActive() || this.movePointer !== null) return;
       this.movePointer = event.pointerId;
       this.pointerRoles.set(event.pointerId, 'move');
       this._capture(this.joystick, event.pointerId);
@@ -169,7 +198,7 @@ export class TouchControls {
       const action = button.dataset.touchAction;
       button.addEventListener('pointerdown', (event) => {
         if (this.useTouchEvents && (event.pointerType === 'touch' || event.pointerType === 'pen')) return;
-        if (!this._isTouchPointer(event) || !this.isActive()) return;
+        if (!this.enabled || !this._isTouchPointer(event) || !this.isActive()) return;
         event.preventDefault();
         event.stopPropagation();
         this._capture(button, event.pointerId);
@@ -211,7 +240,7 @@ export class TouchControls {
   _bindTouchInput() {
     // 捕获阶段的全局触摸：即便 UA/媒体查询误判，第一次触摸也立即启用触控。
     window.addEventListener('touchstart', (event) => {
-      if (!this.enabled) this.activate();
+      if (!this.enabled && this.allowAutoActivate()) this.activate();
     }, { passive: true, capture: true });
 
     const add = (element, type, handler) => {
@@ -219,7 +248,7 @@ export class TouchControls {
     };
 
     add(this.lookZone, 'touchstart', (event) => {
-      if (!this.isActive()) return;
+      if (!this.enabled || !this.isActive()) return;
       for (const touch of event.changedTouches) {
         if (this.lookPointer !== null) continue;
         this.lookPointer = touch.identifier;
@@ -242,7 +271,7 @@ export class TouchControls {
     });
 
     add(this.joystick, 'touchstart', (event) => {
-      if (!this.isActive()) return;
+      if (!this.enabled || !this.isActive()) return;
       for (const touch of event.changedTouches) {
         if (this.movePointer !== null) continue;
         this.movePointer = touch.identifier;
@@ -265,7 +294,7 @@ export class TouchControls {
     this.root.querySelectorAll('[data-touch-action]').forEach((button) => {
       const action = button.dataset.touchAction;
       add(button, 'touchstart', (event) => {
-        if (!this.isActive()) return;
+        if (!this.enabled || !this.isActive()) return;
         for (const touch of event.changedTouches) {
           if (this.pointerRoles.has(touch.identifier)) continue;
           this.pointerRoles.set(touch.identifier, 'button:' + action);
@@ -343,8 +372,12 @@ export class TouchControls {
 
   _isTouchPointer(event) {
     const isTouch = event.pointerType === 'touch' || event.pointerType === 'pen';
-    if (isTouch && !this.enabled) this.activate();
-    return isTouch;
+    if (isTouch) {
+      if (!this.enabled && this.allowAutoActivate()) this.activate();
+      return true;
+    }
+    // 强制触屏的桌面调试：允许鼠标驱动触控层；其余情况鼠标仍走 Pointer Lock 路径。
+    return this.enabled && !!this.allowMouse;
   }
 
   _capture(element, pointerId) {

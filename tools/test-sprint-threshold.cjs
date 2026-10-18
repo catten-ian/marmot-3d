@@ -123,8 +123,11 @@ const dispatchWindow = (type, ev) => globalThis.window._h[type]?.forEach((fn) =>
   const joystickEl = new El2();
   const stick = new El2();
   const controller = { yaw: 0, pitch: 0, touchLookSensitivity: 0.006, touchSprint: false, touchLookActive: false };
+  // Node 24 的 navigator 全局不可被普通赋值覆盖，isTouchPrimary() 在桩环境下为 false；
+  // 显式 enabled:true 表达"这是触屏设备"的测试意图。
   const tc = new TouchControls({
     canvas: {}, controller, root, lookZone, joystick: joystickEl, stick,
+    enabled: true,
     isActive: () => true, onAction() {}, onParryGesture() {}, onRollGesture() {},
   });
   const touchEvent = (x) => ({ changedTouches: [{ identifier: 0, clientX: x, clientY: 50 }], preventDefault() {}, stopPropagation() {} });
