@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Babylon importmap probe</title>
+<script type="importmap">
+{ "imports": {
+    "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3"
+} }
+</script>
+<script type="module">
+  const { Engine } = await import('@babylonjs/core');
+  console.log('babylon-engine-ok', !!Engine);
+</script>
