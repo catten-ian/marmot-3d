@@ -6,6 +6,12 @@ import { Keybinds, ACTIONS, findConflicts } from '../core/keybinds.js';
 import { IS_DEV } from '../core/version.js';
 import { INPUT_MODES } from '../core/input-mode.mjs';
 
+const GRAPHICS_OPTIONS = [
+  { id: 'auto', name: '自动', desc: '保留浏览器默认 GPU 选择。' },
+  { id: 'high-performance', name: '高性能', desc: '提示优先选择高性能适配器。' },
+  { id: 'power-saving', name: '省电', desc: '提示优先选择低功耗适配器，适合集成 GPU。' },
+];
+
 const INPUT_MODE_OPTIONS = [
   { id: 'auto', name: '自动', desc: '按设备自动判断；手机/平板首次触摸会自动启用触屏。' },
   { id: 'touch', name: '强制触屏', desc: '始终显示触屏摇杆与动作按钮；桌面端可借此调试触屏布局。' },
@@ -13,11 +19,12 @@ const INPUT_MODE_OPTIONS = [
 ];
 
 export class SettingsUI {
-  constructor(binds, touchLayout = null, feedback = null, inputMode = null) {
+  constructor(binds, touchLayout = null, feedback = null, inputMode = null, graphicsPreference = null) {
     this.binds = binds;
     this.touchLayout = touchLayout;
     this.feedback = feedback;
     this.inputMode = inputMode;
+    this.graphicsPreference = graphicsPreference;
     this.el = {
       btn: document.getElementById('setBtn'),
       sheet: document.getElementById('setSheet'),
@@ -110,6 +117,19 @@ export class SettingsUI {
     }
     html += '</div>';
 
+    if (this.graphicsPreference) {
+      const pref = GRAPHICS_OPTIONS.some((item) => item.id === this.graphicsPreference.preference)
+        ? this.graphicsPreference.preference : 'auto';
+      html += `<section class="graphics-settings" aria-label="图形适配器偏好">
+      <h4>图形适配器偏好</h4>
+      <label for="graphicsPreference">GPU 选择提示</label>
+      <select id="graphicsPreference" aria-describedby="graphicsPreferenceHelp">${GRAPHICS_OPTIONS.map((item) => `
+        <option value="${item.id}"${pref === item.id ? ' selected' : ''}>${item.name}</option>`).join('')}
+      </select>
+      <p id="graphicsPreferenceHelp">${GRAPHICS_OPTIONS.find((item) => item.id === pref)?.desc || ''} 更改后会保存，并在重新加载页面后生效；不会实时切换硬件。</p>
+    </section>`;
+    }
+
     if (this.inputMode) {
       const pref = INPUT_MODES.includes(this.inputMode.preference) ? this.inputMode.preference : 'auto';
       const effTouch = this.inputMode.isTouch();
@@ -195,6 +215,11 @@ export class SettingsUI {
     if (rb) rb.onclick = () => this.binds.resetCustom();
     const fb = this.el.body.querySelector('#settingsFeedback');
     if (fb) fb.onclick = () => this.feedback.open();
+    const graphicsSelect = this.el.body.querySelector('#graphicsPreference');
+    graphicsSelect?.addEventListener('change', () => {
+      this.graphicsPreference?.setPreference(graphicsSelect.value);
+      this.render();
+    });
     this.el.body.querySelectorAll('[data-input-mode]').forEach((el) => {
       el.onclick = () => { this.inputMode?.setPreference(el.dataset.inputMode); this.render(); };
     });

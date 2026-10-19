@@ -13,21 +13,22 @@
  */
 
 import { getRenderProfile } from './performance.js';
+import { adapterPowerPreference, readGraphicsPreference } from './graphics-preference.js';
 
 let cached = null;
 
 /** 检测 WebGPU 是否真正可用（适配器 + 设备都能建起来） */
-export async function probeWebGPU() {
+export async function probeWebGPU(graphicsPreference = readGraphicsPreference()) {
   if (typeof navigator === 'undefined' || !('gpu' in navigator)) {
     return { ok: false, reason: '浏览器未提供 navigator.gpu' };
   }
   try {
-    const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+    const adapter = await navigator.gpu.requestAdapter({ powerPreference: adapterPowerPreference(graphicsPreference) });
     if (!adapter) return { ok: false, reason: '没有可用的 GPU 适配器（可能无独显/驱动被禁用）' };
     const device = await adapter.requestDevice();
     if (!device) return { ok: false, reason: '无法创建 GPU 设备' };
     device.destroy?.();
-    return { ok: true, adapter };
+    return { ok: true, adapter, graphicsPreference, adapterPowerPreference: adapterPowerPreference(graphicsPreference), adapterInfo: adapter.info || null };
   } catch (e) {
     return { ok: false, reason: 'WebGPU 初始化异常：' + (e && e.message || e) };
   }
@@ -45,6 +46,7 @@ export async function createRenderer(canvas, {
   preferWebGPU = true,
   forceWebGL = false,
   onStatus = null,
+  graphicsPreference = readGraphicsPreference(),
 } = {}) {
   const status = {
     backend: 'webgl',      // 'webgpu' | 'webgl2-fallback' | 'webgl'
@@ -52,14 +54,18 @@ export async function createRenderer(canvas, {
     gpuReason: '',
     degraded: false,
     supportsSplat: false,
+    graphicsPreference,
+    adapterPowerPreference: adapterPowerPreference(graphicsPreference),
+    adapterInfo: null,
   };
 
   const wantGPU = preferWebGPU && !forceWebGL;
 
   if (wantGPU) {
-    const gpu = await probeWebGPU();
+    const gpu = await probeWebGPU(graphicsPreference);
     status.gpuAvailable = gpu.ok;
     status.gpuReason = gpu.reason || '';
+    status.adapterInfo = gpu.adapterInfo || null;
     if (gpu.ok) {
       try {
         const THREE = await import('three/webgpu');
@@ -67,7 +73,7 @@ export async function createRenderer(canvas, {
           canvas,
           antialias: false,     // GS 是软边叠加，MSAA 对它无益
           alpha: false,
-          powerPreference: 'high-performance',
+          powerPreference: adapterPowerPreference(graphicsPreference),
         });
         await r.init();
         // init 之后才知道真实后端（可能内部又退回了 WebGL2）
@@ -99,7 +105,7 @@ export async function createRenderer(canvas, {
       canvas,
       antialias: false,
       alpha: false,
-      powerPreference: 'high-performance',
+      powerPreference: adapterPowerPreference(graphicsPreference),
       forceWebGL: true,
     });
     await r.init();
@@ -119,7 +125,7 @@ export async function createRenderer(canvas, {
   const r = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
-    powerPreference: 'high-performance',
+    powerPreference: adapterPowerPreference(graphicsPreference),
     stencil: false,
   });
   status.backend = 'webgl';

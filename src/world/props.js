@@ -253,11 +253,22 @@ export class Scenery {
     this._buildBushes();
     // 风的时间推进：用 rAF 绝对时间而非 dt 累加，暂停/切页也不会失步。
     // Scenery 全局单例（main.js 只 new 一次），常驻 rAF 不会累积泄漏；
-    // 标题界面与暂停时风继续吹，环境保持"活着"。
+    // 标题界面与暂停时风继续吹，环境保持"活着"。隐藏页面时暂停 RAF，避免后台重复调度。
     this._windTick = (now) => {
+      this._windRaf = 0;
+      if (document.hidden) return;
       if (this.windTime) this.windTime.value = now / 1000;
       this._windRaf = requestAnimationFrame(this._windTick);
     };
+    this._onVisibilityChange = () => {
+      if (document.hidden) {
+        if (this._windRaf) cancelAnimationFrame(this._windRaf);
+        this._windRaf = 0;
+      } else if (!this._windRaf) {
+        this._windRaf = requestAnimationFrame(this._windTick);
+      }
+    };
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
     this._windRaf = requestAnimationFrame(this._windTick);
   }
 

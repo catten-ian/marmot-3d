@@ -16,6 +16,8 @@
  *   addons/libs/{fflate,zstddec}    SPZ 解压
  */
 
+import { adapterPowerPreference, readGraphicsPreference } from '../core/graphics-preference.js';
+
 /**
  * 检测 WebGPU 可用性。返回 { ok, adapter, reason, info }
  *
@@ -27,7 +29,7 @@ export function forceWebGL() {
   return new URLSearchParams(location.search).get('webgl') === '1';
 }
 
-export async function detectWebGPU() {
+export async function detectWebGPU(graphicsPreference = readGraphicsPreference()) {
   const info = [];
   if (typeof navigator === 'undefined' || !('gpu' in navigator)) {
     return {
@@ -45,7 +47,7 @@ export async function detectWebGPU() {
 
   let adapter = null;
   try {
-    adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+    adapter = await navigator.gpu.requestAdapter({ powerPreference: adapterPowerPreference(graphicsPreference) });
   } catch (e) {
     return {
       ok: false,
@@ -91,7 +93,7 @@ export async function detectWebGPU() {
     };
   }
 
-  return { ok: true, adapter, info: info.join('\n') };
+  return { ok: true, adapter, info: info.join('\n'), graphicsPreference, adapterPowerPreference: adapterPowerPreference(graphicsPreference), adapterInfo: adapter.info || null };
 }
 
 /**
@@ -102,13 +104,13 @@ export async function detectWebGPU() {
  * CPU），但性能与效果都差很多 —— 所以默认 `forceWebGL: false`，
  * 让 WebGPU 不可用时由调用方提前拦截，而不是悄悄降级。
  */
-export async function createRenderer(canvas, { forceWebGL = false } = {}) {
+export async function createRenderer(canvas, { forceWebGL = false, graphicsPreference = readGraphicsPreference() } = {}) {
   const { WebGPURenderer } = await import('three/webgpu');
   const renderer = new WebGPURenderer({
     canvas,
     antialias: false,      // GS 本身是软边叠加，MSAA 反而浪费
     alpha: false,
-    powerPreference: 'high-performance',
+    powerPreference: adapterPowerPreference(graphicsPreference),
     // forceWebGL: 无 WebGPU 时显式退到 WebGL2 后端（GS 仍可渲染，只是慢）
     forceWebGL,
   });

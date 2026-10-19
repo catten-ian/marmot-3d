@@ -91,6 +91,7 @@ import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
+import { adapterPowerPreference, readGraphicsPreference, writeGraphicsPreference } from './core/graphics-preference.js';
 import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
 import { TouchLayout } from './ui/touch-layout.js';
@@ -126,27 +127,40 @@ const BOOT = (typeof window !== 'undefined' && window.__boot) || {
   gsWorld: false, gpuOk: false, gpuReason: '', forceWebGL: false,
 };
 const WANT_GS = BOOT.gsWorld === true;
+const graphicsPreferenceState = {
+  preference: readGraphicsPreference(),
+  setPreference(value) { this.preference = writeGraphicsPreference(value); return this.preference; },
+};
 
 let renderer;
-let rendererStatus = { backend: 'webgl', supportsSplat: false, gpuReason: '' };
+let rendererStatus = {
+  backend: 'webgl', supportsSplat: false, gpuReason: '',
+  graphicsPreference: graphicsPreferenceState.preference,
+  adapterPowerPreference: adapterPowerPreference(graphicsPreferenceState.preference),
+  adapterInfo: null,
+};
 let renderProfile = getRenderProfile(TOUCH_DEVICE);
 
 if (WANT_GS) {
   const result = await createRenderer(canvas, {
     preferWebGPU: true,
     forceWebGL: BOOT.forceWebGL,
+    graphicsPreference: graphicsPreferenceState.preference,
   });
   renderer = result.renderer;
   rendererStatus = {
     backend: result.status.backend,
     supportsSplat: splatUsable(result),
     gpuReason: result.status.gpuReason,
+    graphicsPreference: result.status.graphicsPreference,
+    adapterPowerPreference: result.status.adapterPowerPreference,
+    adapterInfo: result.status.adapterInfo,
   };
 } else {
   renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: renderProfile.antialias,
-    powerPreference: 'high-performance',
+    powerPreference: adapterPowerPreference(graphicsPreferenceState.preference),
     stencil: false,
   });
 }
@@ -172,7 +186,7 @@ renderer.toneMappingExposure = 0.92;
     tag.textContent = label;
     tag.classList.remove('hidden');
     tag.style.color = rendererStatus.backend === 'webgpu' ? '#9fe6a0' : '#ffb35a';
-    tag.title = rendererStatus.gpuReason || '高斯泼溅需要 WebGPURenderer';
+    tag.title = `${rendererStatus.gpuReason || '高斯泼溅需要 WebGPURenderer'} · 偏好：${rendererStatus.graphicsPreference || graphicsPreferenceState.preference}`;
   }
 }
 
@@ -2049,7 +2063,7 @@ touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
 touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
 touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
-const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode);
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState);
 // 设置面板切换输入模式 → 即时生效；启动时也同步一次（html 属性 / 鼠标兜底 / 布局入口可用性）。
 inputMode.onChange(() => applyInputMode());
 applyInputMode();
