@@ -7,6 +7,9 @@ import { FIELD_W, FIELD_H } from '../core/config.js';
 import { terrainHeight } from '../core/utils.js';
 import { getRenderProfile } from '../core/performance.js';
 
+/** @deprecated 已被 src/babylon/renderer.js 的 createBabylonScene 替代，
+ *  保留仅给 src/three-legacy/main.js 回滚用，不要在 babylon-rewrite 主路径引用。
+ */
 export class Sky {
   constructor(scene, renderer) {
     this.scene = scene;
@@ -284,3 +287,5 @@ const segX = 200, segZ = 170;
     if (dt > 0) this.domeTime.value += dt;
   }
 }
+
+// 老 BabylonWorld 已删：功能由 src/babylon/renderer.js 的 createBabylonScene 统一提供

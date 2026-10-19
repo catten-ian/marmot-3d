@@ -20,7 +20,7 @@ import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
-import { createRenderer, splatUsable } from './core/renderer.js';
+import { createRenderer as createBabylonRenderer } from './babylon/renderer.js';
 import { getRenderProfile, isTouchPrimary } from './core/performance.js';
 import { TouchControls } from './core/touch-controls.js';
 
@@ -68,78 +68,33 @@ const audio = new Audio();
 hud.setLoading(8);
 
 /**
- * 渲染器与 three 实例。
- *
- * dev 版（GS 全场景）需要 WebGPURenderer —— 它必须 `await renderer.init()`，
- * 是异步的；而本模块是同步的顶层 ES 模块。
- * 解法：index.html 的引导层先探测 WebGPU 能力并把结果挂在 window.__boot，
- * 这里同步读取。需要 GS 时用 WebGPURenderer 并**立即调用 init()**
- * （three 的 init 在未 await 时会内部同步走一部分，first frame 才补齐管线，
- *   实际使用时只要保证渲染循环在 init 完成后再启动即可 —— 见下方 boot()）。
- *
- * 稳定版完全走原来的 WebGLRenderer 路径，不受任何影响。
+ * Babylon.js is the rendering host. Legacy gameplay objects still use Three.js
+ * data structures, so the host exposes a narrow renderer surface while Babylon
+ * owns the canvas, lights, camera and frame loop.
  */
-const BOOT = (typeof window !== 'undefined' && window.__boot) || {
-  gsWorld: false, gpuOk: false, gpuReason: '', forceWebGL: false,
-};
-const WANT_GS = BOOT.gsWorld === true;
+const BOOT = (typeof window !== 'undefined' && window.__boot) || {};
+const WANT_GS = false;
 
-let renderer;
-let rendererStatus = { backend: 'webgl', supportsSplat: false, gpuReason: '' };
+const babylonHost = createBabylonRenderer(canvas, { antialias: true });
+const renderer = babylonHost.renderer;
+const babylonScene = babylonHost.scene;
+let rendererStatus = babylonHost.status;
 let renderProfile = getRenderProfile();
-
-if (WANT_GS) {
-  const result = await createRenderer(canvas, {
-    preferWebGPU: true,
-    forceWebGL: BOOT.forceWebGL,
-  });
-  renderer = result.renderer;
-  rendererStatus = {
-    backend: result.status.backend,
-    supportsSplat: splatUsable(result),
-    gpuReason: result.status.gpuReason,
-  };
-} else {
-  renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: renderProfile.antialias,
-    powerPreference: 'high-performance',
-    stencil: false,
-  });
-}
-
-renderProfile = getRenderProfile();
 renderer.setPixelRatio(renderProfile.pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
-if ('shadowMap' in renderer) {
-  renderer.shadowMap.enabled = renderProfile.shadows;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
-}
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-// 曝光过高会把贴地的草地照成一片死白，0.92 是既能保留高光又不溢出的值
-renderer.toneMappingExposure = 0.92;
 
-// 如实显示后端徽标：不能让「跑在 WebGL2 兜底上」被误认为「跑在 WebGPU 上」
-{
-  const tag = document.getElementById('backendTag');
-  if (tag && WANT_GS) {
-    const label = rendererStatus.backend === 'webgpu' ? 'WebGPU'
-      : 'WebGL2 兜底（非 WebGPU）';
-    tag.textContent = label;
-    tag.classList.remove('hidden');
-    tag.style.color = rendererStatus.backend === 'webgpu' ? '#9fe6a0' : '#ffb35a';
-    tag.title = rendererStatus.gpuReason || '高斯泼溅需要 WebGPURenderer';
-  }
+const tag = document.getElementById('backendTag');
+if (tag) {
+  tag.textContent = 'Babylon.js / WebGL2';
+  tag.classList.remove('hidden');
+  tag.style.color = '#9fe6a0';
+  tag.title = 'Babylon Engine rendering host';
 }
 
 hud.setLoading(22);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(
-  // far 必须大于天穹球半径(900)，否则天空会被裁掉
-  78, window.innerWidth / window.innerHeight, 0.05, 1600,
-);
+const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.05, 1600);
 
 const sky = new Sky(scene, renderer);
 hud.setLoading(45);
@@ -1838,5 +1793,5 @@ window.__game = {
   loadLevel: (i) => loadLevel(i, false),
   gsWorld: () => gsWorld, gsStats: () => gsStats,
   foxesList: () => foxes,
-  THREE,
+  THREE, babylonScene, babylonHost,
 };
