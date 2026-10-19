@@ -853,13 +853,14 @@ body.touch-layout-editing #testModeBtn { display: inline-block; cursor: grab; ou
      the draggable #testModeBtn left/top/transform/z-index layout state. */
   position: fixed;
   left: max(12px, calc(12px + var(--safe-left, 0px)));
-  right: max(12px, calc(12px + var(--safe-right, 0px)));
+  right: auto;
+  top: max(12px, calc(12px + var(--safe-top, 0px)));
   bottom: max(78px, calc(78px + var(--safe-bottom, 0px)));
   z-index: 32;
   box-sizing: border-box;
   width: min(340px, calc(100vw - 24px - var(--safe-left, 0px) - var(--safe-right, 0px)));
-  max-height: calc(100vh - 24px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
-  max-height: calc(100dvh - 24px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+  max-height: calc(100vh - 90px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+  max-height: calc(100dvh - 90px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
   overflow: auto;
   padding: 12px;
   border: 1px solid #78683f;
@@ -1291,10 +1292,12 @@ body.touch-playing .touch-controls { display: block; }
   .version-tag { bottom: calc(5px + var(--safe-bottom)); }
   .test-mode-btn { bottom: calc(34px + var(--safe-bottom)); left: calc(8px + var(--safe-left)); }
   .test-panel {
+    top: max(8px, calc(8px + var(--safe-top, 0px)));
     bottom: max(68px, calc(68px + var(--safe-bottom, 0px)));
     left: max(8px, calc(8px + var(--safe-left, 0px)));
-    right: max(8px, calc(8px + var(--safe-right, 0px)));
+    right: auto;
     width: min(340px, calc(100vw - 16px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+    max-height: calc(100dvh - 76px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
   }
 }
 @media (max-width: 420px) {
@@ -1347,6 +1350,11 @@ body.touch-playing .touch-controls { display: block; }
     width: min(460px, calc(100vw - var(--safe-left) - var(--safe-right) - 32px));
     overflow-y: auto;
     max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 52px);
+  }
+  .test-panel {
+    top: max(8px, calc(8px + var(--safe-top, 0px)));
+    bottom: max(62px, calc(62px + var(--safe-bottom, 0px)));
+    max-height: calc(100dvh - 70px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
   }
 }
 /* Keep the build badge out of the thumb/action hit zones while playing. */

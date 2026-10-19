@@ -589,7 +589,9 @@ function enterSandbox() {
 
 function exitSandbox() {
   sandboxState.active = false; game.sandbox = false; document.body.classList.remove('sandbox-active');
-  testModeBtn.hidden = !TEST_MODE; testModeBtn.textContent = '测试'; testPanel.hidden = true; title();
+  testModeBtn.hidden = !TEST_MODE; testModeBtn.textContent = '测试';
+  setTestPanelOpen(false);
+  title();
 }
 
 function loadLevel(index, announce = true) {
@@ -2055,19 +2057,34 @@ applyInputMode();
 // 开发测试面板通过 ?test=1 显式启用，不进入普通用户界面。
 const testModeBtn = document.getElementById('testModeBtn');
 const testPanel = document.getElementById('testPanel');
+function setTestPanelOpen(open) {
+  const visible = !!open;
+  testPanel.hidden = !visible;
+  testModeBtn.setAttribute('aria-expanded', String(visible));
+}
 {
   testModeBtn.hidden = false;
   testModeBtn.hidden = !TEST_MODE && !SANDBOX_MODE;
   document.getElementById('testGodMode').checked = testState.godMode;
   document.getElementById('testFreezeTimer').checked = testState.freezeTimer;
   recordTestLog('session-start', { userAgent: navigator.userAgent, initialSnapshot: testSnapshot() });
-  testModeBtn.onclick = () => {
-    testPanel.hidden = !testPanel.hidden;
-    testModeBtn.setAttribute('aria-expanded', String(!testPanel.hidden));
+  const stopTestPanelEvent = (event) => event.stopPropagation();
+  testModeBtn.addEventListener('pointerdown', stopTestPanelEvent);
+  testModeBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setTestPanelOpen(testPanel.hidden);
+  });
+  testPanel.addEventListener('pointerdown', stopTestPanelEvent);
+  testPanel.addEventListener('click', stopTestPanelEvent);
+  const closeTestPanelOutside = (event) => {
+    if (testPanel.hidden) return;
+    if (testPanel.contains(event.target) || testModeBtn.contains(event.target)) return;
+    setTestPanelOpen(false);
   };
+  document.addEventListener('pointerdown', closeTestPanelOutside);
+  document.addEventListener('click', closeTestPanelOutside);
   document.getElementById('testPanelClose').onclick = () => {
-    testPanel.hidden = true;
-    testModeBtn.setAttribute('aria-expanded', 'false');
+    setTestPanelOpen(false);
   };
   document.getElementById('testGodMode').onchange = (event) => {
     testState.godMode = event.target.checked;
@@ -2183,32 +2200,55 @@ function updateCooldownButtons() {
 // 键位变化时同步帮助面板上的按键提示，避免文档与实际绑定不一致
 function syncHelpKeys() {
   const rows = binds.describe();
-  const get = (id) => {
-    const r = rows.find((x) => x.id === id);
-    if (!r) return '';
-    if (r.empty) return '鼠标左键';
-    const parts = r.keys.slice();
-    if (r.alt) parts.push(r.alt);
-    return parts.join(' / ');
+  const row = (id) => rows.find((x) => x.id === id);
+  const parts = (id, includeAlt = true) => {
+    const r = row(id);
+    if (!r) return [];
+    const out = r.keys.slice();
+    if (includeAlt && r.alt) out.push(r.alt);
+    return out;
   };
+  const get = (id, emptyFallback = '') => {
+    const r = row(id);
+    if (!r) return '';
+    const value = parts(id).join(' / ');
+    return value || emptyFallback;
+  };
+  const kbd = (text) => text ? `<kbd>${text}</kbd>` : '';
+  const keys = (id, emptyFallback = '') => kbd(get(id, emptyFallback));
+  const join = (values) => values.filter(Boolean).join(' / ');
+  const schemeLabel = {
+    compatible: '兼容（compatible）',
+    optimized: '优化（optimized）',
+    custom: '自定义（custom）',
+  }[binds.scheme] || binds.scheme;
   const turning = IS_DEV && binds.scheme === 'optimized';
   const movement = turning
-    ? `<span><kbd>${get('forward')}</kbd><kbd>${get('back')}</kbd> 前后 · <kbd>${get('left')}</kbd><kbd>${get('right')}</kbd> 横移 · <kbd>${get('turnLeft')}</kbd><kbd>${get('turnRight')}</kbd> 转向</span>`
-    : `<span><kbd>${get('forward')}</kbd><kbd>${get('back')}</kbd><kbd>${get('left')}</kbd><kbd>${get('right')}</kbd> 移动</span>`;
+    ? `<span>${keys('forward')} / ${keys('back')} 前后移动 · ${keys('left')} / ${keys('right')} 横移 · ${keys('turnLeft')} / ${keys('turnRight')} 转向（方向键为移动备选）</span>`
+    : `<span>${keys('forward')} / ${keys('back')} / ${keys('left')} / ${keys('right')} 移动（方向键为备选）</span>`;
+  const attackKeys = join(['鼠标左键', get('attack')]);
+  const jumpKeys = join([get('jump'), '鼠标右键']);
+  const parryKeys = join([get('parry'), '中键']);
+  const pauseKeys = get('pause');
+  const escLine = pauseKeys === 'Esc'
+    ? 'Esc 释放鼠标指针并暂停/继续'
+    : 'Esc 释放鼠标指针，失去指针锁定时会暂停；暂停时可继续';
   const html = `
     <h3>操作说明</h3>
     <div class="keys">
+      <span class="touch-help"><kbd>触屏</kbd> 左侧摇杆移动 · 右侧拖动视角 · 屏幕按钮执行动作</span>
+      <span><kbd>方案</kbd> ${schemeLabel}</span>
       <span><kbd>鼠标</kbd> 视角</span>
       ${movement}
-      <span><kbd>${get('attack')}</kbd> 攻击：短按/松手推击（站立也可）· 地面按住0.65秒后松手扑击（空中短按为较弱扑击）· 按住左滑迎击（仅在狐狸冲刺命中瞬间成立）· 按住右滑翻滚</span>
-      <span><kbd>${get('parry')}</kbd> / <kbd>中键</kbd> 迎击：地面立即出手，空中快落地后出手</span>
-      <span><kbd>${get('jump')}</kbd> 或 <kbd>鼠标右键</kbd> 跳跃</span>
-      <span><kbd>${get('burst')}</kbd> 应急爆发</span>
-      <span><kbd>${get('ultimate')}</kbd> 协同大招</span>
-      <span><kbd>${get('interact')}</kbd> 救援 / 陪伴</span>
-      <span><kbd>${get('sprint')}</kbd> 疾行（更快但更耗储备）</span>
-      <span><kbd>${get('pause')}</kbd> 暂停　<kbd>${get('retry')}</kbd> 重试</span>
-      <span><kbd>${get('restart')}</kbd> 从第一关重开</span>
+      <span><kbd>${attackKeys}</kbd> 攻击：短按/松手推击 · 地面按住0.65秒后松手扑击（蓄满自动扑出，空中短按为较弱扑击）· 按住向左滑迎击 · 按住向右滑翻滚</span>
+      <span><kbd>${parryKeys}</kbd> 迎击：地面立即出手，空中快落地后出手</span>
+      <span><kbd>${jumpKeys}</kbd> 跳跃</span>
+      <span>${keys('dodge')} 翻滚 / 闪避（触屏右侧翻滚键）</span>
+      <span>${keys('burst')} 应急爆发　${keys('ultimate')} 协同大招</span>
+      <span>${keys('interact')} 救援 / 陪伴　${keys('sprint')} 疾行（更快但更耗储备）</span>
+      <span><kbd>V</kbd> 第一/第三人称视角切换</span>
+      <span>${keys('pause')} 暂停　${keys('retry')} 重试本关　${keys('restart')} 从第一关重开　${keys('fullscreen')} 全屏</span>
+      <span><kbd>${escLine}</kbd> · <kbd>Enter</kbd> 标题/暂停/通关确认</span>
     </div>
     <p class="note">洞穴内不能攻击。完成<b>采食 + 伙伴到家</b>后回洞，自动进入下一关。<br>
     <b>驱退不等于杀死</b>：藏狐体力耗尽后会转身逃向草地边缘，逃掉才消失，过一阵还可能再来。<br>
