@@ -29,3 +29,11 @@
 - fox 优先使用 Stage 2 preloaded GLB；无 GLB 时回退程序化圆柱
 - burrow 首跑占位（torus rim），mesh 几何化留给 V1.1
 - 不动 UI 文案/布局（Stage 5 才做）
+
+## Stage 5 (HUD decoupling)
+- `src/ui/hud.js` 完全重写为纯 DOM overlay：无 three / Babylon import
+- 保持 class name = `HUD`（`main.js` import 不改）
+- 保持所有现有 public method 签名（`setLoading` / `hideLoader` / `say` / `banner` / `hurtFlash` / `flashScreen` / `setInteractPrompt` / `update` / `updateThreats` / `setPerfHint` / `showPanel` / `hidePanel`）
+- 保持 UI 文案与布局不动
+- 保持既有 DOM ID（`hpBar` / `toast` / `objective` / `loaderFill` 等）不动
+- `styles.css` 不动

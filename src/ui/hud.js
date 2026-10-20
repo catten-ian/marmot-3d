@@ -1,38 +1,45 @@
 /**
- * HUD 与界面流程：状态条更新、准星、目标面板、提示、面板切换。
+ * 纯 DOM HUD overlay：状态条更新、准星、目标面板、提示、面板切换。
+ *
+ * 这个模块只操作 index.html 中的 DOM 节点，不持有渲染器、场景或模型
+ * 引用，因此可以和 Three.js / Babylon 的渲染后端独立使用。
  * DOM 更新做了节流，避免每帧操作布局导致掉帧。
  */
 import { LEVELS } from '../core/config.js';
+
+const byId = (id) => document.getElementById(id);
 
 const CH_CIRCUMFERENCE = 2 * Math.PI * 18;
 
 export class HUD {
   constructor() {
+    // Keep the existing IDs and layout owned by index.html. The HUD only binds
+    // to those nodes and never reaches into a renderer's DOM element.
     this.el = {
-      hpBar: document.getElementById('hpBar'),
-      hpText: document.getElementById('hpText'),
-      energyBar: document.getElementById('energyBar'),
-      energyText: document.getElementById('energyText'),
-      stressBar: document.getElementById('stressBar'),
-      stressText: document.getElementById('stressText'),
-      mission: document.getElementById('mission'),
-      combatInfo: document.getElementById('combatInfo'),
-      ultimateStatus: document.getElementById('ultimateStatus'),
-      chargeBar: document.getElementById('chargeBar'),
-      boostStatus: document.getElementById('boostStatus'),
-      cortisolStatus: document.getElementById('cortisolStatus'),
-      socialStatus: document.getElementById('socialStatus'),
-      objective: document.getElementById('objective'),
-      toast: document.getElementById('toast'),
-      banner: document.getElementById('banner'),
-      overlay: document.getElementById('overlay'),
-      panel: document.getElementById('panel'),
-      interactPrompt: document.getElementById('interactPrompt'),
-      chCharge: document.getElementById('chCharge'),
-      threat: document.getElementById('threatIndicator'),
-      perfHint: document.getElementById('perfHint'),
-      loader: document.getElementById('loader'),
-      loaderFill: document.getElementById('loaderFill'),
+      hpBar: byId('hpBar'),
+      hpText: byId('hpText'),
+      energyBar: byId('energyBar'),
+      energyText: byId('energyText'),
+      stressBar: byId('stressBar'),
+      stressText: byId('stressText'),
+      mission: byId('mission'),
+      combatInfo: byId('combatInfo'),
+      ultimateStatus: byId('ultimateStatus'),
+      chargeBar: byId('chargeBar'),
+      boostStatus: byId('boostStatus'),
+      cortisolStatus: byId('cortisolStatus'),
+      socialStatus: byId('socialStatus'),
+      objective: byId('objective'),
+      toast: byId('toast'),
+      banner: byId('banner'),
+      overlay: byId('overlay'),
+      panel: byId('panel'),
+      interactPrompt: byId('interactPrompt'),
+      chCharge: byId('chCharge'),
+      threat: byId('threatIndicator'),
+      perfHint: byId('perfHint'),
+      loader: byId('loader'),
+      loaderFill: byId('loaderFill'),
     };
 
     this.toastTimer = 0;
@@ -41,7 +48,7 @@ export class HUD {
     this._lastObjective = '';
 
     // 屏幕状态描边（替代地面光环）
-    this.vignette = document.getElementById('stateVignette');
+    this.vignette = byId('stateVignette');
 
     // 受击红闪层
     this.flash = document.createElement('div');
@@ -56,12 +63,17 @@ export class HUD {
   }
 
   setLoading(pct) {
-    this.el.loaderFill.style.width = pct + '%';
+    const fill = this.el.loaderFill;
+    if (!fill) return;
+    const value = Math.max(0, Math.min(100, Number(pct) || 0));
+    fill.style.width = value + '%';
   }
 
   hideLoader() {
-    this.el.loader.classList.add('gone');
-    setTimeout(() => { this.el.loader.style.display = 'none'; }, 600);
+    const loader = this.el.loader;
+    if (!loader) return;
+    loader.classList.add('gone');
+    setTimeout(() => { loader.style.display = 'none'; }, 600);
   }
 
   /** 短提示气泡 */
@@ -298,7 +310,7 @@ export class HUD {
     }
   }
 
-  setPerfHint(text) { this.el.perfHint.textContent = text; }
+  setPerfHint(text) { if (this.el.perfHint) this.el.perfHint.textContent = text; }
 
   // —— 面板 ——
   showPanel(html) {
