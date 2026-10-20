@@ -138,6 +138,7 @@
   <header><strong>测试工具</strong><button id="testPanelClose" type="button" aria-label="关闭测试工具">×</button></header>
   <label class="test-toggle"><input id="testGodMode" type="checkbox"> 永远不死</label>
   <label class="test-toggle"><input id="testFreezeTimer" type="checkbox"> 冻结倒计时</label>
+  <label class="test-toggle dev-smart-toggle"><input id="testSmartFox" type="checkbox" hidden> DEV 沙盒：启用一只智能狐</label>
   <div class="test-actions">
     <button type="button" data-test-action="heal25">加血 +25</button>
     <button type="button" data-test-action="heal100">回满生命</button>
@@ -200,13 +201,9 @@
 <div id="backendTag" class="backend-tag hidden"></div>
 
 <!--
-  引导层：dev 版（GS 全场景）必须**异步**创建 WebGPURenderer
-  （要 await renderer.init()），而 main.js 是同步的顶层 ES 模块。
-  所以这里用一个轻量引导脚本先探测能力，把结果挂到 window.__boot，
-  再动态 import main.js —— 这样 main.js 就能同步地读取结果，
-  不必把整个游戏改写成异步。
-
-  稳定版不需要 WebGPU，引导层会立刻放行，开销可忽略。
+  引导层保留旧 GS 诊断路径的 WebGPU 探测；正常 dev 版使用本地 Verdant GLB，
+  由 main.js 的 dev-only loader 直接走 WebGL2。main.js 使用顶层 await，
+  因此这里统一通过动态 import 放行。稳定版不需要 WebGPU，引导层会立刻放行，开销可忽略。
 -->
 <script type="module">
 import { devOn, FORCE_WEBGL, GS_OVERRIDE } from './src/core/version.js';

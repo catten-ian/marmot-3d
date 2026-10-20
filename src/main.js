@@ -11,7 +11,7 @@ import {
   LEVELS, BERRY_POINTS, SPAWN_POINTS, BURROW, PLAYER, FOX,
   BERRY_RADIUS, BERRY_ENERGY, BERRY_CHARGE, RESCUE_DIST,
   typesForLevel, setPointScale, scalePoint, scaleCoord, scaleRadius,
-  getPointScale, fieldHalf, FIELD_W, FIELD_H,
+  getPointScale, fieldHalf, FIELD_W, FIELD_H, setPlayableBounds, clearPlayableBounds,
 } from './core/config.js';
 import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/utils.js';
 import { FirstPersonController } from './core/controls.js';
@@ -38,6 +38,7 @@ let backdropRoot = null;
 import { Sky } from './world/scene.js';
 import { Burrow, Scenery } from './world/props.js';
 import { Fox } from './entities/fox.js';
+import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
 import {
@@ -76,7 +77,7 @@ hud.setLoading(8);
 const BOOT = (typeof window !== 'undefined' && window.__boot) || {
   gsWorld: false, gpuOk: false, gpuReason: '', forceWebGL: false,
 };
-const WANT_GS = BOOT.gsWorld === true;
+const WANT_GS = BOOT.gsWorld === true && !devOn('verdantWorld');
 
 let renderer;
 let rendererStatus = { backend: 'webgl', supportsSplat: false, gpuReason: '' };
@@ -138,7 +139,36 @@ const camera = new THREE.PerspectiveCamera(
 const sky = new Sky(scene, renderer);
 hud.setLoading(45);
 
-// —— GS 全场景（dev 版）——
+// —— Verdant Trail 全环境（dev-only）——
+// The loader is dynamically imported so stable/beta never fetch or evaluate any Verdant code.
+let verdantWorld = null;
+if (devOn('verdantWorld')) {
+  try {
+    hud.setLoading(48);
+    const { loadVerdantWorld } = await import('./world/verdant.js');
+    verdantWorld = await loadVerdantWorld({
+      onProgress: (p, label) => hud.setLoading(Math.round(48 + p * 17)),
+    });
+    scene.add(verdantWorld.group);
+    setHeightField(verdantWorld.heightAt);
+    // The exported trail fills 88% of the historic design rectangle in both axes.
+    setPointScale(0.88, 0, 0);
+    setPlayableBounds(verdantWorld.bounds);
+    sky.terrain.visible = false;
+    sky.hills.visible = false;
+    sky.dome.visible = false;
+    hud.say('DEV · A Verdant Trail 场景已加载', 3.2);
+  } catch (e) {
+    verdantWorld = null;
+    setHeightField(null);
+    setPointScale(1, 0, 0);
+    clearPlayableBounds();
+    console.warn('[verdant] 场景加载失败，退回程序化地形:', e);
+    hud.say(`Verdant 场景加载失败，已退回程序化地形：${e?.message || e}`, 5.5);
+  }
+}
+
+// —— GS 全场景（legacy diagnostic path）——
 // 把摄影测量高斯泼溅当作**全部场景**（含可行走地面）：
 //   · 地面高度改用点云建出的高度场（通过 setHeightField 注入，
 //     全场 6 个模块会自动跟随，不需要逐处改）
@@ -204,7 +234,7 @@ const BURROW_Z = BURROW.z * PT_K;
 const burrow = new Burrow(scene, {
   x: BURROW_X, z: BURROW_Z, r: BURROW_R,
 });
-const scenery = new Scenery(scene);
+const scenery = new Scenery(scene, { verdant: !!verdantWorld });
 hud.setLoading(70);
 
 // GS 全场景下，程序化布景必须让位：
@@ -310,6 +340,8 @@ preloadModels('./assets/models/', { foxFile: FOX_PRELOAD_FILE }).then((st) => {
 });
 
 // —— 场景远景 ——
+// Verdant 已经提供完整 dev 环境；稳定版继续加载原有远景模型。
+if (!verdantWorld) {
 // 用户提供的摄影测量地形块沿椭圆环（rx 246m / rz 218m）复制 14 份，
 // 围成地平线上的一圈树林草甸（详见 models/scene.js 的 buildBackdrop）。
 // 可行走地形仍是程序化生成的，保证玩法参数（130×78 竞技场、
@@ -324,6 +356,7 @@ buildBackdrop().then((root) => {
     console.info(`[scene] 远景布景已加入：${ud.count} 份 @ 半径 ${ud.radius}m`);
   }
 });
+}
 
 const keys = new Set();
 controller.keys = keys;
@@ -338,10 +371,10 @@ hud.setLoading(96);
   if (tag) {
     tag.className = `version-tag ${IS_DEV ? 'dev' : 'stable'}`;
     tag.textContent = IS_DEV
-      ? 'DEV · 旱獭生态学改写（草食 / 耐饥渴 / 季节食物）'
+      ? verdantWorld ? 'DEV · A Verdant Trail 环境 + 旱獭生态' : 'DEV · 旱獭生态学改写（草食 / 耐饥渴 / 季节食物）'
       : VERSION_LABEL;
     tag.title = IS_DEV
-      ? '当前为 dev 实验版：采食对象为当季草本植物，储备消耗更低。正式版请去掉 ?version=dev'
+      ? verdantWorld ? '当前为 dev Verdant Trail 场景：环境与地形来自本地优化资产。' : '当前为 dev 实验版：采食对象为当季草本植物，储备消耗更低。正式版请去掉 ?version=dev'
       : '正式版。追加 ?version=dev 可体验生态学改写';
   }
   document.body.classList.toggle('dev-version', IS_DEV);
@@ -379,6 +412,9 @@ function saveProgress() {
 }
 
 const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
+// Smart fox is an explicit DEV sandbox selection; stable/beta and ordinary DEV paths never spawn it.
+let smartFoxSelected = devOn('smartFoxSandbox') && TEST_MODE
+  && new URLSearchParams(location.search).get('smartfox') === '1';
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
 const testLogs = [];
@@ -412,7 +448,9 @@ function testSnapshot() {
     player: { x: Number(controller.position.x.toFixed(2)), y: Number(controller.position.y.toFixed(2)),
       z: Number(controller.position.z.toFixed(2)), yaw: Number(controller.yaw.toFixed(3)) },
     foxes: foxes.map((fox) => ({ type: fox.type, state: fox.state, hp: Number(fox.hp.toFixed(1)),
-      x: Number(fox.x.toFixed(2)), z: Number(fox.z.toFixed(2)) })),
+      x: Number(fox.x.toFixed(2)), z: Number(fox.z.toFixed(2)),
+      ...(fox.type === 'smart' ? { intent: fox.intent, suspicion: Number(fox.suspicion.toFixed(3)),
+        memory: fox.memory, topScores: { ...fox.topScores } } : {}) })),
   };
 }
 function exportTestLogs() {
@@ -483,6 +521,21 @@ const colHurt = new THREE.Color(0xeea091);
  * 现在由 LEVELS[i].types 显式指定每关的敌人构成，
  * 新增关卡时只要改配置表即可，不用动代码。
  */
+function makeSmartFox() {
+  const [sx, sz] = scalePoint(SPAWN_POINTS[(LEVELS[game.level].count + 1) % SPAWN_POINTS.length]);
+  return new SmartFox(scene, sx, sz, game.level, 99, { lureBias: LEVELS[game.level].lureBias || 1 });
+}
+
+function syncSmartFoxSelection() {
+  const existing = foxes.findIndex((f) => f.type === 'smart');
+  const shouldHave = devOn('smartFoxSandbox') && TEST_MODE && smartFoxSelected;
+  if (shouldHave && existing < 0) foxes.push(makeSmartFox());
+  if (!shouldHave && existing >= 0) {
+    foxes[existing].dispose(scene);
+    foxes.splice(existing, 1);
+  }
+}
+
 function makeFox(i) {
   const cfg = LEVELS[game.level];
   const boss = cfg.boss && i === cfg.count - 1;
@@ -517,6 +570,7 @@ function loadLevel(index, announce = true) {
   // 重建藏狐
   foxes.forEach((f) => f.dispose(scene));
   foxes = Array.from({ length: cfg.count }, (_, i) => makeFox(i));
+  syncSmartFoxSelection();
 
   // 重置采食目标
   // dev 版按当季物种重建（季节食物每关不同）：必须先 dispose 旧实例，
@@ -1132,6 +1186,10 @@ function update(dt) {
 
   p.x = controller.position.x;
   p.z = controller.position.z;
+  p.facingYaw = controller.yaw;
+  p.running = moving;
+  // The existing combat path has no shield flag; an active claw/strike window is the DEV guard posture signal.
+  p.guard = game.attackCD > 0;
 
   // 洞穴判定
   const dBurrow = Math.hypot(p.x - BURROW_X, p.z - BURROW_Z);
@@ -1520,6 +1578,12 @@ if (TEST_MODE) {
   testModeBtn.hidden = false;
   document.getElementById('testGodMode').checked = testState.godMode;
   document.getElementById('testFreezeTimer').checked = testState.freezeTimer;
+  const smartToggle = document.getElementById('testSmartFox');
+  if (smartToggle) {
+    smartToggle.hidden = !devOn('smartFoxSandbox');
+    if (smartToggle.closest('label')) smartToggle.closest('label').hidden = !devOn('smartFoxSandbox');
+    smartToggle.checked = smartFoxSelected;
+  }
   recordTestLog('session-start', { userAgent: navigator.userAgent, initialSnapshot: testSnapshot() });
   testModeBtn.onclick = () => {
     testPanel.hidden = !testPanel.hidden;
@@ -1533,6 +1597,13 @@ if (TEST_MODE) {
     testState.godMode = event.target.checked;
     recordTestLog('setting', { name: 'godMode', value: testState.godMode });
   };
+  if (devOn('smartFoxSandbox')) {
+    document.getElementById('testSmartFox')?.addEventListener('change', (event) => {
+      smartFoxSelected = !!event.target.checked;
+      syncSmartFoxSelection();
+      recordTestLog('smart-fox-selection', { enabled: smartFoxSelected });
+    });
+  }
   document.getElementById('testFreezeTimer').onchange = (event) => {
     testState.freezeTimer = event.target.checked;
     game.freezeTimer = testState.freezeTimer;

@@ -1,0 +1,37 @@
+const fs = require('fs');
+const path = require('path');
+const { pathToFileURL } = require('url');
+const root = path.resolve(__dirname, '..');
+let failures = 0;
+function check(name, ok, extra = '') { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${extra ? ` — ${extra}` : ''}`); if (!ok) failures++; }
+(async () => {
+const mod = await import(pathToFileURL(path.join(root, 'src/entities/smart-fox-core.mjs')).href);
+const near = mod.utilityScores({ distance: 4, playerFacing: 1, guard: false, suspicion: 0.9, health: 1 });
+check('utility pounce rises at close exposed target', near.scores.pounce > near.scores.observe && near.topIntent === 'pounce');
+const guarded = mod.utilityScores({ distance: 4, playerFacing: 1, guard: true, suspicion: 0.9, memory: 2, interruptions: 2, health: 1 });
+check('interruption memory biases feint over immediate pounce', guarded.scores.feint > guarded.scores.pounce && guarded.topIntent === 'feint');
+let perception = { suspicion: 0 };
+perception = mod.updatePerception(perception, { distance: 8, viewDot: 1, guard: false }, 1);
+check('120 degree cone accumulates suspicion', perception.suspicion > 0 && perception.inCone);
+const hidden = mod.updatePerception(perception, { distance: 8, viewDot: -1, guard: false }, 1);
+check('outside cone decays suspicion', hidden.suspicion < perception.suspicion);
+let motion = { x: 0, z: 0, vx: 0, vz: 0, yaw: 0, maxTurnRate: 2, acceleration: 10, pounceCommitted: false };
+motion = mod.stepSmartMotion(motion, { x: 8, z: 0 }, 0.1, 'pounce');
+const launchYaw = motion.yaw; const launchX = motion.x;
+motion = mod.stepSmartMotion(motion, { x: -8, z: 0 }, 0.1, 'pounce');
+check('pounce commits and turn rate is bounded', motion.pounceCommitted && Math.abs(motion.yaw - launchYaw) <= 0.200001);
+check('acceleration prevents instant target snap', Math.abs(motion.x - launchX) < 2);
+for (let i = 0; i < 10; i++) motion = mod.stepSmartMotion(motion, { x: -8, z: 0 }, 0.1, motion.pounceCommitted ? 'pounce' : 'recover');
+check('committed pounce eventually recovers', !motion.pounceCommitted && motion.intent === 'recover');
+const interrupted = mod.applyInterruption({ memory: 0, interruptions: 0, health: 1 }, 'parry');
+check('parry increments interruption memory', interrupted.memory === 1 && interrupted.interruptions === 1);
+const damaged = mod.applyInterruption({ memory: 0, interruptions: 0, health: 1 }, 'damage');
+check('damage biases health recovery', damaged.health < 1 && damaged.interruptions === 1);
+const main = fs.readFileSync(path.join(root, 'src/main.js'), 'utf8');
+const version = fs.readFileSync(path.join(root, 'src/core/version.js'), 'utf8');
+const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+check('ordinary Fox construction remains default', /return new Fox\(scene/.test(main) && /syncSmartFoxSelection\(\);/.test(main));
+check('smart spawn is DEV and test guarded', /devOn\('smartFoxSandbox'\).*TEST_MODE/.test(main) && /const shouldHave = devOn\('smartFoxSandbox'\) && TEST_MODE && smartFoxSelected/.test(main));
+check('sandbox control is explicit', html.includes('testSmartFox') && version.includes('IS_DEV'));
+if (failures) process.exitCode = 1;
+})();
