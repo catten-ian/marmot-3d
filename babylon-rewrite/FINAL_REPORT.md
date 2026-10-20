@@ -19,3 +19,13 @@
 - 用 `SceneLoader.LoadAssetContainerAsync` 异步加载 `.glb`
 - GLB 资产：`marmot.glb` / `fox-segmented.glb` / `terrain.glb`
 - 老 three `loader.js` 保留作回滚（不在 Babylon 路径调用）
+
+
+## Stage 4 (entity migration)
+- `src/entities/babylon-{player,fox,companion,burrow}.js` 全新建
+- `src/entities/index.js` 重导出
+- `src/main.js` Babylon 初始化路径调 `new` 4 类实体
+- fox 4 种类型程序化颜色：normal=#a04927, fast=#d2a364, heavy=#5e4a3a, boss=#1f140e
+- fox 优先使用 Stage 2 preloaded GLB；无 GLB 时回退程序化圆柱
+- burrow 首跑占位（torus rim），mesh 几何化留给 V1.1
+- 不动 UI 文案/布局（Stage 5 才做）

@@ -43,6 +43,7 @@ import { Scenery } from './world/props.js';
 import { createBurrows, burrowAt } from './world/burrows.js';
 import { Fox } from './entities/fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
+import { BabylonPlayer, BabylonFox, BabylonCompanion, BabylonBurrow } from './entities/index.js';
 import { devOn, IS_DEV, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
@@ -180,6 +181,41 @@ const BURROW_R = baseBurrow.r;
 const BURROW_X = baseBurrow.x;
 const BURROW_Z = baseBurrow.z;
 const burrow = burrowSet.baseObject;
+
+// Babylon entity layer: keep the legacy Three gameplay objects above intact while
+// placing the first player, fox, companion, and burrow entities in the Babylon scene.
+// The fox starts with a procedural mesh so the first frame is visible, then swaps to
+// the Stage 2 preloaded GLB when it becomes available.
+const babylonPlayer = new BabylonPlayer(babylonScene, {
+  camera: babylonHost.camera,
+  heroY: 0.46,
+});
+let babylonFoxEntity = new BabylonFox(babylonScene, { type: 'normal', x: 8, z: 6 });
+const babylonCompanion = new BabylonCompanion(babylonScene, { x: 2, z: 2 });
+const babylonBurrows = [new BabylonBurrow(babylonScene, {
+  id: 0,
+  x: BURROW_X,
+  z: BURROW_Z,
+})];
+
+babylonModelPreload.then((loaded) => {
+  const foxMesh = loaded.fox?.container?.meshes?.[0];
+  if (!foxMesh) return;
+  const previous = babylonFoxEntity;
+  babylonFoxEntity = new BabylonFox(babylonScene, {
+    type: 'normal', x: 8, z: 6, modelMesh: foxMesh,
+  });
+  previous.dispose();
+  console.log('[babylon-init] 实体加载完成', {
+    player: babylonPlayer,
+    fox: babylonFoxEntity,
+    companion: babylonCompanion,
+    burrows: babylonBurrows,
+  });
+}).catch((error) => {
+  console.warn('[babylon-init] 实体模型替换失败，保留程序化 fox:', error);
+});
+
 const scenery = new Scenery(scene);
 hud.setLoading(70);
 
@@ -1729,6 +1765,7 @@ function frame(now) {
     document.body.classList.toggle('touch-playing', touchPlaying);
   }
   update(dt);
+  babylonFoxEntity?.update(dt);
   playerModel.position.set(controller.position.x, terrainHeight(controller.position.x, controller.position.z), controller.position.z);
   playerBodyYaw = dampAngle(playerBodyYaw, controller.moveFacingYaw, dt, PLAYER.bodyTurnRate);
   playerModel.rotation.y = playerBodyYaw + Math.PI;
@@ -1789,6 +1826,7 @@ const DEBUG_HIDE = (() => {
 
 window.__game = {
   game, controller, scene, renderer, camera, keys, LEVELS,
+  babylonEntities: () => ({ player: babylonPlayer, fox: babylonFoxEntity, companion: babylonCompanion, burrows: babylonBurrows }),
   testMode: TEST_MODE, testState, testLogs, recordTestLog, testSnapshot, exportTestLogs,
   foxes: () => foxes, berries: () => berries, companion,
   combatStats: () => combatStats(game),
