@@ -17,7 +17,8 @@
 export const VERSION = (() => {
   try {
     const q = new URLSearchParams(location.search).get('version');
-    return q === 'dev' ? 'dev' : 'stable';
+    const normalized = q?.replace(/\/+$/, '');
+    return normalized === 'dev' ? 'dev' : 'stable';
   } catch (e) {
     return 'stable';
   }
