@@ -877,7 +877,7 @@ function title() {
   hud.showPanel(`
     <div class="eyebrow">CAMPAIGN / ${LEVELS.length} 关草原冒险 · 第一 / 第三人称 3D</div>
     <h2>从两只藏狐，到草原守望者。</h2>
-    <button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>
+    ${IS_DEV ? '<button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>' : ''}
     <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>V</b> 切换为第三人称跟随视角，随时按需选择。</p>
     <p>每关完成 <b>采食、救援、驱退</b> 三件事，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
@@ -927,7 +927,9 @@ function title() {
     </div>
   `);
   document.getElementById('startBtn').onclick = startPlay;
-  document.getElementById('sandboxEntryBtn').onclick = enterSandbox;
+  // 沙盒入口仅 dev 版提供（标题面板按 IS_DEV 渲染），正式版没有这个按钮。
+  const sandboxBtn = document.getElementById('sandboxEntryBtn');
+  if (sandboxBtn) sandboxBtn.onclick = enterSandbox;
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
 }

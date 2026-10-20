@@ -244,7 +244,45 @@ if (boot.gsWorld) {
 }
 
 window.__boot = boot;
-await import('./src/main.js?v=m20261020d');
+
+// 加载看门狗：模块图链接失败或静默挂起时给出明确提示，
+// 而不是永远停在「正在筑巢…」。曾因 CDN 缓存陈旧子模块导致。
+const WATCHDOG_MS = 15000;
+let bootSettled = false;
+const loaderTextEl = document.querySelector('.loader-text');
+const loaderTrackEl = document.querySelector('.loader-track');
+const params = new URLSearchParams(location.search);
+
+function bootFail(title, detail) {
+  if (bootSettled) return;
+  bootSettled = true;
+  const bust = params.get('t') ? '' : `&t=${Date.now()}`;
+  if (loaderTrackEl) loaderTrackEl.style.display = 'none';
+  if (loaderTextEl) {
+    loaderTextEl.innerHTML =
+      `<div style="color:#e8735a;font-weight:600;margin-bottom:6px">${title}</div>` +
+      `<div style="font-size:11px;opacity:.75;max-width:280px;margin:0 auto 10px;line-height:1.5">${detail}</div>` +
+      `<button id="bootRetry" type="button" style="cursor:pointer;background:#2b3b30;color:#e0c46c;border:1px solid #3d5142;border-radius:6px;padding:7px 16px;font-size:12px">重新加载</button>`;
+    const retry = document.getElementById('bootRetry');
+    if (retry) retry.onclick = () => location.replace(`${location.pathname}?${params.toString()}${bust}`);
+  }
+}
+
+const watchdog = setTimeout(() => {
+  bootFail('加载超时',
+    `超过 ${WATCHDOG_MS / 1000} 秒仍未进入游戏。可能是 CDN 缓存了不匹配的旧模块，或网络中断。`);
+}, WATCHDOG_MS);
+
+try {
+  await import('./src/main.js?v=m20261020e');
+  // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
+  bootSettled = true;
+  clearTimeout(watchdog);
+} catch (err) {
+  clearTimeout(watchdog);
+  console.error('[boot] 模块图加载失败', err);
+  bootFail('模块加载失败', String((err && err.message) || err));
+}
 </script>
 </body>
 </html>
