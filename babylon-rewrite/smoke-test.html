@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>babylon-rewrite · smoke test (beta 1-3)</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://esm.sh/three@0.160.0",
+      "three/": "https://esm.sh/three@0.160.0/",
+      "@babylonjs/core": "https://esm.sh/@babylonjs/core@7.54.3",
+      "@babylonjs/core/": "https://esm.sh/@babylonjs/core@7.54.3/",
+      "@babylonjs/loaders": "https://esm.sh/@babylonjs/loaders@7.54.3"
+    }
+  }
+  </script>
+</head>
+<body>
+  <h1>babylon-rewrite smoke</h1>
+  <div id="status">loading...</div>
+  <script type="module">
+    const status = document.getElementById('status');
+    const log = (m) => { status.textContent += '\n' + m; console.log('[smoke]', m); };
+
+    try {
+      const babylon = await import('@babylonjs/core');
+      await import('@babylonjs/loaders');
+      log('import @babylonjs/core OK');
+      log('import @babylonjs/loaders OK');
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 800; canvas.height = 450;
+      canvas.id = 'renderCanvas';
+      document.body.appendChild(canvas);
+
+      const engine = new babylon.Engine(canvas, true);
+      const scene = new babylon.Scene(engine);
+      const camera = new babylon.UniversalCamera('cam', new babylon.Vector3(0, 1.6, 0), scene);
+      camera.setTarget(babylon.Vector3.Zero());
+      camera.attachControl(canvas, true);
+
+      const hemi = new babylon.HemisphericLight('hemi', new babylon.Vector3(0, 1, 0), scene);
+      log('babylon scene + camera + light ready');
+
+      const ground = babylon.MeshBuilder.CreateGround('ground', { width: 100, height: 100 }, scene);
+      log('ground mesh ready');
+
+      engine.runRenderLoop(() => scene.render());
+      window.addEventListener('resize', () => engine.resize());
+      log('render loop started');
+      log('=== smoke PASS: babylon-rewrite infra ok ===');
+    } catch (e) {
+      log('FAIL: ' + e.message);
+      console.error(e);
+    }
+  </script>
+</body>
+</html>
