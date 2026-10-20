@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { terrainHeight, clamp } from '../core/utils.js';
+import { resolveTouchDrive } from './move-facing.mjs';
 
 export class FirstPersonController {
   constructor(camera, domElement) {
@@ -19,6 +20,10 @@ export class FirstPersonController {
     this.velocity = new THREE.Vector3();
     this.externalVelocity = new THREE.Vector3();
     this.yaw = 0;
+    this.bodyYaw = 0;
+    this.moveFacingYaw = 0;
+    this.isBackpedal = false;
+    this.moveSpeedScale = 1;
     this.pitch = 0;
     this.sensitivity = 0.0022;
     this.touchLookSensitivity = 0.006;
@@ -120,6 +125,10 @@ export class FirstPersonController {
   teleport(x, z, yaw = 0) {
     this.position.set(x, terrainHeight(x, z), z);
     this.yaw = yaw;
+    this.bodyYaw = yaw;
+    this.moveFacingYaw = yaw;
+    this.isBackpedal = false;
+    this.moveSpeedScale = 1;
     this.pitch = 0;
     this.velocity.set(0, 0, 0);
     this.externalVelocity.set(0, 0, 0);
@@ -181,11 +190,14 @@ export class FirstPersonController {
     if (keys.has(moveMap.back) || keys.has(moveMap.backAlt)) mz -= 1;
     if (keys.has(moveMap.left) || keys.has(moveMap.leftAlt)) mx -= 1;
     if (keys.has(moveMap.right) || keys.has(moveMap.rightAlt)) mx += 1;
-    // Touch joystick axes share the same acceleration/collision path as WASD.
-    // The combined vector is normalized below, so mixing keyboard and touch
-    // never increases movement speed beyond the existing diagonal cap.
-    mx += this.touchAxes.x;
-    mz += this.touchAxes.y;
+    const touchActive = Math.hypot(this.touchAxes.x, this.touchAxes.y) > 1e-6;
+    if (!touchActive) {
+      // Keyboard movement keeps the existing strafe and diagonal normalization.
+      this.bodyYaw = this.yaw;
+      this.moveFacingYaw = this.yaw;
+      this.isBackpedal = false;
+      this.moveSpeedScale = 1;
+    }
 
     // 外力（阵风、受击）以速度积分；与玩家输入分开，仍共用后续碰撞处理。
     this.externalVelocity.x = clamp(
@@ -197,15 +209,41 @@ export class FirstPersonController {
       this.externalVelocity.z *= drag;
     }
 
-    const moving = mx !== 0 || mz !== 0;
+    let moving = false;
+    let targetVx = 0;
+    let targetVz = 0;
+    if (touchActive) {
+      const drive = resolveTouchDrive({
+        bodyYaw: this.bodyYaw,
+        cameraYaw: this.yaw,
+        x: this.touchAxes.x,
+        y: this.touchAxes.y,
+        dt,
+        turnRate: 2.7,
+      });
+      this.bodyYaw = drive.bodyYaw;
+      this.moveFacingYaw = this.bodyYaw;
+      this.isBackpedal = drive.isBackpedal;
+      this.moveSpeedScale = drive.speedScale;
+      const signedThrottle = drive.direction * drive.throttle;
+      targetVx = -Math.sin(this.bodyYaw) * signedThrottle * base * drive.speedScale;
+      targetVz = -Math.cos(this.bodyYaw) * signedThrottle * base * drive.speedScale;
+      moving = drive.throttle > 0;
+      // The right-hand look zone remains the camera authority; the wheel never
+      // writes camera yaw, including while turning in place.
+    } else {
+      moving = mx !== 0 || mz !== 0;
+      if (moving) {
+        const len = Math.hypot(mx, mz);
+        mx /= len; mz /= len;
+        // 前向 = yaw 方向
+        const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+        const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
+        targetVx = (fx * mz + rx * mx) * base;
+        targetVz = (fz * mz + rz * mx) * base;
+      }
+    }
     if (moving) {
-      const len = Math.hypot(mx, mz);
-      mx /= len; mz /= len;
-      // 前向 = yaw 方向
-      const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
-      const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
-      const targetVx = (fx * mz + rx * mx) * base;
-      const targetVz = (fz * mz + rz * mx) * base;
       // 平滑加速，手感更稳
       const accel = 1 - Math.exp(-14 * dt);
       this.velocity.x += (targetVx - this.velocity.x) * accel;
