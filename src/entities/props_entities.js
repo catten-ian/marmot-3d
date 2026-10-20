@@ -444,11 +444,14 @@ export function buildMarmotMesh(furColor = 0xa9834e) {
   }
 
   const legGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.2, 6);
+  const frontArms = {};
   for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
     const leg = new THREE.Mesh(legGeo, fur);
     leg.position.set(sx * 0.16, 0.1, sz * 0.16);
     g.add(leg);
+    if (sz > 0) frontArms[sx < 0 ? 'left' : 'right'] = leg;
   }
+  g.userData.frontArms = frontArms;
 
   const tail = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), fur);
   tail.position.set(0, 0.2, -0.32);

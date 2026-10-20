@@ -23,6 +23,7 @@ export class HUD {
       cortisolStatus: document.getElementById('cortisolStatus'),
       socialStatus: document.getElementById('socialStatus'),
       objective: document.getElementById('objective'),
+      sandboxStatus: document.getElementById('sandboxStatus'),
       toast: document.getElementById('toast'),
       banner: document.getElementById('banner'),
       overlay: document.getElementById('overlay'),
@@ -150,30 +151,33 @@ export class HUD {
     this.el.energyText.textContent = Math.round(p.energy) + '/100';
     this.el.stressText.textContent = Math.round(p.stress) + (stats.overloaded ? ' · 过载' : '');
 
-    this.el.mission.innerHTML =
-      `第 <b>${g.level + 1}</b> / ${LEVELS.length} 关 · ${cfg.name}<br>` +
-      `${cfg.subtitle || cfg.brief || ''}<br>` +
-      `${g.freezeTimer ? '测试模式：无时间限制' : `剩余 <b>${Math.ceil(g.time)}</b> 秒`} · 位置：${g.inBurrow ? '<b style="color:#8fe8b0">洞穴内（安全）</b>' : '草地上'}`;
+    // Keep only level identity and live status in the always-visible mission
+    // chip. Instructional text lives in the always-visible objective card.
+    this.el.mission.innerHTML = g.sandbox
+      ? '<b>自由测试 · 无关卡 / 无时间限制</b><br>移动、攻击与狐狸机动均可反复测试'
+      : `第 <b>${g.level + 1}</b> / ${LEVELS.length} 关 · ${cfg.name}<br>` +
+      `${g.freezeTimer ? '测试模式：无时间限制' : `剩余 <b>${Math.ceil(g.time)}</b> 秒`} · 位置：${g.inBaseBurrow ? '<b style="color:#ffd080">大本营内</b>' : g.inBurrow ? '<b style="color:#9bd4dc">临时避难洞内</b>' : '草地上'}`;
 
     const state = g.overdrive > 0 ? '协同大招'
       : g.boost > 0 ? '应急爆发'
       : stats.tier > 0 ? '持续动员'
       : '常态';
-    let combat = `战斗：<strong>${state}</strong>　伤害 <strong>${stats.damage.toFixed(1)}</strong>　`
-      + `范围 ${stats.range.toFixed(1)}m　攻速 ${(1 / stats.cooldown).toFixed(1)}/秒　移速 ${(6.6 * stats.speedMul).toFixed(1)}m/s`;
-    if (stats.overloaded) combat += '<br><span class="warn">负荷 ≥75：伤害 −25%、攻速下降、移动 −18%</span>';
-    else if (g.fatigue > 0) combat += `<br><span style="color:#c9c3d7">大招后疲劳 ${Math.ceil(g.fatigue)}s：移速 −20%、攻速下降</span>`;
-    else if (stats.weak) combat += '<br><span style="color:#ffb1a4">储备见底：伤害与移速下降，回洞休息或采食</span>';
-    this.el.combatInfo.innerHTML = combat;
+    let detail = `伤害 ${stats.damage.toFixed(1)} · 攻速 ${(1 / stats.cooldown).toFixed(1)}/秒`;
+    if (stats.overloaded) detail += '<br><span class="warn">负荷 ≥75：伤害 −25%、攻速下降、移动 −18%</span>';
+    else if (g.fatigue > 0) detail += `<br><span style="color:#c9c3d7">大招后疲劳 ${Math.ceil(g.fatigue)}s：移速 −20%、攻速下降</span>`;
+    else if (stats.weak) detail += '<br><span style="color:#ffb1a4">储备见底：伤害与移速下降，回洞休息或采食</span>';
+    this.el.combatInfo.innerHTML = `战斗：<strong>${state}</strong> · 范围 ${stats.range.toFixed(1)}m · `
+      + `移速 ${ (6.6 * stats.speedMul).toFixed(1) }m/s`
+      + `<span class="combat-detail">${detail}</span>`;
 
     if (g.overdrive > 0) {
-      this.el.ultimateStatus.textContent = `K 协同大招：生效 ${Math.ceil(g.overdrive)}s · 伤害 +5 / 范围 +1.2m`;
+      this.el.ultimateStatus.textContent = `K 大招生效 ${Math.ceil(g.overdrive)}s · 伤害 +5`;
     } else if (g.overCD > 0) {
       this.el.ultimateStatus.textContent = `K 大招冷却 ${Math.ceil(g.overCD)}s · 蓄力 ${Math.round(g.charge)}/100`;
     } else if (g.charge >= 100) {
-      this.el.ultimateStatus.textContent = 'K 大招就绪！范围冲击 + 5 秒强化（消耗 25 储备）';
+      this.el.ultimateStatus.textContent = 'K 大招就绪 · 范围冲击';
     } else {
-      this.el.ultimateStatus.textContent = `K 协同大招 · 蓄力 ${Math.round(g.charge)}/100（命中 / 驱退 / 采食积累）`;
+      this.el.ultimateStatus.textContent = `K 大招蓄力 ${Math.round(g.charge)}/100`;
     }
     this.el.chargeBar.style.width = g.charge + '%';
 
@@ -183,31 +187,52 @@ export class HUD {
       + `${Math.round(g.cortisol)}/100`
       + (g.cortisol >= 60 ? ' · 攻击 +2' : g.cortisol >= 25 ? ' · 攻击 +1' : ' · 达 25 后攻击 +1');
     this.el.socialStatus.innerHTML = '<strong>E 陪伴</strong> '
-      + (!g.friend.saved ? '先救伙伴' : g.social > 0 ? `缓压中 ${Math.ceil(g.social)}s` : g.socialCD > 0 ? `冷却 ${Math.ceil(g.socialCD)}s` : '回洞使用');
+      + (!g.friend.saved ? '先救伙伴' : g.social > 0 ? `缓压中 ${Math.ceil(g.social)}s` : g.socialCD > 0 ? `冷却 ${Math.ceil(g.socialCD)}s` : '回大本营使用');
 
     this._updateObjective(g, cfg);
   }
 
   _updateObjective(g, cfg) {
+    if (g.sandbox) {
+      // Keep a defensive fallback for any embedded shell without a dedicated
+      // sandbox card; the canonical beta shells provide #sandboxStatus.
+      if (!this.el.sandboxStatus) {
+        this.el.objective.hidden = false;
+        if (this._lastObjective !== 'sandbox') {
+          this._lastObjective = 'sandbox';
+          this.el.objective.innerHTML = '<div class="obj-title">沙盒状态</div><div class="obj-row done"><span>关卡目标</span><b>关闭</b></div><div class="obj-row done"><span>时间限制</span><b>关闭</b></div>';
+        }
+        return;
+      }
+      this.el.objective.hidden = true;
+      this.el.sandboxStatus.classList.add('on');
+      this.el.sandboxStatus.setAttribute('aria-hidden', 'false');
+      if (this._lastObjective === 'sandbox') return;
+      this._lastObjective = 'sandbox';
+      this.el.sandboxStatus.innerHTML = '<div class="obj-title">沙盒状态</div><div class="obj-row done"><span>关卡目标</span><b>关闭</b></div><div class="obj-row done"><span>时间限制</span><b>关闭</b></div>';
+      return;
+    }
+    this.el.objective.hidden = false;
+    this.el.sandboxStatus?.classList.remove('on');
+    this.el.sandboxStatus?.setAttribute('aria-hidden', 'true');
     const f = g.friend;
-    const key = `${g.foodCount}/${g.levelRepels}/${f.rescued}/${f.saved}/${g.bossDown}/${cfg.goal}/${cfg.repels}/${cfg.boss}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
+    const key = `${g.level}/${g.foodCount}/${f.rescued}/${f.saved}/${g.inBurrow}/${cfg.goal}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
     if (key === this._lastObjective) return;
     this._lastObjective = key;
 
     const row = (label, cur, need) =>
       `<div class="obj-row ${cur >= need ? 'done' : ''}"><span>${label}</span><b>${cur}/${need}</b></div>`;
 
-    let html = `<div class="obj-title">本关目标</div>`;
+    // 普通关卡：目标卡常驻显示（与沙盒状态卡一致，不再需要点击展开）。
+    let html = '<div class="obj-title">本关目标</div>';
     // dev 版：采食对象随季节变化，标签应随之改变
     const eatLabel = g.season ? `采食 · ${g.season.season}` : '采食浆果';
     html += row(eatLabel, g.foodCount, cfg.goal);
-    html += row('驱退藏狐', g.levelRepels, cfg.repels);
     html += `<div class="obj-row ${f.saved ? 'done' : ''}"><span>伙伴</span><b>${f.saved ? '已到家' : f.rescued ? '跟随中' : '待救援'}</b></div>`;
-    if (cfg.boss) {
-      html += `<div class="obj-row ${g.bossDown ? 'done' : ''}"><span>狐首领</span><b>${g.bossDown ? '已驱退' : '未驱退'}</b></div>`;
-    }
-    html += `<div class="obj-row ${g.inBurrow ? 'done' : ''}"><span>回洞结算</span><b>${g.inBurrow ? '在洞内' : '未回洞'}</b></div>`;
-    // dev 版：显示当季说明，把季节性与进食强度联系起来
+    html += `<div class="obj-row ${g.inBaseBurrow ? 'done' : ''}"><span>回大本营结算</span><b>${g.inBaseBurrow ? '在大本营' : g.inBurrow ? '临时避难中' : '未回洞'}</b></div>`;
+    const levelHint = cfg.subtitle || cfg.brief;
+    if (levelHint) html += `<div class="obj-hint">关卡提示：${levelHint}</div>`;
+    // dev 版：显示当季说明，把季节性与进食强度联系起来（移动端 CSS 隐藏以控制高度）
     if (g.season) {
       html += `<div class="obj-season">${g.season.seasonNote}</div>`;
     }
@@ -244,13 +269,8 @@ export class HUD {
       items.push({
         ang: Math.atan2(dx, dz), d,
         kind: 'fox',
-        color: f.type === 'boss' ? '#ff2a1a' : f.state === 'wind' ? '#ff8a2a' : '#ff5a44',
-        // 蓄力/冲刺时标出它的攻击模式名（如"绕行虚晃"），
-        // 玩家从屏幕边缘就能读出"这只接下来会怎么做"，
-        // 而不是靠记忆每种狐的行为 —— 这是攻击模式多样性能被玩懂的前提。
-        label: (f.state === 'wind' || f.state === 'dash')
-          ? ((f.attack && f.attack.label) || '')
-          : '',
+        color: f.state === 'wind' ? '#ff8a2a' : '#ff5a44',
+        label: '',
       });
     }
 

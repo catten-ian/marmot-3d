@@ -332,6 +332,11 @@ body.overloaded .overload-mark { animation: pulseMark .7s ease-in-out infinite; 
   border: 1px solid #435744;
   color: #8fa083;
 }
+.version-tag.beta {
+  background: #243b50;
+  border: 1px solid #4f83a7;
+  color: #a9dcff;
+}
 
 /* ---------- 提示气泡 ---------- */
 .toast {
@@ -579,6 +584,23 @@ body.settings-open .threat {
 }
 .ghost-btn:hover { background: #3a5544; }
 
+/* ---------- 游戏反馈 ---------- */
+.feedback-overlay {
+  position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center;
+  padding: max(10px, calc(10px + var(--safe-top))) max(10px, calc(10px + var(--safe-right)))
+    max(10px, calc(10px + var(--safe-bottom))) max(10px, calc(10px + var(--safe-left)));
+  background: #0b1410cc;
+}
+.feedback-panel { width: min(620px, 100%); max-height: 92vh; max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 20px); overflow-y: auto; padding: 22px; background: #1e3328f5; border: 1px solid #7f9c6c; border-radius: 14px; box-shadow: 0 18px 50px #000b; }
+.feedback-panel h2 { margin: 8px 0 16px; font-size: 22px; }
+.feedback-label { display: block; margin: 10px 0 5px; color: var(--soft); font-size: 12px; }
+.feedback-panel select, .feedback-panel textarea { width: 100%; border: 1px solid #5d7a58; border-radius: 7px; background: #142218; color: var(--ink); font: inherit; padding: 9px 10px; }
+.feedback-panel textarea { min-height: 140px; resize: vertical; line-height: 1.55; user-select: text; -webkit-user-select: text; }
+.feedback-panel details { margin-top: 12px; color: var(--soft); }
+.feedback-panel summary { cursor: pointer; font-size: 12px; }
+.feedback-panel pre { max-height: 170px; overflow: auto; white-space: pre-wrap; word-break: break-word; padding: 9px; background: #101e17; color: #b9cdb0; font: 11px/1.45 monospace; user-select: text; }
+.feedback-status { min-height: 20px; color: var(--gold); font-size: 12px; }
+
 /* ---------- 大字横幅 ---------- */
 .banner {
   position: fixed;
@@ -813,12 +835,33 @@ button.primary:focus-visible { outline: 3px solid #fff; }
 }
 .test-mode-btn[hidden], .test-panel[hidden] { display: none; }
 .test-mode-btn:hover { background: #393324; }
+/* 「沙盒控制/测试」入口按钮纳入触屏布局调整：位置(left/top 中心定位)、
+   大小与透明度由 TouchLayout 写 inline 样式 / CSS 变量。 */
+#testModeBtn {
+  transform: translate(-50%, -50%) scale(var(--touch-button-scale, 1));
+  transform-origin: center;
+  opacity: var(--touch-button-opacity, 1);
+  touch-action: none;
+}
+/* 非 test/沙盒模式下按钮带 hidden；进入布局编辑时临时显示以便调整位置，
+   退出编辑后恢复原有默认隐藏语义（不改 hidden 属性）。 */
+body.touch-layout-editing #testModeBtn { display: inline-block; cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
+#testModeBtn.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
+#testModeBtn.layout-dragging { cursor: grabbing; filter: brightness(1.25); }
 .test-panel {
+  /* The sandbox/test panel is a separate fixed surface.  It must not inherit
+     the draggable #testModeBtn left/top/transform/z-index layout state. */
   position: fixed;
-  left: 12px;
-  bottom: 78px;
+  left: max(12px, calc(12px + var(--safe-left, 0px)));
+  right: auto;
+  top: max(12px, calc(12px + var(--safe-top, 0px)));
+  bottom: max(78px, calc(78px + var(--safe-bottom, 0px)));
   z-index: 32;
-  width: min(340px, calc(100vw - 24px));
+  box-sizing: border-box;
+  width: min(340px, calc(100vw - 24px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+  max-height: calc(100vh - 90px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+  max-height: calc(100dvh - 90px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+  overflow: auto;
   padding: 12px;
   border: 1px solid #78683f;
   border-radius: 7px;
@@ -845,7 +888,7 @@ button.primary:focus-visible { outline: 3px solid #fff; }
   cursor: pointer;
 }
 .test-panel button:hover { border-color: #d7ba72; background: #344531; }
-.test-panel header button { width: 28px; min-height: 26px; padding: 0; font-size: 18px; }
+.test-panel header button { width: 28px; min-height: 26px; flex: 0 0 28px; margin-left: auto; padding: 0; font-size: 18px; transform: none; }
 .test-toggle { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 .test-toggle input { accent-color: #d8b65c; }
 .test-actions, .test-log-actions { margin-top: 8px; }
@@ -863,15 +906,6 @@ button.primary:focus-visible { outline: 3px solid #fff; }
   font: inherit;
 }
 .test-log-meta { margin-top: 8px; color: #a9b99f; font-size: 10px; }
-
-.sandbox-entry { display:block; width:100%; margin:10px 0; padding:10px; border:1px solid #9fbd83; background:rgba(70,105,63,.5); color:#f0f4dc; }
-.sandbox-entry span { display:block; font-size:11px; opacity:.8; }
-.sandbox-controls { margin-top:12px; padding-top:10px; border-top:1px solid rgba(180,210,160,.25); }
-.sandbox-heading { color:#ffcf6b; font-weight:700; }
-.sandbox-subline,.sandbox-debug { font-size:11px; color:#b7c7ae; margin:5px 0; }
-.sandbox-actions { display:flex; flex-wrap:wrap; gap:5px; }
-.sandbox-actions button { font-size:11px; padding:5px 7px; }
-.sandbox-status { display:none; }
 
 /* ---------- 帮助 ---------- */
 .help-btn {
@@ -992,7 +1026,12 @@ button.primary:focus-visible { outline: 3px solid #fff; }
 /* ---------- 窄屏 ---------- */
 @media (max-width: 860px) {
   .test-mode-btn { bottom: 34px; left: 8px; }
-  .test-panel { left: 8px; bottom: 68px; width: min(340px, calc(100vw - 16px)); }
+  .test-panel {
+    left: max(8px, calc(8px + var(--safe-left, 0px)));
+    right: max(8px, calc(8px + var(--safe-right, 0px)));
+    bottom: max(68px, calc(68px + var(--safe-bottom, 0px)));
+    width: min(340px, calc(100vw - 16px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+  }
   .hud-top {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -1128,6 +1167,29 @@ body.touch-playing .touch-controls { display: block; }
   will-change: transform;
 }
 .touch-joystick span { position: absolute; bottom: 11px; text-shadow: 0 1px 3px #000; }
+/* 疾跑档位环：半径(px) = 疾跑触发阈值 × 摇杆满行程(maxStick)，
+   由 TouchControls 写 --stick-sprint-radius，与真实疾跑判定同一口径
+   （fallback 37.44px = 默认阈值 0.78 × 48px）。 */
+.stick-sprint-ring {
+  --stick-sprint-radius: 37.44px;
+  --stick-sprint-size: 74.88px;
+  --stick-sprint-offset: -37.44px;
+  position: absolute; left: 50%; top: 50%;
+  /* X5 老内核兼容：不使用 calc(乘法)，具体 px 尺寸由 TouchControls 同步写入。 */
+  width: var(--stick-sprint-size, 74.88px);
+  height: var(--stick-sprint-size, 74.88px);
+  margin-left: var(--stick-sprint-offset, -37.44px);
+  margin-top: var(--stick-sprint-offset, -37.44px);
+  border: 1.5px dashed rgba(228,238,207,.32);
+  border-radius: 50%;
+  pointer-events: none;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.touch-joystick.stick-sprint .stick-sprint-ring {
+  border-color: rgba(255,207,107,.95);
+  box-shadow: 0 0 12px rgba(255,207,107,.45), inset 0 0 12px rgba(255,207,107,.18);
+}
+.touch-joystick.stick-sprint { border-color: rgba(255,207,107,.95); }
 .touch-actions {
   position: absolute;
   right: calc(12px + var(--safe-right));
@@ -1229,7 +1291,14 @@ body.touch-playing .touch-controls { display: block; }
   .footbar { display: none; }
   .version-tag { bottom: calc(5px + var(--safe-bottom)); }
   .test-mode-btn { bottom: calc(34px + var(--safe-bottom)); left: calc(8px + var(--safe-left)); }
-  .test-panel { bottom: calc(68px + var(--safe-bottom)); left: calc(8px + var(--safe-left)); }
+  .test-panel {
+    top: max(8px, calc(8px + var(--safe-top, 0px)));
+    bottom: max(68px, calc(68px + var(--safe-bottom, 0px)));
+    left: max(8px, calc(8px + var(--safe-left, 0px)));
+    right: auto;
+    width: min(340px, calc(100vw - 16px - var(--safe-left, 0px) - var(--safe-right, 0px)));
+    max-height: calc(100dvh - 76px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+  }
 }
 @media (max-width: 420px) {
   .vlabel { font-size: 8.5px; }
@@ -1282,6 +1351,664 @@ body.touch-playing .touch-controls { display: block; }
     overflow-y: auto;
     max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 52px);
   }
+  .test-panel {
+    top: max(8px, calc(8px + var(--safe-top, 0px)));
+    bottom: max(62px, calc(62px + var(--safe-bottom, 0px)));
+    max-height: calc(100dvh - 70px - var(--safe-top, 0px) - var(--safe-bottom, 0px));
+  }
 }
 /* Keep the build badge out of the thumb/action hit zones while playing. */
 body.touch-playing .version-tag { display: none; }
+
+/* ===========================================================
+   HUD 轻量化（桌面与移动端共用）
+   - 默认只保留行动所需的摘要，详细战斗状态由“详情”按需呼出。
+   - 小面积面板使用低透明度 + 毛玻璃；菜单/交互时再提高不透明度。
+   =========================================================== */
+:root {
+  --hud-bg: rgba(10, 22, 15, .46);
+  --hud-bg-soft: rgba(14, 30, 21, .34);
+  --hud-bg-strong: rgba(13, 29, 20, .82);
+  --hud-border: rgba(208, 231, 182, .24);
+  --hud-border-strong: rgba(225, 239, 196, .52);
+  --hud-shadow: 0 5px 18px rgba(0, 0, 0, .22);
+  --hud-blur: blur(9px) saturate(1.08);
+  --hud-text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+}
+
+/* 顶部渐变只压暗边缘，不再形成一条厚重的实色横幅。
+   三张 HUD 卡由布局系统接管为 fixed 定位后 .hud-top 只剩背景渐变，
+   min-height 用来保住这条压暗渐变的默认观感。 */
+.hud-top {
+  padding: 9px 14px;
+  gap: 12px;
+  min-height: 58px;
+  background: linear-gradient(180deg, rgba(8, 17, 12, .52), rgba(8, 17, 12, 0));
+}
+.vitals,
+.mission,
+.combatbar,
+.power-panel,
+.chip,
+.objective {
+  border-color: var(--hud-border);
+  box-shadow: var(--hud-shadow), inset 0 1px 0 rgba(255, 255, 255, .07);
+  backdrop-filter: var(--hud-blur);
+  -webkit-backdrop-filter: var(--hud-blur);
+  text-shadow: var(--hud-text-shadow);
+}
+.vitals {
+  grid-template-columns: repeat(3, minmax(104px, 126px));
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--hud-bg);
+  border-radius: 9px;
+}
+.vlabel { margin-bottom: 4px; font-size: 10.5px; text-shadow: var(--hud-text-shadow); }
+.track { height: 7px; background: rgba(5, 14, 9, .64); }
+.track.thin { height: 5px; }
+.mission {
+  flex: 0 1 min(340px, 31vw);
+  min-width: 210px;
+  max-height: 63px;
+  overflow: hidden;
+  padding: 7px 10px;
+  background: var(--hud-bg-soft);
+  border-radius: 9px;
+  font-size: 11.5px;
+  line-height: 1.42;
+}
+.mission b, .objective b, .obj-title { text-shadow: var(--hud-text-shadow); }
+
+/* 桌面端左下信息采用“单行摘要”；完整警告/状态按需展开。 */
+.hud-left {
+  left: 14px;
+  bottom: 28px;
+  width: min(310px, 27vw);
+  gap: 5px;
+}
+.combatbar {
+  max-height: 29px;
+  overflow: hidden;
+  padding: 6px 9px;
+  background: var(--hud-bg);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.power-panel {
+  gap: 4px;
+  padding: 6px 9px;
+  background: rgba(30, 28, 42, .44);
+  border-color: rgba(210, 184, 244, .28);
+  border-radius: 8px;
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+.power-panel > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.status-row { display: none; gap: 5px; }
+.chip { padding: 3px 7px; font-size: 10px; background: var(--hud-bg-soft); }
+.hud-details-open .combatbar {
+  max-height: 84px;
+  white-space: normal;
+  overflow: auto;
+}
+.hud-details-open .status-row { display: flex; }
+.hud-details-open .power-panel > span { white-space: normal; }
+
+.hud-details-btn {
+  position: absolute;
+  left: 0;
+  top: -25px;
+  min-width: 42px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--hud-border);
+  border-radius: 11px;
+  color: rgba(239, 246, 222, .82);
+  background: rgba(8, 20, 13, .34);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font: inherit;
+  font-size: 10px;
+  line-height: 20px;
+  text-shadow: var(--hud-text-shadow);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.hud-details-btn:hover,
+.hud-details-btn:focus-visible {
+  color: var(--gold);
+  background: rgba(28, 52, 34, .72);
+  border-color: var(--hud-border-strong);
+  outline: none;
+}
+
+.hud-right { right: 14px; bottom: 28px; }
+.objective {
+  min-width: 150px;
+  max-width: min(205px, 18vw);
+  padding: 7px 10px;
+  background: var(--hud-bg);
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.obj-row { gap: 10px; padding: 2px 0; }
+.obj-title { font-size: 10px; margin-bottom: 4px; }
+
+/* 中心信息只在短暂提示时出现，背景轻透，避免压住准星与远景。 */
+.crosshair {
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  opacity: .72;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .72));
+}
+.ch-ring { stroke: rgba(255, 255, 255, .24); stroke-width: 1; }
+.ch-dot { fill: #fffbe8; }
+.ch-tick line { stroke: rgba(255, 255, 255, .48); stroke-width: 1.35; }
+.ch-charge { opacity: .82; stroke-width: 2.3; }
+.interact-prompt {
+  top: calc(50% + 34px);
+  padding: 4px 11px;
+  color: #fff1c6;
+  background: rgba(13, 28, 19, .46);
+  border-color: rgba(255, 213, 121, .42);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .16);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  text-shadow: var(--hud-text-shadow);
+}
+.toast {
+  top: 92px;
+  padding: 7px 14px;
+  background: rgba(13, 28, 19, .58);
+  border-color: rgba(202, 232, 175, .34);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-shadow: var(--hud-text-shadow);
+}
+.banner {
+  top: 24%;
+  max-width: min(76vw, 720px);
+  padding: 4px 16px;
+  border-radius: 14px;
+  background: rgba(8, 18, 12, .18);
+  text-shadow: 0 2px 11px rgba(0, 0, 0, .9);
+}
+
+/* 顶部工具按钮：低对比常驻，悬停/聚焦时再提高可读性。 */
+.view-btn,
+.fs-btn,
+.set-btn,
+.help-btn {
+  background: rgba(15, 33, 23, .56);
+  border-color: var(--hud-border);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  text-shadow: var(--hud-text-shadow);
+}
+.view-btn:hover, .fs-btn:hover, .set-btn:hover, .help-btn:hover,
+.view-btn:focus-visible, .fs-btn:focus-visible, .set-btn:focus-visible, .help-btn:focus-visible {
+  background: rgba(35, 65, 43, .84);
+  border-color: var(--hud-border-strong);
+  outline: none;
+}
+
+/* 菜单属于阅读态：背景更实、描边更亮，仍保留毛玻璃层次。 */
+.overlay { background: rgba(4, 12, 8, .68); backdrop-filter: blur(10px) saturate(.9); -webkit-backdrop-filter: blur(10px) saturate(.9); }
+.panel,
+.set-sheet,
+.help-sheet {
+  background: var(--hud-bg-strong);
+  border-color: rgba(210, 235, 182, .46);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .48), inset 0 1px 0 rgba(255,255,255,.1);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  text-shadow: var(--hud-text-shadow);
+}
+.panel { padding: 26px 30px; }
+.set-sheet, .help-sheet { padding: 17px 19px; }
+.scheme-card, .keys span, .stat, .level-chip, .level-option {
+  background: rgba(11, 27, 17, .54);
+  border-color: rgba(204, 228, 181, .22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+.scheme-card:hover, .level-option:hover:not(:disabled), .level-option:focus-visible { background: rgba(36, 67, 43, .78); }
+
+/* 触控按钮也保持透气，按下态才提高实心度。 */
+.touch-actions button, .touch-pause {
+  background: rgba(15, 31, 22, .58);
+  border-color: rgba(196, 222, 169, .54);
+  box-shadow: 0 3px 13px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  text-shadow: var(--hud-text-shadow);
+}
+.touch-actions button.pressed, .touch-pause.pressed { background: rgba(87, 104, 66, .9); }
+.touch-look-zone span { background: rgba(7, 17, 11, .22); text-shadow: var(--hud-text-shadow); }
+
+/* 横屏要给拇指区与安全区留出更多垂直空间。 */
+@media (max-width: 860px) {
+  .hud-top { padding: calc(43px + var(--safe-top)) calc(9px + var(--safe-right)) 5px calc(9px + var(--safe-left)); gap: 5px; min-height: calc(128px + var(--safe-top)); }
+  .vitals { gap: 6px; padding: 6px 8px; background: rgba(10, 22, 15, .38); }
+  .mission { flex: none; width: 100%; min-width: 0; max-height: 49px; padding: 5px 8px; font-size: 10.5px; line-height: 1.3; }
+  .hud-right { right: calc(10px + var(--safe-right)); bottom: calc(138px + var(--safe-bottom)); width: min(164px, 42vw); }
+  .objective { max-width: none; padding: 6px 8px; background: rgba(10, 22, 15, .38); font-size: 10px; }
+  .hud-details-btn { display: none; }
+  .toast { top: calc(126px + var(--safe-top)); max-width: calc(100vw - 32px); }
+  .interact-prompt { top: calc(50% + 30px); max-width: calc(100vw - 32px); }
+  .banner { top: 20%; max-width: calc(100vw - 28px); font-size: 21px; letter-spacing: 3px; }
+  .overlay { padding: max(10px, calc(8px + var(--safe-top))) max(10px, calc(8px + var(--safe-right))) max(10px, calc(8px + var(--safe-bottom))) max(10px, calc(8px + var(--safe-left))); }
+  .panel { padding: 22px 22px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .hud-top { padding-top: calc(35px + var(--safe-top)); }
+  .vitals { padding-top: 4px; padding-bottom: 4px; }
+  .mission { max-height: 35px; padding-top: 3px; padding-bottom: 3px; font-size: 9px; }
+  .hud-right { bottom: calc(126px + var(--safe-bottom)); width: min(148px, 25vw); }
+  .objective { padding: 5px 6px; font-size: 9px; }
+  .obj-row { padding: 1px 0; }
+  .crosshair { width: 36px; height: 36px; margin: -18px 0 0 -18px; }
+  .banner { top: 17%; font-size: 18px; }
+}
+@media (max-width: 420px) {
+  .vitals { gap: 4px; padding-left: 6px; padding-right: 6px; }
+  .vlabel { font-size: 8px; }
+  .mission { font-size: 9.5px; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .vitals, .mission, .combatbar, .power-panel, .chip, .objective,
+  .view-btn, .fs-btn, .set-btn, .help-btn,
+  .touch-actions button, .touch-pause { background: rgba(12, 28, 18, .82); }
+  .panel, .set-sheet, .help-sheet { background: rgba(13, 29, 20, .94); }
+}
+
+/* HUD 信息卡（顶部状态/关卡信息/本关目标）实玩时不拦截指针，避免挡视角与按键；
+   仅触屏布局编辑态（body.touch-layout-editing）可点选/拖动，
+   位置 left/top 与缩放/透明度由 src/ui/touch-layout.js 写入。 */
+.vitals, .mission, .objective { pointer-events: none; }
+body.touch-layout-editing .vitals,
+body.touch-layout-editing .mission,
+body.touch-layout-editing .objective {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  outline: 1px dashed rgba(255, 232, 177, .72);
+  outline-offset: 3px;
+}
+body.touch-layout-editing .vitals.layout-selected,
+body.touch-layout-editing .mission.layout-selected,
+body.touch-layout-editing .objective.layout-selected {
+  outline: 2px solid #ffe0a1;
+  outline-offset: 4px;
+}
+body.touch-layout-editing .vitals.layout-dragging,
+body.touch-layout-editing .mission.layout-dragging,
+body.touch-layout-editing .objective.layout-dragging { cursor: grabbing; filter: brightness(1.18); }
+
+.combat-detail { display: none; }
+.hud-details-open .combat-detail { display: block; margin-top: 3px; }
+.hud-details-open .combatbar { max-height: 86px; }
+
+@media (max-width: 860px) {
+  .hud-right { bottom: calc(164px + var(--safe-bottom)); }
+  .objective { min-width: 0; max-width: min(188px, 48vw); max-height: min(148px, 30dvh); padding: 5px 7px; overflow: hidden; }
+  .objective .obj-row { gap: 7px; padding: 2px 0; }
+  /* 常驻目标卡在移动端收紧：关卡提示最多两行省略，避免遮挡画面。 */
+  .obj-hint { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .hud-right { bottom: calc(126px + var(--safe-bottom)); }
+  .objective { max-width: min(160px, 29vw); max-height: min(150px, 42dvh); }
+}
+
+/* 窄屏横向时，三行任务信息压缩到卡片内，避免最后一行被裁掉。 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .mission { font-size: 8px; line-height: 1.2; padding-top: 2px; padding-bottom: 2px; max-height: 35px; }
+}
+@media (max-width: 420px) {
+  /* 竖屏用标题/帮助说明承载“右侧拖动”提示，避免与短提示重叠。 */
+  .touch-look-zone span { display: none; }
+}
+
+/* 小屏按实际按钮/状态条高度留白，避免暂停键压住状态条；同时提升强光下字号和底板对比。 */
+@media (max-width: 860px) {
+  .hud-top { padding-top: calc(50px + var(--safe-top)); }
+  .vitals { background: rgba(8, 19, 12, .52); }
+  .vlabel { color: #e8f0dc; font-size: 9.5px; text-shadow: 0 1px 3px #000, 0 0 5px #000b; }
+  .mission { background: rgba(8, 20, 12, .46); max-height: 56px; font-size: 10.5px; line-height: 1.28; }
+  .objective { background: rgba(8, 19, 12, .52); }
+  .toast { top: calc(148px + var(--safe-top)); }
+}
+@media (max-width: 420px) {
+  .vlabel { font-size: 9px; }
+  .mission { font-size: 10px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .hud-top { padding-top: calc(46px + var(--safe-top)); }
+  .mission { max-height: 38px; padding-top: 2px; padding-bottom: 2px; font-size: 9.5px; line-height: 1.1; }
+  .toast { top: calc(127px + var(--safe-top)); }
+}
+
+/* 细描边采用双层背景模拟渐变边框，不增加面板面积。 */
+.vitals, .mission, .combatbar, .power-panel, .objective,
+.touch-actions button, .touch-pause {
+  border-color: transparent;
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+.vitals {
+  background-image: linear-gradient(rgba(10, 22, 15, .52), rgba(10, 22, 15, .52)),
+    linear-gradient(120deg, rgba(225, 239, 196, .46), rgba(106, 151, 107, .18) 56%, rgba(255, 207, 107, .3));
+}
+.mission {
+  background-image: linear-gradient(rgba(8, 20, 12, .46), rgba(8, 20, 12, .46)),
+    linear-gradient(120deg, rgba(255, 207, 107, .32), rgba(177, 215, 169, .18) 52%, rgba(225, 239, 196, .34));
+}
+.combatbar {
+  background-image: linear-gradient(rgba(10, 22, 15, .46), rgba(10, 22, 15, .46)),
+    linear-gradient(120deg, rgba(225, 239, 196, .34), rgba(106, 151, 107, .16) 60%, rgba(255, 207, 107, .2));
+}
+.power-panel {
+  background-image: linear-gradient(rgba(30, 28, 42, .44), rgba(30, 28, 42, .44)),
+    linear-gradient(120deg, rgba(214, 185, 247, .34), rgba(148, 111, 208, .18) 60%, rgba(255, 207, 107, .18));
+}
+.objective {
+  background-image: linear-gradient(rgba(8, 19, 12, .52), rgba(8, 19, 12, .52)),
+    linear-gradient(120deg, rgba(255, 207, 107, .3), rgba(106, 151, 107, .16) 58%, rgba(225, 239, 196, .32));
+}
+.touch-actions button, .touch-pause {
+  background-image: linear-gradient(rgba(15, 31, 22, .58), rgba(15, 31, 22, .58)),
+    linear-gradient(135deg, rgba(225, 239, 196, .34), rgba(106, 151, 107, .15) 60%, rgba(255, 207, 107, .3));
+}
+.touch-actions button.pressed, .touch-pause.pressed {
+  background-image: linear-gradient(rgba(87, 104, 66, .9), rgba(87, 104, 66, .9)),
+    linear-gradient(135deg, rgba(255, 225, 163, .72), rgba(255, 207, 107, .48));
+}
+@media (max-width: 860px) {
+  .hud-right { z-index: 24; }
+}
+
+/* HUD 可读性精修：把上方按钮行与状态条完全分层，释放状态条宽度，
+   并让摘要目标维持清楚、可按的触控面积。 */
+@media (max-width: 860px) {
+  .vitals { padding-right: 8px; }
+  .vlabel {
+    font-size: 10.5px;
+    color: #edf4e5;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .95), 0 0 5px rgba(0, 0, 0, .72);
+  }
+  .vlabel span:last-child { font-size: 10px; }
+  .mission { font-size: 11px; line-height: 1.3; }
+}
+@media (max-width: 420px) {
+  .vlabel { font-size: 10px; }
+  .vlabel span:last-child { font-size: 9.5px; }
+  .mission { font-size: 10.5px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .mission { max-height: 44px; font-size: 10px; line-height: 1.2; }
+}
+
+/* 关卡提示常驻显示在目标卡内（移动端上方有媒体查询压缩为最多两行）。 */
+.obj-hint {
+  padding: 5px 0 4px;
+  color: #e0e9d4;
+  font-size: 10px;
+  line-height: 1.45;
+  text-shadow: var(--hud-text-shadow);
+}
+.objective { max-height: min(280px, 60vh); overflow: hidden; }
+@media (max-width: 860px) {
+  .mission { max-height: 46px; }
+}
+
+.touch-help { display: none; }
+.touch-mode .touch-help { display: block; }
+
+/* 摘要任务卡固定为两行：关卡名与实时状态；减少顶部遮挡高度。 */
+.mission { max-height: 46px; line-height: 1.3; }
+
+/* 触控拇指区最后一层微调：扩大按钮间隔，避免误触；关卡卡片在横屏不铺满全宽。 */
+.touch-joystick span {
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .touch-actions { gap: 5px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .touch-actions { gap: 5px; }
+  .mission {
+    width: min(520px, calc(100vw - var(--safe-left) - var(--safe-right) - 24px));
+    justify-self: start;
+  }
+}
+
+/* Circular touch skill wheel: positions are supplied by src/ui/touch-layout.js. */
+#touchSafeInsets { position: fixed; width: 0; height: 0; padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); visibility: hidden; pointer-events: none; }
+.touch-actions { position: absolute; inset: 0; right: auto; bottom: auto; display: block; pointer-events: none; }
+.touch-actions button {
+  position: absolute; left: 0; top: 0;
+  width: var(--touch-button-size, 56px); height: var(--touch-button-size, 56px);
+  padding: 2px; border-radius: 50%;
+  opacity: var(--touch-button-opacity, 1);
+  transform: translate(-50%, -50%) scale(var(--touch-button-scale, 1));
+  transform-origin: center;
+  pointer-events: auto;
+  touch-action: none;
+  transition: background .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.touch-actions button b { font-size: 15px; text-shadow: 0 1px 3px #000; }
+.touch-actions button small { font-size: 9px; font-weight: 700; color: #f3f5e8; text-shadow: 0 1px 3px #000, 0 0 4px #000; }
+.touch-actions button[data-touch-action="attack"] {
+  --touch-button-size: 76px;
+  border: 2px solid rgba(255, 203, 141, .95);
+  background-image: linear-gradient(rgba(91, 38, 25, .78), rgba(44, 24, 22, .74)), linear-gradient(135deg, #ffdfae, #bd705e 50%, #ffc879);
+  box-shadow: 0 0 0 4px rgba(255, 190, 126, .14), 0 4px 15px #000a, inset 0 1px 4px #fff7;
+}
+.touch-actions button[data-touch-action="attack"] b { font-size: 22px; }
+.touch-actions button[data-touch-action="attack"] small { font-size: 10px; }
+/* 触屏和桌面都保持完整攻击主键；左右滑时由外侧提示环显示对应招式。 */
+.touch-mode .touch-actions button[data-touch-action="attack"] {
+  /* 攻击键首帧即显示完整主键；此前闲置态透明化会让首次触摸看起来像“点击后才出现”。 */
+  border-color: rgba(255, 203, 141, .95);
+  background-image: linear-gradient(rgba(91, 38, 25, .78), rgba(44, 24, 22, .74)), linear-gradient(135deg, #ffdfae, #bd705e 50%, #ffc879);
+  box-shadow: 0 0 0 4px rgba(255, 190, 126, .14), 0 4px 15px #000a, inset 0 1px 4px #fff7;
+}
+/* 攻击键分两层：外圈=整圆渐变/光晕（按下缩放等升级动画仍绑在外圈 button 上），
+   内圈=.attack-core 触发核心；尺寸/透明度由布局编辑面板经 CSS 变量
+   --attack-core-scale / --attack-core-opacity 调节（持久化在 marmot.touch-layout.v1）。 */
+.touch-actions button[data-touch-action="attack"] b,
+.touch-actions button[data-touch-action="attack"] small { position: relative; z-index: 1; }
+.attack-core {
+  position: absolute; left: 50%; top: 50%;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(var(--attack-core-scale, .55));
+  transform-origin: center;
+  background: radial-gradient(circle at 50% 40%, rgba(255, 228, 184, .96), rgba(209, 96, 66, .9) 62%, rgba(122, 44, 30, .82));
+  box-shadow: 0 0 12px rgba(255, 184, 110, .5), inset 0 1px 3px rgba(255, 255, 255, .55);
+  opacity: var(--attack-core-opacity, .92);
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+
+/* 攻击主键外侧是左右滑提示环；预览状态由 TouchControls 使用 AttackGesture 同一阈值写入 data-swipe-preview。 */
+.attack-swipe-ring {
+  position: absolute; inset: -12px; border: 1px solid rgba(255, 225, 163, .34);
+  border-radius: 50%; pointer-events: none; transition: border-color .1s ease, box-shadow .1s ease;
+}
+.attack-swipe-ring::before, .attack-swipe-ring::after {
+  content: ''; position: absolute; top: 50%; width: 19px; height: 19px; margin-top: -10px;
+  border-top: 2px solid rgba(214, 232, 189, .5); border-bottom: 2px solid rgba(214, 232, 189, .5);
+  opacity: .7; transition: opacity .1s ease, border-color .1s ease;
+}
+.attack-swipe-ring::before { left: -3px; border-left: 3px solid rgba(255, 207, 107, .72); transform: skewX(-16deg); }
+.attack-swipe-ring::after { right: -3px; border-right: 3px solid rgba(255, 207, 107, .72); transform: skewX(16deg); }
+.attack-swipe-hint {
+  position: absolute; top: 50%; margin-top: -6px; color: rgba(239, 244, 222, .7);
+  font-size: 8px; font-style: normal; font-weight: 800; white-space: nowrap; text-shadow: 0 1px 3px #000;
+  opacity: .72; transition: color .1s ease, opacity .1s ease, transform .1s ease;
+}
+.attack-swipe-hint.parry { right: calc(100% + 10px); }
+.attack-swipe-hint.roll { left: calc(100% + 10px); }
+.touch-actions button[data-touch-action="attack"][data-swipe-preview="parry"] .attack-swipe-ring,
+.touch-actions button[data-touch-action="attack"][data-swipe-fired="parry"] .attack-swipe-ring {
+  border-color: rgba(143, 232, 176, .95); box-shadow: 0 0 14px rgba(143, 232, 176, .6);
+}
+.touch-actions button[data-touch-action="attack"][data-swipe-preview="roll"] .attack-swipe-ring,
+.touch-actions button[data-touch-action="attack"][data-swipe-fired="roll"] .attack-swipe-ring {
+  border-color: rgba(255, 207, 107, .98); box-shadow: 0 0 14px rgba(255, 207, 107, .68);
+}
+.touch-actions button[data-touch-action="attack"][data-swipe-preview="parry"] .attack-swipe-hint.parry,
+.touch-actions button[data-touch-action="attack"][data-swipe-fired="parry"] .attack-swipe-hint.parry { color: #9ff0bb; opacity: 1; transform: translateX(-3px); }
+.touch-actions button[data-touch-action="attack"][data-swipe-preview="roll"] .attack-swipe-hint.roll,
+.touch-actions button[data-touch-action="attack"][data-swipe-fired="roll"] .attack-swipe-hint.roll { color: #ffe092; opacity: 1; transform: translateX(3px); }
+.touch-actions button[data-touch-action="jump"] { border-color: rgba(247, 224, 150, .88); }
+.touch-actions button[data-touch-action="sprint"] { border-color: rgba(164, 220, 146, .88); }
+.touch-actions button[data-touch-action="interact"] { border-color: rgba(150, 218, 205, .9); }
+.touch-actions button[data-touch-action="burst"] { border-color: rgba(255, 156, 119, .9); }
+.touch-actions button[data-touch-action="ultimate"] { border-color: rgba(207, 171, 255, .92); }
+.touch-actions button.pressed, .touch-pause.pressed {
+  transform: translate(-50%, -50%) scale(calc(var(--touch-button-scale, 1) * .92));
+  background-color: rgba(87, 104, 66, .96);
+  border-color: #ffe0a1;
+  box-shadow: 0 0 18px rgba(255, 204, 115, .6), inset 0 0 12px #fff4;
+}
+.touch-controls.layout-editing .touch-actions button { pointer-events: auto; }
+.touch-controls.layout-editing .touch-actions button[data-touch-action] { touch-action: none; }
+.touch-pause { right: auto; bottom: auto; width: 38px; height: 38px; border-radius: 50%; }
+.touch-layout-entry {
+  position: fixed; left: calc(14px + var(--safe-left)); bottom: calc(142px + var(--safe-bottom));
+  min-width: 52px; height: 30px; padding: 0 10px; border-radius: 16px;
+  border: 1px solid rgba(214, 232, 189, .68); color: var(--ink);
+  background: rgba(12, 27, 18, .8); box-shadow: 0 2px 8px #0008;
+  font: 600 11px inherit; pointer-events: auto; touch-action: manipulation;
+  backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+}
+.touch-layout-entry[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+.touch-layout-editing .touch-controls { display: block; }
+/* 调整开关（设置 → 启用触屏布局调整）关闭时，所有"调整键"隐藏：
+   画面上的编辑入口、设置里的拖动编辑按钮组等。默认在 <html> 上即为 false。 */
+[data-touch-adjust-enabled="false"] [data-touch-adjust] { display: none !important; }
+/* 有效输入模式为键鼠（强制键鼠或未升级的自动模式）时：隐藏所有触屏布局编辑入口，
+   不允许编辑浮动触控控件；触屏层的显示仍由 body.touch-mode/touch-playing 控制。 */
+[data-input-effective="keyboard"] [data-touch-adjust],
+[data-input-effective="keyboard"] .touch-layout-entry { display: none !important; }
+/* 进入调整时游戏自动暂停，但暂停面板会盖住按键导致无法拖动，调整态下隐藏它 */
+body.touch-layout-editing #overlay { display: none !important; }
+body.touch-layout-editing .touch-controls { z-index: 41; }
+.touch-controls.layout-editing .touch-actions button { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
+.touch-controls.layout-editing .touch-actions button.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
+.touch-controls.layout-editing .touch-actions button.layout-dragging { cursor: grabbing; filter: brightness(1.25); }
+.input-mode-settings { margin: 0 0 14px; padding: 13px; border: 1px solid rgba(214, 232, 189, .24); border-radius: 10px; background: rgba(8, 20, 13, .5); }
+.input-mode-settings h4 { margin: 0 0 7px; color: var(--gold); font-size: 14px; }
+.input-mode-row { margin-top: 4px; }
+.input-mode-status { margin: 8px 0 0; color: var(--soft); font-size: 11.5px; line-height: 1.5; }
+.input-mode-status b { color: var(--gold); }
+/* 编辑态下摇杆可拖动换位（非编辑态仍是移动输入，不加任何编辑视觉）。 */
+.touch-controls.layout-editing .touch-joystick { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 4px; }
+.touch-controls.layout-editing .touch-joystick.layout-selected { outline: 2px solid #ffe0a1; }
+.touch-controls.layout-editing .touch-joystick.layout-dragging { cursor: grabbing; }
+.touch-adjust-settings { margin: 18px 0 0; padding: 13px; border: 1px solid rgba(214, 232, 189, .24); border-radius: 10px; background: rgba(8, 20, 13, .5); }
+.touch-adjust-settings h4 { margin: 0 0 7px; color: var(--gold); font-size: 14px; }
+.touch-adjust-settings p { margin: 6px 0 0; color: var(--soft); font-size: 11px; line-height: 1.5; }
+.touch-adjust-toggle { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink); cursor: pointer; }
+.touch-adjust-toggle input { accent-color: var(--gold); width: 16px; height: 16px; }
+.touch-adjust-settings + .touch-layout-settings { margin-top: 10px; }
+.touch-layout-settings { margin: 18px 0 14px; padding: 13px; border: 1px solid rgba(214, 232, 189, .24); border-radius: 10px; background: rgba(8, 20, 13, .5); }
+.touch-layout-settings h4 { margin: 0 0 5px; color: var(--gold); font-size: 14px; }
+.touch-layout-settings p { margin: 4px 0 10px; color: var(--soft); font-size: 11px; line-height: 1.5; }
+.layout-setting-row { display: grid; grid-template-columns: 100px minmax(80px, 1fr) 38px; align-items: center; gap: 8px; margin: 8px 0; font-size: 11px; }
+.layout-setting-row input[type="range"] { width: 100%; accent-color: var(--gold); }
+.layout-setting-row output { text-align: right; color: var(--gold); font-size: 10px; }
+.layout-setting-row select { grid-column: span 2; min-height: 30px; border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; color: var(--ink); background: #16261d; }
+.layout-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.layout-actions button { min-height: 34px; padding: 5px 9px; font-size: 10px; }
+.layout-save-status { min-height: 16px; margin: 7px 0 0 !important; color: #d9e5c8 !important; }
+.touch-layout-settings + .bind-list { margin-top: 14px; }
+@media (max-width: 860px) {
+  /* 触控实玩时目标卡常驻可见：紧凑落在右上安全区（顶部 HUD 下方），
+     避开右下动作轮盘；卡片本身 pointer-events:none，不挡视角拖动。 */
+  body.touch-playing .hud-right {
+    display: block;
+    top: calc(152px + var(--safe-top));
+    bottom: auto;
+    right: calc(10px + var(--safe-right));
+    width: min(150px, 34vw);
+  }
+  body.touch-playing .objective { min-width: 0; max-width: none; padding: 5px 7px; font-size: 9.5px; }
+  body.touch-playing .obj-row { gap: 5px; padding: 1px 0; }
+  body.touch-playing .touch-layout-entry { bottom: calc(142px + var(--safe-bottom)); }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .touch-layout-entry { bottom: calc(122px + var(--safe-bottom)); }
+  body.touch-playing .hud-right { top: calc(86px + var(--safe-top)); bottom: auto; width: min(140px, 24vw); }
+}
+@media (max-width: 340px) {
+  .layout-setting-row { grid-template-columns: 86px minmax(60px, 1fr) 34px; gap: 5px; }
+  .layout-actions button { flex: 1 1 100%; }
+}
+/* 站立观察小地图：右上方独立于右下动作盘，带安全区适配。 */
+.minimap { position: fixed; top: calc(64px + var(--safe-top, 0px)); right: calc(14px + var(--safe-right, 0px)); width: 174px; z-index: 18; opacity: 0; transform: translateY(-6px) scale(.96); pointer-events: none; transition: opacity .16s ease, transform .16s ease; }
+.minimap.on { opacity: 1; transform: none; }
+.minimap canvas { display: block; width: 174px; height: 174px; border: 1px solid #5e7b63; border-radius: 8px; image-rendering: auto; }
+.minimap span { display: block; margin-top: 3px; color: #dcebc9; font-size: 10px; text-align: center; text-shadow: 0 1px 3px #000; }
+@media (max-width: 860px) { .minimap { top: calc(96px + var(--safe-top, 0px)); right: calc(9px + var(--safe-right, 0px)); } }
+@media (max-width: 420px) { .minimap, .minimap canvas { width: 142px; height: 142px; } }
+@media (orientation: landscape) and (max-height: 520px) { .minimap { top: calc(42px + var(--safe-top, 0px)); } .minimap, .minimap canvas { width: 128px; height: 128px; } }
+.cooldown-overlay { position:absolute; inset:0; border-radius:inherit; pointer-events:none; background:conic-gradient(rgba(90,100,100,.75) var(--cd-angle,0deg), transparent 0); opacity:0; }
+.cooldown-overlay.on { opacity:1; } .cooldown-overlay em { position:absolute; inset:0; display:grid; place-items:center; color:#fff; font-size:11px; font-style:normal; text-shadow:0 1px 3px #000; }
+.touch-actions button.no-energy { background:rgba(126,180,215,.65); }
+.sandbox-entry { display:block; width:100%; margin:10px 0; padding:10px; border:1px solid #9fbd83; background:rgba(70,105,63,.5); color:#f0f4dc; }
+.sandbox-entry span { display:block; font-size:11px; opacity:.8; }
+.sandbox-controls { margin-top:12px; padding-top:10px; border-top:1px solid rgba(180,210,160,.25); }
+.sandbox-heading { color:#ffcf6b; font-weight:700; } .sandbox-subline,.sandbox-debug { font-size:11px; color:#b7c7ae; margin:5px 0; }
+.sandbox-actions { display:flex; flex-wrap:wrap; gap:5px; } .sandbox-actions button { font-size:11px; padding:5px 7px; }
+@supports not (background: conic-gradient(red, blue)) {
+  .cooldown-overlay { background: rgba(90,100,100,.72); clip-path: circle(50% at 50% 50%); }
+}
+
+.attack-charge-hint{position:fixed;left:50%;bottom:calc(22px + var(--safe-bottom,0px));display:none;align-items:center;gap:9px;width:min(320px,68vw);z-index:45;pointer-events:none;transform:translateX(-50%);}
+.attack-charge-hint.visible{display:flex;}
+.attack-charge-track{height:12px;flex:1;overflow:hidden;border:1px solid rgba(220,235,200,.55);border-radius:999px;background:rgba(12,24,16,.78);box-shadow:0 2px 8px #0009,inset 0 1px 3px #0008;}
+.attack-charge-fill{display:block;width:var(--charge-progress,0%);height:100%;border-radius:inherit;background:linear-gradient(90deg,#dba45e,#ffcf6b 62%,#f38a65);box-shadow:0 0 9px rgba(255,194,105,.6);transition:width .04s linear;}
+.attack-charge-label{min-width:58px;color:#fff1cb;font-size:11px;text-align:center;text-shadow:0 1px 3px #000;white-space:nowrap;}
+.attack-charge-hint.full .attack-charge-track{border-color:#ffe0a1;box-shadow:0 0 12px rgba(255,190,90,.75),0 2px 8px #0009;}
+.attack-charge-hint.full .attack-charge-fill{background:linear-gradient(90deg,#ffce6b,#fff0ad);box-shadow:0 0 14px #ffca5f;}
+.attack-charge-hint.full .attack-charge-label{color:#fff1a8;font-weight:800;}
+
+/* 沙盒状态独立于普通关卡目标卡；默认位于小地图下方，布局系统可独立拖动/缩放/调透明度。 */
+.sandbox-status {
+  position: fixed; top: calc(258px + var(--safe-top, 0px)); right: calc(14px + var(--safe-right, 0px));
+  width: min(174px, 30vw); min-width: 168px; padding: 10px 13px;
+  color: var(--ink); background-image: linear-gradient(rgba(8, 19, 12, .52), rgba(8, 19, 12, .52)),
+    linear-gradient(120deg, rgba(255, 207, 107, .3), rgba(106, 151, 107, .16) 58%, rgba(225, 239, 196, .32));
+  border: 1px solid transparent; border-radius: 10px; background-origin: border-box; background-clip: padding-box, border-box;
+  backdrop-filter: blur(6px); z-index: 24; pointer-events: none; visibility: hidden; opacity: 0;
+  transition: opacity .16s ease, visibility .16s ease;
+}
+.sandbox-status.on { visibility: visible; opacity: 1; }
+body.touch-layout-editing .sandbox-status { pointer-events: auto; touch-action: none; cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
+body.touch-layout-editing .sandbox-status.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
+body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; filter: brightness(1.18); }
+@media (max-width: 860px) {
+  .sandbox-status { top: calc(258px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: min(150px, 34vw); min-width: 0; padding: 5px 7px; font-size: 9.5px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .sandbox-status { top: calc(188px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: min(140px, 24vw); }
+}

@@ -4,10 +4,20 @@
  */
 import { Keybinds, ACTIONS, findConflicts } from '../core/keybinds.js';
 import { IS_DEV } from '../core/version.js';
+import { INPUT_MODES } from '../core/input-mode.mjs';
+
+const INPUT_MODE_OPTIONS = [
+  { id: 'auto', name: '自动', desc: '按设备自动判断；手机/平板首次触摸会自动启用触屏。' },
+  { id: 'touch', name: '强制触屏', desc: '始终显示触屏摇杆与动作按钮；桌面端可借此调试触屏布局。' },
+  { id: 'keyboard', name: '强制键鼠', desc: '始终使用键盘 + 鼠标视角，即使设备支持触摸也不切换。' },
+];
 
 export class SettingsUI {
-  constructor(binds) {
+  constructor(binds, touchLayout = null, feedback = null, inputMode = null) {
     this.binds = binds;
+    this.touchLayout = touchLayout;
+    this.feedback = feedback;
+    this.inputMode = inputMode;
     this.el = {
       btn: document.getElementById('setBtn'),
       sheet: document.getElementById('setSheet'),
@@ -49,6 +59,8 @@ export class SettingsUI {
     document.body.classList.remove('settings-open');
     this.capturing = null;
     if (this._onKey) window.removeEventListener('keydown', this._onKey, true);
+    // 关闭设置面板时结束触屏布局拖动编辑（会连带恢复自动暂停的游戏）。
+    if (this.touchLayout?.editing) this.touchLayout.setEditing(false);
   }
 
   /** 进入按键捕获状态 */
@@ -98,6 +110,37 @@ export class SettingsUI {
     }
     html += '</div>';
 
+    if (this.inputMode) {
+      const pref = INPUT_MODES.includes(this.inputMode.preference) ? this.inputMode.preference : 'auto';
+      const effTouch = this.inputMode.isTouch();
+      html += `<section class="input-mode-settings" aria-label="输入模式">
+      <h4>输入模式</h4>
+      <div class="scheme-row input-mode-row">${INPUT_MODE_OPTIONS.map((m) => `
+        <button class="scheme-card ${pref === m.id ? 'cur' : ''}" data-input-mode="${m.id}">
+          <div class="scheme-name">${m.name}</div>
+          <div class="scheme-desc">${m.desc}</div>
+        </button>`).join('')}
+      </div>
+      <p class="input-mode-status">当前生效：<b>${effTouch ? '触屏' : '键鼠'}</b>${
+        pref === 'auto'
+          ? `（自动判定${this.inputMode.runtimeTouch && !this.inputMode.deviceTouch ? ' · 已由首次真实触摸升级' : ''}；切换立即生效）`
+          : '（强制模式，切换立即生效）'
+      }</p>
+    </section>`;
+    }
+
+    // 触屏布局编辑入口只在有效模式为触屏时可用；键鼠模式隐藏整段，不允许编辑浮动触控控件。
+    const touchEffective = this.inputMode ? this.inputMode.isTouch() : true;
+    if (this.touchLayout && touchEffective) {
+      const adjustOn = !!this.touchLayout.adjustEnabled;
+      html += `<section class="touch-adjust-settings" aria-label="触屏布局调整开关">
+      <h4>触屏布局调整</h4>
+      <label class="touch-adjust-toggle"><input type="checkbox" id="touchAdjustToggle"${adjustOn ? ' checked' : ''}> 启用触屏布局调整</label>
+      <p>默认关闭：关闭时游戏画面上的“编辑”按钮和下方的拖动编辑入口都会隐藏。打开后进入调整会自动暂停游戏，退出调整自动继续。</p>
+    </section>`;
+      html += this.touchLayout.settingsMarkup();
+    }
+
     // 冲突提示
     const conflicts = findConflicts(b.scheme === 'custom' ? b.custom : b.map);
     if (conflicts.size) {
@@ -134,6 +177,7 @@ export class SettingsUI {
     if (b.scheme === 'custom') {
       html += '<div class="set-actions"><button class="ghost-btn" id="resetBinds">恢复默认键位</button></div>';
     }
+    if (this.feedback) html += '<div class="set-actions"><button class="ghost-btn" id="settingsFeedback">问题反馈 / 反馈建议</button></div>';
 
     this.el.body.innerHTML = html;
 
@@ -149,5 +193,13 @@ export class SettingsUI {
     });
     const rb = this.el.body.querySelector('#resetBinds');
     if (rb) rb.onclick = () => this.binds.resetCustom();
+    const fb = this.el.body.querySelector('#settingsFeedback');
+    if (fb) fb.onclick = () => this.feedback.open();
+    this.el.body.querySelectorAll('[data-input-mode]').forEach((el) => {
+      el.onclick = () => { this.inputMode?.setPreference(el.dataset.inputMode); this.render(); };
+    });
+    const adjustToggle = this.el.body.querySelector('#touchAdjustToggle');
+    adjustToggle?.addEventListener('change', () => this.touchLayout.setAdjustEnabled(adjustToggle.checked));
+    this.touchLayout?.bindSettings(this.el.body);
   }
 }

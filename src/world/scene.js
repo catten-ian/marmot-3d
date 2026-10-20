@@ -33,6 +33,12 @@ export class Sky {
     scene.add(this.sun);
     scene.add(this.sun.target);
 
+    // 进洞暗化：记录地表基准光强，setUnderground(k) 按 k∈[0,1] 压暗。
+    this._baseHemi = this.hemi.intensity;
+    this._baseAmbient = this.ambient.intensity;
+    this._baseSun = this.sun.intensity;
+    this._underground = 0;
+
     this._buildDome();
     this._buildTerrain();
 
@@ -273,6 +279,23 @@ const segX = 200, segZ = 170;
     }
     colors.needsUpdate = true;
     this.hills.children.forEach((m) => m.material.color.set(cfg.fog).multiplyScalar(1.12));
+    // 关卡基准光强随关卡变化，刷关卡时重置并重新应用进洞压暗。
+    this._baseHemi = this.hemi.intensity;
+    this._baseAmbient = this.ambient.intensity;
+    this._baseSun = this.sun.intensity;
+    this._applyUnderground();
+  }
+
+  /** k=0 地表 / k=1 洞内：压暗半球光与平行光，洞内只留 burrow 自带暖光。 */
+  setUnderground(k) {
+    this._underground = THREE.MathUtils.clamp(k, 0, 1);
+    this._applyUnderground();
+  }
+  _applyUnderground() {
+    const k = this._underground;
+    this.hemi.intensity = this._baseHemi * (1 - 0.88 * k);
+    this.ambient.intensity = this._baseAmbient * (1 - 0.9 * k);
+    this.sun.intensity = this._baseSun * (1 - 0.96 * k);
   }
 
   /** 阴影相机跟随玩家，保证近处阴影清晰；天穹云随时间漂移 */

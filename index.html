@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-touch-adjust-enabled="false">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
@@ -9,7 +9,7 @@
 <link rel="icon" href="./assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="./assets/favicon-192.png">
 <meta name="theme-color" content="#101a15">
-<link rel="stylesheet" href="./styles.css?v=m20261020d">
+<link rel="stylesheet" href="./styles.css?v=m20261021a">
 <script type="importmap">
 { "imports": {
     "three": "./vendor/three.module.js",
@@ -69,6 +69,7 @@
 
 <!-- ========== 左下：战斗数值 ========== -->
 <div class="hud-left">
+  <button class="hud-details-btn" id="hudDetailsBtn" type="button" aria-expanded="false" aria-controls="combatInfo" title="展开详细状态">详情</button>
   <div class="combatbar" id="combatInfo"></div>
   <div class="power-panel">
     <span id="ultimateStatus"></span>
@@ -86,7 +87,7 @@
   <div class="objective" id="objective"></div>
 </div>
 
-<!-- 沙盒专用状态卡：与普通关卡目标卡分离。 -->
+<!-- 沙盒专用状态卡：与普通关卡目标卡分离，布局归入 cards 命名空间。 -->
 <div class="sandbox-status" id="sandboxStatus" aria-hidden="true">
   <div class="obj-title">沙盒状态</div>
 </div>
@@ -113,22 +114,28 @@
 
 <!-- 触屏操作层：仅粗指针设备显示；左右分区支持同时移动与转向。 -->
 <div id="touchControls" class="touch-controls" aria-label="触屏游戏控制">
+  <i id="touchSafeInsets" aria-hidden="true"></i>
   <div id="touchLookZone" class="touch-look-zone" aria-label="拖动以转动视角">
     <span>右侧拖动视角</span>
   </div>
-  <div id="touchJoystick" class="touch-joystick" role="application" aria-label="虚拟摇杆：移动">
+  <div id="touchJoystick" class="touch-joystick" role="application" aria-label="虚拟摇杆：只管移动，推过疾跑环自动疾跑">
+    <i class="stick-sprint-ring" aria-hidden="true"></i>
     <div class="touch-stick" id="touchStick"></div>
     <span>移动</span>
   </div>
   <button class="touch-pause" type="button" data-touch-action="pause" aria-label="暂停游戏">Ⅱ</button>
   <div class="touch-actions" aria-label="动作按钮">
-    <button type="button" data-touch-action="attack" aria-label="按住攻击"><b>爪</b><small>攻击</small></button>
-    <button type="button" data-touch-action="sprint" aria-label="按住疾行"><b>⇧</b><small>疾行</small></button>
+    <button type="button" class="touch-btn attack" data-touch-action="attack" data-swipe-preview="" data-swipe-fired="" aria-label="攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚">
+      <span class="attack-swipe-ring" aria-hidden="true"><i class="attack-swipe-hint parry">← 迎击</i><i class="attack-swipe-hint roll">翻滚 →</i></span>
+      <span class="attack-core" aria-hidden="true"></span><b>爪</b><small>攻击</small>
+    </button>
+    <button type="button" data-touch-action="dodge" aria-label="翻滚：拖动可朝拖动方向滚动，或按轮盘方向"><b>⟳</b><small>翻滚</small></button>
     <button type="button" data-touch-action="jump" aria-label="跳跃"><b>↟</b><small>跳跃</small></button>
     <button type="button" data-touch-action="interact" aria-label="救援或陪伴"><b>✦</b><small>交互</small></button>
-    <button type="button" data-touch-action="burst" aria-label="应急爆发"><b>J</b><small>爆发</small></button>
-    <button type="button" data-touch-action="ultimate" aria-label="协同大招"><b>K</b><small>大招</small></button>
+    <button type="button" data-touch-action="burst" aria-label="应急爆发"><b>J</b><small>爆发</small><span class="cooldown-overlay"><em></em></span></button>
+    <button type="button" data-touch-action="ultimate" aria-label="协同大招"><b>K</b><small>大招</small><span class="cooldown-overlay"><em></em></span></button>
   </div>
+  <button class="touch-layout-entry" id="touchLayoutEntry" type="button" aria-pressed="false" data-touch-adjust="entry">编辑</button>
 </div>
 
 <!-- ========== 加载 ========== -->
@@ -180,9 +187,12 @@
 <div class="help-sheet" id="helpSheet" hidden>
   <h3>操作说明</h3>
   <div class="keys">
+    <span class="touch-help"><kbd>触屏</kbd> 左侧摇杆移动 · 右侧拖动视角 · 屏幕按钮执行动作</span>
     <span><kbd>鼠标</kbd> 视角</span>
     <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span>
-    <span><kbd>左键</kbd> / <kbd>空格</kbd> 攻击（可按住）</span>
+    <span><kbd>左键</kbd> / <kbd>空格</kbd> 攻击（短按/松手=推击；地面按住约0.65秒后松手=扑击，蓄满自动扑出；空中短按=较弱扑击；按住左滑=迎击）</span>
+    <span><kbd>中键</kbd> / <kbd>B</kbd> 迎击（空中会在快落地时出手）</span>
+    <span><kbd>G</kbd> / 触屏<b>翻滚</b> 短暂无敌：右侧翻滚键可拖动定向；攻击键按住向右滑也能立即翻滚</span>
     <span><kbd>J</kbd> 应急爆发</span>
     <span><kbd>K</kbd> 蓄满后的大招</span>
     <span><kbd>E</kbd> 救援 / 陪伴</span>
@@ -191,8 +201,9 @@
     <span><kbd>P</kbd> 暂停　<kbd>T</kbd> 重试本关</span>
     <span><kbd>R</kbd> 从第一关重开　<kbd>Esc</kbd> 释放鼠标</span>
   </div>
-  <p class="note">洞穴内不能攻击。完成<b>采食 + 驱退 + 伙伴到家</b>后回洞，自动进入下一关。<br>
+  <p class="note">洞穴内不能攻击。完成<b>采食 + 伙伴到家</b>后回洞，自动进入下一关。<br>
   <b>奔跑时会自动俯身冲刺，停下则起身</b> —— 起身比趴下稍慢，就像真的在用四肢撑起身体。<br>
+  攻击只有<b>三种招式</b>：<b>推击</b>（地面短按或快速松手，站立/奔跑都可连续出招；站立高击退、奔跑伤害高）、<b>迎击</b>（按住攻击键<b>向左滑</b>，站/跑皆可；仅在狐狸<b>正在冲刺命中</b>的短暂窗口内正面相抵才算成功——狐狸空闲/蓄力、出手过早或过晚都不算，成功则无伤反打）、<b>扑击</b>（地面<b>按住约0.65秒后松手</b>即扑出，蓄满1.5秒自动扑出，<b>不再需要奔跑</b>；<b>空中短按</b>则是伤害较低的弱化扑击）；地面按住不足0.65秒松手仍是推击，没有第四招。<b>翻滚</b>是移动动作不是攻击：键盘 <b>G</b> 或右侧独立<b>翻滚键</b>，点按按<b>轮盘推动方向</b>滚出（未推杆则朝身后），在翻滚键上<b>按住拖动</b>可朝手指方向滚；在攻击键上<b>按住向右滑</b>也会立即朝滑动方向翻滚一次。沙盒里可开<b>迎击练习</b>专项训练。<br>
   被困伙伴会周期性<b>呼救</b>，屏幕边缘的<b>绿色箭头</b>指向它；红色箭头则是正在逼近的藏狐。</p>
   <button class="primary" id="helpClose">知道了</button>
 </div>
@@ -209,9 +220,13 @@
 <div id="backendTag" class="backend-tag hidden"></div>
 
 <!--
-  引导层保留旧 GS 诊断路径的 WebGPU 探测；正常 dev 版使用本地 Verdant GLB，
-  由 main.js 的 dev-only loader 直接走 WebGL2。main.js 使用顶层 await，
-  因此这里统一通过动态 import 放行。稳定版不需要 WebGPU，引导层会立刻放行，开销可忽略。
+  引导层：dev 版（GS 全场景）必须**异步**创建 WebGPURenderer
+  （要 await renderer.init()），而 main.js 是同步的顶层 ES 模块。
+  所以这里用一个轻量引导脚本先探测能力，把结果挂到 window.__boot，
+  再动态 import main.js —— 这样 main.js 就能同步地读取结果，
+  不必把整个游戏改写成异步。
+
+  稳定版不需要 WebGPU，引导层会立刻放行，开销可忽略。
 -->
 <script type="module">
 import { devOn, FORCE_WEBGL, GS_OVERRIDE } from './src/core/version.js';
@@ -274,7 +289,7 @@ const watchdog = setTimeout(() => {
 }, WATCHDOG_MS);
 
 try {
-  await import('./src/main.js?v=m20261020e');
+  await import('./src/main.js?v=m20261021a');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
   clearTimeout(watchdog);
@@ -284,5 +299,6 @@ try {
   bootFail('模块加载失败', String((err && err.message) || err));
 }
 </script>
+<script src="./version-switch.js?v=mvs2" data-current="stable"></script>
 </body>
 </html>

@@ -15,11 +15,43 @@
  */
 
 import * as THREE from 'three';
-import { FOX, ROCKS, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
+import { FOX, ROCKS, BURROW_AI, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
 import { IS_DEV, USE_REAL_FOX_MODEL } from '../core/version.js';
 import { clamp } from '../core/utils.js';
+import { createProceduralFox } from './procedural-fox.js';
+import { createTibetanFox } from './tibetan-fox.js';
+import { foxRecoverySeconds, stepFoxTurn, stepFoxRecovery } from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
+/** 手搓程序化狐狸：config 开关，或 beta 用 ?procfox=1 临时启用对比；默认仍走现有模型 */
+const USE_PROCEDURAL_FOX = FOX.useProcedural
+  || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('procfox') === '1');
+// 高保真程序化藏狐（img2threejs 工程产物，自包含）：默认用于 normal/pup，
+// 可用 ?hififox=off 临时关闭回退旧外观。
+const HIFI_FOX_OFF = typeof location !== 'undefined'
+  && new URLSearchParams(location.search).get('hififox') === 'off';
+const USE_HIFI_FOX = !HIFI_FOX_OFF;
+
+/**
+ * 把 img2threejs 藏狐模型归一化到游戏尺度并接地。
+ * 原始模型高约 2.3、长约 4.5（鼻尖 +Z、尾 -Z、耳尖 +Y，脚掌约 y=0.1），
+ * 与实体 yaw（yaw=0 朝 +Z）同向，故无需额外前向旋转；只需缩放到目标高并把脚掌放到 0。
+ */
+function buildHiFiTibetanFox() {
+  const wrap = new THREE.Group();
+  const fox = createTibetanFox();
+  let box;
+  fox.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(fox);
+  const h = Math.max(0.001, box.max.y - box.min.y);
+  const s = FOX_TARGET_HEIGHT / h;
+  wrap.scale.setScalar(s);
+  fox.position.y -= box.min.y; // 脚掌接地
+  fox.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; o.frustumCulled = true; } });
+  wrap.add(fox);
+  wrap.name = 'hifi-tibetan-fox';
+  return wrap;
+}
 /** 真实藏狐模型的基准缩放：让成体在游戏里约 1.0m 高（与土拨鼠同量级） */
 const FOX_MODEL_BASE = 1.05;
 const SEGMENTED_FOX_MODEL = IS_DEV
@@ -27,7 +59,8 @@ const SEGMENTED_FOX_MODEL = IS_DEV
 const FOX_MODEL_PATH = SEGMENTED_FOX_MODEL
   ? './assets/models/fox-segmented.glb'
   : './assets/models/fox.glb';
-const FOX_MODEL_UP_AXIS = SEGMENTED_FOX_MODEL ? 'z' : 'y';
+// 两个资产的原始前向都是局部 -X；旋转 +90° Y 后与实体 yaw 的局部 +Z 对齐。
+const FOX_MODEL_HEADING = Math.PI / 2;
 
 /**
  * 真实藏狐归一化后的**目标高度**（米，容器内单位）。
@@ -70,6 +103,8 @@ const TYPE_FUR = {
 
 export class Fox {
   constructor(scene, x, z, type, level, slot, opts = {}) {
+    // The game now has one real species; normalize legacy callers as well as campaign spawns.
+    type = 'normal';
     this.type = type;
     this.level = level;
     this.slot = slot;
@@ -92,12 +127,16 @@ export class Fox {
     this._runCycle = Math.random() * Math.PI * 2;
     this._runAmount = 0;
     this._segmentAnimation = null;
+    this._proceduralFox = null;
     this._disposed = false;
     this.dead = false;
     this.isSandboxDummy = !!opts.sandboxDummy;
     this.dummyDefeatable = opts.dummyDefeatable !== false;
     this.dummyNoHitTimer = 0;
     if (this.isSandboxDummy) this.state = 'dummy';
+    this._lastSafe = false;
+    this.alertCooldown = 0;
+    this.lingerBurrow = null;
 
     // —— 攻击模式档案 ——
     // 不同类型的藏狐走完全不同的攻击分支（见 update 的状态机），
@@ -121,6 +160,9 @@ export class Fox {
     this.leap = 0;              // 跃扑腾空高度（0 = 未起跳）
     this.dashDirX = 0;
     this.dashDirZ = 1;
+    this.turnVelocity = 0;
+    this.dashVX = 0;
+    this.dashVZ = 0;
 
     // 驱退（逃跑）状态
     this.fleeing = false;
@@ -142,14 +184,29 @@ export class Fox {
     //   而日志里一条错误都没有（模型确实加载成功了）。
     //   现在两套模型是**兄弟**：藏程序化不影响真实模型。
     this.mesh = new THREE.Group();
-    this.proceduralMesh = buildFoxMesh(type, 1);
-    this.mesh.add(this.proceduralMesh);
+    // 高保真程序化藏狐（img2threejs）：默认作为藏狐外观，旧外观作为回退。
+    this.hiFiMesh = null;
+    if (USE_HIFI_FOX) {
+      this.hiFiMesh = buildHiFiTibetanFox();
+      this.mesh.add(this.hiFiMesh);
+      this.proceduralMesh = buildFoxMesh(type, 1);
+      this.proceduralMesh.visible = false;
+      this.mesh.add(this.proceduralMesh);
+    } else if (USE_PROCEDURAL_FOX) {
+      this._proceduralFox = createProceduralFox({ color: FOX.proceduralColors[type] ?? FOX.proceduralColors.normal });
+      this.proceduralMesh = this._proceduralFox.group;
+      this.mesh.add(this.proceduralMesh);
+    } else {
+      this.proceduralMesh = buildFoxMesh(type, 1);
+      this.mesh.add(this.proceduralMesh);
+    }
     this.realModel = null;
-    this.modelLevel = 'procedural';
+    this.modelLevel = USE_HIFI_FOX ? 'hifi' : 'procedural';
     this.mesh.position.set(x, 0, z);
     scene.add(this.mesh);
     this.scene = scene;
-    this._loadRealModel();
+    // 高保真模型已足够完整时不再异步加载 GLB（避免两套模型叠加/闪烁）。
+    if (!USE_HIFI_FOX) this._loadRealModel();
 
     // 蓄力预警：地面上的方向指示条（第一人称下比 2D 线条更易读）
     this.warn = buildWarnIndicator();
@@ -160,12 +217,6 @@ export class Fox {
     this.hpBar = buildHpBar();
     this.hpBar.visible = false;
     scene.add(this.hpBar);
-
-    // 临时类型标签独立于血条：每种狐狸都能在头顶快速辨认。
-    this.labelSprite = buildLabelSprite(this.cfg.label || '普通狐', type);
-    this.labelSprite.visible = true;
-    this.labelSprite.scale.set(1.05, 0.34, 1);
-    scene.add(this.labelSprite);
 
     this.baseY = 0;
     this._bob = Math.random() * 6;
@@ -183,7 +234,7 @@ export class Fox {
    // 而日志里看不到任何错误 —— 最难查的一类问题。
    */
   async _loadRealModel() {
-    if (!USE_REAL_FOX_MODEL) return;
+    if (!USE_REAL_FOX_MODEL || USE_PROCEDURAL_FOX) return;
     try {
       const inst = await instantiateFox();
       if (this._disposed) {
@@ -196,8 +247,10 @@ export class Fox {
         this.modelLevel = 'procedural';
         return;
       }
-      // 新分块模型源坐标为 Y-up、头朝 -X；旧资产已烘焙为游戏朝向。
-      const norm = normalizeModel(inst, FOX_TARGET_HEIGHT, { upAxis: FOX_MODEL_UP_AXIS });
+      // 两个 GLB 的几何侧视图都显示头在局部 -X、尾在 +X；
+      // normalizeModel 保留节点原生姿态，统一的 -X → 游戏 +Z 修正只放在 wrap 层。
+      const norm = normalizeModel(inst, FOX_TARGET_HEIGHT, { upAxis: 'native' });
+      norm.wrap.rotation.y = FOX_MODEL_HEADING;
       this.mesh.add(norm.wrap);
       this.realModel = norm.wrap;
       this.modelLevel = inst.userData.level || 'full';
@@ -282,7 +335,7 @@ export class Fox {
   _prepareSegmentedFox(source) {
     const inner = this.realModel.children[0];
     const sourceHeading = new THREE.Group();
-    sourceHeading.rotation.y = Math.PI / 2;
+    // 模型前向修正已统一放在外层 wrap（FOX_MODEL_HEADING），内层不再额外旋转。
     while (inner.children.length) sourceHeading.add(inner.children[0]);
     inner.add(sourceHeading);
 
@@ -335,6 +388,12 @@ export class Fox {
   }
 
   _updateSegmentedFox(dt, movingSpeed) {
+    if (this._proceduralFox) {
+      const anim = this.state === 'dash' || this.fleeing ? 'dash' : movingSpeed > 0.15 ? 'walk' : 'idle';
+      this._proceduralFox.setAnimState({ anim, speed: movingSpeed || 1, phase: this._runCycle });
+      this._proceduralFox.update(dt);
+      return;
+    }
     if (!this._segmentAnimation) return;
     const { parts } = this._segmentAnimation;
     const target = Math.min(1, Math.max(0, movingSpeed / 2.6));
@@ -367,7 +426,9 @@ export class Fox {
     if (!this.mesh) return;
     // 模型切换不应重置实体生死/逃离可见状态；只切换两套子模型。
     const useReal = !!this.realModel;
-    if (this.proceduralMesh) this.proceduralMesh.visible = !useReal;
+    // 高保真程序化藏狐是默认外观：它与旧程序化模型成对显示；若异步 GLB 成功则隐藏两者。
+    if (this.hiFiMesh) this.hiFiMesh.visible = !useReal;
+    if (this.proceduralMesh) this.proceduralMesh.visible = !useReal && !this.hiFiMesh;
     if (this.realModel) this.realModel.visible = useReal;
   }
 
@@ -388,7 +449,7 @@ export class Fox {
    * 关键：任何模式在**冲刺前**都必须让 warn（预警线）亮起，
    * 且预警线长度 = 真实冲刺距离，否则玩家无法应对（详见 buildWarnIndicator）。
    */
-  update(dt, p, safe, levelCfg, burrow, terrainAt) {
+  update(dt, p, safe, levelCfg, burrows, terrainAt, currentBurrow = null) {
     if (this.isSandboxDummy) {
       stepSandboxDummyRecovery(this, dt);
       this.knockbackVX = this.knockbackVZ = 0;
@@ -399,10 +460,16 @@ export class Fox {
       this.mesh.visible = this.hp > 0;
       this.warn.visible = false;
       this.baseY = terrainAt(this.x, this.z);
-      this._applyTransform(dt, terrainAt);
+      this.mesh.position.set(this.x, this.baseY, this.z);
+      this.mesh.rotation.set(0, this.yaw, 0);
+      this.mesh.scale.setScalar(this.cfg.scale * FOX_MODEL_BASE);
+      this.hpBar.position.set(this.x, this.baseY + 1.55 * this.cfg.scale, this.z);
+      this._updateHpBar();
       this.hpBar.visible = this.hp > 0 && this.hp < this.maxHp;
       return;
     }
+
+    const allBurrows = Array.isArray(burrows) ? burrows : (burrows ? [burrows] : []);
     const previousX = this.x, previousZ = this.z;
     const y = terrainAt(this.x, this.z);
     this.baseY = y;
@@ -456,6 +523,15 @@ export class Fox {
     }
     this.mesh.rotation.z = 0;
 
+    this.alertCooldown = Math.max(0, this.alertCooldown - dt);
+    if (safe && !this._lastSafe) {
+      this.lingerBurrow = currentBurrow || allBurrows.reduce((best, b) => !best || Math.hypot(this.x - b.x, this.z - b.z) < Math.hypot(this.x - best.x, this.z - best.z) ? b : best, null);
+      this._enterLinger(this.lingerBurrow);
+    } else if (!safe && this._lastSafe) {
+      this.alertCooldown = BURROW_AI.exitMemory;
+    }
+    this._lastSafe = safe;
+
     const dx = p.x - this.x, dz = p.z - this.z;
     const d = Math.hypot(dx, dz);
     const A = this.attack;                 // 攻击档案（config.FOX_ATTACKS）
@@ -466,37 +542,73 @@ export class Fox {
     const leapT = A.mode === 'leap' ? 0.22 : 0;
     this.dashTime = A.dashTime + leapT;
 
-    // 迎击练习：引导练习狐站到玩家正前方，直线蓄力冲刺。
+    // —— 迎击练习：绕到玩家正前方，直线蓄力冲刺，不绕行/不虚晃 ——
+    // dash 状态故意不拦截：交给下方正常 switch 的 dash 分支执行冲刺位移与结束转换。
     if (this.drillCtx && this.state !== 'dash') {
       const pyaw = this.drillCtx.yaw || 0;
-      const tx = this.drillCtx.px + (-Math.sin(pyaw)) * 7;
-      const tz = this.drillCtx.pz + (-Math.cos(pyaw)) * 7;
+      // 玩家正前方 7m 处的站位（玩家朝 -sin,-cos）。
+      const standDist = 7;
+      const tx = this.drillCtx.px + (-Math.sin(pyaw)) * standDist;
+      const tz = this.drillCtx.pz + (-Math.cos(pyaw)) * standDist;
       const ddx = tx - this.x, ddz = tz - this.z;
       const dd = Math.hypot(ddx, ddz);
+      const facingPlayer = Math.atan2(p.x - this.x, p.z - this.z);
       if (this.state === 'wind') {
         this.timer -= dt;
-        this.yaw = Math.atan2(p.x - this.x, p.z - this.z);
+        const turn = stepFoxTurn(this.yaw, facingPlayer, this.turnVelocity, dt,
+          FOX.handling.windTurnRate, FOX.handling.windTurnAccel);
+        this.yaw = turn.yaw; this.turnVelocity = turn.turnVelocity;
         if (this.timer <= 0) this._beginDash();
       } else if (dd > 1.4) {
-        this.state = 'roam';
-        this.warn.visible = false;
-        this._moveGround(ddx, ddz, Math.min(speed * 1.05, 5.2), dt, burrow);
-        this.yaw = Math.atan2(p.x - this.x, p.z - this.z);
+        // 走到正前方站位（roam/circle/其他态都被引导过去）。
+        this.state = 'roam'; this.warn.visible = false;
+        this._moveGround(ddx, ddz, Math.min(speed * 1.05, 5.2), dt, allBurrows);
+        this.yaw = stepFoxTurn(this.yaw, facingPlayer, this.turnVelocity, dt,
+          FOX.handling.windTurnRate, FOX.handling.windTurnAccel).yaw;
       } else {
+        // 到位：短延迟后直线蓄力。
         this.state = 'wind';
         this.warn.visible = true;
         this.windTotal = Math.max(0.55, (levelCfg.wind ?? 0.9) * 0.7);
         this.timer = this.windTotal;
         this.lureChance = 0;
       }
+      // 练习狐不进入 linger/flee/circle；下方 switch 只允许 wind/dash，其余帧已在此处理。
       this.warn.visible = this.state === 'wind';
-      this._updateWarn();
+      if (this.state === 'wind') this._updateWarn(terrainAt); else this.warn.visible = false;
+      this._updateSegmentedFox(dt, this.state === 'dash' ? 1 : 0);
       this._applyTransform(dt, terrainAt);
       this._updateHpBar();
       return;
     }
 
     switch (this.state) {
+      case 'linger': {
+        this.timer -= dt;
+        const b = this.lingerBurrow;
+        if (b) {
+          const a = Math.atan2(this.x - b.x, this.z - b.z) + Math.sin(this.timer * 2.2) * 0.7;
+          const radius = b.r + BURROW_AI.lingerRadius;
+          const tx = b.x + Math.sin(a) * radius, tz = b.z + Math.cos(a) * radius;
+          this._moveGround(tx - this.x, tz - this.z, Math.min(2.2, speed), dt, allBurrows);
+        }
+        this.warn.visible = false;
+        if (this.timer <= 0) {
+          this.state = 'abandon';
+          const b2 = this.lingerBurrow;
+          if (b2) { const a = Math.atan2(this.x - b2.x, this.z - b2.z); this.leaveVX = Math.sin(a); this.leaveVZ = Math.cos(a); this.leaveX = b2.x + this.leaveVX * (b2.r + BURROW_AI.leaveDistance); this.leaveZ = b2.z + this.leaveVZ * (b2.r + BURROW_AI.leaveDistance); }
+          this.lingerBurrow = null;
+          this.alertCooldown = BURROW_AI.exitMemory;
+        }
+        break;
+      }
+      case 'abandon': {
+        const dxLeave = (this.leaveX ?? this.x) - this.x, dzLeave = (this.leaveZ ?? this.z) - this.z;
+        const distLeave = Math.hypot(dxLeave, dzLeave);
+        if (distLeave < 2) { this.state = 'roam'; this.leaveX = this.leaveZ = null; break; }
+        this._moveGround(dxLeave, dzLeave, Math.min(speed, 4.2), dt, allBurrows);
+        break;
+      }
       // ---------- 蓄力：预警线亮起，朝玩家缓慢修正 ----------
       case 'wind': {
         this.timer -= dt;
@@ -518,7 +630,10 @@ export class Fox {
           }
           this.lured = true;
         }
-        this.yaw = this._angleLerp(this.yaw, a, dt * 3.2);
+        const turn = stepFoxTurn(this.yaw, a, this.turnVelocity, dt,
+          FOX.handling.windTurnRate, FOX.handling.windTurnAccel);
+        this.yaw = turn.yaw;
+        this.turnVelocity = turn.turnVelocity;
         if (this.timer <= 0) this._beginDash();
         break;
       }
@@ -537,7 +652,7 @@ export class Fox {
         const moveZ = Math.cos(ang) * tangent + (dz / (d || 1)) * inward;
         // 定长切向移动，避免侧向+径向合成后速度随角度忽快忽慢；
         // 导航器会对场地边缘、洞穴和岩石做轻量绕行。
-        this._moveGround(moveX, moveZ, speed, dt, burrow);
+        this._moveGround(moveX, moveZ, speed, dt, allBurrows);
         if (this.timer <= 0) this._enterWind();
         break;
       }
@@ -549,13 +664,18 @@ export class Fox {
         // 所以必须**每帧重算方向**，而不是像原版那样在开始时锁定一次。
         if (A.turnRate > 0) {
           const a = Math.atan2(dx, dz);
-          this.yaw = this._angleLerp(this.yaw, a, dt * A.turnRate);
+          const turn = stepFoxTurn(this.yaw, a, this.turnVelocity, dt,
+            Math.min(FOX.handling.maxTurnRate, A.turnRate || 0), FOX.handling.turnAccel);
+          this.yaw = turn.yaw;
+          this.turnVelocity = turn.turnVelocity;
           this.dashDirX = Math.sin(this.yaw);
           this.dashDirZ = Math.cos(this.yaw);
         }
         const v = FOX.dashSpeed * (A.dashSpeedMul || 1);
-        this.x += this.dashDirX * v * dt;
-        this.z += this.dashDirZ * v * dt;
+        this.dashVX = this.dashDirX * v;
+        this.dashVZ = this.dashDirZ * v;
+        this.x += this.dashVX * dt;
+        this.z += this.dashVZ * dt;
 
         // 跃扑：冲刺中腾空，扑击范围更大但落地后有硬直
         if (A.mode === 'leap') {
@@ -585,7 +705,7 @@ export class Fox {
             this.state = 'rest';
             // 跃扑落地有 0.9s 硬直：给玩家一个明确的反击窗口，
             // 否则幼狐会变成"扑完立刻再蓄力"的无解压制。
-            this.timer = A.mode === 'leap' ? 0.9 : (this.type === 'fast' ? 0.62 : 1);
+            this.timer = foxRecoverySeconds(this.type, A.mode);
           }
         }
         break;
@@ -594,19 +714,26 @@ export class Fox {
       // ---------- 喘息 ----------
       case 'rest': {
         this.timer -= dt;
-        const moveX = Math.sin(this._bob + performance.now() * 0.002) * 0.4;
-        if (Math.abs(moveX) > 0.04) this._moveGround(Math.sign(moveX), 0, Math.abs(moveX), dt, burrow);
-        if (this.timer <= 0) this.state = 'roam';
+        // 冲刺后保留惯性并以较低摩擦滑行；恢复时不转向、不攻击，只能沿冲刺方向
+        // 慢慢挪动。边界和岩石仍在本帧后续统一约束（避让全部洞穴）。
+        const sway = Math.sin(this._bob + performance.now() * 0.002) * 0.16;
+        this.x += this.dashVX * dt + Math.cos(this.yaw) * sway * dt;
+        this.z += this.dashVZ * dt - Math.sin(this.yaw) * sway * dt;
+        const recovery = stepFoxRecovery(this.timer, this.dashVX, this.dashVZ, dt);
+        this.timer = recovery.timer;
+        this.dashVX = recovery.vx;
+        this.dashVZ = recovery.vz;
+        this.state = recovery.state;
         break;
       }
 
       // ---------- 游荡 / 索敌 ----------
       default: {
-        if (safe || d > FOX.roamRange) {
+        if (safe || this.alertCooldown > 0 || d > FOX.roamRange) {
           // 游荡：随机漂移，身体平滑朝向实际移动方向。
           const moveX = Math.cos(performance.now() * 0.00035 + this.phase) * 1.1;
           const moveZ = Math.sin(performance.now() * 0.00045 + this.phase) * 0.8;
-          this._moveGround(moveX, moveZ, Math.hypot(moveX, moveZ), dt, burrow);
+          this._moveGround(moveX, moveZ, Math.hypot(moveX, moveZ), dt, allBurrows);
           break;
         }
         if (d < FOX.windRange) {
@@ -630,7 +757,7 @@ export class Fox {
             ? Math.sin(performance.now() * 0.001 + this.phase) * 0.65
             : 0;
           const a = Math.atan2(dx, dz) + wobble;
-          this._moveGround(Math.sin(a), Math.cos(a), speed, dt, burrow);
+          this._moveGround(Math.sin(a), Math.cos(a), speed, dt, allBurrows);
         }
         break;
       }
@@ -648,17 +775,20 @@ export class Fox {
 
     // 藏狐不穿过岩石或洞穴安全区。逐帧推出可处理冲刺碰撞，
     // 平常移动则提前转向，避免旧逻辑只在最后硬夹坐标造成卡边/瞬移。
-    this._resolveObstacleOverlaps(burrow);
+    this._resolveObstacleOverlaps(allBurrows);
 
     const movedX = this.x - previousX, movedZ = this.z - previousZ;
     const movingSpeed = Math.hypot(movedX, movedZ) / Math.max(dt, 1e-4);
-    if (movingSpeed > 0.05 && !['wind', 'dash'].includes(this.state)) {
+    if (movingSpeed > 0.05 && !['wind', 'dash', 'rest'].includes(this.state)) {
       const actualHeading = Math.atan2(movedX, movedZ);
-      this.yaw = this._angleLerp(this.yaw, actualHeading, Math.min(1, dt * 10));
+      const turn = stepFoxTurn(this.yaw, actualHeading, this.turnVelocity, dt,
+        FOX.handling.windTurnRate, FOX.handling.windTurnAccel);
+      this.yaw = turn.yaw;
+      this.turnVelocity = turn.turnVelocity;
     }
     this._updateSegmentedFox(dt, movingSpeed);
     this._applyTransform(dt, terrainAt);
-    this._updateWarn();
+    this._updateWarn(terrainAt);
     this._updateHpBar();
   }
 
@@ -666,7 +796,7 @@ export class Fox {
    * 非攻击移动的轻量局部导航：保持设计速度，同时绕开静态岩石、洞穴和场地边缘。
    * 冲刺仍锁定预警方向；若冲刺确实撞上障碍，由 _resolveObstacleOverlaps 结束冲刺。
    */
-  _moveGround(wantX, wantZ, speed, dt, burrow) {
+  _moveGround(wantX, wantZ, speed, dt, burrows) {
     const wantedLen = Math.hypot(wantX, wantZ);
     if (wantedLen < 1e-5 || speed <= 0 || dt <= 0) return;
     let vx = wantX / wantedLen, vz = wantZ / wantedLen;
@@ -684,10 +814,7 @@ export class Fox {
       const [x, z] = scalePoint(rock);
       return { x, z, r: scaleRadius(rock[2]) + 0.72 * this.cfg.scale };
     });
-    if (burrow) {
-      const [bx, bz] = scalePoint([burrow.x, burrow.z]);
-      rocks.push({ x: bx, z: bz, r: scaleRadius(burrow.r) + 2.5 });
-    }
+    for (const burrow of (Array.isArray(burrows) ? burrows : burrows ? [burrows] : [])) rocks.push({ x: burrow.x, z: burrow.z, r: burrow.r + 2.5 });
     for (let i = 0; i < rocks.length; i++) {
       const obstacle = rocks[i];
       const ox = this.x - obstacle.x, oz = this.z - obstacle.z;
@@ -720,28 +847,27 @@ export class Fox {
 
     this.x += vx * speed * dt;
     this.z += vz * speed * dt;
-    this.yaw = Math.atan2(vx, vz);
+    if (!['dash', 'rest'].includes(this.state)) this.yaw = this._angleLerp(this.yaw, Math.atan2(vx, vz), dt * 3);
   }
 
   _stopDashAtObstacle() {
     if (this.state !== 'dash') return;
     this.state = 'rest';
-    this.timer = Math.max(this.timer, 0.45);
+    this.timer = Math.max(this.timer, FOX.recovery.blocked);
+    this.dashVX = 0;
+    this.dashVZ = 0;
     this.leap = 0;
     this.warn.visible = false;
   }
 
-  _resolveObstacleOverlaps(burrow) {
+  _resolveObstacleOverlaps(burrows) {
     const bounds = roamBounds();
     let blockedDash = false;
     const obstacles = ROCKS.map((rock) => {
       const [x, z] = scalePoint(rock);
       return { x, z, r: scaleRadius(rock[2]) + 0.72 * this.cfg.scale };
     });
-    if (burrow) {
-      const [bx, bz] = scalePoint([burrow.x, burrow.z]);
-      obstacles.push({ x: bx, z: bz, r: scaleRadius(burrow.r) + 2.5 });
-    }
+    for (const burrow of (Array.isArray(burrows) ? burrows : burrows ? [burrows] : [])) obstacles.push({ x: burrow.x, z: burrow.z, r: burrow.r + 2.5 });
     for (const obstacle of obstacles) {
       let dx = this.x - obstacle.x, dz = this.z - obstacle.z;
       let dist = Math.hypot(dx, dz);
@@ -752,11 +878,33 @@ export class Fox {
       }
       this.x = obstacle.x + dx / dist * obstacle.r;
       this.z = obstacle.z + dz / dist * obstacle.r;
+      if (this.state === 'rest') {
+        const nx = dx / dist, nz = dz / dist;
+        const inward = this.dashVX * nx + this.dashVZ * nz;
+        if (inward < 0) {
+          this.dashVX -= nx * inward;
+          this.dashVZ -= nz * inward;
+        }
+      }
       blockedDash = true;
     }
     this.x = clamp(this.x, -bounds.hw, bounds.hw);
     this.z = clamp(this.z, -bounds.hh, bounds.hh);
+    if (this.x <= -bounds.hw + 1e-6 && this.dashVX < 0) this.dashVX = 0;
+    if (this.x >= bounds.hw - 1e-6 && this.dashVX > 0) this.dashVX = 0;
+    if (this.z <= -bounds.hh + 1e-6 && this.dashVZ < 0) this.dashVZ = 0;
+    if (this.z >= bounds.hh - 1e-6 && this.dashVZ > 0) this.dashVZ = 0;
     if (blockedDash) this._stopDashAtObstacle();
+  }
+
+  _enterLinger(burrow) {
+    if (!burrow) return;
+    this.state = 'linger';
+    this.timer = burrow.type === 'base' ? BURROW_AI.lingerBase : BURROW_AI.lingerShelter;
+    this.comboActive = false;
+    this.comboLeft = 0;
+    this.leap = 0;
+    this.warn.visible = false;
   }
 
   /** 进入蓄力：记录完整蓄力时长并点亮预警线 */
@@ -772,6 +920,7 @@ export class Fox {
   _beginDash() {
     const wasCombo = this.comboActive;
     this.state = 'dash';
+    this.turnVelocity = 0;
     this.timer = this.dashTime;
     this.dashDirX = Math.sin(this.yaw);
     this.dashDirZ = Math.cos(this.yaw);
@@ -829,12 +978,6 @@ export class Fox {
     this.fleeTime += dt;
     this.mesh.position.set(this.x, terrainAt(this.x, this.z), this.z);
     this.mesh.rotation.y = this.fleeYaw;
-    this.labelSprite.visible = true;
-    this.labelSprite.position.set(
-      this.x,
-      terrainAt(this.x, this.z) + FOX_TARGET_HEIGHT * FOX_MODEL_BASE * this.cfg.scale + 0.28,
-      this.z,
-    );
     // 逃跑时身体压低、四肢急促摆动
     this._bob += dt * 16;
     this.mesh.position.y += Math.abs(Math.sin(this._bob)) * 0.14;
@@ -862,7 +1005,6 @@ export class Fox {
     this.state = 'flee';
     this.warn.visible = false;
     this.hpBar.visible = false;
-    this.labelSprite.visible = false;
     // 沿"远离玩家 + 推向最近边界"的方向跑，避免在原地来回
     const dx = this.x - awayFromX, dz = this.z - awayFromZ;
     const len = Math.hypot(dx, dz) || 1;
@@ -879,14 +1021,9 @@ export class Fox {
   _applyTransform(dt, terrainAt) {
     this.mesh.position.set(this.x, terrainAt(this.x, this.z), this.z);
     this.mesh.rotation.y = this.yaw;
-    this.labelSprite.visible = this.hp > 0;
-    this.labelSprite.position.set(
-      this.x,
-      terrainAt(this.x, this.z) + FOX_TARGET_HEIGHT * FOX_MODEL_BASE * this.cfg.scale + 0.28,
-      this.z,
-    );
     // 奔跑/突进时的身体起伏
     const speedish = this.state === 'dash' ? 12 : this.state === 'roam' ? 2 : 0;
+    this.mesh.rotation.x = this.state === 'rest' ? 0.12 : (this.leap ? -0.34 * Math.min(1, this.leap) : 0);
     this._bob += dt * (2 + speedish);
     this.mesh.position.y += Math.abs(Math.sin(this._bob)) * (speedish > 5 ? 0.16 : 0.05);
     // 跃扑腾空：最高点要明显高于玩家跳跃的 dodgeHeight(0.34)，
@@ -895,8 +1032,6 @@ export class Fox {
       this.mesh.position.y += this.leap;
       // 腾空时前倾，像真的扑出去
       this.mesh.rotation.x = -0.34 * Math.min(1, this.leap);
-    } else if (this.mesh.rotation.x !== 0) {
-      this.mesh.rotation.x = 0;
     }
     // 蓄力时身体后仰下压。真实模型没有内建骨骼动画，用整体 Y 压缩表达"压低身子"，
     // 这对两套模型都成立。
@@ -917,9 +1052,9 @@ export class Fox {
     this.hpBar.position.set(this.x, terrainAt(this.x, this.z) + 1.55 * this.cfg.scale, this.z);
   }
 
-  _updateWarn() {
+  _updateWarn(terrainAt = null) {
     if (!this.warn.visible) return;
-    this.warn.position.set(this.x, this.baseY + 0.06, this.z);
+    this.warn.position.set(this.x, (terrainAt ? terrainAt(this.x, this.z) : this.baseY) + 0.02, this.z);
     this.warn.rotation.y = this.yaw;
     // 长度必须等于**真实冲刺距离**：玩家靠预警线判断"往哪躲、躲多远"，
     // 长度一旦失真，"线到头了但狐还在冲"的失信就无从避免。
@@ -940,10 +1075,9 @@ export class Fox {
   }
 
   _updateHpBar() {
-    // 只有受伤（或本来就是特殊种类）才显示血条/标签，避免画面 clutter
-    const special = !!this.cfg.label;
+    // 只在受伤时显示血条，避免画面 clutter。
     const damaged = this.hp < this.maxHp;
-    if (!damaged && !special) { this.hpBar.visible = false; return; }
+    if (!damaged) { this.hpBar.visible = false; return; }
 
     this.hpBar.visible = true;
     // 血条结构：group(不缩放) → bg 底框 + fill 填充条(userData.fill)。
@@ -956,8 +1090,6 @@ export class Fox {
     fill.position.x = -(1 - ratio) * 0.48; // 填充条宽 0.96，左锚收缩
     fill.position.z = 0.001;
     this.hpBar.lookAt(this.hpBar.position.x, this.hpBar.position.y + 20, this.hpBar.position.z + 0.01);
-    // 特殊种类显示名称，帮玩家记住"哪种毛色对应哪种威胁"
-    if (this.labelSprite) this.labelSprite.visible = this.hp > 0 || this.fleeing;
   }
 
   /** 受击：扣血 + 击退 + 硬直 */
@@ -1035,12 +1167,11 @@ export class Fox {
     scene.remove(this.mesh);
     scene.remove(this.warn);
     scene.remove(this.hpBar);
-    scene.remove(this.labelSprite);
     disposeTree(this.proceduralMesh);
+    disposeTree(this.hiFiMesh);
     disposeTree(this.realModel, { geometry: false, textures: false });
     disposeTree(this.warn);
     disposeTree(this.hpBar);
-    disposeTree(this.labelSprite);
   }
 }
 
@@ -1210,33 +1341,4 @@ function buildHpBar() {
   g.add(fill);
   g.userData.fill = fill;
   return g;
-}
-
-/**
- * 名称标签精灵（Canvas 纹理）。
- * 仅用于特殊种类，让玩家把毛色与威胁类型对应起来；
- * 普通狐没有标签，避免视觉噪音。
- */
-function buildLabelSprite(text) {
-  const c = document.createElement('canvas');
-  const w = 160, h = 64;
-  c.width = w * 2; c.height = h * 2;
-  const g = c.getContext('2d');
-  g.scale(2, 2);
-  g.font = '600 20px "Microsoft YaHei", sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.lineWidth = 4;
-  g.strokeStyle = 'rgba(0,0,0,0.8)';
-  g.strokeText(text, w / 2, h / 2);
-  g.fillStyle = '#f2e8d0';
-  g.fillText(text, w / 2, h / 2);
-  const tex = new THREE.CanvasTexture(c);
-  tex.needsUpdate = true;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: tex, transparent: true, depthTest: false, opacity: 0.92,
-  }));
-  sprite.userData.labelText = text;
-  sprite.renderOrder = 12;
-  return sprite;
 }

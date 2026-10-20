@@ -3,7 +3,7 @@
  * 高度场必须是纯函数式确定性采样，玩家/敌人/植被共用同一套，否则会浮空。
  */
 
-import { BURROW, scaleCoord, scaleRadius } from './config.js';
+import { BURROW, BURROWS, scaleCoord, scaleRadius, scalePoint } from './config.js';
 
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -79,7 +79,7 @@ export function heightSourceName() {
   return _heightField ? 'gs-field' : 'procedural';
 }
 
-export function terrainHeight(x, z) {
+export function baseTerrainHeight(x, z) {
   // 外部高度场优先（GS 版）
   if (_heightField) return _heightField(x, z);
   const rolling = fbm(x * 0.022, z * 0.022, 4) * TERRAIN.amp;
@@ -94,6 +94,24 @@ export function terrainHeight(x, z) {
   const dBurrow = Math.hypot(x - bx, z - bz);
   const flat = smoothstep(clamp((dBurrow - flatInner) / flatSpan, 0, 1));
   return (rolling + detail) * flat;
+}
+
+// 地下洞穴径向下沉系数（0=地表，1=腔底），两段式：
+// d<=opening：1（平的腔室地板）；opening<d<slope：陡壁 smoothstep 回到 0；d>=slope：0。
+// 纯函数放这里，供 terrainHeight 与 world/underground 共用，避免循环依赖与两处不一致。
+export function depressionAt(d, p) {
+  if (d <= p.openingRadius) return 1;
+  if (d >= p.slopeRadius) return 0;
+  const t = (p.slopeRadius - d) / (p.slopeRadius - p.openingRadius);
+  return t * t * (3 - 2 * t);
+}
+
+export function terrainHeight(x, z) {
+  // 外部高度场优先（GS 版）。
+  // 地表网格必须保持完整，不能被压成露天绿碗；真正的地下地板由
+  // undergroundFloorY() 单独提供，props.js 的封闭井壁负责遮住开口外地表。
+  if (_heightField) return _heightField(x, z);
+  return baseTerrainHeight(x, z);
 }
 
 /** 地形法线（用于让草丛/石块贴合坡面） */

@@ -288,45 +288,18 @@ export async function revalidateTextures() {
 }
 
 /**
- * 把摄影测量模型摆正：脚底在 y=0、面朝 +Z、高度归一到 targetHeight。
+ * 把 GLB 模型贴地并按高度归一。
  *
- * 层级职责（**必须严格分开**）：
- *   obj    —— 只承担"摆正"：绕 Z 转 -90°（把源 Y 变成竖直），
- *             再按摆正后的包围盒把脚底挪到 y=0、水平居中
- *   inner  —— 只承担"统一高度"（scale）
- *   wrap   —— 只承担"给调用方一个可整体控制的把手"
- *   this.mesh（外部容器）—— 只承担"类型体型"（cfg.scale）
- *
- * ── 为什么必须绕 Z 转 -90°（实测结论）─────────────────────
- * fox.glb 的原始包围盒是 **X=0.933  Y=0.630  Z=0.609**：
- * Y 不是最大轴，说明模型是**横躺**的 —— 源坐标的 +Y 其实是"躯干长度方向"。
- * 实测 6 种候选轴向的归一结果（tools/probe-orient.cjs）：
- *   A 原样          → 1.480 × 1.000 × 0.966   长/宽=1.53  ❌ 横躺
- *   B 绕X转         → 1.532 × 1.000 × 1.035   长/宽=1.48  ❌ 横躺
- *   **C 绕Z转 -90°  → 0.676 × 1.000 × 0.653**  高/宽=1.53  ✅ 四足动物躯干比例
- *   D/E             → 0.676 × 1.000 × 0.653   同上
- * 正确的狐狸应该是"高≈长、宽最窄"的躯干，所以选 **绕 Z 转 -90°**。
- *
- * 历史 bug（本次修复）：之前没转轴向，直接把横躺的模型归一，
- * 结果 `1.48 × 1.0 × 0.97` 的一坨肉块躺在地上 ——
- * 属性检查（visible / 包围盒非零 / 贴图有效）全都"正常"，
- * 但视觉上完全不是狐狸。**这说明属性验证不足以判断模型可用性，必须看画面。**
- *
- * marmot.glb 的原始包围盒是 X=0.535 Y=0.897 Z=0.720，Y 是最大轴，
- * 说明土拨鼠本来就是**正立**的，不该转 —— 所以要按模型分别处理。
+ * GLB 节点自身的姿态必须保留：fox.glb/marmot.glb 的 root 自带 +90° X，
+ * 而 fox-segmented.glb 原生就是 Y-up。这里不覆盖 rotation/quaternion，
+ * 只负责包围盒贴地、水平居中与高度缩放。模型前向修正由调用方放在
+ * 返回的 wrap 层，和实体逻辑 yaw 完全隔离。
  */
 export function normalizeModel(obj, targetHeight = null, opts = {}) {
-  // upAxis: 'z' = 源 Z 是竖直（不转）；'y' = 源 Y 是竖直（绕 Z 转 -90°）
-  const { upAxis = 'y' } = opts;
-
-  // 1) 摆正：把"躯干长度方向"转为竖直
-  if (upAxis === 'y') {
-    obj.rotation.set(0, 0, -Math.PI / 2);
-  }
+  const { upAxis = 'native' } = opts;
   obj.updateMatrixWorld(true);
 
-  // 2) 再按**摆正后**的包围盒把脚底挪到 y=0、水平居中
-  //    顺序不可颠倒：rotation 绕自身原点，先平移后旋转会让平移量跟着转。
+  // 按保留原始节点姿态后的世界包围盒贴地、水平居中。
   const box = new THREE.Box3().setFromObject(obj);
   const size = new THREE.Vector3();
   box.getSize(size);
@@ -335,8 +308,6 @@ export function normalizeModel(obj, targetHeight = null, opts = {}) {
   obj.position.set(-center.x, -box.min.y, -center.z);
   obj.updateMatrixWorld(true);
 
-  // 3) 统一高度：只改 inner 的 scale
-  //    用 size.y（**世界竖直方向**）而不是"最大轴" —— 最大轴可能是躯干长度。
   const inner = new THREE.Group();
   inner.add(obj);
   let appliedScale = 1;

@@ -8,9 +8,11 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 
-const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const CHROME = process.env.CHROME_PATH || (process.platform === 'win32'
+  ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+  : '/usr/bin/google-chrome');
 const URL = process.argv[2] || 'http://127.0.0.1:8123/index.html';
-const PORT = 9333;
+const PORT = Number(process.env.CDP_PORT) || 9333;
 const SHOT = process.argv[3] || 'shot.png';
 
 function get(url) {

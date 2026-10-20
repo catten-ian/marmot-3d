@@ -24,6 +24,8 @@ export const VERSION = (() => {
 })();
 
 export const IS_DEV = VERSION === 'dev';
+// This tree exposes stable and dev only; no beta query is a dev trigger.
+export const IS_BETA = false;
 
 /** 供 UI 显示当前版本角标 */
 export const VERSION_LABEL = IS_DEV

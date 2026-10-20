@@ -3,32 +3,68 @@
  *
  * 游戏状态：title → play ⇄ pause → (won | lost) → play ...
  * 核心玩法循环（移植自 2D 原版）：
- *   采食恢复储备 → 驱退藏狐积累大招 → 拉负荷过载惩罚 →
+ *   采食恢复储备 → 自卫应对藏狐 → 拉负荷过载惩罚 →
  *   救伙伴带回洞穴 → 完成三目标回洞 → 下一关
  */
 import * as THREE from 'three';
 import {
   LEVELS, BERRY_POINTS, SPAWN_POINTS, BURROW, PLAYER, FOX,
   BERRY_RADIUS, BERRY_ENERGY, BERRY_CHARGE, RESCUE_DIST,
-  typesForLevel, setPointScale, scalePoint, scaleCoord, scaleRadius,
+  setPointScale, scalePoint, scaleCoord, scaleRadius,
   getPointScale, fieldHalf, FIELD_W, FIELD_H, setPlayableBounds, clearPlayableBounds,
 } from './core/config.js';
 import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/utils.js';
 import { FirstPersonController } from './core/controls.js';
+import { dampAngle, resolveAttackYaw } from './core/move-facing.mjs';
+import {
+  rollDirection, resolveAttackRelease, isWeakAerialPounce,
+  interruptAttackCharge, resolvePendingAerialParry, advanceAttackCharge,
+  AERIAL_POUNCE_DAMAGE_MUL, MAX_ATTACK_CHARGE_MS,
+  strikeGateOpen, resolveParryOutcome,
+} from './core/combat-wheel.mjs';
+import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
-import { getRenderProfile, isTouchPrimary } from './core/performance.js?v=m20261016c';
-import { TouchControls } from './core/touch-controls.js?v=m20261016c';
+import { getRenderProfile, hasRealTouch } from './core/performance.js';
+import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
+import { TouchControls } from './core/touch-controls.js';
 
-let TOUCH_DEVICE = isTouchPrimary();
-/** 内置浏览器(微信/QQ X5)可能谎报指针能力；首次真实触摸时升级为触屏模式。 */
-function enableTouchRuntime() {
-  if (TOUCH_DEVICE) return;
-  TOUCH_DEVICE = true;
-  try { touchControls?.activate?.(); } catch (_) {}
-  document.body.classList.add('touch-mode');
+/** 输入模式（设置面板可强制）：auto=设备检测+首次触摸升级，touch=强制触屏，keyboard=强制键鼠。 */
+const inputMode = new InputModeManager();
+let TOUCH_DEVICE = inputMode.isTouch();
+
+/**
+ * 输入模式统一生效入口：全局标记、body class、触控层、渲染 profile 与面板文案。
+ * 切换即时生效，无需刷新；各子系统均做幂等/防御处理，初始化早期调用也安全。
+ */
+function applyInputMode() {
+  TOUCH_DEVICE = inputMode.isTouch();
+  document.body.classList.toggle('touch-mode', TOUCH_DEVICE);
+  if (!TOUCH_DEVICE) document.body.classList.remove('touch-playing');
+  document.documentElement.setAttribute('data-input-effective', TOUCH_DEVICE ? 'touch' : 'keyboard');
+  try {
+    if (touchControls) {
+      // 强制触屏 + 无真实触摸能力的桌面调试：允许鼠标驱动摇杆/按钮/look zone。
+      touchControls.allowMouse = TOUCH_DEVICE && inputMode.preference === INPUT_MODE_TOUCH && !hasRealTouch();
+      if (TOUCH_DEVICE) touchControls.activate();
+      else touchControls.deactivate();
+    }
+  } catch (_) {}
+  try {
+    touchLayout?.setTouchModeAvailable?.(TOUCH_DEVICE);
+    if (!TOUCH_DEVICE && touchLayout?.editing) touchLayout.setEditing(false);
+  } catch (_) {}
+  // 渲染预算跟随有效模式：强制触屏降级、强制键鼠恢复桌面质量。
+  try {
+    renderProfile = getRenderProfile(TOUCH_DEVICE);
+    renderer.setPixelRatio(renderProfile.pixelRatio);
+    if ('shadowMap' in renderer) renderer.shadowMap.enabled = renderProfile.shadows;
+  } catch (_) {}
+  try { settingsUI?.render?.(); } catch (_) {}
+  // 帮助/暂停/结算等面板按 TOUCH_DEVICE 分支渲染；标题面板打开时即时重渲染。
+  try { if (game.mode === 'title') title(); } catch (_) {}
 }
 
 /** 真实模型加载结果（供调试接口查看） */
@@ -36,22 +72,31 @@ let modelLoadState = null;
 /** 远景布景根节点 */
 let backdropRoot = null;
 import { Sky } from './world/scene.js';
-import { Burrow, Scenery } from './world/props.js';
+import { Scenery } from './world/props.js';
+import { createBurrows } from './world/burrows.js';
+import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
+import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
 } from './core/ecology.js';
 import {
-  combatStats, verticalHitOverlap, burst, ultimate, interact, STRIKE_COST, ULT,
+  combatStats, strikeVolumeHit, foxAttackVerticalHit, resolveStrikeProfile, burst, ultimate, interact,
+  STRIKE_COST, ULT,
 } from './systems/combat.js';
 import { ClawSwing, Shockwave, Particles, DamageText, PlayerAura } from './systems/effects.js';
 import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
+import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
+import { FEEDBACK } from './core/config.js';
+import { TouchLayout } from './ui/touch-layout.js';
+import { Minimap } from './ui/minimap.js';
+import { cooldownOverlayData } from './ui/cooldown-overlay.js';
 import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDummy, setSandboxDummyDefeatable } from './sandbox/state.js';
 import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
 import { setupSandboxPanel } from './sandbox/panel.js';
@@ -85,7 +130,7 @@ const WANT_GS = BOOT.gsWorld === true && !devOn('verdantWorld');
 
 let renderer;
 let rendererStatus = { backend: 'webgl', supportsSplat: false, gpuReason: '' };
-let renderProfile = getRenderProfile();
+let renderProfile = getRenderProfile(TOUCH_DEVICE);
 
 if (WANT_GS) {
   const result = await createRenderer(canvas, {
@@ -107,7 +152,7 @@ if (WANT_GS) {
   });
 }
 
-renderProfile = getRenderProfile();
+renderProfile = getRenderProfile(TOUCH_DEVICE);
 renderer.setPixelRatio(renderProfile.pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 if ('shadowMap' in renderer) {
@@ -172,7 +217,7 @@ if (devOn('verdantWorld')) {
   }
 }
 
-// —— GS 全场景（legacy diagnostic path）——
+// —— GS 全场景（dev 版）——
 // 把摄影测量高斯泼溅当作**全部场景**（含可行走地面）：
 //   · 地面高度改用点云建出的高度场（通过 setHeightField 注入，
 //     全场 6 个模块会自动跟随，不需要逐处改）
@@ -231,13 +276,13 @@ if (WANT_GS && rendererStatus.supportsSplat) {
  * 稳定版缩放系数为 1，这里等价于原始常量。
  */
 const PT_K = getPointScale();
-const BURROW_R = BURROW.r * PT_K;
-const BURROW_X = BURROW.x * PT_K;
-const BURROW_Z = BURROW.z * PT_K;
-
-const burrow = new Burrow(scene, {
-  x: BURROW_X, z: BURROW_Z, r: BURROW_R,
-});
+const burrowSet = createBurrows(scene);
+const burrowDefs = burrowSet.defs;
+const baseBurrow = burrowSet.base;
+const BURROW_R = baseBurrow.r;
+const BURROW_X = baseBurrow.x;
+const BURROW_Z = baseBurrow.z;
+const burrow = burrowSet.baseObject;
 const scenery = new Scenery(scene, { verdant: !!verdantWorld });
 hud.setLoading(70);
 
@@ -275,6 +320,8 @@ function buildFoods(levelIndex) {
 }
 berries = buildFoods(0);
 const companion = new Companion(scene);
+const minimap = new Minimap();
+let debugVolumes = null;
 let foxes = [];
 hud.setLoading(86);
 
@@ -287,6 +334,13 @@ const damageText = new DamageText(scene);
 const aura = new PlayerAura(scene);
 const viewModel = new ViewModel();
 viewModel.resize(window.innerWidth / window.innerHeight);
+
+// 独立数据显示模式默认完全不加载 lil-gui，也不创建额外几何体。
+if (new URLSearchParams(location.search).get('debugvolumes') === '1') {
+  import('./systems/debug-volumes.js').then(({ DebugVolumes }) => {
+    debugVolumes = new DebugVolumes({ scene, controller, foxes: () => foxes });
+  }).catch((error) => console.warn('[debugvolumes] disabled:', error));
+}
 
 const playerModel = new THREE.Group();
 const playerBody = buildMarmotMesh();
@@ -344,15 +398,13 @@ preloadModels('./assets/models/', { foxFile: FOX_PRELOAD_FILE }).then((st) => {
 });
 
 // —— 场景远景 ——
-// Verdant 已经提供完整 dev 环境；稳定版继续加载原有远景模型。
-if (!verdantWorld) {
 // 用户提供的摄影测量地形块沿椭圆环（rx 246m / rz 218m）复制 14 份，
 // 围成地平线上的一圈树林草甸（详见 models/scene.js 的 buildBackdrop）。
 // 可行走地形仍是程序化生成的，保证玩法参数（130×78 竞技场、
 // 藏狐速度、跳跃距离等）完全不变。
 // 环形布局是固定在世界坐标的，**不跟随玩家位移** —— 一旦跟随，
 // 玩家转身就会看到"贴着的那份消失了、背后的露出来"，反而更假。
-buildBackdrop().then((root) => {
+if (!verdantWorld) buildBackdrop().then((root) => {
   if (root) {
     scene.add(root);
     backdropRoot = root;
@@ -360,7 +412,6 @@ buildBackdrop().then((root) => {
     console.info(`[scene] 远景布景已加入：${ud.count} 份 @ 半径 ${ud.radius}m`);
   }
 });
-}
 
 const keys = new Set();
 controller.keys = keys;
@@ -368,8 +419,7 @@ controller.keys = keys;
 hud.setLoading(96);
 
 // —— 版本角标 ——
-// dev 版（?version=dev）是"按旱獭真实生态学改写"的实验分支，
-// 与正式版并存但互不影响，页面上明确标出以便对照。
+// Stable is the rev12 release path; Verdant and its ecology remain explicit dev-only features.
 {
   const tag = document.getElementById('versionTag');
   if (tag) {
@@ -387,29 +437,17 @@ hud.setLoading(96);
 // ============================================================
 // 游戏状态
 // ============================================================
-const PROGRESS_KEY = 'marmot3d.progress.v1';
-function readProgress() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
-    const maxUnlocked = Number.isInteger(saved.maxUnlocked) ? saved.maxUnlocked : 0;
-    const completedLevels = Array.isArray(saved.completedLevels)
-      ? saved.completedLevels.filter((n) => Number.isInteger(n) && n >= 0 && n < LEVELS.length)
-      : [];
-    return {
-      maxUnlocked: clamp(maxUnlocked, 0, LEVELS.length - 1),
-      completedLevels: new Set(completedLevels),
-    };
-  } catch (_) {
-    return { maxUnlocked: 0, completedLevels: new Set() };
-  }
-}
-const progress = readProgress();
+// Beta uses an independent record and an in-memory all-level unlock default;
+// stable retains the original shared key and sequential unlock behavior.
+const progressStorage = {
+  getItem: (...args) => localStorage.getItem(...args),
+  setItem: (...args) => localStorage.setItem(...args),
+};
+const progress = readProgress(progressStorage, LEVELS.length, IS_BETA);
+if (IS_BETA) progress.maxUnlocked = LEVELS.length - 1;
 function saveProgress() {
   try {
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify({
-      maxUnlocked: progress.maxUnlocked,
-      completedLevels: [...progress.completedLevels],
-    }));
+    writeProgress(progressStorage, progress, IS_BETA);
   } catch (err) {
     console.warn('[progress] 无法保存关卡进度:', err);
   }
@@ -417,11 +455,11 @@ function saveProgress() {
 
 const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
 const SANDBOX_MODE = new URLSearchParams(location.search).get('sandbox') === '1';
+let smartFoxSelected = devOn('smartFoxSandbox') && (TEST_MODE || SANDBOX_MODE);
 const sandboxState = createSandboxState();
 if (SANDBOX_MODE) sandboxState.active = true;
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
-let smartFoxSelected = devOn('smartFoxSandbox') && TEST_MODE;
 const testLogs = [];
 function recordTestLog(type, details = {}) {
   if (!TEST_MODE) return;
@@ -503,9 +541,13 @@ const game = {
   ultimates: 0,
   hits: 0,
   inBurrow: false,
+  inBaseBurrow: false,
+  currentBurrow: null,
+  observing: false,
   stressWarned: false,
   season: null, // dev 版：当季食物信息（正式版恒为 null）
   sandbox: false,
+  attackMoveLock: 0,
 };
 
 const colBoost = new THREE.Color(0xffd17a);
@@ -517,31 +559,13 @@ const colBerry = new THREE.Color(0xc46a5e);
 const colHerb = new THREE.Color(0xa8c07a);
 const colHurt = new THREE.Color(0xeea091);
 
-/**
- * 按关卡的类型池生成一只藏狐。
- *
- * 原来的逻辑是 `level>=2 && i%3===2 ? 'heavy' : ...` 这种硬编码，
- * 结果每关的敌人构成几乎一样，玩法自然单一。
- * 现在由 LEVELS[i].types 显式指定每关的敌人构成，
- * 新增关卡时只要改配置表即可，不用动代码。
- */
+/** Create a campaign fox at its configured slot; level count and spawn point are unchanged. */
 function makeFox(i) {
   const cfg = LEVELS[game.level];
-  const boss = cfg.boss && i === cfg.count - 1;
-  const pool = typesForLevel(game.level);
   const [sx, sz] = scalePoint(SPAWN_POINTS[i % SPAWN_POINTS.length]);
-
-  let type;
-  if (boss) {
-    type = 'boss';
-  } else {
-    // 从池中取，但避免同一关全是同一种：用索引错位打散，
-    // 再留 30% 概率随机，保证池里每种都有出场机会。
-    const picked = pool[i % pool.length];
-    type = Math.random() < 0.3 ? pool[(Math.random() * pool.length) | 0] : picked;
-  }
+  // Campaigns retain their configured counts and spawn points, but every slot is a normal Tibetan fox.
   return new Fox(scene, sx + (Math.random() - 0.5) * 4, sz + (Math.random() - 0.5) * 4,
-    type, game.level, i, { lureBias: cfg.lureBias || 1 });
+    'normal', game.level, i, { lureBias: cfg.lureBias || 1 });
 }
 
 function makeSmartFox() {
@@ -551,7 +575,7 @@ function makeSmartFox() {
 
 function syncSmartFoxSelection() {
   const existing = foxes.findIndex((f) => f.type === 'smart');
-  const shouldHave = devOn('smartFoxSandbox') && TEST_MODE && smartFoxSelected;
+  const shouldHave = devOn('smartFoxSandbox') && (TEST_MODE || SANDBOX_MODE) && smartFoxSelected;
   if (shouldHave && existing < 0) foxes.push(makeSmartFox());
   if (!shouldHave && existing >= 0) {
     foxes[existing].dispose(scene);
@@ -574,7 +598,9 @@ function spawnSandboxFox(_type = 'normal', slot = foxes.filter((f) => !f.isSandb
   }
   const fox = new Fox(scene, x, z, 'normal', 0, slot,
     { lureBias: 1.15, dummyDefeatable: sandboxState.dummyDefeatable, ...opts });
-  if (opts.sandboxDummy) fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
+  if (opts.sandboxDummy) {
+    fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
+  }
   fox.sandboxSpeedMul = sandboxState.speedMultiplier;
   fox.sandboxAlertMul = sandboxState.alertMultiplier;
   foxes.push(fox);
@@ -582,8 +608,12 @@ function spawnSandboxFox(_type = 'normal', slot = foxes.filter((f) => !f.isSandb
 }
 
 function disposeAllFoxes() {
-  try { foxes.forEach((f) => f.dispose(scene)); }
-  finally { foxes = []; sandboxState.dummy = null; }
+  try {
+    foxes.forEach((f) => f.dispose(scene));
+  } finally {
+    foxes = [];
+    sandboxState.dummy = null;
+  }
 }
 
 function enterSandbox() {
@@ -607,6 +637,8 @@ function exitSandbox() {
 }
 
 function loadLevel(index, announce = true) {
+  clearPendingAerialParry();
+  cancelAttackCharge();
   game.level = index;
   const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[index];
 
@@ -644,7 +676,7 @@ function loadLevel(index, announce = true) {
   game.friend = companion;
 
   game.levelRepels = 0;
-  game.bossDown = !cfg.boss;
+  game.bossDown = true; // No level contains a special boss after normal-only conversion.
   game.time = game.sandbox ? Infinity : cfg.time;
   game.elapsed = 0;
   for (const k of ['boost', 'boostCD', 'attackCD', 'social', 'socialCD',
@@ -714,12 +746,16 @@ function applyEnvModifiers(cfg) {
 }
 
 /** 每帧推进环境修饰，返回当前需要给 HUD 的提示文案 */
-function updateEnv(dt) {
+function updateEnv(dt, inBurrow = false) {
+  // 洞穴判定沿用 burrowVolumeAt/inBurrow 语义：天气时间继续走，
+  // 但洞内不接收阵风，也不显示/听到沙尘影响。离洞后按当前天气相位恢复。
+  const weatherSuppressed = !!inBurrow;
+
   // —— 阵风：正弦叠加两个不同周期，产生不规则的阵风节奏 ——
   if (env.gustMax > 0) {
     env.gustPhase += dt * 0.55;
     const s = Math.sin(env.gustPhase) * 0.62 + Math.sin(env.gustPhase * 2.37 + 1.1) * 0.38;
-    env.gust = env.gustMax * s;
+    env.gust = weatherSuppressed ? 0 : env.gustMax * s;
   } else {
     env.gust = 0;
   }
@@ -730,7 +766,8 @@ function updateEnv(dt) {
     env.sandT = (env.sandT + dt) % (env.sandPeriod * 2);
     const t = env.sandT;
     // 前 1/4 周期起风、中间 1/2 维持、后 1/4 散去
-    env.sandOn = t > env.sandPeriod * 0.25 && t < env.sandPeriod * 1.25;
+    const stormOn = t > env.sandPeriod * 0.25 && t < env.sandPeriod * 1.25;
+    env.sandOn = !weatherSuppressed && stormOn;
     if (env.sandOn) {
       const k = 1 - Math.abs(t - env.sandPeriod * 0.75) / (env.sandPeriod * 0.5);
       // 沙尘不能把能见度压到接近 0 —— 那样连**地面预警线**都看不见，
@@ -744,11 +781,17 @@ function updateEnv(dt) {
       sandMsg = '沙尘弥漫 · 贴近预警线';
     }
   }
-  if (!env.sandOn && env.sandPeriod > 0) {
+  // 洞内以及沙尘结束后都恢复关卡本来的雾；洞穴照明仍由 sky.setUnderground 单独处理。
+  if (!env.sandOn) {
     scene.fog.near = env.fogBase;
     scene.fog.far = env.fogFarBase;
   }
   return sandMsg;
+}
+
+function updateEnvNotice(envMsg) {
+  if (envMsg && !env._msgOn) { hud.say(envMsg, 2.6); env._msgOn = true; }
+  else if (!envMsg && env._msgOn) env._msgOn = false;
 }
 
 function completeLevel() {
@@ -776,13 +819,12 @@ function levelClearHTML() {
   return `
     <div class="eyebrow">LEVEL ${game.level + 1} CLEAR</div>
     <h2>${cfg.name} · 完成</h2>
-    <p>采食达标、藏狐驱退、伙伴安全到家。<b>${cfg.brief}</b></p>
+    <p>采食达标、伙伴安全到家并回洞休息。<b>${cfg.brief}</b></p>
     <div class="level-list">
       ${LEVELS.map((l, i) =>
     `<span class="level-chip ${progress.completedLevels.has(i) ? 'done' : i === game.level + 1 ? 'cur' : ''}">${i + 1} ${l.name}</span>`).join('')}
     </div>
     <div class="stats-grid">
-      <div class="stat"><div class="v">${game.levelRepels}</div><div class="l">本关驱退</div></div>
       <div class="stat"><div class="v">${game.boosts}</div><div class="l">应急爆发</div></div>
       <div class="stat"><div class="v">${game.ultimates}</div><div class="l">协同大招</div></div>
       <div class="stat"><div class="v">${Math.round(game.player.stress)}</div><div class="l">当前负荷</div></div>
@@ -798,6 +840,8 @@ function levelClearHTML() {
 function finish(won, reason = '被藏狐逮住了。') {
   // 结算只应触发一次
   if (game.mode === 'won' || game.mode === 'lost') return;
+  clearPendingAerialParry();
+  cancelAttackCharge();
   recordTestLog(won ? 'level-won' : 'level-lost', { reason, hp: game.player.hp, time: game.time });
   game.mode = won ? 'won' : 'lost';
   controller.exitLock();
@@ -805,10 +849,9 @@ function finish(won, reason = '被藏狐逮住了。') {
   hud.showPanel(`
     <div class="eyebrow">${won ? `ALL CLEAR / ${LEVELS.length} 关通关` : 'TRY AGAIN / 再试一次'}</div>
     <h2>${won ? '草地上的稳态高手！' : `第 ${game.level + 1} 关，还差一点。`}</h2>
-    <p>${won ? '伙伴与食物都安全，首领也被赶走了。' : reason}</p>
+    <p>${won ? '伙伴与食物都安全，已经回到洞穴。' : reason}</p>
     <div class="stats-grid">
       <div class="stat"><div class="v">${game.completed}</div><div class="l">通过关卡</div></div>
-      <div class="stat"><div class="v">${game.totalRepels}</div><div class="l">累计驱退</div></div>
       <div class="stat"><div class="v">${game.boosts}</div><div class="l">应急爆发</div></div>
       <div class="stat"><div class="v">${game.ultimates}</div><div class="l">协同大招</div></div>
       <div class="stat"><div class="v">${game.hits}</div><div class="l">受到攻击</div></div>
@@ -842,7 +885,7 @@ function showLevelSelect() {
     <p>已解锁至第 ${unlocked + 1} 关。完成当前关卡即可解锁下一关，已完成关卡可随时重玩。</p>
     <div class="level-select-grid">
       ${LEVELS.map((level, i) => {
-    const locked = i > unlocked;
+    const locked = !isLevelUnlocked(progress, i);
     const done = progress.completedLevels.has(i);
     return `<button class="level-option ${locked ? 'locked' : ''} ${done ? 'done' : ''}"
         data-level="${i}" ${locked ? 'disabled aria-disabled="true"' : ''}>
@@ -870,20 +913,21 @@ function showLevelSelect() {
 }
 
 function title() {
+  clearPendingAerialParry();
+  cancelAttackCharge();
   game.mode = 'title';
   game.sandbox = false;
-  sandboxState.active = false;
   document.body.classList.remove('sandbox-active');
   hud.showPanel(`
     <div class="eyebrow">CAMPAIGN / ${LEVELS.length} 关草原冒险 · 第一 / 第三人称 3D</div>
     <h2>从两只藏狐，到草原守望者。</h2>
-    ${IS_DEV ? '<button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>' : ''}
+    <button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>
     <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>V</b> 切换为第三人称跟随视角，随时按需选择。</p>
-    <p>每关完成 <b>采食、救援、驱退</b> 三件事，回洞即可进入下一关。
+    <p>每关完成 <b>采食、救援与陪伴</b>，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
     <p style="font-size:12.5px"><b>你不会真的杀死藏狐。</b>把它们打到体力耗尽后，它们会
     <b>夹着尾巴转身逃跑</b>，逃出草地才会消失 —— 一段时间后可能有同类再次出现。
-    你要做的不是猎杀，而是<b>把它们从洞口和采食区赶开</b>。</p>
+    你要做的是在采食和救援时自卫，随后回洞。</p>
     ${IS_DEV ? `
     <div class="dev-intro">
       <div class="dev-badge">DEV 版 · 旱獭生态学改写</div>
@@ -906,6 +950,7 @@ function title() {
       <span><kbd>V</kbd> 第一 / 第三人称切换</span>
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span>
       <span><kbd>左键</kbd> 攻击（可按住）</span>
+      <span><kbd>中键</kbd> / <kbd>B</kbd> 迎击</span>
       <span><kbd>右键</kbd> / <kbd>F</kbd> 跳跃（可躲扑击）</span>
       <span><kbd>J</kbd> 短时应急爆发</span>
       <span><kbd>K</kbd> 蓄满后的范围大招</span>
@@ -927,9 +972,7 @@ function title() {
     </div>
   `);
   document.getElementById('startBtn').onclick = startPlay;
-  // 沙盒入口仅 dev 版提供（标题面板按 IS_DEV 渲染），正式版没有这个按钮。
-  const sandboxBtn = document.getElementById('sandboxEntryBtn');
-  if (sandboxBtn) sandboxBtn.onclick = enterSandbox;
+  document.getElementById('sandboxEntryBtn').onclick = enterSandbox;
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
 }
@@ -995,6 +1038,10 @@ function retryLevel() {
 
 function pause() {
   if (game.mode !== 'play') return;
+  clearPendingAerialParry();
+  cancelAttackCharge();
+  attackFullFlashT = 0;
+  hideAttackHint();
   game.mode = 'pause';
   keys.clear();
   touchControls?.releaseAll();
@@ -1002,16 +1049,18 @@ function pause() {
   hud.showPanel(`
     <div class="eyebrow">PAUSED</div>
     <h2>喘口气。</h2>
-    <p>${TOUCH_DEVICE ? '左侧摇杆移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : `${IS_DEV && binds.scheme === 'optimized' ? 'W/S 前后 · A/D 转向 · 方向键横移' : 'WASD 移动'} · 左键/空格 攻击 · J 爆发 · K 大招 · E 救援。`}<br>暂停不会消耗时间。</p>
+    <p>${TOUCH_DEVICE ? '左侧摇杆移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : `${IS_DEV && binds.scheme === 'optimized' ? 'W/S 前后 · A/D 转向 · 方向键横移' : 'WASD 移动'} · 左键/空格 攻击 · 中键 / B 迎击 · J 爆发 · K 大招 · E 救援。`}<br>暂停不会消耗时间。</p>
     <div class="row">
       <button class="primary" id="resumeBtn">继续 · P / Enter</button>
       <button class="ghost" id="pRetryBtn">重试本关 · T</button>
       <button class="ghost" id="pTitleBtn">返回标题</button>
+      <button class="ghost" id="pFeedbackBtn">问题反馈 / 反馈建议</button>
     </div>
   `);
   document.getElementById('resumeBtn').onclick = resume;
   document.getElementById('pRetryBtn').onclick = retryLevel;
   document.getElementById('pTitleBtn').onclick = () => { hud.hidePanel(); title(); };
+  document.getElementById('pFeedbackBtn').onclick = () => feedbackUI.open();
 }
 
 function resume() {
@@ -1035,55 +1084,124 @@ function resume() {
 const _fwd = new THREE.Vector3();
 // 缓存本次战斗数值，供 viewmodel 的攻击动画计算进度使用
 let stats_cache = { cd: 0 };
+// 当前玩家攻击动作类型（供第一/第三人称动作表现使用）：'' | tap | stand | lunge | dodge
+let playerAttackAnim = '';
+let playerAttackT = 0;
+let playerAttackDur = 1;
+// 迎击窗口剩余时间（秒）：期间正面接住狐狸 dash 可抵消伤害并反打。
+let parryWindowT = 0;
+// 空中迎击只请求快速落地；真正的迎击在首次落地时消费。
+let pendingAerialParry = false;
+function clearPendingAerialParry() { pendingAerialParry = false; }
+function tryResolvePendingAerialParry() {
+  const state = resolvePendingAerialParry(pendingAerialParry, controller.grounded);
+  pendingAerialParry = state.pending;
+  if (state.execute && game.mode === 'play') strike('stand', { fromParryGesture: true });
+}
 
 /** 攻击：扇形范围判定，原版是圆形范围，第一人称下改为朝向前方扇形更合理 */
-function strike() {
+function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul = null } = {}) {
   const p = game.player;
-  if (game.attackCD > 0) return;
-  if (game.inBurrow) return;
-
+  // 站立/静止观察不阻塞出招：站立也必须能短按推击，连续短按按冷却节奏稳定触发。
+  if (!strikeGateOpen(game)) return false;
+  const wheel = PLAYER.combatWheel[move] || PLAYER.combatWheel.tap;
   const s = combatStats(game);
-  // dev 版「耐饥渴」：挥爪的储备消耗也更低
+  const running = isSprintingNow();
+
+  // 迎击（按住攻击键左滑）站立/奔跑都可用；奔跑中迎击自动停步、强制起身。
+  // 扑击(lunge)由地面按住达到蓄力阈值（650ms）后松手、或蓄满1500ms自动触发，
+  // 不再要求奔跑；触发时保留前冲惯性，不停步。空中短按结算为弱化扑击。
+  if (move === 'stand' && running) {
+    controller.velocity.set(0, controller.velocity.y, 0);
+    controller.externalVelocity.multiplyScalar(0.2);
+    controller.crouch = Math.min(controller.crouch, 0.08);
+  }
+
   const atkMul = devOn('famineTolerance') ? HERBIVORE.attackCostMul : 1;
-  const rawCost = game.overdrive > 0 ? STRIKE_COST.overdrive
-    : game.boost > 0 ? STRIKE_COST.boost
-    : STRIKE_COST.base;
+  const rawCost = move === 'tap' ? (game.overdrive > 0 ? STRIKE_COST.overdrive : game.boost > 0 ? STRIKE_COST.boost : STRIKE_COST.base) : wheel.cost;
   const cost = rawCost * atkMul;
-  if (p.energy < cost) return;
-
+  if (p.energy < cost) return false;
   p.energy -= cost;
-  game.attackCD = s.cooldown;
+  const profile = resolveStrikeProfile({ move, baseRange: s.range, baseCooldown: s.cooldown, wheel, running });
+  game.attackCD = profile.cooldown;
+  if (move === 'stand') controller.movementLocked = true;
 
-  controller.forwardFlat(_fwd);
+  // 推击在站/跑姿态下的范围与伤害分档。
+  let damagePostureMul = 1, knockbackPostureMul = 1, stunPostureMul = 1;
+  if (move === 'tap') {
+    const pose = running ? wheel.run : wheel.stand;
+    damagePostureMul = pose.damageMul; knockbackPostureMul = pose.knockbackMul; stunPostureMul = pose.stunMul;
+  }
+
+  // 记录动作类型与时长，供双视角动作表现。
+  playerAttackAnim = move;
+  playerAttackDur = Math.max(0.28, wheel.recovery || 0.2) + 0.18;
+  playerAttackT = playerAttackDur;
+
+  // 迎击无敌帧窗口只由“按住左滑”的即时迎击开启；推击/扑击都不附带迎击窗口。
+  if (move === 'stand' && fromParryGesture) parryWindowT = Math.max(parryWindowT, wheel.parryWindow || 0.3);
+
+  // 攻击朝向：第三人称沿角色身体/移动朝向，第一人称沿视线（保持原有正确行为）。
+  const attackYaw = resolveAttackYaw({
+    thirdPerson: controller.thirdPerson, cameraYaw: controller.yaw, bodyYaw: controller.bodyYaw,
+  });
+  _fwd.set(-Math.sin(attackYaw), 0, -Math.cos(attackYaw));
+  const right = new THREE.Vector3(-_fwd.z, 0, _fwd.x);
+  if (move === 'dodge') {
+    const dir = rollDirection({ velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw });
+    controller.roll(dir, 7.2);
+    p.invuln = Math.max(p.invuln, wheel.invuln || 0.42);
+    return true;
+  }
+  if (move === 'lunge') controller.externalVelocity.addScaledVector(_fwd, 7.2);
+  if (move === 'stand') game.attackMoveLock = wheel.lock || 0.4;
   const originY = terrainHeight(controller.position.x, controller.position.z);
-  claw.fire(
-    controller.position.x, originY + 0.32, controller.position.z,
-    controller.yaw, s.range,
-    game.overdrive > 0 ? 0xe4b1ff : game.boost > 0 ? 0xffd17a : 0xfff1a9,
-  );
-  controller.attackKick(game.boost > 0 ? 1.5 : 1);
+  const color = move === 'stand' ? 0xd6a1ff : move === 'lunge' ? 0xffa36f : game.overdrive > 0 ? 0xe4b1ff : game.boost > 0 ? 0xffd17a : 0xfff1a9;
+  const baseRange = profile.range;
+  claw.fire(controller.position.x, originY + 0.32, controller.position.z, attackYaw, baseRange, color);
+  controller.attackKick(move === 'lunge' ? 1.6 : 1);
   audio.swing();
-
   let hits = 0;
   for (const f of foxes) {
     if (f.hp <= 0) continue;
     const dx = f.x - controller.position.x, dz = f.z - controller.position.z;
-    const d = Math.hypot(dx, dz);
-    if (d > s.range) continue;
-    // 扇形判定：距离 + 朝向夹角（半角约 70°）
-    const dot = (dx * _fwd.x + dz * _fwd.z) / (d || 1);
-    if (dot < 0.34) continue;
-    hitFox(f, s.damage, s);
+    const forward = dx * _fwd.x + dz * _fwd.z;
+    const lateral = dx * (-_fwd.z) + dz * _fwd.x;
+    const playerBottom = terrainHeight(controller.position.x, controller.position.z) + controller.airHeight;
+    const foxBottom = terrainHeight(f.x, f.z) + f.leap;
+    const foxHeight = FOX.collisionHeight[f.type] ?? FOX.collisionHeight.normal;
+    if (!strikeVolumeHit({ forward, lateral, playerBottom, targetBottom: foxBottom, targetHeight: foxHeight, range: baseRange, move })) continue;
+    const aerialMul = move === 'lunge' && !controller.grounded ? (aerialPounceDamageMul ?? 1) : 1;
+    const dmg = s.damage * (wheel.damageMul || 1) * damagePostureMul * aerialMul;
+    const kb = (wheel.knockback || s.knockback) * knockbackPostureMul;
+    const stun = (wheel.stun || s.stun) * stunPostureMul;
+    hitFox(f, dmg, { ...s, range: baseRange, stun, knockback: kb });
     hits++;
   }
-  if (hits && game.overdrive <= 0) game.charge = clamp(game.charge + 6, 0, 100);
+  if (hits && game.overdrive <= 0) game.charge = clamp(game.charge + (move === 'stand' ? 9 : move === 'lunge' ? 8 : 6), 0, 100);
+  return true;
+}
+// 迎击练习：狐狸被击退后立即在玩家正前方重新出现，不逃跑、不计驱退/回能。
+function scheduleDrillReset(f) {
+  if (!f) return;
+  // 坐标/朝向必须在 setTimeout 之前捕获（旧实现回调里引用了不存在的变量 p，350ms 后必崩）。
+  const pose = drillRespawnPose({
+    px: controller.position.x, pz: controller.position.z, yaw: controller.bodyYaw,
+  });
+  setTimeout(() => {
+    if (!sandboxState.parryDrill) return;
+    f.respawnAt(pose.x, pose.z);
+    // 复位血量、状态与击退残留动量，否则复位瞬间会滑行偏移。
+    resetDrillFox(f);
+    f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.bodyYaw };
+  }, 350);
 }
 
 function hitFox(f, damage, s) {
   if (f.hp <= 0) return;
   const fy = terrainHeight(f.x, f.z);
   f.hit(damage, s.knockback, s.stun, controller.position.x, controller.position.z);
-  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[game.level];
+  const cfg = LEVELS[game.level];
 
   damageText.spawn(f.x, fy + 1.1, f.z,
     Number.isInteger(damage) ? `-${damage}` : `-${damage.toFixed(1)}`, '#ffedb7');
@@ -1091,16 +1209,11 @@ function hitFox(f, damage, s) {
 
   // 体力耗尽 = 被驱退。它不会死，而是转身逃跑。
   if (f.hp <= 0 && !f.isSandboxDummy) {
+    // 迎击练习：不驱退、不计数，立刻复位到玩家正前方重来。
     if (sandboxState.parryDrill) {
       audio.hit();
       controller.hitShake(0.2);
-      const pose = drillRespawnPose({ px: controller.position.x, pz: controller.position.z, yaw: controller.yaw });
-      setTimeout(() => {
-        if (!sandboxState.parryDrill) return;
-        f.respawnAt(pose.x, pose.z);
-        resetDrillFox(f);
-        f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.yaw };
-      }, 350);
+      scheduleDrillReset(f);
       return;
     }
     game.levelRepels = (game.levelRepels || 0) + 1;
@@ -1108,15 +1221,11 @@ function hitFox(f, damage, s) {
     f.startFleeing(controller.position.x, controller.position.z, cfg);
     if (game.overdrive <= 0) game.charge = clamp(game.charge + 18, 0, 100);
     game.player.energy = clamp(game.player.energy + 8, 0, 100);
-    damageText.spawn(f.x, fy + 1.6, f.z, '驱退 +1', '#ceebbc');
+    damageText.spawn(f.x, fy + 1.6, f.z, '威胁已解除', '#ceebbc');
     particles.burst(f.x, fy + 0.5, f.z, colRepel, 18, 1.4);
     audio.repel();
     recordTestLog('fox-repelled', { foxType: f.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
     controller.hitShake(0.3);
-    if (f.type === 'boss') {
-      game.bossDown = true;
-      hud.say('狐首领掉头逃走了！完成剩余目标就回洞。', 4);
-    }
   } else {
     audio.hit();
     controller.hitShake(0.18);
@@ -1170,6 +1279,58 @@ function doJump() {
     new THREE.Color(0xbfae8e), 6, 0.7);
 }
 
+// 屏幕平面向量（右+、上+）按相机朝向换算为世界水平单位向量。
+function screenToWorldDir(rightAmt, upAmt) {
+  const yaw = controller.yaw;
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);   // 相机前方
+  const rx = Math.cos(yaw), rz = -Math.sin(yaw);     // 相机右方
+  let wx = rx * rightAmt + fx * upAmt;
+  let wz = rz * rightAmt + fz * upAmt;
+  const l = Math.hypot(wx, wz) || 1;
+  return { x: wx / l, z: wz / l };
+}
+
+// 翻滚方向：优先拖动定向，其次摇杆推动方向，最后身体朝向。
+function rollDirFromGesture(gesture) {
+  // 1) 独立翻滚键被拖动：按拖动方向（屏幕右+、上拖为负 dy）。
+  if (gesture && gesture.moved && (Math.abs(gesture.dx) > 0 || Math.abs(gesture.dy) > 0)) {
+    return screenToWorldDir(gesture.dx, -gesture.dy);
+  }
+  // 2) 移动摇杆正在推动：按轮盘方向（即便角色刚起步、速度还没起来也成立）。
+  const ax = controller.touchAxes || { x: 0, y: 0 };
+  if (Math.hypot(ax.x, ax.y) > 0.18) {
+    return screenToWorldDir(ax.x, ax.y);
+  }
+  // 3) 回退：实际移动速度方向；静止则身体朝向（yaw=0 朝 -Z）。
+  return rollDirection({
+    velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw,
+  });
+}
+
+// 翻滚：朝当前移动方向（否则身体朝向）滚动，整段无敌。
+function doRoll(gesture = null) {
+  const p = game.player;
+  const wheel = PLAYER.combatWheel.dodge;
+  if (game.attackCD > 0 || game.inBurrow || (controller.rollT || 0) > 0.02) return false;
+  const atkMul = devOn('famineTolerance') ? HERBIVORE.attackCostMul : 1;
+  if (p.energy < wheel.cost * atkMul) { hud.say('储备不足，无法翻滚', 1.2); return false; }
+  p.energy -= wheel.cost * atkMul;
+  const dir = rollDirFromGesture(gesture);
+  // 默认 distance=2.2 / invuln=0.42 时精确保持旧 7.2；调试面板改值会同步改变冲量。
+  const rollSpeed = 7.2 * (wheel.distance / 2.2) * (0.42 / Math.max(0.05, wheel.invuln));
+  controller.roll(dir, rollSpeed);
+  p.invuln = Math.max(p.invuln, wheel.invuln);
+  game.attackCD = wheel.recovery || 0.12;
+  audio.swing();
+  const y = terrainHeight(controller.position.x, controller.position.z);
+  particles.burst(controller.position.x, y + 0.12, controller.position.z, new THREE.Color(0xcbb79a), 10, 0.9);
+  damageText.spawn(controller.position.x, y + 1.0, controller.position.z, '翻滚', '#d8e6c8');
+  playerAttackAnim = 'dodge';
+  playerAttackDur = wheel.invuln;
+  playerAttackT = wheel.invuln;
+  return true;
+}
+
 function doInteract() {
   const f = game.friend;
   const d = Math.hypot(f.x - controller.position.x, f.z - controller.position.z);
@@ -1183,7 +1344,7 @@ function doInteract() {
     hud.say('伙伴跟上了！带它回左侧洞穴。');
     return;
   }
-  if (f.saved && inBurrow && game.socialCD <= 0) {
+  if (f.saved && game.inBaseBurrow && game.socialCD <= 0) {
     game.social = 9;
     game.socialCD = 13;
     companion.showEmote('check');
@@ -1202,7 +1363,7 @@ const _tmpV = new THREE.Vector3();
 function update(dt) {
   if (game.mode !== 'play') {
     // 非游戏状态仍更新视觉表现，保持画面"活着"
-    burrow.update(dt);
+    burrowSet.objects.forEach((b) => b.update(dt));
     shockwave.update(dt);
     particles.update(dt);
     damageText.update(dt);
@@ -1210,7 +1371,7 @@ function update(dt) {
     return;
   }
 
-  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[game.level];
+  const cfg = LEVELS[game.level];
   const p = game.player;
   game.elapsed += dt;
   game.totalTime += dt;
@@ -1219,10 +1380,12 @@ function update(dt) {
   const stats = combatStats(game);
   stats_cache = stats;
 
-  // 环境修饰（雾 / 阵风 / 沙尘）每帧推进
-  const envMsg = updateEnv(dt);
-  if (envMsg && !env._msgOn) { env._msgOn = true; hud.say(envMsg, 2.6); }
-  else if (!envMsg && env._msgOn) env._msgOn = false;
+  // 环境修饰（雾 / 阵风 / 沙尘）每帧推进。先用当前位置按同一 burrowVolumeAt 语义
+  // 预判洞内状态，避免进入洞穴的这一帧仍吃到横风。
+  const weatherInBurrow = game.inBurrow || !!burrowVolumeAt(
+    controller.position.x, controller.position.y, controller.position.z, burrowDefs,
+  );
+  updateEnvNotice(updateEnv(dt, weatherInBurrow));
 
   // 计时器
   const prevOverdrive = game.overdrive;
@@ -1231,6 +1394,24 @@ function update(dt) {
     game[k] = Math.max(0, game[k] - dt);
   }
   p.invuln = Math.max(0, p.invuln - dt);
+  game.attackMoveLock = Math.max(0, game.attackMoveLock - dt);
+  controller.movementLocked = game.attackMoveLock > 0;
+  // 蓄力 0→100% 实时推进；满 1500ms 自动以扑击结算。
+  if (attackCharge.held && !attackCharge.fired) {
+    const charge = advanceAttackCharge(attackCharge.t * 1000, dt * 1000);
+    attackCharge.t = charge.holdMs / 1000;
+    setAttackHint(attackCharge.t);
+    if (charge.autoRelease) releaseAttack({ auto: true });
+  } else if (attackFullFlashT > 0) {
+    attackFullFlashT = Math.max(0, attackFullFlashT - dt);
+    if (attackFullFlashT === 0) hideAttackHint();
+  }
+  if (controller.rollT > 0) controller.rollT = Math.max(0, controller.rollT - dt);
+  if (parryWindowT > 0) parryWindowT = Math.max(0, parryWindowT - dt);
+  if (playerAttackT > 0) {
+    playerAttackT = Math.max(0, playerAttackT - dt);
+    if (playerAttackT === 0) { playerAttackAnim = ''; playerAttackDur = 1; }
+  }
   if (prevOverdrive > 0 && game.overdrive === 0) {
     game.fatigue = 5;
     hud.say('大招结束：5 秒疲劳，先拉开距离或回洞休息。', 3);
@@ -1243,14 +1424,19 @@ function update(dt) {
     || binds.isAction('ShiftRight', 'sprint')
     || keys.has('ShiftLeft') || keys.has('ShiftRight');
   if (sprinting && p.energy > 5) speedMul *= 1.42;
+  // 阵风走 controller.externalVelocity.x；洞内先清掉上一帧残留的横向风速，
+  // 避免只把本帧 gust 设为 0 却让风继续把玩家拖行。
+  if (weatherInBurrow) controller.externalVelocity.x = 0;
   controller.update(
     dt,
     keys,
-    speedMul,
+    game.attackMoveLock > 0 ? 0 : speedMul,
     binds.moveMap,
-    env.gust * env.gustDir,
+    weatherInBurrow ? 0 : env.gust * env.gustDir,
     binds.turnMap,
   );
+
+  tryResolvePendingAerialParry();
 
   const moving = controller.movingThisFrame;
 
@@ -1258,8 +1444,16 @@ function update(dt) {
   p.z = controller.position.z;
 
   // 洞穴判定
-  const dBurrow = Math.hypot(p.x - BURROW_X, p.z - BURROW_Z);
-  game.inBurrow = dBurrow < BURROW_R;
+  game.currentBurrow = burrowVolumeAt(p.x, controller.position.y, p.z, burrowDefs);
+  game.inBurrow = !!game.currentBurrow;
+  game.inBaseBurrow = game.currentBurrow?.type === 'base';
+  // 移动可能在本帧跨过洞口；立刻切换天气可见性/听感，避免沙尘雾留在洞内，
+  // 同时保留普通关卡雾和洞内照明的独立语义。
+  if (game.inBurrow !== weatherInBurrow) updateEnvNotice(updateEnv(0, game.inBurrow));
+  // 进洞平滑压暗全局光：避免一闪而过，露出 burrow 自带暖光与黑井。
+  game._undergroundK = THREE.MathUtils.lerp(game._undergroundK || 0, game.inBurrow ? 1 : 0, Math.min(1, dt * 5));
+  sky.setUnderground(game._undergroundK);
+  game.observing = controller.crouch < 0.08 && controller.postureSpeed < 0.04 && !moving && !game.inBurrow;
 
   // 移动消耗储备
   // dev 版「耐饥渴」：同一动作消耗更低（旱獭能长时间不进食活动）
@@ -1274,7 +1468,7 @@ function update(dt) {
   const burrowRegenMul = devOn('famineTolerance') ? HERBIVORE.burrowRegenMul : 1;
   if (!moving) {
     p.energy = clamp(
-      p.energy + (game.inBurrow ? 14 * burrowRegenMul : 2.5 * regenMul) * dt, 0, 100,
+      p.energy + (game.inBurrow ? (game.currentBurrow.regenMul || 0) * 14 * burrowRegenMul : 2.5 * regenMul) * dt, 0, 100,
     );
   }
 
@@ -1283,32 +1477,70 @@ function update(dt) {
   let anyWinding = false;
   for (const f of foxes) {
     const prevState = f.state;
-    f.update(dt, p, game.inBurrow, cfg, BURROW, terrainHeight);
+    if (sandboxState.parryDrill) {
+      f.drillCtx = { px: p.x, pz: p.z, yaw: controller.bodyYaw };
+    } else if (f.drillCtx) {
+      delete f.drillCtx;
+    }
+    f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow);
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
-      if (prevState !== 'wind') audio.foxWind();
+      if (!game.inBurrow && prevState !== 'wind') audio.foxWind();
     }
-    if (f.alive && prevState === 'wind' && f.state === 'dash') audio.foxDash();
+    if (f.alive && !game.inBurrow && prevState === 'wind' && f.state === 'dash') audio.foxDash();
 
     // 接触伤害
     if (f.alive && !game.inBurrow && p.invuln <= 0) {
       const d = Math.hypot(f.x - p.x, f.z - p.z);
-      const reach = FOX.contact[f.type] ?? FOX.contact.default;
+      const reach = (PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal));
       // 水平接触仍受原半径限制；高度则比较双方碰撞区间，
       // 避免地面玩家被从头顶跃过的狐狸击中。
       const foxBottom = terrainHeight(f.x, f.z) + f.leap;
       const foxHitHeight = FOX.collisionHeight[f.type] ?? FOX.collisionHeight.normal;
       const playerBottom = terrainHeight(p.x, p.z) + controller.airHeight;
       const playerHitHeight = PLAYER.collisionHeight;
-      const verticalOverlap = verticalHitOverlap(
-        playerBottom, playerHitHeight, foxBottom, foxHitHeight,
-      );
+      const verticalOverlap = foxAttackVerticalHit({
+        playerBottom, playerHeight: playerHitHeight, foxBottom, foxHeight: foxHitHeight,
+        groundAttackHeight: FOX.groundAttackHeight, dodgeHeight: PLAYER.jump.dodgeHeight, mode: f.attack?.mode, state: f.state,
+      });
       if (d < reach && verticalOverlap) {
+        // 迎击判定（振刀式）：迎击窗口未过期 + 狐狸正在 dash 攻击窗口内 +
+        // 接触距离内 + 狐狸从玩家攻击朝向正面（约 ±80°）冲来 → 抵消本次接触并反打。
+        // 狐狸空闲/巡逻/蓄力(wind)/喘息(rest)、玩家输入过早或过晚，都不算迎击。
+        const parryCfg = PLAYER.combatWheel.stand;
+        const toFoxX = (f.x - p.x) / (d || 1), toFoxZ = (f.z - p.z) / (d || 1);
+        const parryYaw = resolveAttackYaw({
+          thirdPerson: controller.thirdPerson, cameraYaw: controller.yaw, bodyYaw: controller.bodyYaw,
+        });
+        const facingDot = toFoxX * (-Math.sin(parryYaw)) + toFoxZ * (-Math.cos(parryYaw));
+        const parryOK = resolveParryOutcome({
+          parryWindowT, foxState: f.state, dist: d, reach, facingDot,
+          parryHalfAngle: parryCfg.parryHalfAngle,
+        }).success;
+        if (parryOK) {
+          parryWindowT = 0;
+          p.invuln = Math.max(p.invuln, 0.35);
+          // 把冲来的狐狸当场定住、反方向击退并眩晕（不消耗击杀计数/回能奖励）。
+          // hit() 的击退方向 = 狐狸位置 - from，故 from 传玩家位置，才能把狐狸朝远离玩家顶开。
+          f.hit(0, (parryCfg.knockback || 2.8) + 1.2, parryCfg.stun || 1.2, p.x, p.z);
+          const fy0 = terrainHeight(p.x, p.z);
+          damageText.spawn(p.x, fy0 + 1.5, p.z, '迎击！', '#e7c4ff');
+          if (game.sandbox) hud.say('迎击成功：正面顶住了狐狸的冲刺！', 1.6);
+          particles.burst(p.x + toFoxX * 1.2, fy0 + 0.6, p.z + toFoxZ * 1.2, 0xd6a1ff, 18, 1.3);
+          audio.parry ? audio.parry() : audio.hit();
+          controller.hitShake(0.35, toFoxX * 2.2, toFoxZ * 2.2);
+          if (game.overdrive <= 0) game.charge = clamp(game.charge + 10, 0, 100);
+          game.parryCount = (game.parryCount || 0) + 1;
+          if (sandboxState.parryDrill) scheduleDrillReset(f);
+          continue;
+        }
         // 注意括号：`??` 优先级低于 `+`，必须先按类型取基础伤害再叠加关卡加成，
         // 否则 `+ game.level` 只会并进 default 分支、而该分支永远不会被用到。
         const damage = (FOX.damage[f.type] ?? FOX.damage.default) + game.level;
         const hpBefore = p.hp;
+        interruptHeldAttackCharge();
+        clearPendingAerialParry();
         p.hp = testState.godMode ? Math.max(1, p.hp) : Math.max(0, p.hp - damage);
         recordTestLog('player-hit', { foxType: f.type, damage, hpBefore, hpAfter: p.hp,
           preventedByGodMode: testState.godMode });
@@ -1346,9 +1578,7 @@ function update(dt) {
     game.charge = clamp(game.charge + (2 + Math.min(threats, 4)) * dt, 0, 100);
   }
 
-  // —— 攻击输入 —— 键盘键由方案决定；鼠标左键始终可攻击
-  if (mouseDown || touchAttackPointers.size > 0
-    || binds.keys('attack').some((k) => keys.has(k))) strike();
+  // 攻击在释放时结算：按住期间仅采集方向输入。
 
   // —— 采食 ——
   // 正式版吃浆果（+20）；dev 版吃当季草本植物，含多汁/富亚油酸加成
@@ -1379,14 +1609,14 @@ function update(dt) {
   companion.update(dt, controller.position, game.inBurrow);
   if (game.friend.rescued && !game.friend.saved) {
     const d = Math.hypot(companion.x - BURROW_X, companion.z - BURROW_Z);
-    if (game.inBurrow && d < BURROW_R + 2.5) {
+    if (game.inBaseBurrow && d < BURROW_R + 2.5) {
       game.friend.saved = true;
       companion.saved = true;
       companion.x = BURROW_X - 2.6 * getPointScale();
       companion.z = BURROW_Z + 3 * getPointScale();
       companion.sync();
       audio.rescue();
-      hud.say('伙伴到家！采食和驱退完成后回洞。', 3.3);
+      hud.say('伙伴到家！采食完成后回洞。', 3.3);
     }
   }
 
@@ -1409,13 +1639,11 @@ function update(dt) {
 
   // —— 交互提示 ——
   let prompt = '';
-  if (game.friend.saved && game.inBurrow && game.socialCD <= 0) {
+  if (game.friend.saved && game.inBaseBurrow && game.socialCD <= 0) {
     prompt = '<kbd>E</kbd> 陪伴缓压';
   } else if (!game.friend.rescued && !game.friend.saved
     && Math.hypot(companion.x - p.x, companion.z - p.z) < RESCUE_DIST) {
     prompt = '<kbd>E</kbd> 救援伙伴';
-  } else if (game.charge >= 100 && game.overCD <= 0 && !game.inBurrow) {
-    prompt = '<kbd>K</kbd> 大招就绪';
   }
   hud.setInteractPrompt(prompt);
 
@@ -1423,7 +1651,28 @@ function update(dt) {
   playerBody.rotation.x = -controller.crouch * 0.28;
   playerBody.position.y = controller.crouch * -0.12 + (controller.grounded ? 0 : 0.08);
   playerBody.scale.set(1, 1 - controller.crouch * 0.12, 1 + controller.crouch * 0.18);
-  burrow.update(dt);
+  // 第三人称攻击/翻滚动作（前肢 + 身体姿态）。
+  const arms = playerBody.userData.frontArms;
+  const atkK = playerAttackT > 0 ? Math.sin(Math.min(1, 1 - playerAttackT / 0.46) * Math.PI) : 0;
+  if (arms) {
+    const L = arms.left, R = arms.right;
+    L.rotation.x = 0; R.rotation.x = 0; L.rotation.z = 0; R.rotation.z = 0;
+    if (playerAttackAnim === 'lunge') {
+      // 扑击：前肢大前伸（绕本地 X 向前抬）+ 身体下压
+      L.rotation.x = -1.2 * atkK; R.rotation.x = -1.2 * atkK;
+      playerBody.rotation.x -= 0.35 * atkK;
+    } else if (playerAttackAnim === 'stand') {
+      // 迎击：双前肢前顶、略外展
+      L.rotation.x = -0.8 * atkK; R.rotation.x = -0.8 * atkK;
+      L.rotation.z = -0.3 * atkK; R.rotation.z = 0.3 * atkK;
+    } else if (playerAttackAnim === 'dodge') {
+      playerBody.rotation.z = 0.7 * atkK; // 翻滚侧倾
+    } else if (playerAttackAnim === 'tap') {
+      L.rotation.x = -0.9 * atkK; R.rotation.x = -0.5 * atkK;
+    }
+  }
+  if (playerAttackAnim !== 'dodge') playerBody.rotation.z = 0;
+  burrowSet.objects.forEach((b) => b.update(dt));
   berries.forEach((b) => b.update(dt));
   claw.update(dt);
   shockwave.update(dt);
@@ -1433,11 +1682,19 @@ function update(dt) {
     boost: game.boost > 0, overdrive: game.overdrive > 0,
     overloaded: stats.overloaded, social: game.social > 0, fatigue: game.fatigue > 0,
   });
-
+  updateCooldownButtons();
   if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(dt, 0.0001) });
 
   controller.forwardFlat(_fwd);
   hud.updateThreats(foxes, p, camera, _fwd, companion);
+  minimap.update({
+    visible: game.observing,
+    player: { x: p.x, z: p.z, yaw: controller.yaw },
+    base: baseBurrow,
+    shelters: burrowDefs.filter((b) => b.type === 'shelter'),
+    berries, companion, foxes,
+  });
+  debugVolumes?.update?.({ game, controller, foxes, stats, playerAttackAnim, attackYaw: resolveAttackYaw({ thirdPerson: controller.thirdPerson, cameraYaw: controller.yaw, bodyYaw: controller.bodyYaw }), terrainHeight });
 
   // 低血量警告音
   if (p.hp < 30) {
@@ -1450,8 +1707,10 @@ function update(dt) {
   if (!game.sandbox && game.time <= 0) { finish(false, '天黑前没有完成本关任务。'); return; }
 
   // —— 通关判定：三目标 + 回洞 ——
-  if (!game.sandbox && game.foodCount >= cfg.goal && game.levelRepels >= cfg.repels
-    && game.friend.saved && game.bossDown && game.inBurrow) {
+  // 正式通关：采食达标 + 伙伴到家 + 回到【大本营】（临时避难洞不结算）。
+  // 驱退狐狸不再是任务配额；boss 也不是强制目标。
+  if (!game.sandbox && objectivesComplete({ foodCount: game.foodCount, foodGoal: cfg.goal,
+    friendSaved: game.friend.saved, inBurrow: game.inBaseBurrow })) {
     completeLevel();
     return;
   }
@@ -1465,29 +1724,168 @@ function update(dt) {
 const binds = new Keybinds();
 
 let mouseDown = false;
-const touchAttackPointers = new Set();
-const touchSprintPointers = new Set();
 let touchControls = null;
+// Config fallback for the new weaker airborne tap-pounce tuning.
+PLAYER.combatWheel.aerialPounce ||= {};
+PLAYER.combatWheel.aerialPounce.damageMul ??= AERIAL_POUNCE_DAMAGE_MUL;
+const releasedTouchAttackPointers = new Set();
+// 攻击键按住状态；中断只会由真实狐狸命中触发，后续释放不补招。
+const attackCharge = { held: false, t: 0, pointerId: null, via: null, fired: null, interrupted: false };
+let attackFullFlashT = 0;
 // 首次点击用于捕获鼠标指针时，把这次攻击记下来，等锁定成功后补上
 let pendingClickAttack = false;
 let pendingClickTimer = 0;
+// 固定屏幕下方中央的蓄力进度条。
+const attackHint = document.createElement('div');
+attackHint.className = 'attack-charge-hint';
+attackHint.innerHTML = '<div class="attack-charge-track"><i class="attack-charge-fill"></i></div><b class="attack-charge-label">蓄力</b>';
+attackHint.setAttribute('aria-hidden', 'true');
+document.body.appendChild(attackHint);
+function setAttackHint(hold = 0) {
+  const progress = Math.max(0, Math.min(1, hold / (MAX_ATTACK_CHARGE_MS / 1000)));
+  attackHint.style.setProperty('--charge-progress', `${progress * 100}%`);
+  attackHint.dataset.full = progress >= 1 ? 'true' : 'false';
+  attackHint.classList.toggle('full', progress >= 1);
+  attackHint.querySelector('.attack-charge-label').textContent = progress >= 1 ? '满蓄力 · 自动扑击' : '蓄力';
+  attackHint.classList.toggle('visible', attackCharge.held && !attackCharge.fired);
+}
+function hideAttackHint() {
+  attackHint.classList.remove('visible', 'full');
+  attackHint.dataset.full = 'false';
+  attackHint.querySelector('.attack-charge-label').textContent = '蓄力';
+  attackHint.style.setProperty('--charge-progress', '0%');
+}
+function cancelAttackCharge() {
+  if (attackCharge.via === 'touch' && attackCharge.pointerId !== null) {
+    releasedTouchAttackPointers.add(attackCharge.pointerId);
+  }
+  attackCharge.held = false;
+  attackCharge.t = 0;
+  attackCharge.pointerId = null;
+  attackCharge.via = null;
+  attackCharge.fired = null;
+  attackCharge.interrupted = false;
+  attackFullFlashT = 0;
+  hideAttackHint();
+}
+function interruptHeldAttackCharge() {
+  if (!attackCharge.held) return;
+  if (attackCharge.via === 'touch' && attackCharge.pointerId !== null) {
+    releasedTouchAttackPointers.add(attackCharge.pointerId);
+  }
+  Object.assign(attackCharge, interruptAttackCharge(attackCharge));
+  attackFullFlashT = 0;
+  hideAttackHint();
+}
+function beginAttack(via, pointerId = null) {
+  if (game.mode !== 'play') return;
+  // 触屏在按住拖动时会重复回调 pressed=true，不能因此把蓄力计时清零。
+  if (attackCharge.held) return;
+  attackFullFlashT = 0;
+  attackCharge.held = true;
+  attackCharge.t = 0;
+  attackCharge.pointerId = pointerId;
+  attackCharge.via = via;
+  attackCharge.fired = null;
+  attackCharge.interrupted = false;
+  hideAttackHint();
+  setAttackHint(0);
+}
+function releaseAttack({ auto = false } = {}) {
+  if (!attackCharge.held) return;
+  const holdMs = attackCharge.t * 1000;
+  const fired = attackCharge.fired;
+  const interrupted = attackCharge.interrupted;
+  const move = resolveAttackRelease({ holdMs, grounded: controller.grounded, fired, interrupted });
+  attackCharge.held = false;
+  attackCharge.t = 0;
+  attackCharge.pointerId = null;
+  attackCharge.via = null;
+  attackCharge.fired = null;
+  attackCharge.interrupted = false;
+  hideAttackHint();
+  if (game.mode === 'play' && move) {
+    const weakAerial = move === 'lunge' && isWeakAerialPounce({ holdMs, grounded: controller.grounded });
+    // 只有实际执行招式时 strike() 扣能量；蓄力过程从不预扣。
+    strike(move, weakAerial ? { aerialPounceDamageMul: PLAYER.combatWheel.aerialPounce?.damageMul ?? AERIAL_POUNCE_DAMAGE_MUL } : {});
+  }
+  if (auto && move === 'lunge') {
+    attackFullFlashT = 0.18;
+    attackHint.style.setProperty('--charge-progress', '100%');
+    attackHint.dataset.full = 'true';
+    attackHint.querySelector('.attack-charge-label').textContent = '满蓄力 · 自动扑击';
+    attackHint.classList.add('full', 'visible');
+  }
+}
+
+/** 攻击键“按住左滑”迎击：地面即刻执行；空中请求快落地后消费一次。 */
+function triggerParryGesture(ctx = null) {
+  if (game.mode !== 'play') return false;
+  // 触屏左滑与 PC 中键 / B 都走这里；PC 直接触发时不需要先按住攻击键。
+  const directPc = ctx?.source === 'pc';
+  if (!directPc) {
+    if (!ctx || !attackCharge.held || attackCharge.fired) return false;
+    if (attackCharge.pointerId !== ctx.pointerId) return false;
+    attackCharge.fired = 'parry';
+    attackCharge.t = 0;
+    hideAttackHint();
+  }
+  // 注意：这里只是迎击出手，不等于招架成立；成功反馈只在真正抵住狐狸 dash 时给出。
+  if (!controller.grounded) {
+    pendingAerialParry = true;
+    controller.requestFastLanding();
+  } else {
+    strike('stand', { fromParryGesture: true });
+  }
+  return true;
+}
+
+/** 攻击键“按住右滑”翻滚：跨阈值立即触发一次，松手不补招。 */
+function triggerRollGesture(ctx) {
+  if (game.mode !== 'play') return;
+  if (!ctx || !attackCharge.held || attackCharge.fired) return;
+  if (attackCharge.pointerId !== ctx.pointerId) return;
+  attackCharge.fired = 'roll';
+  attackCharge.t = 0;
+  hideAttackHint();
+  doRoll({ moved: true, dx: ctx.dx, dy: ctx.dy });
+}
+
+// 是否处于奔跑姿态：疾跑按键 / 触屏疾跑 / 身体俯伏超过阈值。
+function isSprintingNow() {
+  return controller.touchSprint
+    || keys.has('ShiftLeft') || keys.has('ShiftRight')
+    || binds.isAction('ShiftLeft', 'sprint') || binds.isAction('ShiftRight', 'sprint')
+    || controller.crouch > 0.5;
+}
 
 
 touchControls = new TouchControls({
   canvas,
   controller,
+  enabled: TOUCH_DEVICE,
+  // 只有自动模式允许首次真实触摸运行时升级；强制键鼠收到 touchstart 也不得切换。
+  allowAutoActivate: () => inputMode.canRuntimeUpgrade(),
+  allowMouse: TOUCH_DEVICE && inputMode.preference === INPUT_MODE_TOUCH && !hasRealTouch(),
   root: document.getElementById('touchControls'),
   lookZone: document.getElementById('touchLookZone'),
   joystick: document.getElementById('touchJoystick'),
   stick: document.getElementById('touchStick'),
   isActive: () => game.mode === 'play',
-  onAction: (action, pressed, pointerId) => {
+  onParryGesture: (ctx) => triggerParryGesture(ctx),
+  onRollGesture: (ctx) => triggerRollGesture(ctx),
+  onAction: (action, pressed, pointerId, gesture) => {
     if (action === 'attack') {
-      if (pressed) touchAttackPointers.add(pointerId); else touchAttackPointers.delete(pointerId);
-    } else if (action === 'sprint') {
-      if (pressed) touchSprintPointers.add(pointerId); else touchSprintPointers.delete(pointerId);
-      controller.touchSprint = touchSprintPointers.size > 0;
-    } else if (pressed && action === 'jump') doJump();
+      if (pressed) {
+        if (!releasedTouchAttackPointers.has(pointerId)) beginAttack('touch', pointerId);
+      } else {
+        if (attackCharge.pointerId === pointerId) releaseAttack();
+        // The physical touchend always closes the lifecycle, even when leaving the
+        // button already resolved the move and latched this id against restarting.
+        releasedTouchAttackPointers.delete(pointerId);
+      }
+    } else if (!pressed && action === 'dodge') doRoll(gesture);
+    else if (pressed && action === 'jump') doJump();
     else if (pressed && action === 'interact') doInteract();
     else if (pressed && action === 'burst') doBurst();
     else if (pressed && action === 'ultimate') doUltimate();
@@ -1495,12 +1893,15 @@ touchControls = new TouchControls({
   },
 });
 
-// 运行时兜底：媒体查询/UA 都没识别时，收到真实触摸即启用触控层（capture 最早、不拦截）。
+// 攻击手势使用 pointer capture / Touch Events 的原始触摸目标持续接收 move；
+// 滑出按钮边界只是手势的一部分，不提前 release，否则 22px 阈值会被按钮边缘截断。
+// 老内核兜底：媒体查询/UA 未识别时，收到真实手指触摸立即启用触控层（capture 最早、不拦截）。
+// 是否允许升级由输入模式决定：仅自动模式生效，强制键鼠/强制触屏下为幂等 no-op。
 for (const evName of ['pointerdown', 'touchstart']) {
   window.addEventListener(evName, (ev) => {
     if (TOUCH_DEVICE) return;
     const realTouch = ev.pointerType === 'touch' || ev.pointerType === 'pen' || evName === 'touchstart';
-    if (realTouch) enableTouchRuntime();
+    if (realTouch) inputMode.notifyRealTouch();
   }, { passive: true, capture: true });
 }
 
@@ -1540,6 +1941,7 @@ window.addEventListener('keydown', (e) => {
   if (binds.isAction(e.code, 'restart')) { resetAll(); startPlay(); return; }
   if (binds.isAction(e.code, 'retry')) { retryLevel(); return; }
   if (binds.isAction(e.code, 'pause')) {
+    if (touchLayout.editing) { touchLayout.setEditing(false); return; }
     if (game.mode === 'play') pause();
     else if (game.mode === 'pause') resume();
     return;
@@ -1557,17 +1959,32 @@ window.addEventListener('keydown', (e) => {
 
   // —— 战斗类动作 ——
   keys.add(e.code);
+  if (binds.isAction(e.code, 'parry')) triggerParryGesture({ source: 'pc', kind: 'parry' });
+  if (binds.isAction(e.code, 'attack')) beginAttack('key');
+  if (binds.isAction(e.code, 'dodge')) doRoll();
   if (binds.isAction(e.code, 'burst')) doBurst();
   if (binds.isAction(e.code, 'ultimate')) doUltimate();
   if (binds.isAction(e.code, 'interact')) doInteract();
   if (binds.isAction(e.code, 'jump')) doJump();
 });
 
-window.addEventListener('keyup', (e) => keys.delete(e.code));
+window.addEventListener('keyup', (e) => {
+  keys.delete(e.code);
+  if (binds.isAction(e.code, 'attack')) {
+    if (attackCharge.via === 'key') releaseAttack();
+  }
+});
 
 canvas.addEventListener('mousedown', (e) => {
   if (controller.touchEnabled) return;
   audio.ensure();
+
+  // 中键 = 迎击；阻止浏览器自动滚动，并与触屏左滑复用同一迎击函数。
+  if (e.button === 1) {
+    e.preventDefault();
+    triggerParryGesture({ source: 'pc', kind: 'parry' });
+    return;
+  }
 
   // 右键 = 跳跃（需在 pointer lock 下才生效，未锁定时先捕获指针）
   if (e.button === 2) {
@@ -1583,15 +2000,14 @@ canvas.addEventListener('mousedown', (e) => {
     if (game.mode === 'play') {
       controller.requestLock();
       pendingClickAttack = true;
-      // 若用户拒绝锁定或请求失败，pendingClickAttack 会一直挂着，
-      // 导致下次成功锁定时打出一记莫名其妙的"幽灵攻击"。超时清理。
+      beginAttack('mouse');
       clearTimeout(pendingClickTimer);
-      pendingClickTimer = setTimeout(() => { pendingClickAttack = false; }, 1200);
+      pendingClickTimer = setTimeout(() => { pendingClickAttack = false; if (attackCharge.via === 'mouse') releaseAttack({ auto: true }); }, MAX_ATTACK_CHARGE_MS);
     }
     return;
   }
   mouseDown = true;
-  if (game.mode === 'play') strike();
+  if (game.mode === 'play') beginAttack('mouse');
 });
 
 // 指针捕获成功时，补上被吞掉的那次攻击
@@ -1602,7 +2018,7 @@ controller.onLockChange = (locked) => {
     clearTimeout(pendingClickTimer);
     pendingClickAttack = false;
     mouseDown = true;
-    if (game.mode === 'play') strike();
+    // 攻击蓄力已在 mousedown 时开始，这里无需重复。
   }
   // 未锁定时暂停，避免玩家离开后被偷袭
   if (!locked && !controller.touchEnabled && game.mode === 'play') pause();
@@ -1610,9 +2026,16 @@ controller.onLockChange = (locked) => {
 // 右键已用于跳跃，必须屏蔽浏览器右键菜单，否则每次跳跃都会弹菜单
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-window.addEventListener('mouseup', (e) => { if (e.button === 0) mouseDown = false; });
+window.addEventListener('mouseup', (e) => {
+  if (e.button !== 0) return;
+  mouseDown = false;
+  if (attackCharge.via === 'mouse') releaseAttack();
+  clearTimeout(pendingClickTimer);
+  pendingClickAttack = false;
+});
 window.addEventListener('blur', () => {
   keys.clear(); mouseDown = false;
+  if (attackCharge.held) releaseAttack();
   if (game.mode === 'play') pause();
 });
 document.addEventListener('visibilitychange', () => {
@@ -1630,6 +2053,17 @@ canvas.addEventListener('click', () => {
   if (!controller.touchEnabled && game.mode === 'play' && !controller.locked) controller.requestLock();
 });
 
+// HUD 详细状态：默认收起战斗明细与状态芯片，按需呼出。
+const hudDetailsBtn = document.getElementById('hudDetailsBtn');
+if (hudDetailsBtn) {
+  hudDetailsBtn.onclick = () => {
+    const open = document.body.classList.toggle('hud-details-open');
+    hudDetailsBtn.setAttribute('aria-expanded', String(open));
+    hudDetailsBtn.textContent = open ? '收起' : '详情';
+    hudDetailsBtn.title = open ? '收起详细状态' : '展开详细状态';
+  };
+}
+
 // 帮助面板
 const helpBtn = document.getElementById('helpBtn');
 const helpSheet = document.getElementById('helpSheet');
@@ -1637,7 +2071,31 @@ helpBtn.onclick = () => { helpSheet.hidden = !helpSheet.hidden; };
 document.getElementById('helpClose').onclick = () => { helpSheet.hidden = true; };
 
 // 设置面板（键位方案）
-const settingsUI = new SettingsUI(binds);
+const touchLayout = new TouchLayout();
+const feedbackUI = new FeedbackUI({
+  endpoint: FEEDBACK.endpoint,
+  getSnapshot: () => collectGameSnapshot({
+    game, version: VERSION_LABEL, thirdPerson, sandbox: SANDBOX_MODE,
+    touch: TOUCH_DEVICE, inputMode: inputMode.describe(), performanceProfile: renderProfile,
+  }),
+});
+// 进入触屏布局调整时自动暂停，退出时恢复；调整前已暂停则保持暂停。
+touchLayout.setPauseHooks({
+  pause: () => pause(),
+  resume: () => { if (game.mode === 'pause') resume(); },
+  isPaused: () => game.mode !== 'play',
+});
+// 疾跑触发范围（摇杆内圈）：布局数据是唯一持久化来源，触控层实时消费；滑块变化经回调即时生效。
+touchControls.setSprintThreshold(touchLayout.layout.joystick.sprintThreshold);
+touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
+// 摇杆整体大小：布局层 transform 缩放与触控层坐标换算保持同一倍率。
+touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
+touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
+
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode);
+// 设置面板切换输入模式 → 即时生效；启动时也同步一次（html 属性 / 鼠标兜底 / 布局入口可用性）。
+inputMode.onChange(() => applyInputMode());
+applyInputMode();
 
 // 开发测试面板通过 ?test=1 显式启用，不进入普通用户界面。
 const testModeBtn = document.getElementById('testModeBtn');
@@ -1647,8 +2105,9 @@ function setTestPanelOpen(open) {
   testPanel.hidden = !visible;
   testModeBtn.setAttribute('aria-expanded', String(visible));
 }
-if (TEST_MODE || SANDBOX_MODE) {
+{
   testModeBtn.hidden = false;
+  testModeBtn.hidden = !TEST_MODE && !SANDBOX_MODE;
   document.getElementById('testGodMode').checked = testState.godMode;
   document.getElementById('testFreezeTimer').checked = testState.freezeTimer;
   const smartToggle = document.getElementById('testSmartFox');
@@ -1658,13 +2117,23 @@ if (TEST_MODE || SANDBOX_MODE) {
     smartToggle.checked = smartFoxSelected;
   }
   recordTestLog('session-start', { userAgent: navigator.userAgent, initialSnapshot: testSnapshot() });
-  testModeBtn.onclick = () => {
-    testPanel.hidden = !testPanel.hidden;
-    testModeBtn.setAttribute('aria-expanded', String(!testPanel.hidden));
+  const stopTestPanelEvent = (event) => event.stopPropagation();
+  testModeBtn.addEventListener('pointerdown', stopTestPanelEvent);
+  testModeBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setTestPanelOpen(testPanel.hidden);
+  });
+  testPanel.addEventListener('pointerdown', stopTestPanelEvent);
+  testPanel.addEventListener('click', stopTestPanelEvent);
+  const closeTestPanelOutside = (event) => {
+    if (testPanel.hidden) return;
+    if (testPanel.contains(event.target) || testModeBtn.contains(event.target)) return;
+    setTestPanelOpen(false);
   };
+  document.addEventListener('pointerdown', closeTestPanelOutside);
+  document.addEventListener('click', closeTestPanelOutside);
   document.getElementById('testPanelClose').onclick = () => {
-    testPanel.hidden = true;
-    testModeBtn.setAttribute('aria-expanded', 'false');
+    setTestPanelOpen(false);
   };
   document.getElementById('testGodMode').onchange = (event) => {
     testState.godMode = event.target.checked;
@@ -1675,19 +2144,6 @@ if (TEST_MODE || SANDBOX_MODE) {
     game.freezeTimer = testState.freezeTimer;
     recordTestLog('setting', { name: 'freezeTimer', value: testState.freezeTimer });
   };
-  document.getElementById('testGodMode').addEventListener('change', (event) => {
-    if (game.sandbox) sandboxState.godMode = event.target.checked;
-  });
-  document.getElementById('testFreezeTimer').addEventListener('change', (event) => {
-    if (game.sandbox) sandboxState.freezeTimer = event.target.checked;
-  });
-  if (devOn('smartFoxSandbox')) {
-    document.getElementById('testSmartFox')?.addEventListener('change', (event) => {
-      smartFoxSelected = !!event.target.checked;
-      syncSmartFoxSelection();
-      recordTestLog('smart-fox-selection', { enabled: smartFoxSelected });
-    });
-  }
   testPanel.addEventListener('click', (event) => {
     const action = event.target.closest('[data-test-action]')?.dataset.testAction;
     if (!action) return;
@@ -1697,7 +2153,7 @@ if (TEST_MODE || SANDBOX_MODE) {
       game.player.invuln = Math.max(game.player.invuln, 1.3);
       recordTestLog('player-heal', { action, hpBefore: before, hpAfter: game.player.hp });
     } else if (action === 'resetTimer') {
-      game.time = game.sandbox ? Infinity : LEVELS[game.level].time;
+      game.time = LEVELS[game.level].time;
       recordTestLog('timer-reset', { time: game.time });
     } else if (action === 'snapshot') {
       recordTestLog('manual-snapshot', testSnapshot());
@@ -1714,6 +2170,21 @@ if (TEST_MODE || SANDBOX_MODE) {
     const meta = document.getElementById('testLogMeta');
     if (meta) meta.textContent = `日志 ${testLogs.length} 条`;
   });
+  testPanel.querySelector('#testGodMode').addEventListener('change', (event) => {
+    if (game.sandbox) sandboxState.godMode = event.target.checked;
+    testState.godMode = event.target.checked;
+  });
+  testPanel.querySelector('#testFreezeTimer').addEventListener('change', (event) => {
+    if (game.sandbox) sandboxState.freezeTimer = event.target.checked;
+    testState.freezeTimer = event.target.checked;
+  });
+  if (devOn('smartFoxSandbox')) {
+    document.getElementById('testSmartFox')?.addEventListener('change', (event) => {
+      smartFoxSelected = !!event.target.checked;
+      syncSmartFoxSelection();
+      recordTestLog('smart-fox-selection', { enabled: smartFoxSelected });
+    });
+  }
   window.addEventListener('error', (event) => recordTestLog('browser-error', {
     message: event.message, source: event.filename, line: event.lineno, column: event.colno,
   }));
@@ -1729,7 +2200,11 @@ const sandboxPanelUI = setupSandboxPanel({
     if (action === 'refill') { game.player.hp = 100; game.player.energy = 100; }
     else if (action === 'clearStress') { game.player.stress = 0; game.stressWarned = false; }
     else if (action === 'charge') game.charge = 100;
-    else if (action === 'resetFood') { berries.forEach((b) => b.reset()); scenery.resetBerries?.(); hud.say('食物已重置，被吃掉的浆果/植物重新出现', 2); }
+    else if (action === 'resetFood') {
+      berries.forEach((b) => b.reset());
+      scenery.resetBerries?.();
+      hud.say('食物已重置，被吃掉的浆果/植物重新出现', 2);
+    }
     else if (action === 'spawnOne') spawnSandboxFoxes({ state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
     else if (action === 'spawnGroup') spawnSandboxFoxes({ count: 6, state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
     else if (action === 'clearFoxes') clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
@@ -1749,53 +2224,89 @@ const sandboxPanelUI = setupSandboxPanel({
     if (name === 'parryDrill') {
       sandboxState.parryDrill = value;
       if (value) {
+        // 只留 1 只练习狐，清掉其他；它会在 fox.update 里被 drillCtx 引导。
         clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
         const f = spawnSandboxFox('normal');
-        if (f) f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.yaw };
+        if (f) { f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.bodyYaw }; }
         hud.say('迎击练习：等狐狸正面冲刺时，按住攻击键向左滑出迎击顶回去', 3.2);
-      } else foxes.forEach((f) => delete f.drillCtx);
+      } else {
+        foxes.forEach((f) => delete f.drillCtx);
+      }
     }
     if (name === 'dummyDefeatable') {
       sandboxState.dummyDefeatable = value;
       setSandboxDummyDefeatable(sandboxState.dummy, value);
     }
-    if (name === 'difficulty') {
-      applySandboxDifficulty(sandboxState, value);
-      foxes.forEach((f) => { if (!f.isSandboxDummy) { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; } });
-    }
+    if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { if (!f.isSandboxDummy) { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; } }); }
   },
 });
+
+function updateCooldownButtons() {
+  for (const id of ['burst', 'ultimate']) {
+    const el = document.querySelector(`[data-touch-action="${id}"]`);
+    const overlay = el?.querySelector('.cooldown-overlay'); if (!el || !overlay) continue;
+    const isUlt = id === 'ultimate';
+    const data = cooldownOverlayData({ remaining: isUlt ? game.overCD : game.boostCD, duration: isUlt ? ULT.cooldown : 12,
+      energy: game.player.energy, cost: isUlt ? ULT.cost : 20, charge: game.charge, charging: isUlt });
+    el.classList.toggle('no-energy', data.state === 'no-energy'); overlay.classList.toggle('on', data.state === 'cd' || data.state === 'charging');
+    overlay.style.setProperty('--cd-angle', `${data.angle}deg`); overlay.querySelector('em').textContent = data.state === 'cd' ? Math.ceil(isUlt ? game.overCD : game.boostCD) : '';
+  }
+}
 
 // 键位变化时同步帮助面板上的按键提示，避免文档与实际绑定不一致
 function syncHelpKeys() {
   const rows = binds.describe();
-  const get = (id) => {
-    const r = rows.find((x) => x.id === id);
-    if (!r) return '';
-    if (r.empty) return '鼠标左键';
-    const parts = r.keys.slice();
-    if (r.alt) parts.push(r.alt);
-    return parts.join(' / ');
+  const row = (id) => rows.find((x) => x.id === id);
+  const parts = (id, includeAlt = true) => {
+    const r = row(id);
+    if (!r) return [];
+    const out = r.keys.slice();
+    if (includeAlt && r.alt) out.push(r.alt);
+    return out;
   };
+  const get = (id, emptyFallback = '') => {
+    const r = row(id);
+    if (!r) return '';
+    const value = parts(id).join(' / ');
+    return value || emptyFallback;
+  };
+  const kbd = (text) => text ? `<kbd>${text}</kbd>` : '';
+  const keys = (id, emptyFallback = '') => kbd(get(id, emptyFallback));
+  const join = (values) => values.filter(Boolean).join(' / ');
+  const schemeLabel = {
+    compatible: '兼容（compatible）',
+    optimized: '优化（optimized）',
+    custom: '自定义（custom）',
+  }[binds.scheme] || binds.scheme;
   const turning = IS_DEV && binds.scheme === 'optimized';
   const movement = turning
-    ? `<span><kbd>${get('forward')}</kbd><kbd>${get('back')}</kbd> 前后 · <kbd>${get('left')}</kbd><kbd>${get('right')}</kbd> 横移 · <kbd>${get('turnLeft')}</kbd><kbd>${get('turnRight')}</kbd> 转向</span>`
-    : `<span><kbd>${get('forward')}</kbd><kbd>${get('back')}</kbd><kbd>${get('left')}</kbd><kbd>${get('right')}</kbd> 移动</span>`;
+    ? `<span>${keys('forward')} / ${keys('back')} 前后移动 · ${keys('left')} / ${keys('right')} 横移 · ${keys('turnLeft')} / ${keys('turnRight')} 转向（方向键为移动备选）</span>`
+    : `<span>${keys('forward')} / ${keys('back')} / ${keys('left')} / ${keys('right')} 移动（方向键为备选）</span>`;
+  const attackKeys = join(['鼠标左键', get('attack')]);
+  const jumpKeys = join([get('jump'), '鼠标右键']);
+  const parryKeys = join([get('parry'), '中键']);
+  const pauseKeys = get('pause');
+  const escLine = pauseKeys === 'Esc'
+    ? 'Esc 释放鼠标指针并暂停/继续'
+    : 'Esc 释放鼠标指针，失去指针锁定时会暂停；暂停时可继续';
   const html = `
     <h3>操作说明</h3>
     <div class="keys">
+      <span class="touch-help"><kbd>触屏</kbd> 左侧摇杆移动 · 右侧拖动视角 · 屏幕按钮执行动作</span>
+      <span><kbd>方案</kbd> ${schemeLabel}</span>
       <span><kbd>鼠标</kbd> 视角</span>
       ${movement}
-      <span><kbd>${get('attack')}</kbd> 攻击（可按住）</span>
-      <span><kbd>${get('jump')}</kbd> 或 <kbd>鼠标右键</kbd> 跳跃</span>
-      <span><kbd>${get('burst')}</kbd> 应急爆发</span>
-      <span><kbd>${get('ultimate')}</kbd> 协同大招</span>
-      <span><kbd>${get('interact')}</kbd> 救援 / 陪伴</span>
-      <span><kbd>${get('sprint')}</kbd> 疾行（更快但更耗储备）</span>
-      <span><kbd>${get('pause')}</kbd> 暂停　<kbd>${get('retry')}</kbd> 重试</span>
-      <span><kbd>${get('restart')}</kbd> 从第一关重开</span>
+      <span><kbd>${attackKeys}</kbd> 攻击：短按/松手推击 · 地面按住0.65秒后松手扑击（蓄满自动扑出，空中短按为较弱扑击）· 按住向左滑迎击 · 按住向右滑翻滚</span>
+      <span><kbd>${parryKeys}</kbd> 迎击：地面立即出手，空中快落地后出手</span>
+      <span><kbd>${jumpKeys}</kbd> 跳跃</span>
+      <span>${keys('dodge')} 翻滚 / 闪避（触屏右侧翻滚键）</span>
+      <span>${keys('burst')} 应急爆发　${keys('ultimate')} 协同大招</span>
+      <span>${keys('interact')} 救援 / 陪伴　${keys('sprint')} 疾行（更快但更耗储备）</span>
+      <span><kbd>V</kbd> 第一/第三人称视角切换</span>
+      <span>${keys('pause')} 暂停　${keys('retry')} 重试本关　${keys('restart')} 从第一关重开　${keys('fullscreen')} 全屏</span>
+      <span><kbd>${escLine}</kbd> · <kbd>Enter</kbd> 标题/暂停/通关确认</span>
     </div>
-    <p class="note">洞穴内不能攻击。完成<b>采食 + 驱退 + 伙伴到家</b>后回洞，自动进入下一关。<br>
+    <p class="note">洞穴内不能攻击。完成<b>采食 + 伙伴到家</b>后回洞，自动进入下一关。<br>
     <b>驱退不等于杀死</b>：藏狐体力耗尽后会转身逃向草地边缘，逃掉才消失，过一阵还可能再来。<br>
     <b>奔跑时会自动俯身冲刺，停下则起身</b> —— 起身比趴下稍慢，就像真的在用四肢撑起身体。<br>
     被困伙伴会周期性<b>呼救</b>，屏幕边缘的<b>绿色箭头</b>指向它；红色箭头则是正在逼近的藏狐。<br>
@@ -1851,13 +2362,8 @@ if (fsBtn) fsBtn.onclick = toggleFullscreen;
 document.addEventListener('fullscreenchange', syncFullscreenUI);
 document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
 
-if (TOUCH_DEVICE) {
-  const blockGesture = (event) => event.preventDefault();
-  document.addEventListener('contextmenu', blockGesture);
-  document.addEventListener('dblclick', blockGesture, { passive: false });
-  document.addEventListener('gesturestart', blockGesture, { passive: false });
-  document.addEventListener('gesturechange', blockGesture, { passive: false });
-}
+// 触屏手势拦截（contextmenu/dblclick/gesture*）由 TouchControls 在激活时安装、
+// 停用时移除，保证强制键鼠模式下恢复浏览器默认行为。
 
 // 窗口尺寸 / 全屏切换共用
 function resizeRenderer() {
@@ -1865,7 +2371,7 @@ function resizeRenderer() {
   camera.aspect = w / h;
   // 保持基准 FOV：控制器会按姿态在其基础上收窄
   camera.updateProjectionMatrix();
-  renderProfile = getRenderProfile();
+  renderProfile = getRenderProfile(TOUCH_DEVICE);
   renderer.setPixelRatio(renderProfile.pixelRatio);
   renderer.setSize(w, h);
   if ('shadowMap' in renderer) renderer.shadowMap.enabled = renderProfile.shadows;
@@ -1892,6 +2398,7 @@ canvas.addEventListener('webglcontextrestored', () => {
 // 主循环
 // ============================================================
 let last = performance.now();
+let playerBodyYaw = controller.yaw;
 let fpsAcc = 0, fpsCount = 0, fpsTimer = 0;
 
 function frame(now) {
@@ -1901,10 +2408,13 @@ function frame(now) {
   const touchPlaying = TOUCH_DEVICE && game.mode === 'play';
   if (document.body.classList.contains('touch-playing') !== touchPlaying) {
     document.body.classList.toggle('touch-playing', touchPlaying);
+    // 触控实玩类切换会改变 HUD 卡片的 CSS 默认位置，未拖动过的卡跟随新设计位置。
+    touchLayout.refreshCardDefaults();
   }
   update(dt);
-  playerModel.position.set(controller.position.x, terrainHeight(controller.position.x, controller.position.z), controller.position.z);
-  playerModel.rotation.y = controller.yaw + Math.PI;
+  playerModel.position.set(controller.position.x, controller.position.y, controller.position.z);
+  playerBodyYaw = dampAngle(playerBodyYaw, controller.moveFacingYaw, dt, PLAYER.bodyTurnRate);
+  playerModel.rotation.y = playerBodyYaw + Math.PI;
   // dt 传入 sky：天穹云随时间漂移（标题界面作为动态背景也在动）
   sky.update(controller.position, dt);
 
@@ -1921,10 +2431,9 @@ function frame(now) {
       controller.crouch,
       controller.postureSpeed || 0,
       airborne,
-      game.attackCD > 0 && stats_cache.cd > 0
-        ? 1 - game.attackCD / stats_cache.cd
-        : -1,
+      playerAttackT > 0 ? playerAttackT / Math.max(0.01, playerAttackDur) : -1,
       controller.pitch,
+      playerAttackAnim,
     );
     viewModel.render(renderer);
   }
@@ -1968,10 +2477,10 @@ window.__game = {
   foxes: () => foxes, berries: () => berries, companion,
   combatStats: () => combatStats(game),
   burrow: BURROW,
-  burrowObj: burrow, scenery, sky, claw, shockwave, particles, damageText, aura,
+  burrowObj: burrow, burrows: burrowDefs, scenery, sky, claw, shockwave, particles, damageText, aura, minimap,
   viewModel, playerModel, playerBody, setViewMode, get thirdPerson() { return thirdPerson; },
   binds, findConflicts, ACTIONS, FoxClass: Fox,
-  isDev: IS_DEV, ecology: { energyOfPlant, eatLine, seasonForLevel, plantsForLevel, HERBIVORE },
+  isDev: IS_DEV, isBeta: IS_BETA, progress, ecology: { energyOfPlant, eatLine, seasonForLevel, plantsForLevel, HERBIVORE },
   touchControls, renderProfile: () => getRenderProfile(),
   DEBUG_HIDE,
   // 摄影测量远景（异步加载完成后可用）

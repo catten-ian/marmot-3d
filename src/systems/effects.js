@@ -6,22 +6,21 @@
 import * as THREE from 'three';
 import { clamp, terrainHeight } from '../core/utils.js';
 
-/** 爪击：一道扇形挥砍面，从相机前方扫出 */
+/** 爪击：一道扇形挥砍面，沿调用方提供的真实攻击前向扫出。 */
 export class ClawSwing {
   constructor(scene) {
     this.group = new THREE.Group();
     const shape = new THREE.Shape();
-    // 扇形：0.55rad 半角
+    // 第一人称正前方的短弧斩击：在竖直平面展开，不再像地面 AOE。
     const half = 0.55;
     shape.moveTo(0, 0);
     const R = 1;
     for (let i = 0; i <= 14; i++) {
       const a = -half + (i / 14) * half * 2;
-      shape.lineTo(Math.sin(a) * R, Math.cos(a) * R);
+      shape.lineTo(Math.sin(a) * R, 0.48 + Math.cos(a) * 0.48);
     }
     shape.closePath();
     const geo = new THREE.ShapeGeometry(shape);
-    geo.rotateX(-Math.PI / 2);
 
     this.mat = new THREE.MeshBasicMaterial({
       color: 0xfff1a9, transparent: true, opacity: 0,
@@ -31,13 +30,17 @@ export class ClawSwing {
     this.mesh.renderOrder = 5;
     this.group.add(this.mesh);
 
-    // 边缘弧线，让攻击范围更易读
+    // 边缘弧线，让攻击方向更易读
     const edgeMat = new THREE.MeshBasicMaterial({
       color: 0xfff8d0, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide,
     });
-    const edgeGeo = new THREE.RingGeometry(0.92, 1, 20, 1, -half, half * 2);
-    edgeGeo.rotateX(-Math.PI / 2);
-    this.edge = new THREE.Mesh(edgeGeo, edgeMat);
+    const edgePoints = [];
+    for (let i = 0; i <= 20; i++) {
+      const a = -half + (i / 20) * half * 2;
+      edgePoints.push(new THREE.Vector3(Math.sin(a), 0.48 + Math.cos(a) * 0.48, 0.01));
+    }
+    const edgeGeo = new THREE.BufferGeometry().setFromPoints(edgePoints);
+    this.edge = new THREE.Line(edgeGeo, edgeMat);
     this.group.add(this.edge);
 
     scene.add(this.group);
@@ -48,8 +51,11 @@ export class ClawSwing {
   }
 
   fire(x, y, z, yaw, radius, color = 0xfff1a9) {
-    this.group.position.set(x, y, z);
-    this.group.rotation.y = yaw;
+    this.group.position.set(x, y + 0.05, z);
+    // 攻击前向约定是 (-sin(yaw), -cos(yaw))，而局部竖直面法线是 +Z；
+    // 加 π 让特效的朝向语义与 strike() 的命中扇形一致，而不是把相机 yaw 当方向。
+    this.group.rotation.y = yaw + Math.PI;
+    this.group.userData.attackYaw = yaw;
     this.mat.color.setHex(color);
     this.edge.material.color.setHex(color);
     this.t = 0;
@@ -225,6 +231,62 @@ export class Particles {
   }
 }
 
+const DAMAGE_TEXT_REFERENCE_FOV = 68;
+const DAMAGE_TEXT_FONT_SIZE = 34;
+const DAMAGE_TEXT_DPR = 2;
+const DAMAGE_TEXT_BASE_WIDTH = 128;
+const DAMAGE_TEXT_BASE_HEIGHT = 64;
+const DAMAGE_TEXT_PADDING = 16;
+
+/**
+ * Return the world-space scale multiplier needed to keep a sprite's screen
+ * size stable when a perspective camera changes FOV. SpriteMaterial with
+ * sizeAttenuation=false is proportional to tan(FOV / 2).
+ */
+export function damageTextFovCompensation(fov, referenceFov = DAMAGE_TEXT_REFERENCE_FOV) {
+  const current = Number.isFinite(fov) && fov > 0 && fov < 180 ? fov : referenceFov;
+  const reference = Number.isFinite(referenceFov) && referenceFov > 0 && referenceFov < 180
+    ? referenceFov
+    : DAMAGE_TEXT_REFERENCE_FOV;
+  return Math.tan(current * Math.PI / 360) / Math.tan(reference * Math.PI / 360);
+}
+
+function estimatedDamageTextWidth(text, fontSize = DAMAGE_TEXT_FONT_SIZE) {
+  return Array.from(String(text)).reduce((width, character) => {
+    // Damage numbers are normally ASCII digits; reserve a full em for wider
+    // glyphs so the DOM-free helper remains conservative for other text.
+    return width + (/^[\x00-\xff]$/.test(character) ? fontSize * 0.6 : fontSize);
+  }, 0);
+}
+
+/**
+ * Calculate the backing-canvas dimensions without needing a DOM or a canvas
+ * context. A measuredTextWidth may be supplied by the browser path for exact
+ * font metrics; the fallback estimate keeps the helper deterministic in tests.
+ */
+export function damageTextCanvasSize(text, {
+  dpr = DAMAGE_TEXT_DPR,
+  fontSize = DAMAGE_TEXT_FONT_SIZE,
+  minWidth = DAMAGE_TEXT_BASE_WIDTH,
+  height = DAMAGE_TEXT_BASE_HEIGHT,
+  padding = DAMAGE_TEXT_PADDING,
+  measuredTextWidth,
+} = {}) {
+  const width = Number.isFinite(measuredTextWidth)
+    ? measuredTextWidth
+    : estimatedDamageTextWidth(text, fontSize);
+  const cssWidth = Math.max(minWidth, Math.ceil(width + padding * 2));
+  const cssHeight = Math.ceil(height);
+  const pixelRatio = Number.isFinite(dpr) && dpr > 0 ? dpr : DAMAGE_TEXT_DPR;
+  return {
+    width: Math.ceil(cssWidth * pixelRatio),
+    height: Math.ceil(cssHeight * pixelRatio),
+    cssWidth,
+    cssHeight,
+    dpr: pixelRatio,
+  };
+}
+
 /**
  * 伤害数字：世界空间 billboard 文本。
  * 用 Canvas 生成纹理贴图，避免引入字体文件。
@@ -239,35 +301,67 @@ export class DamageText {
   _texture(text, color) {
     const key = text + '|' + color;
     if (this._cache.has(key)) return this._cache.get(key);
+
+    const dpr = DAMAGE_TEXT_DPR;
+    const font = `bold ${DAMAGE_TEXT_FONT_SIZE}px "Microsoft YaHei", sans-serif`;
     const c = document.createElement('canvas');
-    const dpr = 2;
-    c.width = 128 * dpr; c.height = 64 * dpr;
+    const measure = c.getContext('2d');
+    measure.font = font;
+    const measuredTextWidth = typeof measure.measureText === 'function'
+      ? measure.measureText(text).width
+      : undefined;
+    const dimensions = damageTextCanvasSize(text, { dpr, measuredTextWidth });
+    c.width = dimensions.width;
+    c.height = dimensions.height;
+
     const g = c.getContext('2d');
     g.scale(dpr, dpr);
-    g.font = 'bold 34px "Microsoft YaHei", sans-serif';
+    g.font = font;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.lineWidth = 5;
     g.strokeStyle = 'rgba(0,0,0,0.85)';
-    g.strokeText(text, 64, 32);
+    g.strokeText(text, dimensions.cssWidth / 2, dimensions.cssHeight / 2);
     g.fillStyle = color;
-    g.fillText(text, 64, 32);
+    g.fillText(text, dimensions.cssWidth / 2, dimensions.cssHeight / 2);
+
     const tex = new THREE.CanvasTexture(c);
     tex.needsUpdate = true;
-    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
-    const entry = { tex, mat };
+    const mat = new THREE.SpriteMaterial({
+      map: tex,
+      transparent: true,
+      depthTest: false,
+      sizeAttenuation: false,
+    });
+    const entry = {
+      tex,
+      mat,
+      widthScale: dimensions.cssWidth / DAMAGE_TEXT_BASE_WIDTH,
+    };
     this._cache.set(key, entry);
     return entry;
   }
 
   spawn(x, y, z, text, color = '#ffe8b0') {
-    const { tex, mat } = this._texture(text, color);
+    const { mat, widthScale } = this._texture(text, color);
     const sprite = new THREE.Sprite(mat.clone());
+    const baseScale = new THREE.Vector3(1.1 * widthScale, 0.55, 1);
     sprite.position.set(x, y, z);
-    sprite.scale.set(1.1, 0.55, 1);
+    sprite.scale.copy(baseScale);
     sprite.renderOrder = 30;
+    sprite.onBeforeRender = (_renderer, _scene, camera) => {
+      const compensation = damageTextFovCompensation(
+        camera && Number.isFinite(camera.fov) ? camera.fov : DAMAGE_TEXT_REFERENCE_FOV,
+      );
+      const base = baseScale;
+      sprite.scale.set(base.x * compensation, base.y * compensation, base.z);
+      // onBeforeRender runs after the scene traversal updated matrices, so
+      // refresh this sprite's matrices to apply the camera-specific scale now.
+      sprite.updateMatrix();
+      sprite.updateMatrixWorld(true);
+    };
     this.scene.add(sprite);
-    this.items.push({ sprite, t: 0, dur: 1.05, y0: y });
+    this.items.push({ sprite, t: 0, dur: 1.05, y0: y, baseScale, widthScale });
   }
 
   update(dt) {
@@ -284,7 +378,8 @@ export class DamageText {
       it.sprite.position.y = it.y0 + k * 1.1;
       it.sprite.material.opacity = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
       const pop = k < 0.15 ? 0.6 + (k / 0.15) * 0.4 : 1;
-      it.sprite.scale.set(1.1 * pop, 0.55 * pop, 1);
+      it.baseScale.set(1.1 * it.widthScale * pop, 0.55 * pop, 1);
+      it.sprite.scale.copy(it.baseScale);
     }
   }
 }

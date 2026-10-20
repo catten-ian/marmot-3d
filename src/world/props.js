@@ -10,6 +10,27 @@ import {
 import { heightFieldActive } from '../core/utils.js';
 import { terrainHeight, terrainNormal, makeRng } from '../core/utils.js';
 import { devOn } from '../core/version.js';
+import { undergroundProfile } from './underground.js';
+
+// 生成始终面向相机的悬浮文字标签（Sprite）。
+function buildBurrowLabel(text) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 80;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 40px system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(8,18,28,0.85)';
+  ctx.strokeText(text, 128, 42);
+  ctx.fillStyle = '#bfe2ff';
+  ctx.fillText(text, 128, 42);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(2.4, 0.75, 1);
+  sprite.renderOrder = 20;
+  return sprite;
+}
 
 /** 洞穴入口：土丘 + 洞口 + 内部暖光 + 地面光圈 */
 export class Burrow {
@@ -19,83 +40,194 @@ export class Burrow {
     // 半径取传入值（GS 版 main 已按 scaleRadius 缩放），不能写死 8.2，
     // 否则安全区视觉圈与实际碰撞/回储备范围对不上。
     this.r = pos.r ?? 8.2;
+    this.type = pos.type || 'base';
+    this.label = pos.label || (this.type === 'base' ? '大本营' : '临时避难洞');
+    const isBase = this.type === 'base';
+    const underground = undergroundProfile(pos);
 
     const y = terrainHeight(pos.x, pos.z);
     this.group.position.set(pos.x, y, pos.z);
 
-    // 土丘：半球压扁（暖褐色，与冷绿草地形成对比，一眼分辨"家"）
-    const moundGeo = new THREE.SphereGeometry(this.r * 0.95, 30, 18, 0, Math.PI * 2, 0, Math.PI / 2);
-    const moundMat = new THREE.MeshStandardMaterial({ color: 0xa8814e, roughness: 1 });
-    const mound = new THREE.Mesh(moundGeo, moundMat);
-    mound.scale.set(1, 0.4, 1);
-    mound.castShadow = true;
-    mound.receiveShadow = true;
-    this.group.add(mound);
+    // 少量挖出土：只在井口外一圈形成低土环（用 Torus，不再用覆盖洞口的半球土丘）。
+    const spoilGeo = new THREE.TorusGeometry(underground.slopeRadius * 0.96, isBase ? 0.34 : 0.2, 8, 32);
+    spoilGeo.rotateX(Math.PI / 2);
+    const spoilMat = new THREE.MeshStandardMaterial({ color: isBase ? 0x8a6238 : 0x6b7d79, roughness: 1 });
+    const spoil = new THREE.Mesh(spoilGeo, spoilMat);
+    spoil.position.y = 0.06;
+    spoil.scale.y = 0.42;
+    spoil.castShadow = true;
+    spoil.receiveShadow = true;
+    this.group.add(spoil);
 
-    // 洞口：朝 +z 方向开的深色凹坑
-    const holeGeo = new THREE.CircleGeometry(1.9, 24);
-    const holeMat = new THREE.MeshBasicMaterial({ color: 0x140d05 });
-    const hole = new THREE.Mesh(holeGeo, holeMat);
-    hole.position.set(0, 0.06, this.r * 0.56);
-    hole.rotation.x = -Math.PI / 2.1;
-    this.group.add(hole);
+    // 竖井井壁：开口（小，上）→ 腔室（略宽，下），向下扩开。
+    // 从洞内/井口看需要看到内壁，故用 BackSide（看圆柱内表面）。
+    // 加极弱暖色 emissive：进洞后全局光被压暗，井壁仍能读出泥土色与圆筒形，
+    // 不至于死黑一片。
+    const wallColor = isBase ? 0x2a1c10 : 0x16201f;
+    const shaftGeo = new THREE.CylinderGeometry(
+      underground.chamberRadius, underground.openingRadius,
+      underground.chamberDepth, 24, 1, true,
+    );
+    const shaftMat = new THREE.MeshStandardMaterial({
+      color: wallColor,
+      emissive: isBase ? 0x4a2e10 : 0x0b1515,
+      emissiveIntensity: isBase ? 1.35 : 0.5,
+      roughness: 1,
+      side: THREE.BackSide,
+    });
+    const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+    shaft.position.y = -underground.chamberDepth * 0.5;
+    shaft.castShadow = false;
+    shaft.receiveShadow = true;
+    this.group.add(shaft);
 
-    // 洞口土框
-    const rimGeo = new THREE.TorusGeometry(2.1, 0.32, 8, 28);
-    const rimMat = new THREE.MeshStandardMaterial({ color: 0x8a6238, roughness: 1 });
+    // 腔室地板（同样带暖色自发光底）。
+    const floorGeo = new THREE.CircleGeometry(underground.chamberRadius, 28);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: isBase ? 0x3a2817 : 0x1a2423,
+      emissive: isBase ? 0x3a2008 : 0x060c0c,
+      emissiveIntensity: isBase ? 1.1 : 0.35,
+      roughness: 1,
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -underground.chamberDepth + 0.02;
+    floor.receiveShadow = true;
+    this.group.add(floor);
+    this.shaft = shaft;
+
+    // 洞口内缘：一圈贴地的深色实环，圈出“开口”边界（不再悬空椭圆环）。
+    const rimGeo = new THREE.RingGeometry(underground.openingRadius * 0.92, underground.slopeRadius * 0.98, 32);
+    const rimMat = new THREE.MeshStandardMaterial({ color: isBase ? 0x1c1208 : 0x0e1515, roughness: 1, side: THREE.DoubleSide });
     const rim = new THREE.Mesh(rimGeo, rimMat);
-    rim.position.set(0, 0.1, this.r * 0.56);
-    rim.rotation.x = -Math.PI / 2.1 + Math.PI / 2;
-    rim.scale.y = 0.5;
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = 0.03;
+    rim.receiveShadow = true;
     this.group.add(rim);
 
-    // 洞口暖光：提示"安全/可休息"
-    const glow = new THREE.PointLight(0xffc978, 5.5, 16, 2);
-    glow.position.set(0, 1.5, this.r * 0.35);
+    // 洞口黑封盖：地形网格无法在开口处真实挖洞（尤其 GS 高度场），
+    // 在地表下方 6cm 盖一张近黑双面圆盘。地表侧看是深不见底的洞口，
+    // 腔室内抬头时它遮住上方的绿色地形，只留黑暗的竖井。
+    const mouthGeo = new THREE.CircleGeometry(underground.openingRadius * 0.97, 32);
+    const mouthMat = new THREE.MeshStandardMaterial({
+      // 极弱冷色自发光：从洞内抬头读成洞口漏下的微暗天光，不是死黑虚空；
+      // 亮度很低，从地表看仍是深不见底的洞口。
+      color: 0x050302, emissive: 0x182333, emissiveIntensity: 0.8,
+      roughness: 1, side: THREE.DoubleSide,
+    });
+    const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+    mouth.rotation.x = -Math.PI / 2;
+    mouth.position.y = -0.06;
+    this.group.add(mouth);
+    this.mouth = mouth;
+
+    // 开口天光：洞口向下打的聚光灯，放宽光锥，照亮井壁上半部与地板。
+    const shaftLight = new THREE.SpotLight(0xdfeaff, isBase ? 3.0 : 0.7, underground.chamberDepth + 4, 0.95, 0.9, 1.4);
+    shaftLight.position.set(0, 0.3, 0);
+    const shaftTarget = new THREE.Object3D();
+    shaftTarget.position.set(0, -underground.chamberDepth * 0.55, 0);
+    this.group.add(shaftTarget);
+    shaftLight.target = shaftTarget;
+    this.group.add(shaftLight);
+    // 腔室中上部一盏弱暖填充：向上打亮整圈井壁，避免正前方井壁死黑、
+    // 读不出“被圆筒腔室包围”。
+    const wallFill = new THREE.PointLight(0xffb36b, isBase ? 3.2 : 0.4, underground.chamberRadius * 3.4, 2);
+    wallFill.position.set(0, -underground.chamberDepth * 0.45, 0);
+    this.group.add(wallFill);
+    // 洞口附近一点冷色填充，模拟井口漏下来的漫反射。
+    const skylight = new THREE.PointLight(0xbfd6ff, isBase ? 0.6 : 0.1, underground.slopeRadius * 3.2, 2);
+    skylight.position.set(0, -0.4, 0);
+    this.group.add(skylight);
+
+    // 大本营：腔室底部暖光，从开口微微透出；临时洞仅极弱冷光。
+    const glow = new THREE.PointLight(pos.lightColor ?? 0xffc978, pos.lightIntensity ?? (isBase ? 7.0 : 0.28), isBase ? 11 : 4, 2);
+    glow.position.set(0, -underground.chamberDepth + 1.1, 0);
     this.group.add(glow);
     this.glow = glow;
 
-// 安全区标识：立式光柱 + 顶端悬浮环。
+// 安全区标识（仅大本营）：立式光柱 + 顶端悬浮环。
     // 早期版本用贴地平面圆环，在土拨鼠的贴地视角下会被透视压成一条
     // 横贯视野的亮线，反而看不见"这是一个圆形的家"。改用竖直光柱后，
     // 无论玩家站在圈内还是圈外，都能立刻辨认出安全区。
-    const beamGeo = new THREE.CylinderGeometry(this.r * 0.92, this.r * 0.98, 3.4, 40, 1, true);
-    const beamMat = new THREE.MeshBasicMaterial({
-      color: 0x7fe0a0, transparent: true, opacity: 0.085,
-      side: THREE.DoubleSide, depthWrite: false,
-    });
-    const beam = new THREE.Mesh(beamGeo, beamMat);
-    beam.position.y = 1.7;
-    this.group.add(beam);
-    this.beam = beam;
+    if (isBase) {
+      const beamGeo = new THREE.CylinderGeometry(this.r * 0.92, this.r * 0.98, 3.4, 40, 1, true);
+      const beamMat = new THREE.MeshBasicMaterial({
+        color: 0x7fe0a0, transparent: true, opacity: 0.085,
+        side: THREE.DoubleSide, depthWrite: false,
+      });
+      const beam = new THREE.Mesh(beamGeo, beamMat);
+      beam.position.y = 1.7;
+      this.group.add(beam);
+      this.beam = beam;
 
-    // 顶部悬浮环：给远处一个可识别的"地标"
-    const capGeo = new THREE.TorusGeometry(this.r * 0.94, 0.13, 8, 40);
-    capGeo.rotateX(Math.PI / 2);
-    const capMat = new THREE.MeshBasicMaterial({
-      color: 0x9ff0b8, transparent: true, opacity: 0.45, depthWrite: false,
-    });
-    const cap = new THREE.Mesh(capGeo, capMat);
-    cap.position.y = 3.4;
-    this.group.add(cap);
-    this.cap = cap;
+      // 顶部悬浮环：给远处一个可识别的"地标"
+      const capGeo = new THREE.TorusGeometry(this.r * 0.94, 0.13, 8, 40);
+      capGeo.rotateX(Math.PI / 2);
+      const capMat = new THREE.MeshBasicMaterial({
+        color: 0x9ff0b8, transparent: true, opacity: 0.45, depthWrite: false,
+      });
+      const cap = new THREE.Mesh(capGeo, capMat);
+      cap.position.y = 3.4;
+      this.group.add(cap);
+      this.cap = cap;
 
-    // 圈内地面微亮（保持极淡，仅在脚下近距离可见）
-    const discGeo = new THREE.CircleGeometry(this.r * 0.94, 40);
-    const discMat = new THREE.MeshBasicMaterial({
-      color: 0x9fe8b8, transparent: true, opacity: 0.05, depthWrite: false,
-    });
-    const disc = new THREE.Mesh(discGeo, discMat);
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.y = 0.07;
-    this.group.add(disc);
+      // 圈内地面微亮（保持极淡，仅在脚下近距离可见）
+      const discGeo = new THREE.CircleGeometry(this.r * 0.94, 40);
+      const discMat = new THREE.MeshBasicMaterial({
+        color: 0x9fe8b8, transparent: true, opacity: 0.05, depthWrite: false,
+      });
+      const disc = new THREE.Mesh(discGeo, discMat);
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.y = 0.07;
+      this.group.add(disc);
+    } else {
+      // 临时避难洞：冷色发光地标，解决“找不到临时洞”的问题。
+      const beaconGeo = new THREE.TorusGeometry(underground.slopeRadius * 1.05, 0.09, 8, 36);
+      beaconGeo.rotateX(Math.PI / 2);
+      this.beaconMat = new THREE.MeshBasicMaterial({
+        color: 0x8fd0ff, transparent: true, opacity: 0.5, depthWrite: false,
+      });
+      const beacon = new THREE.Mesh(beaconGeo, this.beaconMat);
+      beacon.position.y = 0.12;
+      this.group.add(beacon);
+      this.beacon = beacon;
+
+      const sbeamGeo = new THREE.CylinderGeometry(underground.slopeRadius * 0.5, underground.slopeRadius * 0.7, 2.6, 28, 1, true);
+      this.sbeamMat = new THREE.MeshBasicMaterial({
+        color: 0x8fd0ff, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false,
+      });
+      const sbeam = new THREE.Mesh(sbeamGeo, this.sbeamMat);
+      sbeam.position.y = 1.3;
+      this.group.add(sbeam);
+      this.sbeam = sbeam;
+
+      // 悬浮世界标签
+      this.labelSprite = buildBurrowLabel(this.label || '临时避难洞');
+      this.labelSprite.position.set(0, 2.7, 0);
+      this.group.add(this.labelSprite);
+    }
 
     scene.add(this.group);
     this._t = 0;
+    this.isBase = isBase;
+    this.underground = underground;
   }
 
   update(dt) {
     this._t += dt;
+    if (!this.isBase) {
+      // 临时避难洞：冷色地标脉冲 + 标签始终面向相机。
+      if (this.beacon) {
+        const p = 0.34 + Math.sin(this._t * 2.2) * 0.16;
+        this.beaconMat.opacity = p;
+        this.beacon.rotation.y += dt * 0.5;
+        const s = 1 + Math.sin(this._t * 2.2) * 0.05;
+        this.beacon.scale.set(s, s, s);
+        this.sbeamMat.opacity = 0.07 + Math.sin(this._t * 2.2) * 0.04;
+      }
+      if (this.labelSprite) { /* Sprite 始终面向相机，无需手动旋转 */ }
+      return;
+    }
     // 光柱与顶环呼吸，保持"活着"的地标感
     const p = 0.32 + Math.sin(this._t * 1.6) * 0.12;
     this.cap.material.opacity = p;
