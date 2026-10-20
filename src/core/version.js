@@ -1,14 +1,14 @@
 /**
  * 版本开关：?version=dev
  *
- * 目的：把「按旱獭真实生态学改写」的实验性改动隔离在 dev 版，
+ * 目的：把「A Verdant Trail 环境 + 旱獭真实生态学改写」的实验性改动隔离在 dev 版，
  * 正式版（默认）保持原样，便于随时对照与回退。
  *
  * 用法：
  *   index.html              → 正式版
  *   index.html?version=dev  → dev 版（生态学改写）
  *
- * 设计原则：开关只影响**数据与文案**，不改渲染架构。
+ * 设计原则：dev 独有环境通过显式动态加载隔离；稳定版只走原有渲染与资产路径。
  * dev 独有内容用 DEV_FEATURES 显式列出，正式版读不到它们，
  * 这样即使 dev 分支出问题，也不会污染正式版路径。
  */
@@ -27,7 +27,7 @@ export const IS_DEV = VERSION === 'dev';
 
 /** 供 UI 显示当前版本角标 */
 export const VERSION_LABEL = IS_DEV
-  ? 'DEV · 旱獭生态 + GS 全场景'
+  ? 'DEV · A Verdant Trail 环境 + 旱獭生态'
   : '神经—体液调节 · 抽象玩法演示';
 
 /**
@@ -44,13 +44,14 @@ export const DEV_FEATURES = {
   /** 富含亚油酸的食物给予额外储备 */
   linoleicBonus: IS_DEV,
   /**
-   * **GS 全场景**：把摄影测量高斯泼溅当作全部场景（含可行走地面）。
+   * **GS 全场景（legacy）**：保留旧诊断路径，正常 dev 改用 Verdant Trail。
    *
-   * 与前四项性质不同 —— 前四项只改数据与文案，这一项改**渲染架构**：
+   * 该路径只供旧诊断覆盖开关使用：
    * 需要 WebGPURenderer（GaussianSplat 不支持经典 WebGLRenderer）。
-   * 因此它需要 index.html 的引导层做异步初始化，不能在同步模块里建渲染器。
    */
-  gsWorld: IS_DEV,
+  gsWorld: false,
+  /** Offline A Verdant Trail render + sampled ground, only for ?version=dev. */
+  verdantWorld: IS_DEV,
 };
 
 /** 是否启用某 dev 特性（正式版恒为 false） */

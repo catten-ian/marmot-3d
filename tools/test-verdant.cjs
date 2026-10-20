@@ -1,0 +1,17 @@
+const fs = require('fs');
+const path = require('path');
+const root = path.resolve(__dirname, '..');
+const dir = path.join(root, 'assets', 'verdant');
+const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+const height = JSON.parse(fs.readFileSync(path.join(dir, manifest.files.height), 'utf8'));
+if (!fs.existsSync(path.join(dir, manifest.files.scene))) throw new Error('missing Verdant GLB');
+if (height.gridSize < 2 || height.heights.length !== height.gridSize ** 2) throw new Error('invalid height grid');
+const b = height.bounds;
+if (!(b.minX < b.maxX && b.minZ < b.maxZ)) throw new Error('invalid playable bounds');
+for (const y of height.heights) if (!Number.isFinite(y)) throw new Error('non-finite height');
+const main = fs.readFileSync(path.join(root, 'src/main.js'), 'utf8');
+if (!main.includes("if (devOn('verdantWorld'))")) throw new Error('Verdant loader is not dev gated');
+if (!main.includes("import('./world/verdant.js')")) throw new Error('Verdant dynamic import missing');
+if (fs.existsSync(path.join(dir, 'verdant_trail.blend'))) throw new Error('source blend copied into assets');
+for (const f of fs.readdirSync(dir)) if (/\.(exr|hdr|blend|png|jpe?g|map)$/i.test(f)) throw new Error(`source texture-like file present: ${f}`);
+console.log(JSON.stringify({ ok: true, sceneBytes: fs.statSync(path.join(dir, manifest.files.scene)).size, sourceObjects: manifest.stats.sourceObjects, proxyTriangles: manifest.stats.proxyTriangles, grid: height.gridSize, bounds: b }, null, 2));
