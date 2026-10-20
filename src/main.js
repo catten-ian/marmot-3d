@@ -38,6 +38,7 @@ let backdropRoot = null;
 import { Sky } from './world/scene.js';
 import { Burrow, Scenery } from './world/props.js';
 import { Fox } from './entities/fox.js';
+import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
 import {
@@ -413,6 +414,7 @@ function saveProgress() {
 const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
+let smartFoxSelected = devOn('smartFoxSandbox') && TEST_MODE;
 const testLogs = [];
 function recordTestLog(type, details = {}) {
   if (!TEST_MODE) return;
@@ -534,6 +536,21 @@ function makeFox(i) {
     type, game.level, i, { lureBias: cfg.lureBias || 1 });
 }
 
+function makeSmartFox() {
+  const [sx, sz] = scalePoint(SPAWN_POINTS[(LEVELS[game.level].count + 1) % SPAWN_POINTS.length]);
+  return new SmartFox(scene, sx, sz, game.level, 99, { lureBias: LEVELS[game.level].lureBias || 1 });
+}
+
+function syncSmartFoxSelection() {
+  const existing = foxes.findIndex((f) => f.type === 'smart');
+  const shouldHave = devOn('smartFoxSandbox') && TEST_MODE && smartFoxSelected;
+  if (shouldHave && existing < 0) foxes.push(makeSmartFox());
+  if (!shouldHave && existing >= 0) {
+    foxes[existing].dispose(scene);
+    foxes.splice(existing, 1);
+  }
+}
+
 function loadLevel(index, announce = true) {
   game.level = index;
   const cfg = LEVELS[index];
@@ -549,6 +566,7 @@ function loadLevel(index, announce = true) {
   // 重建藏狐
   foxes.forEach((f) => f.dispose(scene));
   foxes = Array.from({ length: cfg.count }, (_, i) => makeFox(i));
+  syncSmartFoxSelection();
 
   // 重置采食目标
   // dev 版按当季物种重建（季节食物每关不同）：必须先 dispose 旧实例，
@@ -1552,6 +1570,12 @@ if (TEST_MODE) {
   testModeBtn.hidden = false;
   document.getElementById('testGodMode').checked = testState.godMode;
   document.getElementById('testFreezeTimer').checked = testState.freezeTimer;
+  const smartToggle = document.getElementById('testSmartFox');
+  if (smartToggle) {
+    smartToggle.hidden = !devOn('smartFoxSandbox');
+    if (smartToggle.closest('label')) smartToggle.closest('label').hidden = !devOn('smartFoxSandbox');
+    smartToggle.checked = smartFoxSelected;
+  }
   recordTestLog('session-start', { userAgent: navigator.userAgent, initialSnapshot: testSnapshot() });
   testModeBtn.onclick = () => {
     testPanel.hidden = !testPanel.hidden;
@@ -1570,6 +1594,13 @@ if (TEST_MODE) {
     game.freezeTimer = testState.freezeTimer;
     recordTestLog('setting', { name: 'freezeTimer', value: testState.freezeTimer });
   };
+  if (devOn('smartFoxSandbox')) {
+    document.getElementById('testSmartFox')?.addEventListener('change', (event) => {
+      smartFoxSelected = !!event.target.checked;
+      syncSmartFoxSelection();
+      recordTestLog('smart-fox-selection', { enabled: smartFoxSelected });
+    });
+  }
   testPanel.addEventListener('click', (event) => {
     const action = event.target.closest('[data-test-action]')?.dataset.testAction;
     if (!action) return;

@@ -52,6 +52,8 @@ export const DEV_FEATURES = {
   gsWorld: false,
   /** Offline A Verdant Trail render + sampled ground, only for ?version=dev. */
   verdantWorld: IS_DEV,
+  /** Explicit intelligent fox sandbox control; never available outside DEV. */
+  smartFoxSandbox: IS_DEV,
 };
 
 /** 是否启用某 dev 特性（正式版恒为 false） */
