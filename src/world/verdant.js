@@ -29,20 +29,20 @@ function loadGltf(url, onProgress) {
   });
 }
 
-export async function loadVerdantWorld({ base = './assets/verdant/', onProgress } = {}) {
+export async function loadVerdantWorld({ base = './assets/verdant/', onProgress, resolveAsset } = {}) {
   const root = base.endsWith('/') ? base : `${base}/`;
   onProgress?.(0.04, '读取 Verdant 清单');
-  const manifest = await fetch(`${root}manifest.json`, { cache: 'no-store' }).then((r) => {
-    if (!r.ok) throw new Error(`manifest HTTP ${r.status}`);
-    return r.json();
-  });
+  const readJson = async (path) => {
+    const local = resolveAsset ? await resolveAsset(path) : null;
+    if (local) return fetch(local).then((r) => r.json());
+    return fetch(path, { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error(`resource HTTP ${r.status}`); return r.json(); });
+  };
+  const asset = async (path) => (resolveAsset ? await resolveAsset(path) : null) || path;
+  const manifest = await readJson(`${root}manifest.json`);
   onProgress?.(0.12, '读取 Verdant 地形');
-  const height = await fetch(`${root}${manifest.files.height}`, { cache: 'no-store' }).then((r) => {
-    if (!r.ok) throw new Error(`height HTTP ${r.status}`);
-    return r.json();
-  });
+  const height = await readJson(`${root}${manifest.files.height}`);
   onProgress?.(0.2, '加载 Verdant 场景');
-  const scene = await loadGltf(`${root}${manifest.files.scene}`, (p) => onProgress?.(0.2 + p * 0.78, '加载 Verdant 场景'));
+  const scene = await loadGltf(await asset(`${root}${manifest.files.scene}`), (p) => onProgress?.(0.2 + p * 0.78, '加载 Verdant 场景'));
   scene.name = 'VerdantTrailWorld';
   scene.traverse((obj) => {
     if (!obj.isMesh) return;

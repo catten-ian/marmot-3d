@@ -95,6 +95,8 @@ import { SettingsUI } from './ui/settings.js';
 import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
 import { TouchLayout } from './ui/touch-layout.js';
+import { restoreLocalPack, resolveLocalAsset, installLocalPackUI } from './world/local-pack.js';
+import { setAssetResolver } from './models/loader.js';
 import { Minimap } from './ui/minimap.js';
 import { cooldownOverlayData } from './ui/cooldown-overlay.js';
 import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDummy, setSandboxDummyDefeatable } from './sandbox/state.js';
@@ -108,6 +110,9 @@ import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
+const localPackStatus = IS_DEV ? await restoreLocalPack() : null;
+if (IS_DEV && localPackStatus?.state === 'ready') setAssetResolver((url) => resolveLocalAsset(url));
+if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => resolveLocalAsset(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
 
 hud.setLoading(8);
 
@@ -197,6 +202,7 @@ if (devOn('verdantWorld')) {
     const { loadVerdantWorld } = await import('./world/verdant.js');
     verdantWorld = await loadVerdantWorld({
       onProgress: (p, label) => hud.setLoading(Math.round(48 + p * 17)),
+      resolveAsset: (url) => resolveLocalAsset(url),
     });
     scene.add(verdantWorld.group);
     setHeightField(verdantWorld.heightAt);
@@ -929,6 +935,14 @@ function title() {
     <b>夹着尾巴转身逃跑</b>，逃出草地才会消失 —— 一段时间后可能有同类再次出现。
     你要做的是在采食和救援时自卫，随后回洞。</p>
     ${IS_DEV ? `
+    <section class="local-pack-box" aria-label="Verdant 本地资源包">
+      <div class="dev-badge">Verdant 本地资源包（仅 DEV）</div>
+      <p>推荐在部署后的 <code>./release/verdant-dev-pack/</code> 下载并解压后选择<strong>资源包根目录</strong>。Chrome/Chromium 需使用 HTTPS 或 localhost。</p>
+      <div id="localPackStatus" class="local-pack-status" aria-live="polite"></div>
+      <div class="row"><button class="ghost" id="localPackChoose" type="button">选择资源包文件夹</button><button class="ghost" id="localPackReauth" type="button" hidden>重新授权</button></div>
+      <input id="localPackInput" type="file" webkitdirectory directory multiple hidden>
+      <p class="local-pack-note">需要 assets/verdant/manifest.json、verdant-trail-height.json、verdant-trail.glb，以及 assets/models/marmot.glb、fox-segmented.glb。选定后刷新页面，优先读取本地文件；缺少文件会逐项列出并回退服务器。</p>
+    </section>
     <div class="dev-intro">
       <div class="dev-badge">DEV 版 · 旱獭生态学改写</div>
       <p>旱獭是典型的<b>草食动物</b>，耐饥渴，主食为沙草料、禾本科叶茎与豆科花，
@@ -975,6 +989,7 @@ function title() {
   document.getElementById('sandboxEntryBtn').onclick = enterSandbox;
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
+  if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => resolveLocalAsset(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
 }
 
 function showTeacherNote() {

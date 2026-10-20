@@ -2012,3 +2012,8 @@ body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; fi
 @media (orientation: landscape) and (max-height: 520px) {
   .sandbox-status { top: calc(188px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: min(140px, 24vw); }
 }
+.local-pack-box { margin: 14px 0 10px; padding: 12px 13px; border: 1px solid #769264; border-radius: 10px; background: #122219aa; }
+.local-pack-box p { margin: 7px 0; font-size: 11.5px; line-height: 1.55; }
+.local-pack-status { color: #d8edc9; font-size: 12px; line-height: 1.5; margin: 6px 0; }
+.local-pack-status small { color: #b8cbb0; word-break: break-word; }
+.local-pack-note { color: #a8bc9e !important; }

@@ -26,6 +26,8 @@ const SOFT_TIMEOUT_MS = 15000;
 
 /** url -> { level, scene, error, geomOnly } */
 const cache = new Map();
+let assetResolver = null;
+export function setAssetResolver(fn) { assetResolver = typeof fn === 'function' ? fn : null; }
 /** 全局统计，供 UI 展示 */
 const STATUS = {
   marmot: { level: 'pending', error: null, tris: 0, textured: false },
@@ -154,8 +156,9 @@ export function loadModel(url, key = '') {
       console.warn('[models] 加载较慢（15s），继续等待；程序化模型保持可见:', url);
     }, SOFT_TIMEOUT_MS);
 
+    const resolvedUrl = assetResolver ? (assetResolver(url) || url) : url;
     loader.load(
-      url,
+      resolvedUrl,
       (gltf) => {
         const root = gltf.scene;
         if (!root) {
