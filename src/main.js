@@ -21,6 +21,7 @@ import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer as createBabylonRenderer } from './babylon/renderer.js';
+import { preloadGameModelsBabylon } from './babylon/loader.js';
 import { getRenderProfile, isTouchPrimary } from './core/performance.js';
 import { TouchControls } from './core/touch-controls.js';
 
@@ -78,6 +79,20 @@ const WANT_GS = false;
 const babylonHost = createBabylonRenderer(canvas, { antialias: true });
 const renderer = babylonHost.renderer;
 const babylonScene = babylonHost.scene;
+
+// Babylon GLB assets are loaded into AssetContainers in the background. The
+// render loop and the procedural fallback scene can start while they stream in.
+const babylonModelPreload = (async () => {
+  const basePath = './assets/models/';
+  const glbPaths = {
+    marmot: basePath + 'marmot.glb',
+    fox: basePath + 'fox-segmented.glb',
+    terrain: basePath + 'terrain.glb',
+  };
+  const loaded = await preloadGameModelsBabylon(babylonScene, glbPaths);
+  console.log('[babylon-init] GLB 加载完成', loaded);
+  return loaded;
+})();
 let rendererStatus = babylonHost.status;
 let renderProfile = getRenderProfile();
 renderer.setPixelRatio(renderProfile.pixelRatio);

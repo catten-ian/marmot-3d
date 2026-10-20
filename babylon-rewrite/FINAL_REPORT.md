@@ -11,3 +11,11 @@
 - src/main.js 删 syncBabylonCamera import
 - Sky 类保留 + @deprecated 标注（供 three-legacy 用）
 - 验证 grep syncBabylonCamera 无结果
+
+## Stage 2 (GLB loader)
+- 新 `src/babylon/loader.js`：`preloadGameModelsBabylon` + `loadBabylonGLB` + `addContainerToScene`
+- `src/babylon/index.js` 加 loader 重导出
+- `src/main.js` Babylon 初始化分支调 `preloadGameModelsBabylon`
+- 用 `SceneLoader.LoadAssetContainerAsync` 异步加载 `.glb`
+- GLB 资产：`marmot.glb` / `fox-segmented.glb` / `terrain.glb`
+- 老 three `loader.js` 保留作回滚（不在 Babylon 路径调用）
