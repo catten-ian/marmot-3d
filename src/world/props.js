@@ -112,13 +112,17 @@ export class Burrow {
  * 土拨鼠视角贴地，草丛高度刻意压到 0.3m 以下，既有草原感又不挡视野。
  */
 export class Scenery {
-  constructor(scene) {
+  constructor(scene, opts = {}) {
     this.scene = scene;
+    this.verdant = opts.verdant === true;
+    this.bushes = [];
     this.group = new THREE.Group();
     scene.add(this.group);
-    this._buildGrass();
-    this._buildRocks();
-    this._buildBushes();
+    if (!this.verdant) {
+      this._buildGrass();
+      this._buildRocks();
+      this._buildBushes();
+    }
     // 风的时间推进：用 rAF 绝对时间而非 dt 累加，暂停/切页也不会失步。
     // Scenery 全局单例（main.js 只 new 一次），常驻 rAF 不会累积泄漏；
     // 标题界面与暂停时风继续吹，环境保持"活着"。

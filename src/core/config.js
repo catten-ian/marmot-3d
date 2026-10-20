@@ -490,6 +490,19 @@ export const ROCKS = [
  * 稳定版系数为 1，行为与原来完全一致。
  */
 const POINT_SCALE = { k: 1, cx: 0, cz: 0 };
+// Optional dev-only absolute playable bounds supplied by an imported environment.
+let PLAYABLE_BOUNDS = null;
+
+export function setPlayableBounds(bounds) {
+  if (bounds && Number.isFinite(bounds.minX) && Number.isFinite(bounds.maxX)
+    && Number.isFinite(bounds.minZ) && Number.isFinite(bounds.maxZ)) {
+    PLAYABLE_BOUNDS = { ...bounds };
+  } else {
+    PLAYABLE_BOUNDS = null;
+  }
+}
+
+export function clearPlayableBounds() { PLAYABLE_BOUNDS = null; }
 
 /**
  * 设置点位缩放。
@@ -525,6 +538,10 @@ export function scaleRadius(r) {
 
 /** 活动范围半宽/半高（缩放后） */
 export function fieldHalf() {
+  if (PLAYABLE_BOUNDS) return {
+    hw: (PLAYABLE_BOUNDS.maxX - PLAYABLE_BOUNDS.minX) / 2,
+    hh: (PLAYABLE_BOUNDS.maxZ - PLAYABLE_BOUNDS.minZ) / 2,
+  };
   return { hw: FIELD_W / 2 * POINT_SCALE.k, hh: FIELD_H / 2 * POINT_SCALE.k };
 }
 
@@ -534,6 +551,10 @@ export function fieldHalf() {
  * GS 版缓冲随系数同比缩小，避免边界超出可行走高度场过多。
  */
 export function moveBounds(pad = 12) {
+  if (PLAYABLE_BOUNDS) return {
+    hw: (PLAYABLE_BOUNDS.maxX - PLAYABLE_BOUNDS.minX) / 2,
+    hh: (PLAYABLE_BOUNDS.maxZ - PLAYABLE_BOUNDS.minZ) / 2,
+  };
   const k = POINT_SCALE.k;
   return { hw: (FIELD_W / 2 + pad) * k, hh: (FIELD_H / 2 + pad) * k };
 }
@@ -544,6 +565,10 @@ export function moveBounds(pad = 12) {
  * 否则 GS 版狐狸会跑出缩小后的活动场、增援判定也会失真。
  */
 export function roamBounds() {
+  if (PLAYABLE_BOUNDS) return {
+    hw: (PLAYABLE_BOUNDS.maxX - PLAYABLE_BOUNDS.minX) / 2,
+    hh: (PLAYABLE_BOUNDS.maxZ - PLAYABLE_BOUNDS.minZ) / 2,
+  };
   const k = POINT_SCALE.k;
   return { hw: 74 * k, hh: 44 * k };
 }
