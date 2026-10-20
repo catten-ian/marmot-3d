@@ -86,6 +86,11 @@
   <div class="objective" id="objective"></div>
 </div>
 
+<!-- 沙盒专用状态卡：与普通关卡目标卡分离。 -->
+<div class="sandbox-status" id="sandboxStatus" aria-hidden="true">
+  <div class="obj-title">沙盒状态</div>
+</div>
+
 <!-- ========== 提示气泡 ========== -->
 <div id="toast" class="toast"></div>
 
@@ -97,6 +102,9 @@
 
 <!-- ========== 大字横幅 ========== -->
 <div id="banner" class="banner"></div>
+
+<!-- 沙盒入口模板：标题面板由 main.js 按需渲染并绑定。 -->
+<template id="sandboxEntryTemplate"><button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button></template>
 
 <!-- ========== 覆盖面板 ========== -->
 <div id="overlay" class="overlay">

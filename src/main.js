@@ -52,6 +52,10 @@ import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
+import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDummy, setSandboxDummyDefeatable } from './sandbox/state.js';
+import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
+import { setupSandboxPanel } from './sandbox/panel.js';
+import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 
 // ============================================================
 // 初始化
@@ -412,6 +416,9 @@ function saveProgress() {
 }
 
 const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
+const SANDBOX_MODE = new URLSearchParams(location.search).get('sandbox') === '1';
+const sandboxState = createSandboxState();
+if (SANDBOX_MODE) sandboxState.active = true;
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
 let smartFoxSelected = devOn('smartFoxSandbox') && TEST_MODE;
@@ -498,6 +505,7 @@ const game = {
   inBurrow: false,
   stressWarned: false,
   season: null, // dev 版：当季食物信息（正式版恒为 null）
+  sandbox: false,
 };
 
 const colBoost = new THREE.Color(0xffd17a);
@@ -551,9 +559,56 @@ function syncSmartFoxSelection() {
   }
 }
 
+function spawnSandboxFox(_type = 'normal', slot = foxes.filter((f) => !f.isSandboxDummy).length, opts = {}) {
+  let x, z;
+  if (opts.sandboxDummy) {
+    controller.forwardFlat(_fwd);
+    const distance = 5;
+    x = controller.position.x + _fwd.x * distance;
+    z = controller.position.z + _fwd.z * distance;
+  } else {
+    const distance = 8 + (slot % 3) * 2.4;
+    const angle = controller.yaw + (slot - 1) * 0.24;
+    x = controller.position.x + Math.sin(angle) * distance;
+    z = controller.position.z + Math.cos(angle) * distance;
+  }
+  const fox = new Fox(scene, x, z, 'normal', 0, slot,
+    { lureBias: 1.15, dummyDefeatable: sandboxState.dummyDefeatable, ...opts });
+  if (opts.sandboxDummy) fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
+  fox.sandboxSpeedMul = sandboxState.speedMultiplier;
+  fox.sandboxAlertMul = sandboxState.alertMultiplier;
+  foxes.push(fox);
+  return fox;
+}
+
+function disposeAllFoxes() {
+  try { foxes.forEach((f) => f.dispose(scene)); }
+  finally { foxes = []; sandboxState.dummy = null; }
+}
+
+function enterSandbox() {
+  hud.hidePanel(); sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
+  game.sandbox = true; game.mode = 'play'; document.body.classList.add('sandbox-active');
+  testModeBtn.hidden = false; testModeBtn.textContent = '沙盒控制';
+  testState.godMode = true; testState.freezeTimer = true;
+  loadLevel(0, false); disposeAllFoxes();
+  for (let i = 0; i < 3; i++) spawnSandboxFox('normal', i);
+  game.time = Infinity; game.foodCount = 0; game.levelRepels = 0; game.player.hp = 100; game.player.energy = 100;
+  game.player.stress = 0; game.charge = 100;
+  applySandboxDifficulty(sandboxState, sandboxState.difficulty);
+  if (!controller.touchEnabled) controller.requestLock();
+}
+
+function exitSandbox() {
+  sandboxState.active = false; game.sandbox = false; document.body.classList.remove('sandbox-active');
+  testModeBtn.hidden = !TEST_MODE; testModeBtn.textContent = '测试';
+  setTestPanelOpen(false);
+  title();
+}
+
 function loadLevel(index, announce = true) {
   game.level = index;
-  const cfg = LEVELS[index];
+  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[index];
 
   // 重置玩家
   const p = game.player;
@@ -590,7 +645,7 @@ function loadLevel(index, announce = true) {
 
   game.levelRepels = 0;
   game.bossDown = !cfg.boss;
-  game.time = cfg.time;
+  game.time = game.sandbox ? Infinity : cfg.time;
   game.elapsed = 0;
   for (const k of ['boost', 'boostCD', 'attackCD', 'social', 'socialCD',
     'overdrive', 'overCD', 'fatigue', 'cortisol', 'drive']) {
@@ -717,7 +772,7 @@ function completeLevel() {
 }
 
 function levelClearHTML() {
-  const cfg = LEVELS[game.level];
+  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[game.level];
   return `
     <div class="eyebrow">LEVEL ${game.level + 1} CLEAR</div>
     <h2>${cfg.name} · 完成</h2>
@@ -816,9 +871,13 @@ function showLevelSelect() {
 
 function title() {
   game.mode = 'title';
+  game.sandbox = false;
+  sandboxState.active = false;
+  document.body.classList.remove('sandbox-active');
   hud.showPanel(`
     <div class="eyebrow">CAMPAIGN / ${LEVELS.length} 关草原冒险 · 第一 / 第三人称 3D</div>
     <h2>从两只藏狐，到草原守望者。</h2>
+    <button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>
     <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>V</b> 切换为第三人称跟随视角，随时按需选择。</p>
     <p>每关完成 <b>采食、救援、驱退</b> 三件事，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
@@ -868,6 +927,7 @@ function title() {
     </div>
   `);
   document.getElementById('startBtn').onclick = startPlay;
+  document.getElementById('sandboxEntryBtn').onclick = enterSandbox;
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
 }
@@ -1021,14 +1081,26 @@ function hitFox(f, damage, s) {
   if (f.hp <= 0) return;
   const fy = terrainHeight(f.x, f.z);
   f.hit(damage, s.knockback, s.stun, controller.position.x, controller.position.z);
-  const cfg = LEVELS[game.level];
+  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[game.level];
 
   damageText.spawn(f.x, fy + 1.1, f.z,
     Number.isInteger(damage) ? `-${damage}` : `-${damage.toFixed(1)}`, '#ffedb7');
   particles.burst(f.x, fy + 0.5, f.z, colHit, 9, 1);
 
   // 体力耗尽 = 被驱退。它不会死，而是转身逃跑。
-  if (f.hp <= 0) {
+  if (f.hp <= 0 && !f.isSandboxDummy) {
+    if (sandboxState.parryDrill) {
+      audio.hit();
+      controller.hitShake(0.2);
+      const pose = drillRespawnPose({ px: controller.position.x, pz: controller.position.z, yaw: controller.yaw });
+      setTimeout(() => {
+        if (!sandboxState.parryDrill) return;
+        f.respawnAt(pose.x, pose.z);
+        resetDrillFox(f);
+        f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.yaw };
+      }, 350);
+      return;
+    }
     game.levelRepels = (game.levelRepels || 0) + 1;
     game.totalRepels = (game.totalRepels || 0) + 1;
     f.startFleeing(controller.position.x, controller.position.z, cfg);
@@ -1136,11 +1208,11 @@ function update(dt) {
     return;
   }
 
-  const cfg = LEVELS[game.level];
+  const cfg = game.sandbox ? SANDBOX_LEVEL : LEVELS[game.level];
   const p = game.player;
   game.elapsed += dt;
   game.totalTime += dt;
-  if (!TEST_MODE || !testState.freezeTimer) game.time = Math.max(0, game.time - dt);
+  if (!game.sandbox && (!TEST_MODE || !testState.freezeTimer)) game.time = Math.max(0, game.time - dt);
 
   const stats = combatStats(game);
   stats_cache = stats;
@@ -1360,6 +1432,8 @@ function update(dt) {
     overloaded: stats.overloaded, social: game.social > 0, fatigue: game.fatigue > 0,
   });
 
+  if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(dt, 0.0001) });
+
   controller.forwardFlat(_fwd);
   hud.updateThreats(foxes, p, camera, _fwd, companion);
 
@@ -1370,11 +1444,11 @@ function update(dt) {
   }
 
   // —— 失败判定 ——
-  if (p.hp <= 0) { finish(false); return; }
-  if (game.time <= 0) { finish(false, '天黑前没有完成本关任务。'); return; }
+  if (!game.sandbox && p.hp <= 0) { finish(false); return; }
+  if (!game.sandbox && game.time <= 0) { finish(false, '天黑前没有完成本关任务。'); return; }
 
   // —— 通关判定：三目标 + 回洞 ——
-  if (game.foodCount >= cfg.goal && game.levelRepels >= cfg.repels
+  if (!game.sandbox && game.foodCount >= cfg.goal && game.levelRepels >= cfg.repels
     && game.friend.saved && game.bossDown && game.inBurrow) {
     completeLevel();
     return;
@@ -1566,7 +1640,12 @@ const settingsUI = new SettingsUI(binds);
 // 开发测试面板通过 ?test=1 显式启用，不进入普通用户界面。
 const testModeBtn = document.getElementById('testModeBtn');
 const testPanel = document.getElementById('testPanel');
-if (TEST_MODE) {
+function setTestPanelOpen(open) {
+  const visible = !!open;
+  testPanel.hidden = !visible;
+  testModeBtn.setAttribute('aria-expanded', String(visible));
+}
+if (TEST_MODE || SANDBOX_MODE) {
   testModeBtn.hidden = false;
   document.getElementById('testGodMode').checked = testState.godMode;
   document.getElementById('testFreezeTimer').checked = testState.freezeTimer;
@@ -1594,6 +1673,12 @@ if (TEST_MODE) {
     game.freezeTimer = testState.freezeTimer;
     recordTestLog('setting', { name: 'freezeTimer', value: testState.freezeTimer });
   };
+  document.getElementById('testGodMode').addEventListener('change', (event) => {
+    if (game.sandbox) sandboxState.godMode = event.target.checked;
+  });
+  document.getElementById('testFreezeTimer').addEventListener('change', (event) => {
+    if (game.sandbox) sandboxState.freezeTimer = event.target.checked;
+  });
   if (devOn('smartFoxSandbox')) {
     document.getElementById('testSmartFox')?.addEventListener('change', (event) => {
       smartFoxSelected = !!event.target.checked;
@@ -1610,7 +1695,7 @@ if (TEST_MODE) {
       game.player.invuln = Math.max(game.player.invuln, 1.3);
       recordTestLog('player-heal', { action, hpBefore: before, hpAfter: game.player.hp });
     } else if (action === 'resetTimer') {
-      game.time = LEVELS[game.level].time;
+      game.time = game.sandbox ? Infinity : LEVELS[game.level].time;
       recordTestLog('timer-reset', { time: game.time });
     } else if (action === 'snapshot') {
       recordTestLog('manual-snapshot', testSnapshot());
@@ -1634,6 +1719,50 @@ if (TEST_MODE) {
     reason: String(event.reason?.stack || event.reason),
   }));
 }
+
+const sandboxPanelUI = setupSandboxPanel({
+  root: testPanel,
+  state: sandboxState,
+  onAction: (action) => {
+    if (action === 'refill') { game.player.hp = 100; game.player.energy = 100; }
+    else if (action === 'clearStress') { game.player.stress = 0; game.stressWarned = false; }
+    else if (action === 'charge') game.charge = 100;
+    else if (action === 'resetFood') { berries.forEach((b) => b.reset()); scenery.resetBerries?.(); hud.say('食物已重置，被吃掉的浆果/植物重新出现', 2); }
+    else if (action === 'spawnOne') spawnSandboxFoxes({ state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
+    else if (action === 'spawnGroup') spawnSandboxFoxes({ count: 6, state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
+    else if (action === 'clearFoxes') clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
+    else if (action === 'placeDummy') placeSandboxDummy({
+      state: sandboxState,
+      createDummy: () => spawnSandboxFox('normal', -1, { sandboxDummy: true, dummyDefeatable: sandboxState.dummyDefeatable }),
+      removeDummy: (dummy) => { foxes = foxes.filter((f) => f !== dummy); dummy.dispose(scene); },
+    });
+    else if (action === 'removeDummy') removeSandboxDummy({
+      state: sandboxState,
+      removeDummy: (dummy) => { foxes = foxes.filter((f) => f !== dummy); dummy.dispose(scene); },
+    });
+  },
+  onChange: (name, value) => {
+    if (name === 'godMode') testState.godMode = value;
+    if (name === 'freezeTimer') testState.freezeTimer = value;
+    if (name === 'parryDrill') {
+      sandboxState.parryDrill = value;
+      if (value) {
+        clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
+        const f = spawnSandboxFox('normal');
+        if (f) f.drillCtx = { px: controller.position.x, pz: controller.position.z, yaw: controller.yaw };
+        hud.say('迎击练习：等狐狸正面冲刺时，按住攻击键向左滑出迎击顶回去', 3.2);
+      } else foxes.forEach((f) => delete f.drillCtx);
+    }
+    if (name === 'dummyDefeatable') {
+      sandboxState.dummyDefeatable = value;
+      setSandboxDummyDefeatable(sandboxState.dummy, value);
+    }
+    if (name === 'difficulty') {
+      applySandboxDifficulty(sandboxState, value);
+      foxes.forEach((f) => { if (!f.isSandboxDummy) { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; } });
+    }
+  },
+});
 
 // 键位变化时同步帮助面板上的按键提示，避免文档与实际绑定不一致
 function syncHelpKeys() {
@@ -1821,6 +1950,7 @@ controller.update(0.016, new Set(), 1);
 sky.update(controller.position);
 title();
 hud.hideLoader();
+if (SANDBOX_MODE) requestAnimationFrame(() => requestAnimationFrame(enterSandbox));
 requestAnimationFrame(frame);
 
 // 调试开关：URL 参数 ?debug=hide-<name> 可隐藏特定对象，便于排查渲染问题
@@ -1831,7 +1961,8 @@ const DEBUG_HIDE = (() => {
 
 window.__game = {
   game, controller, scene, renderer, camera, keys, LEVELS,
-  testMode: TEST_MODE, testState, testLogs, recordTestLog, testSnapshot, exportTestLogs,
+  testMode: TEST_MODE, sandboxMode: SANDBOX_MODE, sandboxState, enterSandbox, exitSandbox,
+  testState, testLogs, recordTestLog, testSnapshot, exportTestLogs,
   foxes: () => foxes, berries: () => berries, companion,
   combatStats: () => combatStats(game),
   burrow: BURROW,

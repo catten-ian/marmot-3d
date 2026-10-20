@@ -19,6 +19,7 @@ import { FOX, ROCKS, roamBounds, scalePoint, scaleRadius } from '../core/config.
 import { instantiate, normalizeModel } from '../models/loader.js';
 import { IS_DEV, USE_REAL_FOX_MODEL } from '../core/version.js';
 import { clamp } from '../core/utils.js';
+import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
 /** 真实藏狐模型的基准缩放：让成体在游戏里约 1.0m 高（与土拨鼠同量级） */
 const FOX_MODEL_BASE = 1.05;
 const SEGMENTED_FOX_MODEL = IS_DEV
@@ -93,6 +94,10 @@ export class Fox {
     this._segmentAnimation = null;
     this._disposed = false;
     this.dead = false;
+    this.isSandboxDummy = !!opts.sandboxDummy;
+    this.dummyDefeatable = opts.dummyDefeatable !== false;
+    this.dummyNoHitTimer = 0;
+    if (this.isSandboxDummy) this.state = 'dummy';
 
     // —— 攻击模式档案 ——
     // 不同类型的藏狐走完全不同的攻击分支（见 update 的状态机），
@@ -366,7 +371,7 @@ export class Fox {
     if (this.realModel) this.realModel.visible = useReal;
   }
 
-  get alive() { return this.hp > 0 && !this.fleeing; }
+  get alive() { return !this.isSandboxDummy && this.hp > 0 && !this.fleeing; }
   /** 是否正在被驱退（逃跑中），此时不再参与威胁计数与伤害 */
   get repelled() { return this.fleeing; }
 
@@ -384,6 +389,20 @@ export class Fox {
    * 且预警线长度 = 真实冲刺距离，否则玩家无法应对（详见 buildWarnIndicator）。
    */
   update(dt, p, safe, levelCfg, burrow, terrainAt) {
+    if (this.isSandboxDummy) {
+      stepSandboxDummyRecovery(this, dt);
+      this.knockbackVX = this.knockbackVZ = 0;
+      this.stun = 0;
+      this.leap = 0;
+      this.fleeing = false;
+      this.state = this.hp > 0 ? 'dummy' : 'defeated';
+      this.mesh.visible = this.hp > 0;
+      this.warn.visible = false;
+      this.baseY = terrainAt(this.x, this.z);
+      this._applyTransform(dt, terrainAt);
+      this.hpBar.visible = this.hp > 0 && this.hp < this.maxHp;
+      return;
+    }
     const previousX = this.x, previousZ = this.z;
     const y = terrainAt(this.x, this.z);
     this.baseY = y;
@@ -440,12 +459,42 @@ export class Fox {
     const dx = p.x - this.x, dz = p.z - this.z;
     const d = Math.hypot(dx, dz);
     const A = this.attack;                 // 攻击档案（config.FOX_ATTACKS）
-    const speed = levelCfg.speed * this.cfg.speed;
+    const speed = levelCfg.speed * this.cfg.speed * (this.sandboxSpeedMul || 1);
     // 关卡的蓄力基准时长（实际蓄力 = 该值 × 档案 windMul）
     this.levelCfgWind = levelCfg.wind;
     // 跃扑的腾空时间也算进冲刺时长，预警线长度才准
     const leapT = A.mode === 'leap' ? 0.22 : 0;
     this.dashTime = A.dashTime + leapT;
+
+    // 迎击练习：引导练习狐站到玩家正前方，直线蓄力冲刺。
+    if (this.drillCtx && this.state !== 'dash') {
+      const pyaw = this.drillCtx.yaw || 0;
+      const tx = this.drillCtx.px + (-Math.sin(pyaw)) * 7;
+      const tz = this.drillCtx.pz + (-Math.cos(pyaw)) * 7;
+      const ddx = tx - this.x, ddz = tz - this.z;
+      const dd = Math.hypot(ddx, ddz);
+      if (this.state === 'wind') {
+        this.timer -= dt;
+        this.yaw = Math.atan2(p.x - this.x, p.z - this.z);
+        if (this.timer <= 0) this._beginDash();
+      } else if (dd > 1.4) {
+        this.state = 'roam';
+        this.warn.visible = false;
+        this._moveGround(ddx, ddz, Math.min(speed * 1.05, 5.2), dt, burrow);
+        this.yaw = Math.atan2(p.x - this.x, p.z - this.z);
+      } else {
+        this.state = 'wind';
+        this.warn.visible = true;
+        this.windTotal = Math.max(0.55, (levelCfg.wind ?? 0.9) * 0.7);
+        this.timer = this.windTotal;
+        this.lureChance = 0;
+      }
+      this.warn.visible = this.state === 'wind';
+      this._updateWarn();
+      this._applyTransform(dt, terrainAt);
+      this._updateHpBar();
+      return;
+    }
 
     switch (this.state) {
       // ---------- 蓄力：预警线亮起，朝玩家缓慢修正 ----------
@@ -713,7 +762,7 @@ export class Fox {
   /** 进入蓄力：记录完整蓄力时长并点亮预警线 */
   _enterWind() {
     this.state = 'wind';
-    this.windFull = this.levelCfgWind * this.attack.windMul;
+    this.windFull = this.levelCfgWind * this.attack.windMul * (this.sandboxAlertMul || 1);
     this.windTotal = this.windFull;
     this.timer = this.windFull;
     this.warn.visible = true;
@@ -918,6 +967,18 @@ export class Fox {
    */
   hit(damage, knockback, stun, fromX, fromZ) {
     if (this.hp <= 0) return false;
+    if (this.isSandboxDummy) {
+      const floor = this.dummyDefeatable ? 0 : 1;
+      this.hp = Math.max(floor, this.hp - damage);
+      this.dummyNoHitTimer = SANDBOX_DUMMY_REGEN_DELAY;
+      this.knockbackVX = this.knockbackVZ = 0;
+      this.stun = 0;
+      this.leap = 0;
+      this.fleeing = false;
+      this.state = this.hp > 0 ? 'dummy' : 'defeated';
+      this.warn.visible = false;
+      return this.hp <= 0;
+    }
     this.hp = Math.max(0, this.hp - damage);
     const dx = this.x - fromX, dz = this.z - fromZ;
     const d = Math.hypot(dx, dz) || 1;
