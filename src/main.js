@@ -76,6 +76,7 @@ import { Scenery } from './world/props.js';
 import { createBurrows } from './world/burrows.js';
 import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
+import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
@@ -576,6 +577,21 @@ function spawnSandboxFox(_type = 'normal', slot = foxes.filter((f) => !f.isSandb
   fox.sandboxSpeedMul = sandboxState.speedMultiplier;
   fox.sandboxAlertMul = sandboxState.alertMultiplier;
   foxes.push(fox);
+  return fox;
+}
+
+/** 沙盒：在玩家前方生成一只效用决策智能藏狐（不影响正式关卡）。 */
+function spawnSandboxSmartFox(slot = foxes.filter((f) => !f.isSandboxDummy).length) {
+  const distance = 9;
+  const angle = controller.yaw;
+  const x = controller.position.x + Math.sin(angle) * distance;
+  const z = controller.position.z + Math.cos(angle) * distance;
+  const fox = new SmartFox(scene, x, z, 0, slot, { lureBias: 1.15 });
+  fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
+  fox.sandboxSpeedMul = sandboxState.speedMultiplier;
+  fox.sandboxAlertMul = sandboxState.alertMultiplier;
+  foxes.push(fox);
+  sandboxState.lastCommand = '已生成 1 只智能藏狐（观察/逼近/虚晃/扑击/喘息）';
   return fox;
 }
 
@@ -1444,6 +1460,10 @@ function update(dt) {
   }
 
   // —— AI 与威胁 ——
+  // 为智能藏狐补充玩家感知信号（game.player 本身只存坐标/数值）。
+  p.facingYaw = controller.bodyYaw;
+  p.running = isSprintingNow();
+  p.guard = parryWindowT > 0;
   let threats = 0;
   let anyWinding = false;
   for (const f of foxes) {
@@ -1462,7 +1482,10 @@ function update(dt) {
     if (f.alive && !game.inBurrow && prevState === 'wind' && f.state === 'dash') audio.foxDash();
 
     // 接触伤害
-    if (f.alive && !game.inBurrow && p.invuln <= 0) {
+    // 智能藏狐在 approach/feint 阶段也会高速贴身，但只有不可取消的扑击(pounce)
+    // 才应造成伤害，故对 type==='smart' 额外要求 pounceCommitted。
+    const smartCanHit = f.type !== 'smart' || f.pounceCommitted;
+    if (f.alive && !game.inBurrow && p.invuln <= 0 && smartCanHit) {
       const d = Math.hypot(f.x - p.x, f.z - p.z);
       const reach = (PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal));
       // 水平接触仍受原半径限制；高度则比较双方碰撞区间，
@@ -2164,6 +2187,7 @@ const sandboxPanelUI = setupSandboxPanel({
       hud.say('食物已重置，被吃掉的浆果/植物重新出现', 2);
     }
     else if (action === 'spawnOne') spawnSandboxFoxes({ state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
+    else if (action === 'spawnSmart') spawnSandboxSmartFox();
     else if (action === 'spawnGroup') spawnSandboxFoxes({ count: 6, state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) });
     else if (action === 'clearFoxes') clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
     else if (action === 'placeDummy') placeSandboxDummy({

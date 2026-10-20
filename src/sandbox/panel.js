@@ -25,6 +25,7 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
     <div class="test-actions sandbox-actions">
       <button type="button" data-sandbox-action="spawnOne">前方生成 1 只</button>
       <button type="button" data-sandbox-action="spawnGroup">前方生成一群</button>
+      <button type="button" data-sandbox-action="spawnSmart">生成智能藏狐</button>
       <button type="button" data-sandbox-action="clearFoxes">清除全部狐狸</button>
       <button type="button" data-sandbox-action="placeDummy">放置练习木桩</button>
       <button type="button" data-sandbox-action="removeDummy">移除练习木桩</button>
@@ -57,11 +58,12 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
       const debug = section.querySelector('#sandboxDebug');
       if (!debug) return;
       const enemies = foxes.filter((f) => !f.isSandboxDummy);
-      const statuses = enemies.slice(0, 5).map((f) => f.state).join(' · ') || '无';
+      const smart = enemies.filter((f) => f.type === 'smart');
+      const statuses = enemies.slice(0, 5).map((f) => (f.type === 'smart' ? `智能:${f.intent}` : f.state)).join(' · ') || '无';
       const dummy = state.dummy && !state.dummy._disposed ? state.dummy : null;
       const dummyStatus = dummy ? `木桩 <b>${Math.max(0, dummy.hp).toFixed(1)}/${dummy.maxHp}</b> · ${dummy.dummyDefeatable ? '可击败' : '不可击败'}` : '木桩 无';
       debug.innerHTML = `FPS <b>${Math.round(fps || 0)}</b>　坐标 <b>${controller.position.x.toFixed(1)}, ${controller.position.z.toFixed(1)}</b><br>`
-        + `yaw <b>${controller.yaw.toFixed(2)}</b>　敌狐 <b>${enemies.length}</b>　${dummyStatus}<br>`
+        + `yaw <b>${controller.yaw.toFixed(2)}</b>　敌狐 <b>${enemies.length}</b>（智能 ${smart.length}）　${dummyStatus}<br>`
         + `<span>${statuses}${enemies.length > 5 ? ' …' : ''}</span>`
         + (state.lastCommand ? `<br><em>${state.lastCommand}</em>` : '');
     },
