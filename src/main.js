@@ -28,7 +28,7 @@ import { bindText, kbd, schemeHints, setHintBinds } from './core/key-hints.mjs';
 import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
-import { getRenderProfile, hasRealTouch } from './core/performance.js';
+import { AdaptiveRenderController, getRenderProfile, hasRealTouch } from './core/performance.js';
 import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
 import { TouchControls } from './core/touch-controls.js';
 
@@ -60,9 +60,7 @@ function applyInputMode() {
   } catch (_) {}
   // 渲染预算跟随有效模式：强制触屏降级、强制键鼠恢复桌面质量。
   try {
-    renderProfile = getRenderProfile(TOUCH_DEVICE);
-    renderer.setPixelRatio(renderProfile.pixelRatio);
-    if ('shadowMap' in renderer) renderer.shadowMap.enabled = renderProfile.shadows;
+    refreshRenderProfile();
   } catch (_) {}
   try { settingsUI?.render?.(); } catch (_) {}
   // 帮助/暂停/结算等面板按 TOUCH_DEVICE 分支渲染；标题面板打开时即时重渲染。
@@ -142,7 +140,8 @@ let rendererStatus = {
   adapterPowerPreference: adapterPowerPreference(graphicsPreferenceState.preference),
   adapterInfo: null,
 };
-let renderProfile = getRenderProfile(TOUCH_DEVICE);
+const adaptiveQuality = new AdaptiveRenderController();
+let renderProfile = adaptiveQuality.apply(getRenderProfile(TOUCH_DEVICE));
 
 if (WANT_GS) {
   const result = await createRenderer(canvas, {
@@ -2447,16 +2446,25 @@ document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
 // 触屏手势拦截（contextmenu/dblclick/gesture*）由 TouchControls 在激活时安装、
 // 停用时移除，保证强制键鼠模式下恢复浏览器默认行为。
 
+// 静态设备预算作为上限，运行时控制器只叠加可逆质量档位。
+// resize / 输入模式切换均从静态 profile 重算，再应用当前档位，避免覆盖动态状态。
+function refreshRenderProfile({ resize = false } = {}) {
+  const previous = renderProfile;
+  renderProfile = adaptiveQuality.apply(getRenderProfile(TOUCH_DEVICE));
+  if (!previous || previous.pixelRatio !== renderProfile.pixelRatio) renderer.setPixelRatio(renderProfile.pixelRatio);
+  if (resize) renderer.setSize(window.innerWidth, window.innerHeight);
+  if ('shadowMap' in renderer) renderer.shadowMap.enabled = renderProfile.shadows;
+  sky?.applyRenderProfile?.(renderProfile);
+  return renderProfile;
+}
+
 // 窗口尺寸 / 全屏切换共用
 function resizeRenderer() {
   const w = window.innerWidth, h = window.innerHeight;
   camera.aspect = w / h;
   // 保持基准 FOV：控制器会按姿态在其基础上收窄
   camera.updateProjectionMatrix();
-  renderProfile = getRenderProfile(TOUCH_DEVICE);
-  renderer.setPixelRatio(renderProfile.pixelRatio);
-  renderer.setSize(w, h);
-  if ('shadowMap' in renderer) renderer.shadowMap.enabled = renderProfile.shadows;
+  refreshRenderProfile({ resize: true });
   // viewmodel 相机也要同步宽高比，否则爪子会被拉伸变形
   viewModel.resize(w / h);
 }
@@ -2482,10 +2490,19 @@ canvas.addEventListener('webglcontextrestored', () => {
 let last = performance.now();
 let playerBodyYaw = controller.yaw;
 let fpsAcc = 0, fpsCount = 0, fpsTimer = 0;
+const adaptiveTransitions = [];
 
 function frame(now) {
-  const dt = Math.min((now - last) / 1000, 0.05);
+  const frameMs = Math.max(0, now - last);
+  const dt = Math.min(frameMs / 1000, 0.05);
   last = now;
+  const qualityChange = adaptiveQuality.sample(frameMs, now);
+  if (qualityChange) {
+    refreshRenderProfile();
+    adaptiveTransitions.push({ at: Math.round(now), ...qualityChange, profile: { ...renderProfile.adaptive } });
+    if (adaptiveTransitions.length > 16) adaptiveTransitions.shift();
+    console.info('[performance] 自适应画质档位切换', adaptiveTransitions[adaptiveTransitions.length - 1]);
+  }
 
   const touchPlaying = TOUCH_DEVICE && game.mode === 'play';
   if (document.body.classList.contains('touch-playing') !== touchPlaying) {
@@ -2530,7 +2547,7 @@ function frame(now) {
   fpsTimer += dt;
   if (fpsTimer > 2) {
     const fps = Math.round(fpsAcc / fpsCount);
-    hud.setPerfHint(`${fps} FPS · ${renderer.info.render.triangles.toLocaleString()} 三角面`);
+    hud.setPerfHint(`${fps} FPS · 画质 T${renderProfile.qualityTier} · ${renderer.info.render.triangles.toLocaleString()} 三角面`);
     fpsAcc = 0; fpsCount = 0; fpsTimer = 0;
   }
 
@@ -2567,7 +2584,9 @@ window.__game = {
   viewModel, playerModel, playerBody, setViewMode, get thirdPerson() { return thirdPerson; },
   binds, findConflicts, ACTIONS, FoxClass: Fox,
   isDev: IS_DEV, isBeta: IS_BETA, progress, ecology: { energyOfPlant, eatLine, seasonForLevel, plantsForLevel, HERBIVORE },
-  touchControls, renderProfile: () => getRenderProfile(),
+  touchControls, renderProfile: () => ({ ...renderProfile }),
+  adaptivePerformance: () => ({ ...adaptiveQuality.snapshot(), profile: { ...renderProfile } }),
+  adaptiveTransitions,
   DEBUG_HIDE,
   // 摄影测量远景（异步加载完成后可用）
   backdrop: () => backdropRoot,

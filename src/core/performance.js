@@ -60,3 +60,138 @@ export function getRenderProfile(touchOverride) {
     antialias: false,
   };
 }
+
+/** Runtime quality controller with a sliding frame-time window and hysteresis.
+ * One isolated long frame is never enough to change quality: degradation needs
+ * a sustained slow window and recovery needs a longer sustained fast window.
+ */
+export class AdaptiveRenderController {
+  constructor({
+    windowMs = 3000,
+    degradeAfterMs = 4000,
+    recoverAfterMs = 8000,
+    changeCooldownMs = 6000,
+    maxTier = 3,
+  } = {}) {
+    this.windowMs = windowMs;
+    this.degradeAfterMs = degradeAfterMs;
+    this.recoverAfterMs = recoverAfterMs;
+    this.changeCooldownMs = changeCooldownMs;
+    this.maxTier = maxTier;
+    // Fixed typed-array ring: the per-frame path does not build arrays/objects or
+    // sort. Window statistics are refreshed twice a second, off the hot path.
+    this.capacity = 2048;
+    this.times = new Float64Array(this.capacity);
+    this.frames = new Float32Array(this.capacity);
+    this.scratch = new Array(this.capacity);
+    this.reset();
+  }
+
+  reset() {
+    this.writeIndex = 0;
+    this.sampleCount = 0;
+    this.lastStatsAt = -Infinity;
+    this.tier = 0;
+    this.slowMs = 0;
+    this.fastMs = 0;
+    this.lastChangeAt = -Infinity;
+    this.windowReady = false;
+    this.slow = false;
+    this.fast = false;
+    this.lastStats = { averageMs: null, p95Ms: null, sampleCount: 0 };
+  }
+
+  /** Feed an uncapped rAF interval in milliseconds. Returns a transition or null. */
+  sample(frameMs, nowMs) {
+    if (!Number.isFinite(frameMs) || frameMs <= 0 || !Number.isFinite(nowMs)) return null;
+    // Ignore suspended-tab / debugger pauses; they are not sustained render pressure.
+    if (frameMs > 250) return null;
+
+    const slot = this.writeIndex;
+    this.times[slot] = nowMs;
+    this.frames[slot] = frameMs;
+    this.writeIndex = (slot + 1) % this.capacity;
+    this.sampleCount = Math.min(this.sampleCount + 1, this.capacity);
+
+    if (nowMs - this.lastStatsAt >= 500) {
+      this.lastStatsAt = nowMs;
+      const cutoff = nowMs - this.windowMs;
+      const first = (this.writeIndex - this.sampleCount + this.capacity) % this.capacity;
+      let count = 0;
+      let total = 0;
+      let oldestAt = Infinity;
+      for (let i = 0; i < this.sampleCount; i++) {
+        const index = (first + i) % this.capacity;
+        const at = this.times[index];
+        if (at < cutoff || at > nowMs) continue;
+        const value = this.frames[index];
+        this.scratch[count++] = value;
+        total += value;
+        if (at < oldestAt) oldestAt = at;
+      }
+      this.windowReady = count >= 20 && nowMs - oldestAt >= this.windowMs * 0.8;
+      if (this.windowReady) {
+        this.scratch.length = count;
+        this.scratch.sort((a, b) => a - b);
+        const averageMs = total / count;
+        const p95Ms = this.scratch[Math.min(count - 1, Math.floor(count * 0.95))];
+        this.lastStats.averageMs = averageMs;
+        this.lastStats.p95Ms = p95Ms;
+        this.lastStats.sampleCount = count;
+        this.slow = averageMs >= 20.5 || p95Ms >= 24;
+        this.fast = averageMs <= 17.5 && p95Ms <= 20.5;
+        this.scratch.length = this.capacity;
+      }
+    }
+
+    if (!this.windowReady) return null;
+    const elapsed = Math.max(0, Math.min(frameMs, 100));
+    this.slowMs = this.slow ? this.slowMs + elapsed : 0;
+    this.fastMs = this.fast ? this.fastMs + elapsed : 0;
+    if (nowMs - this.lastChangeAt < this.changeCooldownMs) return null;
+
+    const from = this.tier;
+    let reason;
+    if (this.slow && this.slowMs >= this.degradeAfterMs && this.tier < this.maxTier) {
+      this.tier++;
+      reason = 'sustained-slow';
+    } else if (this.fast && this.fastMs >= this.recoverAfterMs && this.tier > 0) {
+      this.tier--;
+      reason = 'sustained-recovery';
+    } else {
+      return null;
+    }
+
+    this.lastChangeAt = nowMs;
+    this.slowMs = 0;
+    this.fastMs = 0;
+    return { from, to: this.tier, reason, ...this.lastStats };
+  }
+
+  /** Apply a dynamic budget without mutating getRenderProfile's static budget. */
+  apply(baseProfile) {
+    const profile = { ...baseProfile, qualityTier: this.tier };
+    if (this.tier >= 1) profile.pixelRatio = Math.max(0.75, +(baseProfile.pixelRatio * 0.85).toFixed(2));
+    if (this.tier >= 2) profile.shadowMapSize = Math.max(512, Math.floor(baseProfile.shadowMapSize / 2));
+    if (this.tier >= 3) profile.shadows = false;
+    profile.adaptive = {
+      tier: this.tier,
+      label: ['native', 'resolution-85%', 'lower-shadow-map', 'shadows-off'][this.tier] || `tier-${this.tier}`,
+      basePixelRatio: baseProfile.pixelRatio,
+      baseShadowMapSize: baseProfile.shadowMapSize,
+      averageFrameMs: this.lastStats.averageMs == null ? null : +this.lastStats.averageMs.toFixed(2),
+      p95FrameMs: this.lastStats.p95Ms == null ? null : +this.lastStats.p95Ms.toFixed(2),
+    };
+    return profile;
+  }
+
+  snapshot() {
+    return {
+      tier: this.tier,
+      label: ['native', 'resolution-85%', 'lower-shadow-map', 'shadows-off'][this.tier] || `tier-${this.tier}`,
+      slowMs: Math.round(this.slowMs),
+      fastMs: Math.round(this.fastMs),
+      ...this.lastStats,
+    };
+  }
+}

@@ -12,6 +12,7 @@ const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'outputs', 'perf');
 const CDP = 'http://127.0.0.1:18800';
 const tag = process.argv.find((arg) => arg.startsWith('--tag='))?.split('=')[1] || 'baseline';
+const probeAdaptive = process.argv.includes('--probe-adaptive');
 const HOLD_MS = 25_000;
 const WARMUP_MS = 4_000;
 const MIME = {
@@ -242,16 +243,47 @@ async function scenario(def) {
     })()`;
     const probeSupport = await evaluate(instrumentation);
     await wait(WARMUP_MS);
+    if (def.adaptiveProbe) {
+      await evaluate(`(() => {
+        window.__perfPressure = {startedAt:performance.now(), durationMs:19000, intervalMs:70, busyMs:32, ticks:0};
+        window.__perfAdaptiveTrace = [];
+        window.__perfPressureTimer = setInterval(() => {
+          const p=window.__perfPressure;
+          if (performance.now()-p.startedAt >= p.durationMs) { clearInterval(window.__perfPressureTimer); p.stoppedAt=performance.now(); return; }
+          const end=performance.now()+p.busyMs; let n=0; while(performance.now()<end) n+=Math.sqrt((n%97)+1);
+          p.ticks++; p.work=n;
+        }, window.__perfPressure.intervalMs);
+        window.__perfAdaptiveTraceTimer = setInterval(() => {
+          if (window.__game) window.__perfAdaptiveTrace.push({at:performance.now(), state:window.__game.adaptivePerformance()});
+        }, 250);
+      })()`);
+    }
     await evaluate('window.__perfMainFrames=[]; window.__perfHeap=[]; window.__perfLongTasks=[]; window.__perfGC=[]; window.__perfLastMainStart=null; window.__perfMeasuring=true; window.__perfHeapTimer=setInterval(()=>window.__perfHeap.push({time:performance.now(),used:performance.memory?.usedJSHeapSize??null}),500); true');
     const beforeMetrics = await send('Performance.getMetrics');
     if (def.heavy) await send('Profiler.start').catch(() => {});
-    await wait(HOLD_MS);
+    let adaptiveProbeState = null;
+    if (def.adaptiveProbe) {
+      const stressCaptureAt = 15_000;
+      await wait(stressCaptureAt);
+      adaptiveProbeState = await evaluate('window.__game.adaptivePerformance()');
+      const stressedShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+      fs.writeFileSync(path.join(OUT, `${tag}-adaptive-stressed.png`), Buffer.from(stressedShot.data, 'base64'));
+      await wait(Math.max(0, (def.holdMs || HOLD_MS) - stressCaptureAt));
+      const recoveredShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+      fs.writeFileSync(path.join(OUT, `${tag}-adaptive-recovered.png`), Buffer.from(recoveredShot.data, 'base64'));
+    } else {
+      await wait(def.holdMs || HOLD_MS);
+    }
     const afterMetrics = await send('Performance.getMetrics');
     const samplesResult = await evaluate(`(() => ({
       frames:window.__perfMainFrames, heap:window.__perfHeap,
       longTasks:window.__perfLongTasks, gc:window.__perfGC,
       setup:{...window.__perfSetup, camera:{position:window.__game.camera.position.toArray(),yaw:window.__game.controller.yaw}},
       stateAtEnd:{mode:window.__game.game.mode,thirdPerson:window.__game.thirdPerson,foxes:window.__game.foxes().length,viewModelPasses:window.__perfViewModelPasses},
+      adaptiveTransitions:window.__game.adaptiveTransitions.slice(),
+      adaptivePerformance:window.__game.adaptivePerformance(),
+      pressure:window.__perfPressure||null,
+      adaptiveTrace:window.__perfAdaptiveTrace||[],
       support:${JSON.stringify(probeSupport)}, rafNames:window.__perfRafNames
     }))()`);
     let cpuProfile = null;
@@ -297,6 +329,10 @@ async function scenario(def) {
       performanceMetricsDelta: metricDelta,
       setup: samplesResult.setup,
       stateAtEnd: samplesResult.stateAtEnd,
+      adaptiveTransitions: samplesResult.adaptiveTransitions,
+      adaptivePerformance: samplesResult.adaptivePerformance,
+      pressure: samplesResult.pressure,
+      adaptiveProbeState, adaptiveTrace: samplesResult.adaptiveTrace,
       instrumentationSupport: samplesResult.support,
       rafCallbackCounts: samplesResult.rafNames,
       cpuProfileTop: cpuProfile,
@@ -335,9 +371,10 @@ async function main() {
   const version = await jsonFetch(`${CDP}/json/version`);
   if (!version.Browser) throw new Error('CDP /json/version 缺少 Browser 信息');
   await startServer();
-  console.log(`[perf] OpenClaw Chrome ${version.Browser}; embedded static server :${port}; hold=${HOLD_MS/1000}s + warmup=${WARMUP_MS/1000}s`);
+  console.log(`[perf] OpenClaw Chrome ${version.Browser}; embedded static server :${port}; hold=${HOLD_MS/1000}s + warmup=${WARMUP_MS/1000}s${probeAdaptive ? ' + adaptive probe' : ''}`);
   const scenarios = [
     { name:'desktop', mobile:false, level:4, foxCoords:[[-7,-10],[-4,-12],[-1,-14],[2,-11],[5,-13],[7,-10]], heavy:false },
+    ...(probeAdaptive ? [{ name:'adaptive-probe', mobile:false, level:4, foxCoords:[[-7,-10],[-4,-12],[-1,-14],[2,-11],[5,-13],[7,-10]], heavy:false, adaptiveProbe:true, holdMs:48_000 }] : []),
     { name:'mobile', mobile:true, level:4, foxCoords:[[-7,-10],[-4,-12],[-1,-14],[2,-11],[5,-13],[7,-10]], heavy:false },
     { name:'heavy', mobile:false, level:11, foxCoords:[[-8,-9],[-6,-12],[-4,-15],[-2,-10],[0,-13],[2,-16],[4,-10],[6,-13],[8,-16]], heavy:true },
   ];
@@ -353,7 +390,7 @@ async function main() {
     chrome: version.Browser, protocol: version['Protocol-Version'], userAgent: version['User-Agent'],
     host: `${process.platform}/${process.arch}`, node: process.version,
     measurement: { holdMs:HOLD_MS, warmupMs:WARMUP_MS, serverPort:port, path:'outputs/perf' },
-    scenarios: results.map(r=>({name:r.scenario,fps:r.fps,render:r.render,mainFrameCallbackMs:r.mainFrameCallbackMs,setup:r.setup,stateAtEnd:r.stateAtEnd,performanceMetricsDelta:r.performanceMetricsDelta,longTasks:r.longTasks,gc:r.gc,cpuProfileTop:r.cpuProfileTop,errors:r.errors})),
+    scenarios: results.map(r=>({name:r.scenario,fps:r.fps,render:r.render,mainFrameCallbackMs:r.mainFrameCallbackMs,setup:r.setup,stateAtEnd:r.stateAtEnd,adaptiveTransitions:r.adaptiveTransitions,adaptivePerformance:r.adaptivePerformance,pressure:r.pressure,performanceMetricsDelta:r.performanceMetricsDelta,longTasks:r.longTasks,gc:r.gc,cpuProfileTop:r.cpuProfileTop,errors:r.errors})),
   };
   fs.writeFileSync(path.join(OUT, `${tag}.json`), JSON.stringify(manifest,null,2));
   console.log(`[perf] wrote outputs/perf/${tag}.json and ${results.length} scenario screenshots / samples`);

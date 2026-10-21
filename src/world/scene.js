@@ -49,6 +49,23 @@ export class Sky {
     scene.fog = new THREE.Fog(0x93a4a8, 70, 420);
   }
 
+  /** 应用静态/自适应渲染预算，尺寸变化时重建阴影贴图。 */
+  applyRenderProfile(profile) {
+    const shadow = this.sun.shadow;
+    const size = Math.max(1, Math.floor(profile.shadowMapSize || shadow.mapSize.x));
+    const sizeChanged = shadow.mapSize.x !== size || shadow.mapSize.y !== size;
+    const shadowModeChanged = this.sun.castShadow !== !!profile.shadows;
+    if (sizeChanged || shadowModeChanged) {
+      shadow.map?.dispose?.();
+      shadow.map = null;
+      shadow.mapPass?.dispose?.();
+      shadow.mapPass = null;
+    }
+    this.sun.castShadow = !!profile.shadows;
+    if (sizeChanged) shadow.mapSize.set(size, size);
+    if (sizeChanged || shadowModeChanged) shadow.needsUpdate = true;
+  }
+
   /** 渐变天穹：半透明大球，从天顶色渐变到地平线色。
    *  半径必须大于地形边缘半径（FIELD_W/2+150 = 215），
    *  否则地面与天球之间会露出缝隙，在地平线处显示为一条亮带。
