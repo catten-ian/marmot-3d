@@ -5,7 +5,6 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_BASE = '/marmot3d-beta';
 const VERSION_STAMP = 'rev13';
-const VERSION_SWITCH = '<script src="/marmot3d-beta/version-switch.js?v=mvs2" data-current="beta"></script>\n';
 
 function replaceOnce(source, pattern, replacement, label) {
   const next = source.replace(pattern, replacement);
@@ -25,7 +24,8 @@ function generatePublicShell(source) {
     throw new Error('Unconverted relative beta resource path remains in index.html');
   }
   if ((html.match(/<\/body>/g) || []).length !== 1) throw new Error('Expected exactly one closing body tag');
-  html = html.replace('</body>', `${VERSION_SWITCH}</body>`);
+  // 版本切换已移入设置面板（设置 → 版本），不再注入右下角浮动脚本
+  // （旧的 /marmot3d-beta/version-switch.js 在发布目录本就不存在，是 404 死链）。
   return html;
 }
 
@@ -47,4 +47,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { generatePublicShell, PUBLIC_BASE, VERSION_STAMP, VERSION_SWITCH };
+module.exports = { generatePublicShell, PUBLIC_BASE, VERSION_STAMP };

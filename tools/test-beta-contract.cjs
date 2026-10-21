@@ -48,8 +48,7 @@ async function main() {
   for (const asset of ['favicon.ico', 'favicon-32.png', 'favicon-192.png']) {
     assert.ok(publicShell.includes(`${PUBLIC_BASE}/assets/${asset}`), `icon ${asset} must use an absolute beta path`);
   }
-  assert.match(publicShell, /<script src="\/marmot3d-beta\/version-switch\.js\?v=mvs2" data-current="beta"><\/script>/,
-    'public version switch must stay pinned to beta/mvs2');
+  assert.doesNotMatch(publicShell, /<script[^>]*version-switch\.js/, 'floating corner version-switch script must be removed (switching lives in settings)');
   assert.doesNotMatch(publicShell, /(?:href|src)="\.\//, 'public document must not retain relative URL attributes');
 
   const versionMode = await import(pathToFileURL(path.join(ROOT, 'src/core/version-mode.mjs')).href);
