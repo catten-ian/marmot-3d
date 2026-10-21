@@ -95,7 +95,7 @@ import { SettingsUI } from './ui/settings.js';
 import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
 import { TouchLayout } from './ui/touch-layout.js';
-import { restoreLocalPack, resolveLocalAsset, installLocalPackUI } from './world/local-pack.js';
+import { restoreLocalPack, getLocalPackAssetInfo, installLocalPackUI } from './world/local-pack.js';
 import { setAssetResolver } from './models/loader.js';
 import { Minimap } from './ui/minimap.js';
 import { cooldownOverlayData } from './ui/cooldown-overlay.js';
@@ -111,8 +111,8 @@ const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
 const localPackStatus = IS_DEV ? await restoreLocalPack() : null;
-if (IS_DEV && localPackStatus?.state === 'ready') setAssetResolver((url) => resolveLocalAsset(url));
-if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => resolveLocalAsset(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
+if (IS_DEV && localPackStatus?.state === 'ready') setAssetResolver((url) => getLocalPackAssetInfo(url));
+if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => getLocalPackAssetInfo(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
 
 hud.setLoading(8);
 
@@ -164,6 +164,7 @@ if ('shadowMap' in renderer) {
   renderer.shadowMap.enabled = renderProfile.shadows;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 }
+if (typeof window !== 'undefined') window.__resourceRendererBackend = rendererStatus.backend;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // 曝光过高会把贴地的草地照成一片死白，0.92 是既能保留高光又不溢出的值
@@ -989,7 +990,7 @@ function title() {
   document.getElementById('sandboxEntryBtn').onclick = enterSandbox;
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
-  if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => resolveLocalAsset(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
+  if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => getLocalPackAssetInfo(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
 }
 
 function showTeacherNote() {
