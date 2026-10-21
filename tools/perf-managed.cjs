@@ -374,10 +374,12 @@ async function main() {
   console.log(`[perf] OpenClaw Chrome ${version.Browser}; embedded static server :${port}; hold=${HOLD_MS/1000}s + warmup=${WARMUP_MS/1000}s${probeAdaptive ? ' + adaptive probe' : ''}`);
   const scenarios = [
     { name:'desktop', mobile:false, level:4, foxCoords:[[-7,-10],[-4,-12],[-1,-14],[2,-11],[5,-13],[7,-10]], heavy:false },
-    ...(probeAdaptive ? [{ name:'adaptive-probe', mobile:false, level:4, foxCoords:[[-7,-10],[-4,-12],[-1,-14],[2,-11],[5,-13],[7,-10]], heavy:false, adaptiveProbe:true, holdMs:48_000 }] : []),
     { name:'mobile', mobile:true, level:4, foxCoords:[[-7,-10],[-4,-12],[-1,-14],[2,-11],[5,-13],[7,-10]], heavy:false },
     { name:'heavy', mobile:false, level:11, foxCoords:[[-8,-9],[-6,-12],[-4,-15],[-2,-10],[0,-13],[2,-16],[4,-10],[6,-13],[8,-16]], heavy:true },
   ];
+  // Run the disruptive controlled-pressure probe last so it cannot contaminate
+  // the three clean before/after scenarios or change their historical order.
+  if (probeAdaptive) scenarios.push({ name:'adaptive-probe', mobile:false, level:4, foxCoords:[[-7,-10],[-4,-12],[-1,-14],[2,-11],[5,-13],[7,-10]], heavy:false, adaptiveProbe:true, holdMs:48_000 });
   const results = [];
   try {
     for (const def of scenarios) results.push(await scenario(def));
