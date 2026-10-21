@@ -9,7 +9,7 @@
 <link rel="icon" href="./assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="./assets/favicon-192.png">
 <meta name="theme-color" content="#101a15">
-<link rel="stylesheet" href="./styles.css?v=m20261021a">
+<link rel="stylesheet" href="./styles.css?v=m20261022a">
 <script type="importmap">
 { "imports": {
     "three": "./vendor/three.module.js",
@@ -289,7 +289,7 @@ const watchdog = setTimeout(() => {
 }, WATCHDOG_MS);
 
 try {
-  await import('./src/main.js?v=m20261021a');
+  await import('./src/main.js?v=m20261022a');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
   clearTimeout(watchdog);
