@@ -1,3 +1,4 @@
+import { normalizePath } from './local-pack-resolver.mjs';
 /** Dev-only Verdant package picker, integrity validator and tier download hooks. */
 const DB_NAME = 'marmot3d-local-pack';
 const STORE = 'handles';
@@ -52,7 +53,7 @@ async function walk(dir, prefix = '') {
   return out;
 }
 function normalizeInputPath(input) {
-  let p = String(input || '').replaceAll('\\', '/');
+  let p = normalizePath(input);
   try { if (/^[a-z]+:\/\//i.test(p)) p = new URL(p).pathname; } catch (_) {}
   p = p.replace(/^\/+|^\.\//, '');
   const at = p.indexOf('assets/');

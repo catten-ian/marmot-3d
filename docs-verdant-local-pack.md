@@ -1,8 +1,15 @@
-# DEV Verdant 本地资源包
+# DEV Verdant 本地资源加载
 
-部署后从 `./release/verdant-dev-pack/` 下载并解压 `verdant-dev-pack.zip`（或直接复制该目录）。打开 `index.html?version=dev`，在标题页点击“选择资源包文件夹”，选择**资源包根目录**，也就是能看到 `assets/` 文件夹的目录。
+DEV 页面支持把下载的 `verdant_trail.zip` 和单独的模型包合并到本地后加载。请按以下顺序操作：
 
-资源包必须包含：
+1. 下载并解压 `verdant_trail.zip`。如果解压后只有 `verdant_trail.blend` 和 `textures/`，这是源文件包，`.blend` 不能被浏览器直接加载，仍需优化运行时 overlay。
+2. 下载 `./release/verdant-models.zip`，把它解压到已经解压的 `verdant_trail` 文件夹并允许合并；它会创建/合并 `assets/models/marmot.glb` 和 `assets/models/fox-segmented.glb`。
+3. 确认 `verdant_trail/assets/verdant/` 存在 `manifest.json`、`verdant-trail-height.json`、`verdant-trail.glb`。缺少时下载 `./release/verdant-overlay-runtime.zip` 并同样解压合并到 `verdant_trail`。
+4. 打开 `https://www.catten.cyou/marmot3d/?version=dev`，点击标题页的“选择资源包文件夹”，选择 `verdant_trail` 文件夹；也可以选择包含它的外层文件夹。ZIP 必须先解压，不能直接选择 ZIP 文件。
+
+页面会逐项显示已找到和缺少的路径。选择包含多个重复 `assets/` 副本的外层目录时会报告歧义，请改选目标 `verdant_trail` 文件夹。`verdant_trail.blend` 和 `textures/` 会被安全忽略，它们不能替代 `assets/verdant/` 优化文件。
+
+完整运行时集合是：
 
 - `assets/verdant/manifest.json`
 - `assets/verdant/verdant-trail-height.json`
@@ -10,10 +17,11 @@
 - `assets/models/marmot.glb`
 - `assets/models/fox-segmented.glb`
 
-推荐使用 HTTPS 或 `http://localhost` 的 Chrome/Chromium。支持 File System Access API 的浏览器会记住目录并在下次访问时检查读取权限；需要时点击“重新授权”。不支持该 API 时，页面会退回 `webkitdirectory` 文件夹选择框，普通文件选择不会持久化。ZIP 不能直接在页面内选择，必须先解压。
+支持 File System Access API 的 Chrome/Chromium 会记住目录并在下次访问时恢复；需要时点击“重新授权”。不支持该 API 时会退回 `webkitdirectory` 文件夹选择框。完整本地集合会优先通过 Blob URL 加载，缺少的资源继续使用服务器回退路径。
 
-页面会显示已找到和缺少的每个文件。完整包在刷新后优先从本地 Blob URL 读取 Verdant 地形和 dev 模型；不完整包会对缺少的文件逐项提示，并继续从服务器 URL 回退加载。未选择本地包时，原有服务器加载路径保持不变。
+## 包文件与校验
 
-## 生成与校验
+- `release/verdant-overlay-runtime.zip`：仅三项 `assets/verdant/*` 优化运行时文件，并附中文 README 与 `SHA256SUMS`。
+- `release/verdant-models.zip`：仅两项 dev 模型，并附中文 README 与 `SHA256SUMS`；不含 `.blend`、`textures/`、EXR/HDR/PNG/JPG 或其他 authoring 素材。
 
-本次包只复制现有运行时资产，未修改 canonical 文件。源文件 SHA-256、大小和压缩结果记录在 `release/verdant-dev-pack/SHA256SUMS.txt`。压缩使用 ZIP Deflate；没有使用需要额外浏览器解码器的格式。
+两个 ZIP 均由当前仓库中的运行时文件确定性生成；`release/` 已被 Git 忽略。由于主机上没有用户提供的字面 `verdant_trail.zip`，无法验证其内部目录名，只能覆盖上述嵌套目录和源文件共存场景。
