@@ -263,7 +263,7 @@ async function scenario(def) {
     if (def.heavy) await send('Profiler.start').catch(() => {});
     let adaptiveProbeState = null;
     if (def.adaptiveProbe) {
-      const stressCaptureAt = 15_000;
+      const stressCaptureAt = 25_000;
       await wait(stressCaptureAt);
       adaptiveProbeState = await evaluate('window.__game.adaptivePerformance()');
       const stressedShot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
