@@ -937,11 +937,11 @@ function title() {
     ${IS_DEV ? `
     <section class="local-pack-box" aria-label="Verdant 本地资源包">
       <div class="dev-badge">Verdant 本地资源包（仅 DEV）</div>
-      <p>推荐在部署后的 <code>./release/verdant-dev-pack/</code> 下载并解压后选择<strong>资源包根目录</strong>。Chrome/Chromium 需使用 HTTPS 或 localhost。</p>
+      <p>先解压 <code>verdant_trail.zip</code>，再下载 <code>release/verdant-models.zip</code> 并解压合并到 <strong>verdant_trail</strong> 文件夹（创建 <code>assets/models/</code>）。确认 <code>assets/verdant/</code> 下有优化 overlay；若原 ZIP 只有 <code>.blend</code> 与 <code>textures/</code>，请再合并 <code>release/verdant-overlay-runtime.zip</code>。然后打开 <code>https://www.catten.cyou/marmot3d/?version=dev</code>，选择 verdant_trail 文件夹或支持的外层目录。ZIP 必须先解压，不能直接选择。</p>
       <div id="localPackStatus" class="local-pack-status" aria-live="polite"></div>
       <div class="row"><button class="ghost" id="localPackChoose" type="button">选择资源包文件夹</button><button class="ghost" id="localPackReauth" type="button" hidden>重新授权</button></div>
       <input id="localPackInput" type="file" webkitdirectory directory multiple hidden>
-      <p class="local-pack-note">需要 assets/verdant/manifest.json、verdant-trail-height.json、verdant-trail.glb，以及 assets/models/marmot.glb、fox-segmented.glb。选定后刷新页面，优先读取本地文件；缺少文件会逐项列出并回退服务器。</p>
+      <p class="local-pack-note">必须找到：<code>assets/verdant/manifest.json</code>、<code>assets/verdant/verdant-trail-height.json</code>、<code>assets/verdant/verdant-trail.glb</code>、<code>assets/models/marmot.glb</code>、<code>assets/models/fox-segmented.glb</code>。页面会显示每条路径；<code>.blend</code> 与 <code>textures/</code> 是源文件，会被忽略。选定后刷新页面，优先读取本地文件，缺少项回退服务器。</p>
     </section>
     <div class="dev-intro">
       <div class="dev-badge">DEV 版 · 旱獭生态学改写</div>
