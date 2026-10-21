@@ -12,10 +12,10 @@ const window = { innerWidth: 390, innerHeight: 844, devicePixelRatio: 2, addEven
 const document = { body: { appendChild() {} }, createElement() { return { className: '', innerHTML: '', querySelector() { return { textContent: '', focus() {}, onclick: null }; } }; } };
 const source = fs.readFileSync('src/ui/feedback.js', 'utf8')
   .replace(/^export\s+/gm, '')
-  + '\nmodule.exports = { collectGameSnapshot, enqueueFeedback, submitFeedback, FeedbackUI };';
+  + '\nmodule.exports = { collectGameSnapshot, enqueueFeedback, submitFeedback, feedbackStatusText, FeedbackUI };';
 const sandbox = { module: { exports: {} }, exports: {}, window, document, navigator: { userAgent: 'test-agent', maxTouchPoints: 0 }, localStorage, console, Date, Number, String, Math, JSON, Promise, setTimeout, clearTimeout, AbortController, globalThis: {} };
 vm.runInNewContext(source, sandbox, { filename: 'feedback.js' });
-const { collectGameSnapshot, enqueueFeedback, submitFeedback, FeedbackUI } = sandbox.module.exports;
+const { collectGameSnapshot, enqueueFeedback, submitFeedback, feedbackStatusText, FeedbackUI } = sandbox.module.exports;
 
 async function run() {
   const snapshot = collectGameSnapshot();
@@ -28,10 +28,26 @@ async function run() {
   assert.strictEqual(queue.length, 20);
   assert.strictEqual(queue[0].n, 2);
 
+  const offlineStorage = { data: null, getItem() { return this.data; }, setItem(key, value) { this.data = value; } };
+  const offline = await submitFeedback({ description: 'test' }, { endpoint: '', storage: offlineStorage });
+  assert.strictEqual(offline.ok, true);
+  assert.strictEqual(offline.queued, true);
+  assert.strictEqual(feedbackStatusText(offline), '已保存到本机；当前未联网上报。');
+  assert.strictEqual(JSON.parse(offlineStorage.data).length, 1);
+
   const failedStorage = { data: null, getItem() { return this.data; }, setItem(key, value) { this.data = value; } };
   const failed = await submitFeedback({ description: 'test' }, { endpoint: 'https://example.invalid', storage: failedStorage, fetchFn: () => Promise.reject(new Error('offline')) });
+  assert.strictEqual(failed.ok, false);
   assert.strictEqual(failed.queued, true);
+  assert.strictEqual(feedbackStatusText(failed), '已保存到本机；当前未联网上报。');
   assert.strictEqual(JSON.parse(failedStorage.data).length, 1);
+
+  const sentStorage = { data: null, getItem() { return this.data; }, setItem(key, value) { this.data = value; } };
+  const sent = await submitFeedback({ description: 'test' }, { endpoint: 'https://example.invalid', storage: sentStorage, fetchFn: async () => ({ ok: true }) });
+  assert.strictEqual(sent.ok, true);
+  assert.strictEqual(sent.queued, false);
+  assert.strictEqual(feedbackStatusText(sent), '已提交，感谢反馈');
+  assert.strictEqual(sentStorage.data, null);
 
   let submitCount = 0;
   const elements = {
@@ -50,6 +66,7 @@ async function run() {
   const afterDebounce = JSON.parse(localStorage.getItem('m3d_feedback_queue'));
   assert.strictEqual(afterDebounce[afterDebounce.length - 1].description, '描述');
   assert.strictEqual(elements['#feedbackSubmit'].disabled, false);
+  assert.strictEqual(elements['.feedback-status'].textContent, '已保存到本机；当前未联网上报。');
   assert(ui.lastSubmit > 0);
   // The second immediate invocation must not replace the first payload or reset debounce.
   assert.strictEqual(ui.lastSubmit > Date.now() - 1000, true);

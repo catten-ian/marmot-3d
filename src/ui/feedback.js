@@ -62,12 +62,22 @@ export function enqueueFeedback(payload, storage = typeof localStorage !== 'unde
   try { const queue = readQueue(storage); queue.push(payload); while (queue.length > MAX_QUEUE) queue.shift(); storage.setItem(QUEUE_KEY, JSON.stringify(queue)); return true; } catch (_) { return false; }
 }
 
+export function feedbackStatusText(result) {
+  if (result && result.ok && !result.queued) return '已提交，感谢反馈';
+  if (result && result.queued) return '已保存到本机；当前未联网上报。';
+  return '未能保存反馈；当前未联网上报，请稍后重试。';
+}
+
 export async function submitFeedback(payload, options = {}) {
   const endpoint = String(options.endpoint || '');
   const storage = options.storage || (typeof localStorage !== 'undefined' ? localStorage : null);
-  if (!endpoint) { enqueueFeedback(payload, storage); try { console.info('[feedback] 已写入离线队列', payload); } catch (_) {} return { ok: true, queued: true }; }
+  if (!endpoint) {
+    const queued = enqueueFeedback(payload, storage);
+    if (queued) { try { console.info('[feedback] 已写入离线队列', payload); } catch (_) {} }
+    return { ok: queued, queued };
+  }
   const fetchFn = options.fetchFn || (typeof fetch === 'function' ? fetch : null);
-  if (!fetchFn) { enqueueFeedback(payload, storage); return { ok: false, queued: true }; }
+  if (!fetchFn) return { ok: false, queued: enqueueFeedback(payload, storage) };
   let timer = null; let controller = null; let timedOut = false;
   try {
     if (typeof AbortController !== 'undefined') controller = new AbortController();
@@ -75,9 +85,9 @@ export async function submitFeedback(payload, options = {}) {
     const timeout = new Promise((_, reject) => { timer = setTimeout(() => { timedOut = true; if (controller) controller.abort(); reject(new Error('feedback timeout')); }, 5000); });
     const response = await Promise.race([request, timeout]);
     if (timer) clearTimeout(timer);
-    if (response && response.ok === false) throw new Error('feedback endpoint rejected request');
+    if (!response || response.ok !== true) throw new Error('feedback endpoint rejected request');
     return { ok: true, queued: false };
-  } catch (_) { if (timer) clearTimeout(timer); enqueueFeedback(payload, storage); return { ok: false, queued: true, timedOut }; }
+  } catch (_) { if (timer) clearTimeout(timer); return { ok: false, queued: enqueueFeedback(payload, storage), timedOut }; }
 }
 
 export class FeedbackUI {
@@ -98,6 +108,6 @@ export class FeedbackUI {
     this.lastSubmit = Date.now(); const button = this.root.querySelector('#feedbackSubmit'); button.disabled = true;
     const payload = { createdAt: new Date().toISOString(), type: this.root.querySelector('#feedbackType').value, description: text, snapshot: this.getSnapshot() };
     const result = await submitFeedback(payload, { endpoint: this.endpoint });
-    if (this.root) { this.root.querySelector('.feedback-status').textContent = result.ok || result.queued ? '已记录，感谢反馈' : '提交失败，已保存到本地队列'; button.disabled = false; }
+    if (this.root) { this.root.querySelector('.feedback-status').textContent = feedbackStatusText(result); button.disabled = false; }
   }
 }
