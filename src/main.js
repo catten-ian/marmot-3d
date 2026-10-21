@@ -78,7 +78,7 @@ import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX, VERSION_LABEL } from './core/version.js';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
@@ -380,7 +380,9 @@ setViewMode(thirdPerson);
 // 异步进行，不阻塞游戏启动。返回每一档的加载级别：
 //   'full' 完整（几何+贴图） / 'geometry-only' 仅几何（贴图解码失败）
 //   'procedural' 回退到程序化建模 / 'timeout' / 'failed'
-const FOX_PRELOAD_FILE = IS_DEV && USE_REAL_FOX_MODEL ? 'fox-segmented.glb' : 'fox.glb';
+const FOX_PRELOAD_FILE = IS_DEV && USE_REAL_FOX_MODEL
+  ? (USE_DEV_HQ_FOX ? 'fox.glb' : 'fox-segmented.glb')
+  : 'fox.glb';
 preloadModels('./assets/models/', { foxFile: FOX_PRELOAD_FILE }).then((st) => {
   modelLoadState = st;
   console.info('[models] 真实模型就绪情况:', st);

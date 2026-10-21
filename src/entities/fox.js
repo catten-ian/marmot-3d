@@ -17,7 +17,7 @@
 import * as THREE from 'three';
 import { FOX, ROCKS, BURROW_AI, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
-import { IS_DEV, USE_REAL_FOX_MODEL } from '../core/version.js';
+import { IS_DEV, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX } from '../core/version.js';
 import { clamp } from '../core/utils.js';
 import { createProceduralFox } from './procedural-fox.js';
 import { createTibetanFox } from './tibetan-fox.js';
@@ -54,7 +54,9 @@ function buildHiFiTibetanFox() {
 }
 /** 真实藏狐模型的基准缩放：让成体在游戏里约 1.0m 高（与土拨鼠同量级） */
 const FOX_MODEL_BASE = 1.05;
-const SEGMENTED_FOX_MODEL = IS_DEV
+// dev 高质量贴图狐狸：启用时走带贴图的 fox.glb（静态网格），不再用无贴图的分段模型。
+const USE_TEXTURED_FOX_GLB = IS_DEV && USE_DEV_HQ_FOX;
+const SEGMENTED_FOX_MODEL = IS_DEV && !USE_TEXTURED_FOX_GLB
   && new URLSearchParams(location.search).get('foxmodel') !== 'off';
 const FOX_MODEL_PATH = SEGMENTED_FOX_MODEL
   ? './assets/models/fox-segmented.glb'
@@ -184,9 +186,12 @@ export class Fox {
     //   而日志里一条错误都没有（模型确实加载成功了）。
     //   现在两套模型是**兄弟**：藏程序化不影响真实模型。
     this.mesh = new THREE.Group();
+    // dev 高质量贴图狐狸：不用程序化 hi-fi 外观，先用旧程序化模型兜底，
+    // 随后异步加载带贴图的 fox.glb 替换。
+    const useHiFiDefault = USE_HIFI_FOX && !USE_TEXTURED_FOX_GLB;
     // 高保真程序化藏狐（img2threejs）：默认作为藏狐外观，旧外观作为回退。
     this.hiFiMesh = null;
-    if (USE_HIFI_FOX) {
+    if (useHiFiDefault) {
       this.hiFiMesh = buildHiFiTibetanFox();
       this.mesh.add(this.hiFiMesh);
       this.proceduralMesh = buildFoxMesh(type, 1);
@@ -201,12 +206,12 @@ export class Fox {
       this.mesh.add(this.proceduralMesh);
     }
     this.realModel = null;
-    this.modelLevel = USE_HIFI_FOX ? 'hifi' : 'procedural';
+    this.modelLevel = useHiFiDefault ? 'hifi' : 'procedural';
     this.mesh.position.set(x, 0, z);
     scene.add(this.mesh);
     this.scene = scene;
-    // 高保真模型已足够完整时不再异步加载 GLB（避免两套模型叠加/闪烁）。
-    if (!USE_HIFI_FOX) this._loadRealModel();
+    // 程序化 hi-fi 足够完整时不加载 GLB；但 dev 高质量贴图狐狸需要加载 fox.glb。
+    if (!useHiFiDefault) this._loadRealModel();
 
     // 蓄力预警：地面上的方向指示条（第一人称下比 2D 线条更易读）
     this.warn = buildWarnIndicator();

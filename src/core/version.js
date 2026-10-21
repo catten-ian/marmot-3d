@@ -90,6 +90,23 @@ export const USE_REAL_FOX_MODEL = (() => {
 })();
 
 /**
+ * dev 版捕食者改用带贴图的高质量 fox.glb（约 9.4 万面、内嵌 BaseColor 贴图）。
+ * 仅 dev 生效：stable 继续原外观。fox.glb 是静态网格（无骨骼），
+ * 不再用无贴图的 fox-segmented.glb 程序化摆腿。
+ * `?foxhq=off` 回退到分段藏狐；`?foxmodel=off` 进一步回退到程序化建模。
+ */
+export const USE_DEV_HQ_FOX = (() => {
+  try {
+    return IS_DEV
+      && USE_REAL_MODELS
+      && new URLSearchParams(location.search).get('foxmodel') !== 'off'
+      && new URLSearchParams(location.search).get('foxhq') !== 'off';
+  } catch (e) {
+    return false;
+  }
+})();
+
+/**
  * dev 版是否强制走 WebGL2 路径（跳过 WebGPU 检测）。
  * 用途：在没有 WebGPU 的环境（CI、headless、无独显机器）下验证 GS 场景内容。
  * 调试参数：`?version=dev&webgl=1`
