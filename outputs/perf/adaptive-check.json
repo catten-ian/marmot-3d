@@ -1,0 +1,274 @@
+{
+  "tag": "adaptive-check",
+  "capturedAt": "2026-10-21T21:00:56.328Z",
+  "branch": "codex/beta-smart-fox-20261021",
+  "commit": "8ebf43edc3b405488dd1a9c7937e8edec11d31d8",
+  "chrome": "Chrome/147.0.7727.137",
+  "protocol": "1.3",
+  "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
+  "host": "linux/x64",
+  "node": "v24.19.0",
+  "measurement": {
+    "holdMs": 25000,
+    "warmupMs": 4000,
+    "serverPort": 8340,
+    "path": "outputs/perf"
+  },
+  "scenarios": [
+    {
+      "name": "adaptive-probe",
+      "fps": {
+        "average": 57.63,
+        "meanFrameMs": 17.351,
+        "p50FrameMs": 16.5,
+        "p95FrameMs": 40.2,
+        "worstFrameMs": 176,
+        "over20msCount": 300,
+        "over20msPercent": 10.71,
+        "over50msCount": 2,
+        "over50msPercent": 0.071
+      },
+      "render": {
+        "passesPerFrame": 2,
+        "drawCallsPerFrame": 497.789,
+        "trianglesPerFrame": 489917.754,
+        "renderMsPerFrame": 3.702,
+        "p95RenderMsPerFrame": 5.9,
+        "geometries": 442,
+        "textures": 6
+      },
+      "mainFrameCallbackMs": {
+        "count": 2801,
+        "mean": 4.332,
+        "p50": 4,
+        "p95": 6.7,
+        "worst": 173.8
+      },
+      "setup": {
+        "mode": "play",
+        "level": 5,
+        "foxes": 6,
+        "mobile": false,
+        "dpr": 1,
+        "profile": {
+          "mobile": false,
+          "lowPower": false,
+          "maxPixelRatio": 2,
+          "pixelRatio": 1,
+          "shadows": true,
+          "shadowMapSize": 2048,
+          "antialias": true,
+          "qualityTier": 0,
+          "adaptive": {
+            "tier": 0,
+            "label": "native",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": null,
+            "p95FrameMs": null
+          }
+        },
+        "backend": "webgl2-forced",
+        "canvas": [
+          1280,
+          720
+        ],
+        "vegetationInstances": 26000,
+        "overlayHidden": true,
+        "thirdPerson": false,
+        "controllerPosition": [
+          0,
+          -2.92,
+          0
+        ],
+        "camera": {
+          "position": [
+            0,
+            -2.46,
+            0
+          ],
+          "yaw": 0
+        }
+      },
+      "stateAtEnd": {
+        "mode": "play",
+        "thirdPerson": false,
+        "foxes": 6,
+        "viewModelPasses": 3042
+      },
+      "adaptiveTransitions": [
+        {
+          "at": 13039,
+          "from": 0,
+          "to": 1,
+          "reason": "sustained-slow",
+          "averageMs": 18.072892062635308,
+          "p95Ms": 33.29999923706055,
+          "sampleCount": 166,
+          "profile": {
+            "tier": 1,
+            "label": "resolution-85%",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": 18.07,
+            "p95FrameMs": 33.3
+          }
+        },
+        {
+          "at": 19039,
+          "from": 1,
+          "to": 2,
+          "reason": "sustained-slow",
+          "averageMs": 18.974214361898554,
+          "p95Ms": 33.400001525878906,
+          "sampleCount": 159,
+          "profile": {
+            "tier": 2,
+            "label": "lower-shadow-map",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": 18.97,
+            "p95FrameMs": 33.4
+          }
+        },
+        {
+          "at": 25040,
+          "from": 2,
+          "to": 3,
+          "reason": "sustained-slow",
+          "averageMs": 18.406135477171354,
+          "p95Ms": 33.29999923706055,
+          "sampleCount": 163,
+          "profile": {
+            "tier": 3,
+            "label": "shadows-off",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": 18.41,
+            "p95FrameMs": 33.3
+          }
+        },
+        {
+          "at": 36307,
+          "from": 3,
+          "to": 2,
+          "reason": "sustained-recovery",
+          "averageMs": 16.66722274356418,
+          "p95Ms": 16.799999237060547,
+          "sampleCount": 180,
+          "profile": {
+            "tier": 2,
+            "label": "lower-shadow-map",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": 16.67,
+            "p95FrameMs": 16.8
+          }
+        },
+        {
+          "at": 44307,
+          "from": 2,
+          "to": 1,
+          "reason": "sustained-recovery",
+          "averageMs": 16.667222775353327,
+          "p95Ms": 16.700000762939453,
+          "sampleCount": 180,
+          "profile": {
+            "tier": 1,
+            "label": "resolution-85%",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": 16.67,
+            "p95FrameMs": 16.7
+          }
+        },
+        {
+          "at": 52307,
+          "from": 1,
+          "to": 0,
+          "reason": "sustained-recovery",
+          "averageMs": 16.667778375413683,
+          "p95Ms": 16.700000762939453,
+          "sampleCount": 180,
+          "profile": {
+            "tier": 0,
+            "label": "native",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": 16.67,
+            "p95FrameMs": 16.7
+          }
+        }
+      ],
+      "adaptivePerformance": {
+        "tier": 0,
+        "label": "native",
+        "slowMs": 0,
+        "fastMs": 3600,
+        "averageMs": 16.66777828004625,
+        "p95Ms": 16.799999237060547,
+        "sampleCount": 180,
+        "profile": {
+          "mobile": false,
+          "lowPower": false,
+          "maxPixelRatio": 2,
+          "pixelRatio": 1,
+          "shadows": true,
+          "shadowMapSize": 2048,
+          "antialias": true,
+          "qualityTier": 0,
+          "adaptive": {
+            "tier": 0,
+            "label": "native",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": 16.67,
+            "p95FrameMs": 16.7
+          }
+        }
+      },
+      "pressure": {
+        "startedAt": 7307.599998474121,
+        "durationMs": 19000,
+        "intervalMs": 70,
+        "busyMs": 32,
+        "ticks": 269,
+        "work": 1508106.6473924776,
+        "stoppedAt": 26347.69999885559
+      },
+      "performanceMetricsDelta": {
+        "TaskDuration": 24.8032,
+        "ScriptDuration": 20.8932,
+        "JSHeapUsedSize": -5818640,
+        "Nodes": -8020,
+        "JSEventListeners": -1,
+        "LayoutDuration": 0.9454,
+        "RecalcStyleDuration": 0.5475
+      },
+      "longTasks": {
+        "count": 1,
+        "totalMs": 175,
+        "durations": [
+          {
+            "startTime": 25054.79999923706,
+            "duration": 175
+          }
+        ],
+        "over50msFrameOverlap": 1,
+        "callbackOver50msOverlap": 1
+      },
+      "gc": {
+        "supported": false,
+        "count": 0,
+        "totalMs": 0,
+        "events": []
+      },
+      "cpuProfileTop": null,
+      "errors": {
+        "consoleErrors": [],
+        "exceptions": [],
+        "logErrors": []
+      }
+    }
+  ]
+}

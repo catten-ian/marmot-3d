@@ -1,0 +1,516 @@
+{
+  "capturedAtLocal": "2026-10-22 Asia/Shanghai",
+  "environment": {
+    "browser": "Chrome/147.0.7727.137",
+    "protocol": "1.3",
+    "host": "linux/x64",
+    "node": "v24.19.0",
+    "renderer": "WebGL2 forced via ?webgl=1",
+    "managedCDP": "http://127.0.0.1:18800",
+    "embeddedServerPort": 8340
+  },
+  "commits": {
+    "baseline": "73ec5bb",
+    "adaptiveImplementation": "cf5774c",
+    "standardMeasurementHarness": "8e39398e823eabf917da251047c78f185761a302"
+  },
+  "standardMeasurement": {
+    "warmupMs": 4000,
+    "holdMs": 25000,
+    "baselineJSON": "/home/fame/code/marmot3d/marmot-3d/m3d-beta-smart-fox-20261021/outputs/perf/baseline.json",
+    "afterJSON": "/home/fame/code/marmot3d/marmot-3d/m3d-beta-smart-fox-20261021/outputs/perf/clean-final.json",
+    "scenarios": [
+      {
+        "name": "desktop",
+        "level": 5,
+        "foxes": 6,
+        "backend": "webgl2-forced",
+        "profile": {
+          "mobile": false,
+          "lowPower": false,
+          "maxPixelRatio": 2,
+          "pixelRatio": 1,
+          "shadows": true,
+          "shadowMapSize": 2048,
+          "antialias": true,
+          "qualityTier": 0,
+          "adaptive": {
+            "tier": 0,
+            "label": "native",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": null,
+            "p95FrameMs": null
+          }
+        },
+        "metrics": {
+          "averageFPS": {
+            "before": 58.67,
+            "after": 60,
+            "delta": 1.33,
+            "changePercent": 2.27
+          },
+          "p50FrameMs": {
+            "before": 16.7,
+            "after": 16.7,
+            "delta": 0,
+            "changePercent": 0
+          },
+          "p95FrameMs": {
+            "before": 19.2,
+            "after": 17.4,
+            "delta": -1.8,
+            "changePercent": -9.38
+          },
+          "over20msPercent": {
+            "before": 2.785,
+            "after": 0.067,
+            "delta": -2.718,
+            "changePercent": -97.59
+          },
+          "over50msPercent": {
+            "before": 0.34,
+            "after": 0,
+            "delta": -0.34,
+            "changePercent": -100
+          },
+          "worstFrameMs": {
+            "before": 160.4,
+            "after": 20.2,
+            "delta": -140.2,
+            "changePercent": -87.41
+          },
+          "drawCallsPerFrame": {
+            "before": 585.151,
+            "after": 569.36,
+            "delta": -15.791,
+            "changePercent": -2.7
+          },
+          "trianglesPerFrame": {
+            "before": 544461.807,
+            "after": 532905.223,
+            "delta": -11556.584,
+            "changePercent": -2.12
+          },
+          "renderMsPerFrame": {
+            "before": 4.2,
+            "after": 4.403,
+            "delta": 0.203,
+            "changePercent": 4.83
+          }
+        },
+        "passesPerFrame": {
+          "baseline": 2,
+          "after": 2
+        },
+        "longTasks": {
+          "baseline": 4,
+          "after": 0
+        },
+        "errors": {
+          "baseline": {
+            "consoleErrors": [],
+            "exceptions": [],
+            "logErrors": []
+          },
+          "after": {
+            "consoleErrors": [],
+            "exceptions": [],
+            "logErrors": []
+          }
+        }
+      },
+      {
+        "name": "mobile",
+        "level": 5,
+        "foxes": 6,
+        "backend": "webgl2-forced",
+        "profile": {
+          "mobile": true,
+          "lowPower": false,
+          "maxPixelRatio": 1.35,
+          "pixelRatio": 1.35,
+          "shadows": true,
+          "shadowMapSize": 1024,
+          "antialias": false,
+          "qualityTier": 0,
+          "adaptive": {
+            "tier": 0,
+            "label": "native",
+            "basePixelRatio": 1.35,
+            "baseShadowMapSize": 1024,
+            "averageFrameMs": null,
+            "p95FrameMs": null
+          }
+        },
+        "metrics": {
+          "averageFPS": {
+            "before": 59.63,
+            "after": 60,
+            "delta": 0.37,
+            "changePercent": 0.62
+          },
+          "p50FrameMs": {
+            "before": 16.7,
+            "after": 16.7,
+            "delta": 0,
+            "changePercent": 0
+          },
+          "p95FrameMs": {
+            "before": 17.9,
+            "after": 17.4,
+            "delta": -0.5,
+            "changePercent": -2.79
+          },
+          "over20msPercent": {
+            "before": 0.94,
+            "after": 0,
+            "delta": -0.94,
+            "changePercent": -100
+          },
+          "over50msPercent": {
+            "before": 0.134,
+            "after": 0,
+            "delta": -0.134,
+            "changePercent": -100
+          },
+          "worstFrameMs": {
+            "before": 100.3,
+            "after": 19.1,
+            "delta": -81.2,
+            "changePercent": -80.96
+          },
+          "drawCallsPerFrame": {
+            "before": 485.938,
+            "after": 485.719,
+            "delta": -0.219,
+            "changePercent": -0.05
+          },
+          "trianglesPerFrame": {
+            "before": 471464.212,
+            "after": 471874.961,
+            "delta": 410.749,
+            "changePercent": 0.09
+          },
+          "renderMsPerFrame": {
+            "before": 3.847,
+            "after": 3.79,
+            "delta": -0.057,
+            "changePercent": -1.48
+          }
+        },
+        "passesPerFrame": {
+          "baseline": 2,
+          "after": 2
+        },
+        "longTasks": {
+          "baseline": 0,
+          "after": 0
+        },
+        "errors": {
+          "baseline": {
+            "consoleErrors": [],
+            "exceptions": [],
+            "logErrors": []
+          },
+          "after": {
+            "consoleErrors": [],
+            "exceptions": [],
+            "logErrors": []
+          }
+        }
+      },
+      {
+        "name": "heavy",
+        "level": 12,
+        "foxes": 9,
+        "backend": "webgl2-forced",
+        "profile": {
+          "mobile": false,
+          "lowPower": false,
+          "maxPixelRatio": 2,
+          "pixelRatio": 1,
+          "shadows": true,
+          "shadowMapSize": 2048,
+          "antialias": true,
+          "qualityTier": 0,
+          "adaptive": {
+            "tier": 0,
+            "label": "native",
+            "basePixelRatio": 1,
+            "baseShadowMapSize": 2048,
+            "averageFrameMs": null,
+            "p95FrameMs": null
+          }
+        },
+        "metrics": {
+          "averageFPS": {
+            "before": 59.32,
+            "after": 60.04,
+            "delta": 0.72,
+            "changePercent": 1.21
+          },
+          "p50FrameMs": {
+            "before": 16.7,
+            "after": 16.7,
+            "delta": 0,
+            "changePercent": 0
+          },
+          "p95FrameMs": {
+            "before": 19.1,
+            "after": 17.4,
+            "delta": -1.7,
+            "changePercent": -8.9
+          },
+          "over20msPercent": {
+            "before": 1.618,
+            "after": 0.266,
+            "delta": -1.352,
+            "changePercent": -83.56
+          },
+          "over50msPercent": {
+            "before": 0.135,
+            "after": 0,
+            "delta": -0.135,
+            "changePercent": -100
+          },
+          "worstFrameMs": {
+            "before": 168.8,
+            "after": 25.7,
+            "delta": -143.1,
+            "changePercent": -84.77
+          },
+          "drawCallsPerFrame": {
+            "before": 798.622,
+            "after": 799.031,
+            "delta": 0.409,
+            "changePercent": 0.05
+          },
+          "trianglesPerFrame": {
+            "before": 695371.082,
+            "after": 695747.143,
+            "delta": 376.061,
+            "changePercent": 0.05
+          },
+          "renderMsPerFrame": {
+            "before": 6.128,
+            "after": 6.142,
+            "delta": 0.014,
+            "changePercent": 0.23
+          }
+        },
+        "passesPerFrame": {
+          "baseline": 2,
+          "after": 2
+        },
+        "longTasks": {
+          "baseline": 1,
+          "after": 0
+        },
+        "errors": {
+          "baseline": {
+            "consoleErrors": [],
+            "exceptions": [],
+            "logErrors": []
+          },
+          "after": {
+            "consoleErrors": [],
+            "exceptions": [],
+            "logErrors": []
+          }
+        }
+      }
+    ]
+  },
+  "adaptiveProbe": {
+    "method": {
+      "busyLoopMs": 32,
+      "intervalMs": 70,
+      "durationMs": 19000,
+      "ticks": 269,
+      "startedAtMs": 7307.6,
+      "stoppedAtMs": 26347.7
+    },
+    "transitions": [
+      {
+        "atMs": 13039,
+        "from": 0,
+        "to": 1,
+        "reason": "sustained-slow",
+        "averageFrameMs": 18.073,
+        "p95FrameMs": 33.3,
+        "profile": {
+          "tier": 1,
+          "label": "resolution-85%",
+          "basePixelRatio": 1,
+          "baseShadowMapSize": 2048,
+          "averageFrameMs": 18.07,
+          "p95FrameMs": 33.3
+        }
+      },
+      {
+        "atMs": 19039,
+        "from": 1,
+        "to": 2,
+        "reason": "sustained-slow",
+        "averageFrameMs": 18.974,
+        "p95FrameMs": 33.4,
+        "profile": {
+          "tier": 2,
+          "label": "lower-shadow-map",
+          "basePixelRatio": 1,
+          "baseShadowMapSize": 2048,
+          "averageFrameMs": 18.97,
+          "p95FrameMs": 33.4
+        }
+      },
+      {
+        "atMs": 25040,
+        "from": 2,
+        "to": 3,
+        "reason": "sustained-slow",
+        "averageFrameMs": 18.406,
+        "p95FrameMs": 33.3,
+        "profile": {
+          "tier": 3,
+          "label": "shadows-off",
+          "basePixelRatio": 1,
+          "baseShadowMapSize": 2048,
+          "averageFrameMs": 18.41,
+          "p95FrameMs": 33.3
+        }
+      },
+      {
+        "atMs": 36307,
+        "from": 3,
+        "to": 2,
+        "reason": "sustained-recovery",
+        "averageFrameMs": 16.667,
+        "p95FrameMs": 16.8,
+        "profile": {
+          "tier": 2,
+          "label": "lower-shadow-map",
+          "basePixelRatio": 1,
+          "baseShadowMapSize": 2048,
+          "averageFrameMs": 16.67,
+          "p95FrameMs": 16.8
+        }
+      },
+      {
+        "atMs": 44307,
+        "from": 2,
+        "to": 1,
+        "reason": "sustained-recovery",
+        "averageFrameMs": 16.667,
+        "p95FrameMs": 16.7,
+        "profile": {
+          "tier": 1,
+          "label": "resolution-85%",
+          "basePixelRatio": 1,
+          "baseShadowMapSize": 2048,
+          "averageFrameMs": 16.67,
+          "p95FrameMs": 16.7
+        }
+      },
+      {
+        "atMs": 52307,
+        "from": 1,
+        "to": 0,
+        "reason": "sustained-recovery",
+        "averageFrameMs": 16.668,
+        "p95FrameMs": 16.7,
+        "profile": {
+          "tier": 0,
+          "label": "native",
+          "basePixelRatio": 1,
+          "baseShadowMapSize": 2048,
+          "averageFrameMs": 16.67,
+          "p95FrameMs": 16.7
+        }
+      }
+    ],
+    "peakSnapshot": {
+      "tier": 3,
+      "label": "shadows-off",
+      "slowMs": 0,
+      "fastMs": 4000,
+      "averageMs": 16.667222764756943,
+      "p95Ms": 16.799999237060547,
+      "sampleCount": 180,
+      "profile": {
+        "mobile": false,
+        "lowPower": false,
+        "maxPixelRatio": 2,
+        "pixelRatio": 0.85,
+        "shadows": false,
+        "shadowMapSize": 1024,
+        "antialias": true,
+        "qualityTier": 3,
+        "adaptive": {
+          "tier": 3,
+          "label": "shadows-off",
+          "basePixelRatio": 1,
+          "baseShadowMapSize": 2048,
+          "averageFrameMs": 18.41,
+          "p95FrameMs": 33.3
+        }
+      }
+    },
+    "finalDiagnostic": {
+      "tier": 0,
+      "label": "native",
+      "slowMs": 0,
+      "fastMs": 3600,
+      "averageMs": 16.66777828004625,
+      "p95Ms": 16.799999237060547,
+      "sampleCount": 180,
+      "profile": {
+        "mobile": false,
+        "lowPower": false,
+        "maxPixelRatio": 2,
+        "pixelRatio": 1,
+        "shadows": true,
+        "shadowMapSize": 2048,
+        "antialias": true,
+        "qualityTier": 0,
+        "adaptive": {
+          "tier": 0,
+          "label": "native",
+          "basePixelRatio": 1,
+          "baseShadowMapSize": 2048,
+          "averageFrameMs": 16.67,
+          "p95FrameMs": 16.7
+        }
+      }
+    },
+    "fpsDuringProbe": {
+      "average": 57.63,
+      "meanFrameMs": 17.351,
+      "p50FrameMs": 16.5,
+      "p95FrameMs": 40.2,
+      "worstFrameMs": 176,
+      "over20msCount": 300,
+      "over20msPercent": 10.71,
+      "over50msCount": 2,
+      "over50msPercent": 0.071
+    },
+    "longTasks": {
+      "count": 1,
+      "totalMs": 175,
+      "durations": [
+        {
+          "startTime": 25054.79999923706,
+          "duration": 175
+        }
+      ],
+      "over50msFrameOverlap": 1,
+      "callbackOver50msOverlap": 1
+    },
+    "rawJSON": "/home/fame/code/marmot3d/marmot-3d/m3d-beta-smart-fox-20261021/outputs/perf/adaptive-check-adaptive-probe.json"
+  },
+  "notes": [
+    "常规测量期间档位保持 T0，静态设备预算未改变。",
+    "受控主线程压力探针证明持续掉帧降档与恢复，但不能作为 GPU 饱和下 FPS 收益的量化。",
+    "跨次 FPS/帧分布受 60Hz 垂直同步和系统调度影响，微小差异不可直接归因于优化。"
+  ]
+}
