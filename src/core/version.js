@@ -13,6 +13,8 @@
  * 这样即使 dev 分支出问题，也不会污染正式版路径。
  */
 
+import { DEV_VERSION_LABEL, STABLE_VERSION_LABEL, versionBadgeLabel } from './version-labels.mjs';
+
 /** 当前版本模式 */
 export const VERSION = (() => {
   try {
@@ -28,10 +30,9 @@ export const IS_DEV = VERSION === 'dev';
 // This tree exposes stable and dev only; no beta query is a dev trigger.
 export const IS_BETA = false;
 
-/** 供 UI 显示当前版本角标 */
-export const VERSION_LABEL = IS_DEV
-  ? 'DEV · A Verdant Trail 环境 + 旱獭生态'
-  : '神经—体液调节 · 抽象玩法演示';
+/** 供 UI、分析和测试记录使用的当前版本标识。页面底部的产品描述保留在 index.html。 */
+export const VERSION_LABEL = versionBadgeLabel(VERSION);
+export { DEV_VERSION_LABEL, STABLE_VERSION_LABEL, versionBadgeLabel };
 
 /**
  * dev 版专属特性清单。

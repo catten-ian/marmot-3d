@@ -78,7 +78,11 @@ import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
+<<<<<<< HEAD
 import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX, USE_DEV_WOLF_MODEL, VERSION_LABEL } from './core/version.js';
+=======
+import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL, STABLE_VERSION_LABEL } from './core/version.js';
+>>>>>>> 7300078 (Fix stable version badge identification)
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
@@ -531,7 +535,7 @@ hud.setLoading(96);
     tag.className = `version-tag ${IS_DEV ? 'dev' : 'stable'}`;
     tag.textContent = IS_DEV
       ? verdantWorld ? 'DEV · A Verdant Trail 环境 + 旱獭生态' : 'DEV · 旱獭生态学改写（草食 / 耐饥渴 / 季节食物）'
-      : VERSION_LABEL;
+      : STABLE_VERSION_LABEL;
     tag.title = IS_DEV
       ? verdantWorld ? '当前为 dev Verdant Trail 场景：环境与地形来自本地优化资产。' : '当前为 dev 实验版：采食对象为当季草本植物，储备消耗更低。正式版请去掉 ?version=dev'
       : '正式版。追加 ?version=dev 可体验生态学改写';

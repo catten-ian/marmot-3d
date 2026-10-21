@@ -3,7 +3,7 @@
   const script = document.currentScript;
   const current = script?.dataset.current === 'dev' ? 'dev' : 'stable';
   const params = new URLSearchParams(location.search);
-  const isDev = params.get('version') === 'dev';
+  const isDev = params.get('version')?.replace(/\/+$/, '') === 'dev';
   const link = document.createElement('a');
   const next = new URL(location.href);
   if (isDev) next.searchParams.delete('version');
