@@ -3,8 +3,9 @@
  * 方案切换即时生效并持久化到 localStorage。
  */
 import { Keybinds, ACTIONS, findConflicts } from '../core/keybinds.js';
-import { IS_DEV } from '../core/version.js';
+import { IS_DEV, VERSION } from '../core/version.js';
 import { INPUT_MODES } from '../core/input-mode.mjs';
+import { versionSwitchModel } from '../core/version-switch.mjs';
 
 const GRAPHICS_OPTIONS = [
   { id: 'auto', name: '自动', desc: '保留浏览器默认 GPU 选择。' },
@@ -228,6 +229,7 @@ export class SettingsUI {
     if (b.scheme === 'custom') {
       html += '<div class="set-actions"><button class="ghost-btn" id="resetBinds">恢复默认键位</button></div>';
     }
+    html += this._versionMarkup();
     if (this.feedback) html += '<div class="set-actions"><button class="ghost-btn" id="settingsFeedback">问题反馈 / 反馈建议</button></div>';
 
     this.el.body.innerHTML = html;
@@ -257,5 +259,22 @@ export class SettingsUI {
     const adjustToggle = this.el.body.querySelector('#touchAdjustToggle');
     adjustToggle?.addEventListener('change', () => this.touchLayout.setAdjustEnabled(adjustToggle.checked));
     this.touchLayout?.bindSettings(this.el.body);
+  }
+
+  _versionMarkup() {
+    const model = versionSwitchModel(VERSION, {
+      pathname: location.pathname,
+      origin: location.origin,
+    });
+    const cards = model.options.map((o) => `
+        <a class="scheme-card version-card ${o.current ? 'cur' : ''}" href="${o.href}">
+          <div class="scheme-name">${o.name}${o.current ? ' · 当前' : ''}</div>
+          <div class="scheme-desc">${o.desc}</div>
+        </a>`).join('');
+    return `<section class="version-settings" aria-label="版本切换">
+      <h4>版本</h4>
+      <div class="scheme-row version-row">${cards}</div>
+      <p class="version-note">切换版本会重新加载页面；三档存档与资源相互隔离。DEV 写实素材也可从 <a href="https://marmot.tos-cn-shanghai.volces.com/index.html" target="_blank" rel="noopener">素材资源桶</a> 下载到本地使用。</p>
+    </section>`;
   }
 }
