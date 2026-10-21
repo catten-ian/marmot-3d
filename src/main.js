@@ -104,10 +104,8 @@ import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 
-// ============================================================
-// 初始化
-// ============================================================
-const canvas = document.getElementById('scene');
+// =====================================================// 初始化
+// =====================================================const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
 const localPackStatus = IS_DEV ? await restoreLocalPack() : null;
@@ -539,10 +537,8 @@ hud.setLoading(96);
   document.body.classList.toggle('dev-version', IS_DEV);
 }
 
-// ============================================================
-// 游戏状态
-// ============================================================
-// Beta uses an independent record and an in-memory all-level unlock default;
+// =====================================================// 游戏状态
+// =====================================================// Beta uses an independent record and an in-memory all-level unlock default;
 // stable retains the original shared key and sequential unlock behavior.
 const progressStorage = {
   getItem: (...args) => localStorage.getItem(...args),
@@ -1035,6 +1031,14 @@ function title() {
     <b>夹着尾巴转身逃跑</b>，逃出草地才会消失 —— 一段时间后可能有同类再次出现。
     你要做的是在采食和救援时自卫，随后回洞。</p>
     ${IS_DEV ? `
+    <section class="local-pack-box" aria-label="Verdant 本地资源包">
+      <div class="dev-badge">Verdant 本地资源包（仅 DEV）</div>
+      <p>先解压 <code>verdant_trail.zip</code>，再下载 <code>release/verdant-models.zip</code> 并解压合并到 <strong>verdant_trail</strong> 文件夹（创建 <code>assets/models/</code>）。确认 <code>assets/verdant/</code> 下有优化 overlay；若原 ZIP 只有 <code>.blend</code> 与 <code>textures/</code>，请再合并 <code>release/verdant-overlay-runtime.zip</code>。然后打开 <code>https://www.catten.cyou/marmot3d/?version=dev</code>，选择 verdant_trail 文件夹或支持的外层目录。ZIP 必须先解压，不能直接选择。</p>
+      <div id="localPackStatus" class="local-pack-status" aria-live="polite"></div>
+      <div class="row"><button class="ghost" id="localPackChoose" type="button">选择资源包文件夹</button><button class="ghost" id="localPackReauth" type="button" hidden>重新授权</button></div>
+      <input id="localPackInput" type="file" webkitdirectory directory multiple hidden>
+      <p class="local-pack-note">必须找到：<code>assets/verdant/manifest.json</code>、<code>assets/verdant/verdant-trail-height.json</code>、<code>assets/verdant/verdant-trail.glb</code>、<code>assets/models/marmot.glb</code>、<code>assets/models/fox-segmented.glb</code>。页面会显示每条路径；<code>.blend</code> 与 <code>textures/</code> 是源文件，会被忽略。选定后刷新页面，优先读取本地文件，缺少项回退服务器。</p>
+    </section>
     <div class="dev-intro">
       <div class="dev-badge">DEV 版 · 旱獭生态学改写</div>
       <p>旱獭是典型的<b>草食动物</b>，耐饥渴，主食为沙草料、禾本科叶茎与豆科花，
@@ -1184,10 +1188,8 @@ function resume() {
   }
 }
 
-// ============================================================
-// 战斗动作
-// ============================================================
-const _fwd = new THREE.Vector3();
+// =====================================================// 战斗动作
+// =====================================================const _fwd = new THREE.Vector3();
 // 缓存本次战斗数值，供 viewmodel 的攻击动画计算进度使用
 let stats_cache = { cd: 0 };
 // 当前玩家攻击动作类型（供第一/第三人称动作表现使用）：'' | tap | stand | lunge | dodge
@@ -1461,10 +1463,8 @@ function doInteract() {
   interact(game, (t, d) => hud.say(t, d));
 }
 
-// ============================================================
-// 主更新
-// ============================================================
-const _tmpV = new THREE.Vector3();
+// =====================================================// 主更新
+// =====================================================const _tmpV = new THREE.Vector3();
 
 function update(dt) {
   if (game.mode !== 'play') {
@@ -1824,10 +1824,8 @@ function update(dt) {
   hud.update(game, stats, cfg, dt);
 }
 
-// ============================================================
-// 输入绑定（由 keybinds 方案驱动）
-// ============================================================
-const binds = new Keybinds();
+// =====================================================// 输入绑定（由 keybinds 方案驱动）
+// =====================================================const binds = new Keybinds();
 
 let mouseDown = false;
 let touchControls = null;
@@ -2447,10 +2445,8 @@ binds.onChange(syncHelpKeys);
 // pointerlockchange —— 两处监听同一事件会在同一帧各调一次 pause()，
 // 虽有幂等守卫兜底，但属于冗余逻辑。
 
-// ============================================================
-// 全屏模式
-// ============================================================
-const fsBtn = document.getElementById('fsBtn');
+// =====================================================// 全屏模式
+// =====================================================const fsBtn = document.getElementById('fsBtn');
 
 function toggleFullscreen() {
   const d = document;
@@ -2517,10 +2513,8 @@ canvas.addEventListener('webglcontextrestored', () => {
   hud.say('画面已恢复。', 2.2);
 });
 
-// ============================================================
-// 主循环
-// ============================================================
-let last = performance.now();
+// =====================================================// 主循环
+// =====================================================let last = performance.now();
 let playerBodyYaw = controller.yaw;
 let fpsAcc = 0, fpsCount = 0, fpsTimer = 0;
 
@@ -2574,10 +2568,8 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// ============================================================
-// 启动
-// ============================================================
-hud.setLoading(100);
+// =====================================================// 启动
+// =====================================================hud.setLoading(100);
 loadLevel(0, false);
 // 标题状态下相机也需要正确落位，否则会渲染在场景原点（地下）
 controller.update(0.016, new Set(), 1);
