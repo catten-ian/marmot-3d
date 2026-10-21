@@ -160,6 +160,7 @@ export function resolveLocalAsset(path) {
   if (!active) return null;
   return active.urls.get(normalizeInputPath(path)) || null;
 }
+export function getLocalPackAssetInfo(path) { const url = resolveLocalAsset(path); return url ? { url, source: 'local', inPackPath: normalizeInputPath(path) } : null; }
 
 function tosConfig() {
   let cfg = typeof window !== 'undefined' ? window.__VERDANT_TOS__ : null;

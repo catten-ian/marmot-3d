@@ -2017,3 +2017,14 @@ body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; fi
 .local-pack-status { color: #d8edc9; font-size: 12px; line-height: 1.5; margin: 6px 0; }
 .local-pack-status small { color: #b8cbb0; word-break: break-word; }
 .local-pack-note { color: #a8bc9e !important; }
+.resource-loading-settings { margin: 18px 0 14px; padding: 13px; border: 1px solid rgba(214, 232, 189, .24); border-radius: 10px; background: rgba(8, 20, 13, .5); }
+.resource-loading-settings h4 { margin: 0 0 8px; color: var(--gold); font-size: 14px; }
+.resource-env, .resource-note { color: var(--soft); font-size: 11px; line-height: 1.5; }
+.resource-actions, .resource-downloads { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin: 9px 0; font-size: 11px; }
+.resource-downloads a { color: var(--gold); }
+.resource-table { display: grid; gap: 5px; max-height: 280px; overflow: auto; }
+.resource-row { display: grid; grid-template-columns: minmax(105px, 1.2fr) minmax(110px, 1.2fr) 100px 62px 70px 55px minmax(100px, 1fr) auto; gap: 6px; align-items: center; padding: 6px; border: 1px solid rgba(214, 232, 189, .13); border-radius: 6px; color: var(--ink); font-size: 10px; }
+.resource-row code { overflow-wrap: anywhere; }
+.resource-row .resource-error { color: #ffb2a6; overflow-wrap: anywhere; }
+.resource-row .ghost-btn { min-height: 25px; padding: 3px 6px; font-size: 10px; }
+@media (max-width: 700px) { .resource-row { grid-template-columns: 1fr 1fr; } .resource-row .resource-error { grid-column: 1 / -1; } }

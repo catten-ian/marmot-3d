@@ -30,11 +30,23 @@ const SOFT_TIMEOUT_MS = 15000;
 const cache = new Map();
 let assetResolver = null;
 export function setAssetResolver(fn) { assetResolver = typeof fn === 'function' ? fn : null; }
+function resolveAsset(url) {
+  const result = assetResolver ? assetResolver(url) : null;
+  const info = result && typeof result === 'object' ? result : (result ? { url: result, source: 'local' } : null);
+  const logical = String(url).replace(/^.*?(?=assets\/)/, '');
+  const rec = { requestedUrl: url, resolvedUrl: safeResolvedUrl(info?.url || url), source: info?.source || 'server', inPackPath: info?.inPackPath || logical };
+  RESOLUTION_STATUS.set(logical, rec);
+  return info?.url || url;
+}
 /** 全局统计，供 UI 展示 */
 const STATUS = {
-  marmot: { level: 'pending', error: null, tris: 0, textured: false },
-  fox: { level: 'pending', error: null, tris: 0, textured: false },
+  marmot: { key: 'marmot', logical: 'assets/models/marmot.glb', level: 'pending', error: null, tris: 0, textured: false, source: 'server', requestedUrl: '', resolvedUrl: '' },
+  fox: { key: 'fox', logical: 'assets/models/fox-segmented.glb', level: 'pending', error: null, tris: 0, textured: false, source: 'server', requestedUrl: '', resolvedUrl: '' },
 };
+const RESOLUTION_STATUS = new Map();
+function safeResolvedUrl(url) { try { const u = new URL(url, typeof location !== 'undefined' ? location.href : 'http://localhost/'); return u.protocol === 'blob:' ? 'blob://local-pack' : `${u.origin}${u.pathname}`; } catch (_) { return String(url).slice(0, 240); } }
+export function getAssetResolutionStatus() { return Object.fromEntries([...RESOLUTION_STATUS].map(([k, v]) => [k, { ...v }])); }
+export function clearModelCache() { cache.clear(); for (const key of Object.keys(STATUS)) STATUS[key] = { ...STATUS[key], level: 'pending', error: null, tris: 0, textured: false }; RESOLUTION_STATUS.clear(); }
 
 export function getModelStatus() {
   return JSON.parse(JSON.stringify(STATUS));
@@ -108,10 +120,8 @@ function stripTextures(root, label) {
       for (const k of ['roughnessMap', 'metalnessMap', 'normalMap', 'emissiveMap', 'aoMap']) {
         if (m[k] && !textureUsable(m[k])) { m[k] = null; m.needsUpdate = true; }
       }
-      // 贴图没了，用顶点色兜底（摄影测量模型一般有顶点色）
-      if (!m.map && m.color) {
-        m.color.set(0x9a8f78);
-      }
+      // 没有贴图时保留 GLB 的 baseColorFactor；若几何带顶点色，Three.js 仍会使用它。
+      // 不强行覆盖材质颜色，否则分块狐狸的棕色 baseColorFactor 会被误改成灰色。
       return m;
     };
     if (Array.isArray(o.material)) o.material = o.material.map(one);
