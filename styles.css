@@ -520,6 +520,9 @@ body.settings-open .threat {
 }
 .scheme-card:hover { background: #1e3328; }
 .scheme-card.cur { border-color: var(--gold); background: #2a3a24; }
+.version-card { display: block; text-decoration: none; }
+.version-settings .version-note { font-size: 11px; color: #93a488; margin: 4px 0 0; line-height: 1.5; }
+.version-settings .version-note a { color: var(--teal); }
 .scheme-name { font-size: 13px; font-weight: 600; color: var(--ink); }
 .scheme-card.cur .scheme-name { color: var(--gold); }
 .scheme-desc { font-size: 11px; color: #93a488; margin-top: 3px; line-height: 1.5; }
