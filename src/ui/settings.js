@@ -305,7 +305,7 @@ export class SettingsUI {
     return `<section class="version-settings" aria-label="版本切换">
       <h4>版本</h4>
       <div class="scheme-row version-row">${cards}</div>
-      <p class="version-note">切换版本会重新加载页面；三档存档与资源相互隔离。DEV 写实素材也可从 <a href="https://marmot.tos-cn-shanghai.volces.com/index.html" target="_blank" rel="noopener">素材资源桶</a> 下载到本地使用。</p>
+      <p class="version-note">切换版本会重新加载页面；三档存档与资源相互隔离。DEV 写实素材也可从 <a href="https://www.catten.cyou/marmot3d-assets/" target="_blank" rel="noopener">素材资源桶</a> 下载到本地使用。</p>
     </section>`;
   }
 
