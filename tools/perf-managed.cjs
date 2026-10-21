@@ -13,6 +13,7 @@ const OUT = path.join(ROOT, 'outputs', 'perf');
 const CDP = 'http://127.0.0.1:18800';
 const tag = process.argv.find((arg) => arg.startsWith('--tag='))?.split('=')[1] || 'baseline';
 const probeAdaptive = process.argv.includes('--probe-adaptive');
+const onlyAdaptive = process.argv.includes('--only-adaptive');
 const HOLD_MS = 25_000;
 const WARMUP_MS = 4_000;
 const MIME = {
@@ -372,7 +373,7 @@ async function main() {
   if (!version.Browser) throw new Error('CDP /json/version 缺少 Browser 信息');
   await startServer();
   console.log(`[perf] OpenClaw Chrome ${version.Browser}; embedded static server :${port}; hold=${HOLD_MS/1000}s + warmup=${WARMUP_MS/1000}s${probeAdaptive ? ' + adaptive probe' : ''}`);
-  const scenarios = [
+  const scenarios = onlyAdaptive ? [] : [
     { name:'desktop', mobile:false, level:4, foxCoords:[[-7,-10],[-4,-12],[-1,-14],[2,-11],[5,-13],[7,-10]], heavy:false },
     { name:'mobile', mobile:true, level:4, foxCoords:[[-7,-10],[-4,-12],[-1,-14],[2,-11],[5,-13],[7,-10]], heavy:false },
     { name:'heavy', mobile:false, level:11, foxCoords:[[-8,-9],[-6,-12],[-4,-15],[-2,-10],[0,-13],[2,-16],[4,-10],[6,-13],[8,-16]], heavy:true },
