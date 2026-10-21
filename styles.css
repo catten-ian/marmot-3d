@@ -1901,7 +1901,8 @@ body.touch-layout-editing .objective.layout-dragging { cursor: grabbing; filter:
   backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
 }
 .touch-layout-entry[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
-.touch-layout-editing .touch-controls { display: block; }
+/* 只有触屏模式才在编辑态显示虚拟摇杆与动作层；键鼠模式仅编辑常驻 HUD 卡片。 */
+body.touch-mode.touch-layout-editing .touch-controls { display: block; }
 /* 调整开关（设置 → 启用触屏布局调整）关闭时，所有"调整键"隐藏：
    画面上的编辑入口、设置里的拖动编辑按钮组等。默认在 <html> 上即为 false。 */
 [data-touch-adjust-enabled="false"] [data-touch-adjust] { display: none !important; }
@@ -1909,8 +1910,89 @@ body.touch-layout-editing .objective.layout-dragging { cursor: grabbing; filter:
    不允许编辑浮动触控控件；触屏层的显示仍由 body.touch-mode/touch-playing 控制。 */
 [data-input-effective="keyboard"] [data-touch-adjust],
 [data-input-effective="keyboard"] .touch-layout-entry { display: none !important; }
-/* 进入调整时游戏自动暂停，但暂停面板会盖住按键导致无法拖动，调整态下隐藏它 */
+/* 键鼠模式编辑 HUD 卡片时的退出按钮（触控层隐藏，不能用触控层内入口）。 */
+.kb-layout-done {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 8px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--gold);
+  background: #2f4634;
+  color: var(--gold);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px #000a;
+}
+.kb-layout-done[hidden] { display: none; }
+
+/* 进入调整时游戏自动暂停，但暂停面板会盖住控件导致无法拖动，调整态下隐藏它 */
 body.touch-layout-editing #overlay { display: none !important; }
+
+/* 暂停态下打开设置/帮助：面板与其触发按钮必须浮在暂停遮罩(z-index:40)之上，
+   否则会被“喘口气”暂停面板盖住；游戏仍保持暂停，不会因为打开它们而继续。 */
+body.paused .set-sheet:not([hidden]),
+body.paused .help-sheet:not([hidden]) { z-index: 50; }
+body.paused .set-btn,
+body.paused .help-btn,
+body.paused .fs-btn,
+body.paused .view-btn { z-index: 50; }
+
+/* ===========================================================
+   键鼠模式技能状态条（触屏模式始终隐藏）
+   显示当前键位与就绪/冷却/充能/能量不足，避免只靠触屏按钮反馈。
+   =========================================================== */
+.kb-skill-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 15;
+  pointer-events: none;
+  font: inherit;
+}
+.kb-skill-bar[hidden] { display: none; }
+body.touch-mode .kb-skill-bar { display: none !important; }
+.kb-skill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 6px;
+  border-radius: 10px;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-border);
+  box-shadow: var(--hud-shadow);
+  backdrop-filter: var(--hud-blur);
+  -webkit-backdrop-filter: var(--hud-blur);
+  text-shadow: var(--hud-text-shadow);
+  white-space: nowrap;
+}
+.kb-skill .kb-key {
+  min-width: 24px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #16261d;
+  border: 1px solid #6d8a5e;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.kb-skill .kb-name { font-size: 11px; color: var(--soft); }
+.kb-skill .kb-state { font-size: 11px; color: var(--ink); }
+.kb-skill.is-ready { border-color: rgba(127, 224, 160, .55); }
+.kb-skill.is-ready .kb-state { color: #9fe8b6; }
+.kb-skill.is-active { border-color: rgba(240, 200, 255, .7); box-shadow: 0 0 12px rgba(220, 170, 255, .35); }
+.kb-skill.is-active .kb-state { color: #f0c8ff; }
+.kb-skill.is-cd { opacity: .72; }
+.kb-skill.is-cd .kb-state { color: #c9c3d7; }
+.kb-skill.is-charging .kb-state { color: #c9a8ec; }
+.kb-skill.is-no-energy .kb-state { color: #ffb1a4; }
 body.touch-layout-editing .touch-controls { z-index: 41; }
 .touch-controls.layout-editing .touch-actions button { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
 .touch-controls.layout-editing .touch-actions button.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }

@@ -124,6 +124,9 @@ export class TouchLayout {
       }
     } catch (_) { /* 存档损坏时按全新默认处理 */ }
     this._bindEditor();
+    // 键鼠模式编辑 HUD 卡片时的“完成编辑”悬浮按钮（在触控层之外）。
+    this.kbDoneBtn = document.getElementById('kbLayoutDone');
+    this.kbDoneBtn?.addEventListener('click', () => { if (this.editing) this.setEditing(false); });
     this._syncAdjustVisibility();
     this.apply();
   }
@@ -136,10 +139,14 @@ export class TouchLayout {
     document.documentElement?.setAttribute('data-touch-adjust-enabled', this.adjustEnabled ? 'true' : 'false');
   }
 
-  /** 有效输入模式变化：键鼠模式下隐藏/禁用编辑入口，进行中的编辑立即退出。 */
+  /** 有效输入模式变化：记录当前是否为触屏。键鼠模式不再强制退出编辑，
+   * 而是把可编辑范围收窄为常驻 HUD 卡片（不显示虚拟摇杆/动作层）。 */
   setTouchModeAvailable(on) {
     this.touchModeAvailable = on !== false;
-    if (!this.touchModeAvailable && this.editing) this.setEditing(false);
+    if (!this.touchModeAvailable && this.editing && !CARDS.includes(this.selected)) {
+      this.selected = 'hudVitals';
+    }
+    this.apply();
   }
 
   /** 设置面板里的"启用触屏布局调整"总开关 */
@@ -402,6 +409,12 @@ export class TouchLayout {
     }
     this.root.classList.toggle('layout-editing', this.editing);
     document.body.classList.toggle('touch-layout-editing', this.editing);
+    // 键鼠模式下触控层隐藏，改由独立悬浮按钮退出；触屏模式沿用触控层内入口。
+    if (this.kbDoneBtn) {
+      const showKbDone = this.editing && !this.touchModeAvailable;
+      this.kbDoneBtn.hidden = !showKbDone;
+      this.kbDoneBtn.style.display = showKbDone ? '' : 'none';
+    }
     const entry = document.getElementById('touchLayoutEntry');
     if (entry) { entry.textContent = this.editing ? '完成编辑' : '编辑'; entry.setAttribute('aria-pressed', String(this.editing)); }
     this._syncEditor();
@@ -409,11 +422,16 @@ export class TouchLayout {
 
   setEditing(value = !this.editing) {
     const next = !!value;
-    // 总开关关闭或有效模式不是触屏时拒绝进入编辑态（即便有残留的编辑状态也立即退出）。
-    if (next && (!this.adjustEnabled || !this.touchModeAvailable)) {
+    const kbHudOnly = !this.touchModeAvailable; // 键鼠模式：只能编辑常驻 HUD 卡片
+    // 触屏模式要受“启用触屏布局调整”总开关约束；键鼠 HUD 卡片编辑不需要该开关。
+    if (next && !kbHudOnly && !this.adjustEnabled) {
       if (this.editing) this._stopEditing();
       else { this.editing = false; this.apply(); }
       return;
+    }
+    // 键鼠模式下进入编辑：强制选中一张 HUD 卡，避免选中不可见的触控按钮/摇杆。
+    if (next && kbHudOnly && !CARDS.includes(this.selected)) {
+      this.selected = 'hudVitals';
     }
     if (next === this.editing) { this.apply(); return; }
     if (next) this._startEditing();
@@ -424,6 +442,8 @@ export class TouchLayout {
   _startEditing() {
     this.editing = true;
     this.selected = this.selected || 'attack';
+    // 进入前若非 play 态（标题/已暂停/结算，真实 hook 为 mode!=='play'）视为已暂停，
+    // 退出时不 resume；只有本次发起暂停才在退出时恢复。
     const alreadyPaused = !!this.pauseHooks?.isPaused?.();
     if (alreadyPaused) {
       this._pausedByEditor = false;
@@ -488,6 +508,24 @@ export class TouchLayout {
       <div class="layout-setting-row"><label for="layoutSprintThreshold">摇杆内圈·疾跑触发范围 (55-95%)</label><input id="layoutSprintThreshold" type="range" min="0.55" max="0.95" step="0.01" value="${this.layout.joystick.sprintThreshold}"><output data-layout-value="sprintThreshold"></output></div>
       <div class="layout-actions" data-touch-adjust="actions"><button type="button" class="ghost-btn" data-layout-edit>进入拖动编辑</button><button type="button" class="ghost-btn" data-layout-save>保存方案 / 设为默认</button><button type="button" class="ghost-btn" data-layout-reset>恢复设计默认</button></div>
       <p class="layout-save-status" aria-live="polite">保存后当前布局成为刷新/重进后的默认方案。疾跑触发范围决定摇杆推多远开始疾跑，档位环会同步显示真实位置。</p>
+    </section>`;
+  }
+
+  /**
+   * 键鼠模式的 HUD 布局设置：只能调整常驻信息卡（状态/关卡/目标/沙盒状态），
+   * 不提供虚拟摇杆与触屏动作按钮（键鼠模式下它们本来就不显示）。
+   * 元素 id 与触屏版相同，复用 bindSettings 的事件绑定与 _syncEditor 刷新。
+   */
+  keyboardSettingsMarkup() {
+    const selected = CARDS.includes(this.selected) ? this.selected : 'hudVitals';
+    const options = CARDS.map((id) => `<option value="${id}" ${id === selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
+    return `<section class="touch-layout-settings kb-hud-layout" aria-label="HUD 信息卡布局">
+      <h4>HUD 信息卡布局（键鼠）</h4><p>进入拖动编辑会自动暂停游戏，可拖动顶部状态卡、关卡信息卡、本关目标卡与沙盒状态卡改变位置；在下方选中单张卡片后还能调大小与透明度。键鼠模式不显示虚拟摇杆和触屏动作按钮，因此它们不参与调整。</p>
+      <div class="layout-setting-row"><label for="layoutSelected">单个卡片</label><select id="layoutSelected"><optgroup label="HUD 卡片">${options}</optgroup></select></div>
+      <div class="layout-setting-row button-row"><label for="layoutButtonScale">卡片大小</label><input id="layoutButtonScale" type="range" min="0.75" max="1.25" step="0.05"><output data-layout-value="buttonScale"></output></div>
+      <div class="layout-setting-row button-row"><label for="layoutButtonOpacity">卡片透明度</label><input id="layoutButtonOpacity" type="range" min="0.35" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
+      <div class="layout-actions"><button type="button" class="ghost-btn" data-layout-edit>进入拖动编辑</button><button type="button" class="ghost-btn" data-layout-save>保存方案 / 设为默认</button><button type="button" class="ghost-btn" data-layout-reset>恢复设计默认</button></div>
+      <p class="layout-save-status" aria-live="polite">进入编辑后拖动卡片调整位置，完成后点画面上方“完成编辑”按钮（也可按暂停键）。保存后刷新/重进仍保留。</p>
     </section>`;
   }
 

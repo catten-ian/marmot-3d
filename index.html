@@ -109,6 +109,16 @@
   <div class="panel" id="panel"></div>
 </div>
 
+<!-- 键鼠模式技能状态条：触屏模式隐藏；显示当前键位与冷却/充能/能量状态。 -->
+<div id="kbSkillBar" class="kb-skill-bar" aria-label="技能状态">
+  <div class="kb-skill" data-kb-skill="burst"><kbd class="kb-key"></kbd><span class="kb-name">爆发</span><span class="kb-state"></span></div>
+  <div class="kb-skill" data-kb-skill="ultimate"><kbd class="kb-key"></kbd><span class="kb-name">大招</span><span class="kb-state"></span></div>
+  <div class="kb-skill" data-kb-skill="interact"><kbd class="kb-key"></kbd><span class="kb-name">救援/陪伴</span><span class="kb-state"></span></div>
+</div>
+
+<!-- 键鼠模式编辑 HUD 布局时的完成按钮（仅键鼠 + 编辑态可见，由 CSS 控制） -->
+<button class="kb-layout-done" id="kbLayoutDone" type="button" hidden data-kb-layout-done>完成编辑</button>
+
 <!-- 触屏操作层：仅粗指针设备显示；左右分区支持同时移动与转向。 -->
 <div id="touchControls" class="touch-controls" aria-label="触屏游戏控制">
   <i id="touchSafeInsets" aria-hidden="true"></i>
@@ -129,8 +139,8 @@
     <button type="button" data-touch-action="dodge" aria-label="翻滚：拖动可朝拖动方向滚动，或按轮盘方向"><b>⟳</b><small>翻滚</small></button>
     <button type="button" data-touch-action="jump" aria-label="跳跃"><b>↟</b><small>跳跃</small></button>
     <button type="button" data-touch-action="interact" aria-label="救援或陪伴"><b>✦</b><small>交互</small></button>
-    <button type="button" data-touch-action="burst" aria-label="应急爆发"><b>J</b><small>爆发</small><span class="cooldown-overlay"><em></em></span></button>
-    <button type="button" data-touch-action="ultimate" aria-label="协同大招"><b>K</b><small>大招</small><span class="cooldown-overlay"><em></em></span></button>
+    <button type="button" data-touch-action="burst" aria-label="应急爆发"><b>⚡</b><small>爆发</small><span class="cooldown-overlay"><em></em></span></button>
+    <button type="button" data-touch-action="ultimate" aria-label="协同大招"><b>✺</b><small>大招</small><span class="cooldown-overlay"><em></em></span></button>
   </div>
   <button class="touch-layout-entry" id="touchLayoutEntry" type="button" aria-pressed="false" data-touch-adjust="entry">编辑</button>
 </div>

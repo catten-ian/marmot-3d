@@ -3,6 +3,7 @@
  * DOM 更新做了节流，避免每帧操作布局导致掉帧。
  */
 import { LEVELS } from '../core/config.js';
+import { bindText } from '../core/key-hints.mjs';
 
 const CH_CIRCUMFERENCE = 2 * Math.PI * 18;
 
@@ -170,23 +171,26 @@ export class HUD {
       + `移速 ${ (6.6 * stats.speedMul).toFixed(1) }m/s`
       + `<span class="combat-detail">${detail}</span>`;
 
+    const burstKey = bindText(null, 'burst', '');
+    const ultKey = bindText(null, 'ultimate', '');
+    const interactKey = bindText(null, 'interact', '');
     if (g.overdrive > 0) {
-      this.el.ultimateStatus.textContent = `K 大招生效 ${Math.ceil(g.overdrive)}s · 伤害 +5`;
+      this.el.ultimateStatus.textContent = `${ultKey} 大招生效 ${Math.ceil(g.overdrive)}s · 伤害 +5`;
     } else if (g.overCD > 0) {
-      this.el.ultimateStatus.textContent = `K 大招冷却 ${Math.ceil(g.overCD)}s · 蓄力 ${Math.round(g.charge)}/100`;
+      this.el.ultimateStatus.textContent = `${ultKey} 大招冷却 ${Math.ceil(g.overCD)}s · 蓄力 ${Math.round(g.charge)}/100`;
     } else if (g.charge >= 100) {
-      this.el.ultimateStatus.textContent = 'K 大招就绪 · 范围冲击';
+      this.el.ultimateStatus.textContent = `${ultKey} 大招就绪 · 范围冲击`;
     } else {
-      this.el.ultimateStatus.textContent = `K 大招蓄力 ${Math.round(g.charge)}/100`;
+      this.el.ultimateStatus.textContent = `${ultKey} 大招蓄力 ${Math.round(g.charge)}/100`;
     }
     this.el.chargeBar.style.width = g.charge + '%';
 
-    this.el.boostStatus.innerHTML = '<strong>J 应急爆发</strong> '
+    this.el.boostStatus.innerHTML = '<strong>' + (burstKey ? `${burstKey} ` : '') + '应急爆发</strong> '
       + (g.boost > 0 ? `生效 ${Math.ceil(g.boost)}s` : g.boostCD > 0 ? `冷却 ${Math.ceil(g.boostCD)}s` : '就绪');
     this.el.cortisolStatus.innerHTML = '<strong>持续动员</strong> '
       + `${Math.round(g.cortisol)}/100`
       + (g.cortisol >= 60 ? ' · 攻击 +2' : g.cortisol >= 25 ? ' · 攻击 +1' : ' · 达 25 后攻击 +1');
-    this.el.socialStatus.innerHTML = '<strong>E 陪伴</strong> '
+    this.el.socialStatus.innerHTML = '<strong>' + (interactKey ? `${interactKey} ` : '') + '陪伴</strong> '
       + (!g.friend.saved ? '先救伙伴' : g.social > 0 ? `缓压中 ${Math.ceil(g.social)}s` : g.socialCD > 0 ? `冷却 ${Math.ceil(g.socialCD)}s` : '回大本营使用');
 
     this._updateObjective(g, cfg);
@@ -279,7 +283,7 @@ export class HUD {
       const dx = companion.x - player.x, dz = companion.z - player.z;
       const d = Math.hypot(dx, dz) || 1;
       const dot = (dx * forward.x + dz * forward.z) / d;
-      // 在视野内时不显示边缘箭头（HUD 已有"伙伴·按 E 救援"提示）
+      // 在视野内时不显示边缘箭头（HUD 已有“伙伴·救援”提示）
       if (dot <= 0.35) {
         items.push({
           ang: Math.atan2(dx, dz), d,

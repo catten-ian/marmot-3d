@@ -135,10 +135,12 @@ export const ULT = {
 };
 export const STRIKE_COST = { base: 2, boost: 3.5, overdrive: 3 };
 
-/** J —— 短时应急爆发 */
+// 说明：技能提示文案里不再写死具体按键（兼容方案是 J/K/E，优化方案是 Q/R/F）。
+// 系统层只描述动作名与状态，键名由 UI 层（main.js / hud.js）按当前键位方案注入。
+/** 短时应急爆发（键位由 UI 层提示，系统层不写死） */
 export function burst(g, say) {
-  if (g.overdrive > 0) { say('大招正在生效，无需再开 J。', 1.5); return false; }
-  if (g.boostCD > 0) { say(`J 冷却 ${Math.ceil(g.boostCD)} 秒。`, 1.3); return false; }
+  if (g.overdrive > 0) { say('协同大招生效期间，应急爆发暂不可用。', 1.5); return false; }
+  if (g.boostCD > 0) { say(`应急爆发冷却 ${Math.ceil(g.boostCD)} 秒。`, 1.3); return false; }
   if (g.player.energy < BOOST.minEnergy) {
     say('储备不足 20，先采食或回洞休息。', 1.5); return false;
   }
@@ -149,13 +151,13 @@ export function burst(g, say) {
   return true;
 }
 
-/** K —— 蓄满后的协同大招 */
+/** 蓄满后的协同大招（键位由 UI 层提示，系统层不写死） */
 export function ultimate(g, say) {
   if (g.charge < 100) {
-    say(`蓄力 ${Math.round(g.charge)}/100，攻击命中、驱退和采食都能积累。`, 2.3);
+    say(`协同大招蓄力 ${Math.round(g.charge)}/100，攻击命中、驱退和采食都能积累。`, 2.3);
     return false;
   }
-  if (g.overdrive > 0 || g.overCD > 0) { say('K 大招冷却中。', 1.3); return false; }
+  if (g.overdrive > 0 || g.overCD > 0) { say('协同大招冷却中。', 1.3); return false; }
   if (g.player.energy < ULT.cost) { say('大招需要 25 储备，先采食。', 1.5); return false; }
   g.player.energy -= ULT.cost;
   g.player.stress = clamp(g.player.stress + ULT.stressAdd, 0, 100);
@@ -170,16 +172,16 @@ export function ultimate(g, say) {
   return true;
 }
 
-/** E —— 救援 / 陪伴缓压（陪伴降低应激负荷，不直接回血） */
+/** 救援 / 陪伴缓压（陪伴降低应激负荷，不直接回血；键位由 UI 层提示） */
 export function interact(g, say) {
   const f = g.friend;
-  if (!f.rescued && !f.saved) { say('靠近被困伙伴，按 E 救援。', 1.4); return; }
+  if (!f.rescued && !f.saved) { say('先靠近被困伙伴再救援。', 1.4); return; }
   if (f.saved && g.inBurrow && g.socialCD <= 0) {
     g.social = 9;
     g.socialCD = 13;
     say('陪伴缓压：应激负荷下降，不直接回血。');
     return;
   }
-  if (f.saved) say('回到洞穴内再使用 E 陪伴。', 1.4);
-  else say('靠近被困伙伴再按 E。', 1.3);
+  if (f.saved) say('回到洞穴内再陪伴缓压。', 1.4);
+  else say('先靠近被困伙伴再救援。', 1.3);
 }

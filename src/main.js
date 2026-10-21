@@ -24,6 +24,7 @@ import {
 } from './core/combat-wheel.mjs';
 import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
+import { bindText, kbd, schemeHints, setHintBinds } from './core/key-hints.mjs';
 import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
@@ -53,8 +54,9 @@ function applyInputMode() {
     }
   } catch (_) {}
   try {
+    // 键鼠模式不强制退出编辑：TouchLayout 会把可编辑范围收窄为常驻 HUD 卡片，
+    // 虚拟摇杆与动作层在键鼠模式下保持隐藏。
     touchLayout?.setTouchModeAvailable?.(TOUCH_DEVICE);
-    if (!TOUCH_DEVICE && touchLayout?.editing) touchLayout.setEditing(false);
   } catch (_) {}
   // 渲染预算跟随有效模式：强制触屏降级、强制键鼠恢复桌面质量。
   try {
@@ -85,8 +87,9 @@ import {
 } from './core/ecology.js';
 import {
   combatStats, strikeVolumeHit, foxAttackVerticalHit, resolveStrikeProfile, burst, ultimate, interact,
-  STRIKE_COST, ULT,
+  STRIKE_COST, ULT, BOOST,
 } from './systems/combat.js';
+import { cooldownState, cooldownOverlayData } from './ui/cooldown-overlay.js';
 import { ClawSwing, Shockwave, Particles, DamageText, PlayerAura } from './systems/effects.js';
 import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
@@ -97,7 +100,6 @@ import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
 import { TouchLayout } from './ui/touch-layout.js';
 import { Minimap } from './ui/minimap.js';
-import { cooldownOverlayData } from './ui/cooldown-overlay.js';
 import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDummy, setSandboxDummyDefeatable } from './sandbox/state.js';
 import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
 import { setupSandboxPanel } from './sandbox/panel.js';
@@ -905,6 +907,7 @@ function title() {
   game.mode = 'title';
   game.sandbox = false;
   document.body.classList.remove('sandbox-active');
+  const h = schemeHints(binds, { isDev: IS_DEV });
   hud.showPanel(`
     <div class="eyebrow">CAMPAIGN / ${LEVELS.length} 关草原冒险 · 第一 / 第三人称 3D</div>
     <h2>从两只藏狐，到草原守望者。</h2>
@@ -935,15 +938,17 @@ function title() {
       ${TOUCH_DEVICE ? '<span><kbd>触屏</kbd> 左侧摇杆移动 · 右侧拖动转视角 · 屏幕按钮执行动作</span>' : ''}
       <span><kbd>鼠标</kbd> 视角转动</span>
       <span><kbd>V</kbd> 第一 / 第三人称切换</span>
-      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span>
-      <span><kbd>左键</kbd> 攻击（可按住）</span>
-      <span><kbd>中键</kbd> / <kbd>B</kbd> 迎击</span>
-      <span><kbd>右键</kbd> / <kbd>F</kbd> 跳跃（可躲扑击）</span>
-      <span><kbd>J</kbd> 短时应急爆发</span>
-      <span><kbd>K</kbd> 蓄满后的范围大招</span>
-      <span><kbd>E</kbd> 救援 / 陪伴缓压</span>
-      <span><kbd>Shift</kbd> 疾行（更快但更耗储备）</span>
-      <span><kbd>P</kbd> 暂停　<kbd>T</kbd> 重试　<kbd>R</kbd> 重开</span>
+      <span><kbd>${h.turning
+        ? ['forward', 'back', 'turnLeft', 'turnRight'].map((id) => bindText(binds, id, '')).join('')
+        : ['forward', 'left', 'back', 'right'].map((id) => bindText(binds, id, '')).join('')}</kbd> ${h.turning ? '前后 / 转向（方向键横移）' : '移动（方向键备选）'}</span>
+      <span><kbd>${h.attack}</kbd> 攻击（可按住）</span>
+      <span><kbd>${h.parry}</kbd> 迎击</span>
+      <span><kbd>${h.jump}</kbd> 跳跃（可躲扑击）</span>
+      <span><kbd>${h.burst}</kbd> 短时应急爆发</span>
+      <span><kbd>${h.ultimate}</kbd> 蓄满后的范围大招</span>
+      <span><kbd>${h.interact}</kbd> 救援 / 陪伴缓压</span>
+      <span><kbd>${h.sprint}</kbd> 疾行（更快但更耗储备）</span>
+      <span><kbd>${h.pause}</kbd> 暂停　<kbd>${h.retry}</kbd> 重试　<kbd>${h.restart}</kbd> 重开</span>
     </div>
     <p style="font-size:12.5px">洞口有暖光，那就是家 —— 里面不能攻击，但能休息回储备。<br>
     屏幕边缘的红箭头表示有藏狐正在你背后靠近；<b>绿箭头是伙伴的呼救</b>，它会周期性叫两声。</p>
@@ -1033,13 +1038,14 @@ function pause() {
   keys.clear();
   touchControls?.releaseAll();
   controller.exitLock();
+  const h = schemeHints(binds, { isDev: IS_DEV });
   hud.showPanel(`
     <div class="eyebrow">PAUSED</div>
     <h2>喘口气。</h2>
-    <p>${TOUCH_DEVICE ? '左侧摇杆移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : `${IS_DEV && binds.scheme === 'optimized' ? 'W/S 前后 · A/D 转向 · 方向键横移' : 'WASD 移动'} · 左键/空格 攻击 · 中键 / B 迎击 · J 爆发 · K 大招 · E 救援。`}<br>暂停不会消耗时间。</p>
+    <p>${TOUCH_DEVICE ? '左侧摇杆移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : `${h.movement} · ${bindText(binds, 'attack', '左键')} 攻击 · ${bindText(binds, 'parry', '中键')} 迎击 · ${bindText(binds, 'burst')} 爆发 · ${bindText(binds, 'ultimate')} 大招 · ${bindText(binds, 'interact')} 救援。`}<br>暂停不会消耗时间。</p>
     <div class="row">
-      <button class="primary" id="resumeBtn">继续 · P / Enter</button>
-      <button class="ghost" id="pRetryBtn">重试本关 · T</button>
+      <button class="primary" id="resumeBtn">继续 · ${bindText(binds, 'pause')} / Enter</button>
+      <button class="ghost" id="pRetryBtn">重试本关 · ${bindText(binds, 'retry')}</button>
       <button class="ghost" id="pTitleBtn">返回标题</button>
       <button class="ghost" id="pFeedbackBtn">问题反馈 / 反馈建议</button>
     </div>
@@ -1226,12 +1232,12 @@ function doBurst() {
     const y = terrainHeight(controller.position.x, controller.position.z);
     particles.burst(controller.position.x, y + 0.4, controller.position.z, colBoost, 26, 1.4);
     damageText.spawn(controller.position.x, y + 1.4, controller.position.z, '伤害 +2 · 加速', '#ffde7e');
-    hud.say('J 应急爆发：攻击 +2、范围增加、攻速更快！持续 4 秒。', 3.3);
+    hud.say(`${bindText(binds, 'burst')} 应急爆发：攻击 +2、范围增加、攻速更快！持续 4 秒。`, 3.3);
   }
 }
 
 function doUltimate() {
-  if (game.inBurrow) { hud.say('洞穴内不能攻击，出洞后再使用 K。', 1.7); return; }
+  if (game.inBurrow) { hud.say(`洞穴内不能攻击，出洞后再使用 ${bindText(binds, 'ultimate')}。`, 1.7); return; }
   const ok = ultimate(game, (t, d) => hud.say(t, d));
   if (!ok) return;
 
@@ -1240,7 +1246,7 @@ function doUltimate() {
   shockwave.fire(x, z, ULT.radius);
   particles.burst(x, terrainHeight(x, z) + 0.5, z, colUlt, 55, 2);
   damageText.spawn(x, terrainHeight(x, z) + 1.5, z, '协同大招', '#f1c3ff');
-  hud.say('K 协同爆发！范围冲击 + 5 秒强化，结束后会疲劳。', 4.5);
+  hud.say(`${bindText(binds, 'ultimate')} 协同爆发！范围冲击 + 5 秒强化，结束后会疲劳。`, 4.5);
   controller.dashForward(1.6);
   controller.hitShake(0.7);
 
@@ -1634,10 +1640,10 @@ function update(dt) {
   // —— 交互提示 ——
   let prompt = '';
   if (game.friend.saved && game.inBaseBurrow && game.socialCD <= 0) {
-    prompt = '<kbd>E</kbd> 陪伴缓压';
+    prompt = kbd(bindText(binds, 'interact')) + ' 陪伴缓压';
   } else if (!game.friend.rescued && !game.friend.saved
     && Math.hypot(companion.x - p.x, companion.z - p.z) < RESCUE_DIST) {
-    prompt = '<kbd>E</kbd> 救援伙伴';
+    prompt = kbd(bindText(binds, 'interact')) + ' 救援伙伴';
   }
   hud.setInteractPrompt(prompt);
 
@@ -1677,6 +1683,7 @@ function update(dt) {
     overloaded: stats.overloaded, social: game.social > 0, fatigue: game.fatigue > 0,
   });
   updateCooldownButtons();
+  updateKbSkillBar();
   if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(dt, 0.0001) });
 
   controller.forwardFlat(_fwd);
@@ -1716,6 +1723,9 @@ function update(dt) {
 // 输入绑定（由 keybinds 方案驱动）
 // ============================================================
 const binds = new Keybinds();
+// 让 key-hints / HUD 等拿不到 binds 实例的模块也能读到当前方案，
+// 方案切换后技能状态里的键名自动刷新。
+setHintBinds(binds);
 
 let mouseDown = false;
 let touchControls = null;
@@ -1927,6 +1937,9 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Esc 退出布局编辑：必须先于 isBound 判定（兼容方案暂停键是 P，Esc 不在绑定内）。
+  if (e.code === 'Escape' && touchLayout?.editing) { touchLayout.setEditing(false); return; }
+
   if (!isBound(e.code)) return;
   // 空格/方向键会滚动页面，必须拦
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
@@ -1936,6 +1949,9 @@ window.addEventListener('keydown', (e) => {
   if (binds.isAction(e.code, 'retry')) { retryLevel(); return; }
   if (binds.isAction(e.code, 'pause')) {
     if (touchLayout.editing) { touchLayout.setEditing(false); return; }
+    // 设置/帮助打开时，暂停键优先关闭它们（关闭逻辑决定是否恢复游戏），不带着面板 resume。
+    if (settingsUI && !settingsUI.el.sheet.hidden) { settingsUI.close(); return; }
+    if (!helpSheet.hidden) { closeHelp(); return; }
     if (game.mode === 'play') pause();
     else if (game.mode === 'pause') resume();
     return;
@@ -2061,8 +2077,17 @@ if (hudDetailsBtn) {
 // 帮助面板
 const helpBtn = document.getElementById('helpBtn');
 const helpSheet = document.getElementById('helpSheet');
-helpBtn.onclick = () => { helpSheet.hidden = !helpSheet.hidden; };
-document.getElementById('helpClose').onclick = () => { helpSheet.hidden = true; };
+let helpPausedBySheet = false;
+function openHelp() {
+  helpSheet.hidden = false;
+  if (game.mode === 'play') { pause(); helpPausedBySheet = true; } else { helpPausedBySheet = false; }
+}
+function closeHelp() {
+  helpSheet.hidden = true;
+  if (helpPausedBySheet) { helpPausedBySheet = false; if (game.mode === 'pause') resume(); }
+}
+helpBtn.onclick = () => { helpSheet.hidden ? openHelp() : closeHelp(); };
+document.getElementById('helpClose').onclick = closeHelp;
 
 // 设置面板（键位方案）
 const touchLayout = new TouchLayout();
@@ -2087,6 +2112,13 @@ touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
 touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
 const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState);
+// 游戏中打开设置自动暂停；关闭时仅在由设置发起暂停时恢复（已暂停/标题态保持）。
+settingsUI.setPauseHooks({
+  pause: () => pause(),
+  resume: () => { if (game.mode === 'pause') resume(); },
+  isPaused: () => game.mode !== 'play',
+  isPlaying: () => game.mode === 'play',
+});
 // 设置面板切换输入模式 → 即时生效；启动时也同步一次（html 属性 / 鼠标兜底 / 布局入口可用性）。
 inputMode.onChange(() => applyInputMode());
 applyInputMode();
@@ -2235,6 +2267,74 @@ function updateCooldownButtons() {
   }
 }
 
+// 键鼠模式技能状态条：当前键位 + 就绪/冷却/充能/能量不足。触屏模式整块隐藏。
+const kbSkillEls = {};
+function cacheKbSkillEls() {
+  const bar = document.getElementById('kbSkillBar');
+  if (!bar) return null;
+  for (const id of ['burst', 'ultimate', 'interact']) {
+    const slot = bar.querySelector(`[data-kb-skill="${id}"]`);
+    kbSkillEls[id] = {
+      slot,
+      key: slot?.querySelector('.kb-key'),
+      state: slot?.querySelector('.kb-state'),
+    };
+  }
+  return bar;
+}
+const kbSkillBar = cacheKbSkillEls();
+
+function updateKbSkillBar() {
+  if (!kbSkillBar) return;
+  const show = !TOUCH_DEVICE && (game.mode === 'play' || game.mode === 'pause');
+  kbSkillBar.hidden = !show;
+  if (!show) return;
+
+  const keyLabel = (id) => bindText(binds, id, '');
+  const setState = (id, key, label, state, sub) => {
+    const ref = kbSkillEls[id];
+    if (!ref?.slot) return;
+    if (ref.key) ref.key.textContent = key;
+    if (ref.state) ref.state.textContent = sub || label;
+    ref.slot.classList.toggle('is-cd', state === 'cd');
+    ref.slot.classList.toggle('is-charging', state === 'charging');
+    ref.slot.classList.toggle('is-no-energy', state === 'no-energy');
+    ref.slot.classList.toggle('is-ready', state === 'ready');
+    ref.slot.classList.toggle('is-active', state === 'active');
+  };
+
+  // 应急爆发
+  const bKey = keyLabel('burst');
+  if (game.boost > 0) setState('burst', bKey, '应急爆发', 'active', `生效 ${Math.ceil(game.boost)}s`);
+  else if (game.boostCD > 0) setState('burst', bKey, '应急爆发', 'cd', `冷却 ${Math.ceil(game.boostCD)}s`);
+  else if (game.player.energy < BOOST.minEnergy) setState('burst', bKey, '应急爆发', 'no-energy', `需储备 ${BOOST.minEnergy}`);
+  else setState('burst', bKey, '应急爆发', 'ready', '就绪');
+
+  // 协同大招（蓄力/冷却/就绪/能量不足）
+  const uKey = keyLabel('ultimate');
+  if (game.overdrive > 0) setState('ultimate', uKey, '协同大招', 'active', `生效 ${Math.ceil(game.overdrive)}s`);
+  else if (game.overCD > 0) setState('ultimate', uKey, '协同大招', 'cd', `冷却 ${Math.ceil(game.overCD)}s`);
+  else {
+    const uState = cooldownState({ energy: game.player.energy, cost: ULT.cost, charge: game.charge, charging: true });
+    const sub = game.charge >= 100
+      ? (game.player.energy < ULT.cost ? `需储备 ${ULT.cost}` : '就绪 · 范围冲击')
+      : `蓄力 ${Math.round(game.charge)}/100`;
+    setState('ultimate', uKey, '协同大招', game.charge >= 100 ? uState : 'charging', sub);
+  }
+
+  // 救援 / 陪伴
+  const iKey = keyLabel('interact');
+  if (!game.friend.saved && !game.friend.rescued) setState('interact', iKey, '救援/陪伴', 'ready', '待救援');
+  else if (!game.friend.saved) setState('interact', iKey, '救援/陪伴', 'ready', '跟随中');
+  else if (game.social > 0) setState('interact', iKey, '救援/陪伴', 'active', `缓压 ${Math.ceil(game.social)}s`);
+  else if (game.socialCD > 0) setState('interact', iKey, '救援/陪伴', 'cd', `冷却 ${Math.ceil(game.socialCD)}s`);
+  else if (game.inBaseBurrow) setState('interact', iKey, '救援/陪伴', 'ready', '可陪伴');
+  else setState('interact', iKey, '救援/陪伴', 'ready', '回大本营');
+}
+
+// 键位方案切换后刷新状态条上的键名。
+binds.onChange(() => updateKbSkillBar());
+
 // 键位变化时同步帮助面板上的按键提示，避免文档与实际绑定不一致
 function syncHelpKeys() {
   const rows = binds.describe();
@@ -2296,7 +2396,7 @@ function syncHelpKeys() {
     <button class="primary" id="helpClose2">知道了</button>`;
   helpSheet.innerHTML = html;
   const c2 = document.getElementById('helpClose2');
-  if (c2) c2.onclick = () => { helpSheet.hidden = true; };
+  if (c2) c2.onclick = closeHelp;
 }
 syncHelpKeys();
 binds.onChange(syncHelpKeys);
@@ -2393,7 +2493,11 @@ function frame(now) {
     // 触控实玩类切换会改变 HUD 卡片的 CSS 默认位置，未拖动过的卡跟随新设计位置。
     touchLayout.refreshCardDefaults();
   }
+  // 暂停态：供设置/帮助/布局编辑器在暂停层之上显示并保持游戏暂停。
+  document.body.classList.toggle('paused', game.mode === 'pause');
   update(dt);
+  // 键鼠技能状态条在 play/pause 都要刷新（函数内部按模式与输入方式决定显隐）。
+  updateKbSkillBar();
   playerModel.position.set(controller.position.x, controller.position.y, controller.position.z);
   playerBodyYaw = dampAngle(playerBodyYaw, controller.moveFacingYaw, dt, PLAYER.bodyTurnRate);
   playerModel.rotation.y = playerBodyYaw + Math.PI;

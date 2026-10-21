@@ -32,6 +32,9 @@ export class SettingsUI {
       body: document.getElementById('setBody'),
     };
     this.capturing = null; // 正在等待按键重绑的动作 id
+    // 由 main.js 注入的暂停钩子：游戏中打开设置会暂停，关闭时仅在本次发起暂停时恢复。
+    this.pauseHooks = null;
+    this._pausedByPanel = false;
 
     if (this.el.btn) this.el.btn.onclick = () => this.toggle();
     if (this.el.close) this.el.close.onclick = () => this.close();
@@ -51,6 +54,26 @@ export class SettingsUI {
     this.render();
   }
 
+  /** main.js 注入：{ pause(), resume(), isPaused(), isPlaying() } */
+  setPauseHooks(hooks) { this.pauseHooks = hooks || null; }
+
+  _pauseForPanel() {
+    // 只在真正游戏中才由面板发起暂停；标题/已暂停/结算等状态保持原样。
+    if (this.pauseHooks?.isPlaying?.() && !this.pauseHooks.isPaused?.()) {
+      this.pauseHooks.pause?.();
+      this._pausedByPanel = !!this.pauseHooks.isPaused?.();
+    } else {
+      this._pausedByPanel = false;
+    }
+  }
+
+  _resumeFromPanel() {
+    if (this._pausedByPanel) {
+      this._pausedByPanel = false;
+      this.pauseHooks?.resume?.();
+    }
+  }
+
   toggle() {
     if (this.el.sheet.hidden) this.open(); else this.close();
   }
@@ -58,6 +81,7 @@ export class SettingsUI {
   open() {
     this.el.sheet.hidden = false;
     document.body.classList.add('settings-open');
+    this._pauseForPanel();
     this.render();
   }
 
@@ -66,8 +90,10 @@ export class SettingsUI {
     document.body.classList.remove('settings-open');
     this.capturing = null;
     if (this._onKey) window.removeEventListener('keydown', this._onKey, true);
-    // 关闭设置面板时结束触屏布局拖动编辑（会连带恢复自动暂停的游戏）。
+    // 先退出布局编辑（仅当编辑是暂停发起方时它会恢复），再处理本面板发起的暂停，
+    // 避免编辑态仍在时游戏被提前恢复。
     if (this.touchLayout?.editing) this.touchLayout.setEditing(false);
+    this._resumeFromPanel();
   }
 
   /** 进入按键捕获状态 */
@@ -149,7 +175,10 @@ export class SettingsUI {
     </section>`;
     }
 
-    // 触屏布局编辑入口只在有效模式为触屏时可用；键鼠模式隐藏整段，不允许编辑浮动触控控件。
+    // 布局自定义分两种：
+    //  - 触屏模式：总开关 + 动作按钮/摇杆/HUD 卡全套（settingsMarkup）。
+    //  - 键鼠模式：只提供常驻 HUD 信息卡的拖动/大小/透明度（keyboardSettingsMarkup），
+    //    不显示虚拟摇杆与触屏动作按钮，进入编辑仍自动暂停。
     const touchEffective = this.inputMode ? this.inputMode.isTouch() : true;
     if (this.touchLayout && touchEffective) {
       const adjustOn = !!this.touchLayout.adjustEnabled;
@@ -159,6 +188,8 @@ export class SettingsUI {
       <p>默认关闭：关闭时游戏画面上的“编辑”按钮和下方的拖动编辑入口都会隐藏。打开后进入调整会自动暂停游戏，退出调整自动继续。</p>
     </section>`;
       html += this.touchLayout.settingsMarkup();
+    } else if (this.touchLayout) {
+      html += this.touchLayout.keyboardSettingsMarkup();
     }
 
     // 冲突提示
