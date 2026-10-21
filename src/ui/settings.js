@@ -3,8 +3,10 @@
  * 方案切换即时生效并持久化到 localStorage。
  */
 import { Keybinds, ACTIONS, findConflicts } from '../core/keybinds.js';
-import { IS_DEV } from '../core/version.js';
+import { IS_DEV, USE_REAL_MODELS, USE_REAL_FOX_MODEL, FORCE_WEBGL, GS_OVERRIDE } from '../core/version.js';
 import { INPUT_MODES } from '../core/input-mode.mjs';
+import { getModelStatus, getAssetResolutionStatus, instantiate, clearModelCache } from '../models/loader.js';
+import { getLocalPackStatus, installLocalPackUI } from '../world/local-pack.js';
 
 const INPUT_MODE_OPTIONS = [
   { id: 'auto', name: '自动', desc: '按设备自动判断；手机/平板首次触摸会自动启用触屏。' },
@@ -200,6 +202,7 @@ export class SettingsUI {
     if (b.scheme === 'custom') {
       html += '<div class="set-actions"><button class="ghost-btn" id="resetBinds">恢复默认键位</button></div>';
     }
+    if (IS_DEV) html += this._resourceMarkup();
     if (this.feedback) html += '<div class="set-actions"><button class="ghost-btn" id="settingsFeedback">问题反馈 / 反馈建议</button></div>';
 
     this.el.body.innerHTML = html;
@@ -265,6 +268,21 @@ export class SettingsUI {
       try { await resources?.downloadFolder?.(this.el.body.querySelector('#verdantDownloadTier')?.value || 'high'); }
       catch (error) { if (error?.name !== 'AbortError') showStatus(error.message); }
     });
+    if (IS_DEV) {
+      const refresh = this.el.body.querySelector('#resourceRefresh');
+      refresh?.addEventListener('click', () => this.render());
+      const reload = this.el.body.querySelector('#resourceReload');
+      reload?.addEventListener('click', () => window.location.reload());
+      this.el.body.querySelectorAll('[data-resource-retry]').forEach((el) => el.addEventListener('click', async () => {
+        const key = el.dataset.resourceRetry;
+        const url = key === 'fox' ? './assets/models/fox-segmented.glb' : key === 'marmot' ? './assets/models/marmot.glb' : key.startsWith('asset:') ? `./${key.slice(6)}` : null;
+        if (!url) return;
+        if (key === 'fox' || key === 'marmot') { clearModelCache(); await instantiate(url, key); }
+        else { try { await fetch(url, { cache: 'no-store' }); } catch (_) {} }
+        this.render();
+      }));
+      installLocalPackUI({ onChange: () => this.render() });
+    }
     this.el.body.querySelectorAll('[data-input-mode]').forEach((el) => {
       el.onclick = () => { this.inputMode?.setPreference(el.dataset.inputMode); this.render(); };
     });
@@ -272,4 +290,27 @@ export class SettingsUI {
     adjustToggle?.addEventListener('change', () => this.touchLayout.setAdjustEnabled(adjustToggle.checked));
     this.touchLayout?.bindSettings(this.el.body);
   }
+  _resourceMarkup() {
+    const models = getModelStatus();
+    const local = getLocalPackStatus();
+    const resolutions = getAssetResolutionStatus();
+    const rows = [
+      ['assets/verdant/verdant-trail.glb', '场景模型', 'pending', 'asset:assets/verdant/verdant-trail.glb'],
+      ['assets/verdant/verdant-trail-height.json', '地形高度', 'pending', 'asset:assets/verdant/verdant-trail-height.json'],
+      ['assets/verdant/manifest.json', '资源清单', 'pending', 'asset:assets/verdant/manifest.json'],
+      ['assets/models/marmot.glb', 'marmot.glb', models.marmot?.level || 'pending', 'marmot'],
+      ['assets/models/fox-segmented.glb', 'fox-segmented.glb', models.fox?.level || 'pending', 'fox'],
+      ['assets/models/fox.glb', 'fox.glb（备用）', 'pending', 'asset:assets/models/fox.glb'],
+      ['assets/models/terrain.glb', 'terrain.glb（备用）', 'pending', 'asset:assets/models/terrain.glb'],
+    ];
+    const level = (v) => ({ 'geometry-only': 'geometry-only', 'loading-slow': 'loading-slow', full: 'full', failed: 'failed', procedural: 'procedural' }[v] || v || 'pending');
+    const source = (path) => resolutions[path]?.source === 'local' ? `本地资源包 · ${resolutions[path].inPackPath || path}` : local.found.includes(path) ? `本地资源包 · ${path}` : '服务器 URL';
+    const rowHtml = rows.map(([path, label, lv, key]) => {
+      const m = key ? models[key] : null;
+      const missing = !local.found.includes(path) && path.startsWith('assets/');
+      return `<div class="resource-row"><code>${label}</code><span>${source(path)}</span><span>级别：${level(lv)}</span><span>贴图：${m ? (m.textured ? '是' : '否') : '—'}</span><span>三角面：${m?.tris || '—'}</span><span>字节：—</span><span class="resource-error">${m?.error || (missing ? `缺少：${path}` : '')}</span>${key ? `<button class="ghost-btn" data-resource-retry="${key}">重试</button>` : ''}</div>`;
+    }).join('');
+    return `<section class="resource-loading-settings" aria-label="资源加载"><h4>资源加载</h4><div class="resource-env"><b>环境：</b> IS_DEV=${IS_DEV} · USE_REAL_MODELS=${USE_REAL_MODELS} · USE_REAL_FOX_MODEL=${USE_REAL_FOX_MODEL} · FORCE_WEBGL=${FORCE_WEBGL} · GS_OVERRIDE=${GS_OVERRIDE ?? 'auto'} · renderer=${window.__resourceRendererBackend || 'webgl'}<br><b>本地资源包：</b> ${local.state} · ${local.message} · 已找到 ${local.found.length}/${local.required.length}${local.rootName ? ` · 根目录 ${local.rootName}` : ''}</div><div class="resource-actions"><button class="ghost-btn" id="resourceRefresh">刷新/重新检测</button><button class="ghost-btn" data-local-pack-choose>选择资源包文件夹</button><button class="ghost-btn" id="resourceReload">重新载入页面</button><input type="file" data-local-pack-input webkitdirectory directory multiple hidden></div><div class="resource-downloads">下载：<a href="./release/verdant-models.zip" download>模型包</a> · <a href="./release/verdant-overlay-runtime.zip" download>overlay 运行时包</a></div><div class="resource-table">${rowHtml}</div><p class="resource-note">期望包内路径：${local.required.join('、')}。fox-segmented.glb 当前不含 images/textures、UV 或顶点色；没有可单独补放的外部贴图，纹理版本必须重新导出 GLB。程序化回退会继续维持游戏可玩。</p></section>`;
+  }
+
 }
