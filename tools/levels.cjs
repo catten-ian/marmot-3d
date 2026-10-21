@@ -66,7 +66,7 @@ const get = (u) => new Promise((r, j) => http.get(u, (s) => { let d = ''; s.on('
   });
 
   // 关卡数量必须从页面里动态读取 —— 写死 5 会在关卡表扩容后
-  // 静默漏掉后面的关卡，测试通过但其实没测到（关卡已扩到 8 关）。
+  // 静默漏掉后面的关卡，测试通过但其实没测到（关卡已扩到 12 关）。
   const nLevels = (await send('Runtime.evaluate', {
     expression: 'window.__game.LEVELS.length', returnByValue: true,
   })).result?.value || 0;

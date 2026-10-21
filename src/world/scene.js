@@ -274,7 +274,7 @@ const segX = 200, segZ = 170;
     this.sun.intensity = cfg.sunIntensity;
     this.ambient.intensity = cfg.ambient;
     this.scene.fog.color.set(cfg.fog);
-    // 太阳辉光跟随关卡日照色：阴天关（如第 8 关冷光）不会出现暖阳违和感
+    // 太阳辉光跟随关卡日照色：阴天关（如后期冷光关）不会出现暖阳违和感
     this.dome.material.uniforms.glowColor.value.set(cfg.sun);
 
     const cA = new THREE.Color(cfg.grass[0]);

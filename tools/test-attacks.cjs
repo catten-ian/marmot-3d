@@ -2,7 +2,7 @@
  * 三项问题的回归测试：
  *   1. 藏狐冲刺预警线方向与实际冲刺方向一致（此前是反的）
  *   2. 攻击模式确实多样化（不同类型走不同分支、预警线长度 = 真实冲刺距离）
- *   3. 8 关全部可加载，环境修饰生效（雾/阵风/沙尘）
+ *   3. 12 关全部可加载，环境修饰生效（雾/阵风/沙尘）
  *
  * 用法：node tools/test-attacks.cjs
  */
@@ -114,7 +114,7 @@ const get = (u) => fetch(u, { headers: { Host: '127.0.0.1' } }).then((r) => r.js
         && knockback.normal.totalApprox > knockback.heavy.totalApprox
         && knockback.heavy.totalApprox > knockback.boss.totalApprox,
     };
-  })();
+  })()`);
 
   // ============ 2. 预警线方向 ============
   // 关键断言：把藏狐放进蓄力状态后，预警线在**局部 +Z** 方向有几何延伸，
