@@ -1,0 +1,11 @@
+{
+  "diag": {
+    "fog": [
+      42,
+      175
+    ],
+    "drawCalls": 384,
+    "frame": 168
+  },
+  "url": "http://127.0.0.1:8341/index.html?version=dev&webgl=1&models=off&t=1792627042630"
+}
