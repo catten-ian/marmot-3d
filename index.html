@@ -313,7 +313,7 @@ const watchdog = setInterval(() => {
 }, 1000);
 
 try {
-  await import('./src/main.js?v=m20261023dev2');
+  await import('./src/main.js?v=m20261023webgpu1');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
   clearInterval(watchdog);

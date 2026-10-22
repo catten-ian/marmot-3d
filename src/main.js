@@ -12,6 +12,7 @@ import {
   BERRY_RADIUS, BERRY_ENERGY, BERRY_CHARGE, RESCUE_DIST,
   setPointScale, scalePoint, scaleCoord, scaleRadius,
   getPointScale, fieldHalf, FIELD_W, FIELD_H, setPlayableBounds, clearPlayableBounds,
+  setGravityScale,
 } from './core/config.js';
 import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/utils.js';
 import { FirstPersonController } from './core/controls.js';
@@ -74,7 +75,7 @@ let backdropRoot = null;
 import { Sky } from './world/scene.js';
 import { Scenery } from './world/props.js';
 import { createBurrows } from './world/burrows.js';
-import { burrowVolumeAt } from './world/underground.js';
+import { burrowVolumeAt, setUndergroundCavesEnabled } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
@@ -114,7 +115,7 @@ const localPackStatus = IS_DEV ? await restoreLocalPack() : null;
 if (IS_DEV && localPackStatus?.state === 'ready') setAssetResolver((url) => getLocalPackAssetInfo(url));
 if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => getLocalPackAssetInfo(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
 
-hud.setLoading(8);
+hud.setLoading(8, '正在启动');
 
 /**
  * 渲染器与 three 实例。
@@ -262,7 +263,7 @@ function disposeVerdantGroup(group) {
   }
 }
 
-hud.setLoading(22);
+hud.setLoading(22, '初始化渲染器');
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -271,38 +272,52 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const sky = new Sky(scene, renderer);
-hud.setLoading(45);
+hud.setLoading(45, '生成天空与光照');
 
 // —— Verdant Trail 全环境（dev-only）——
 // The loader is dynamically imported so stable/beta never fetch or evaluate any Verdant code.
 let verdantWorld = null;
 if (devOn('verdantWorld')) {
   try {
-    hud.setLoading(48);
+    hud.setLoading(46, '读取 Verdant 场景模块');
     const { loadVerdantWorld } = await import('./world/verdant.js');
     loadVerdantWorldFn = loadVerdantWorld;
     verdantWorld = await loadVerdantWorld({
       tier: autoVerdantTier(),
-      onProgress: (p, label) => hud.setLoading(Math.round(48 + p * 17)),
+      onProgress: (p, label) => hud.setLoading(46 + Math.max(0, Math.min(1, p)) * 24, label),
       renderer,
     });
     verdantTierActive = verdantWorld.tier || autoVerdantTier();
     window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
     scene.add(verdantWorld.group);
-    setHeightField(verdantWorld.heightAt);
+    // 高度场自带真实地面/岩石碰撞与可行走掩膜（resolveGround）。
+    setHeightField(verdantWorld.heightAt, { resolveGround: verdantWorld.resolveGround, solidCollider: true });
     // The exported trail fills 88% of the historic design rectangle in both axes.
     setPointScale(0.88, 0, 0);
     setPlayableBounds(verdantWorld.bounds);
+    // 实体场景里没有程序化洞穴；腔室下沉会在出生点附近凭空挖坑导致掉底。
+    setUndergroundCavesEnabled(false);
     sky.terrain.visible = false;
     sky.hills.visible = false;
     sky.dome.visible = true;
     sky.setVerdantMood?.();
+    // dev-only 真机验证钩子：暴露可行走场查询（仅 IS_DEV，正式版无此分支）
+    if (IS_DEV) {
+      window.__verdantField = {
+        heightAt: verdantWorld.heightAt,
+        resolveGround: verdantWorld.resolveGround,
+        nearestWalkable: verdantWorld.nearestWalkable,
+        bounds: verdantWorld.bounds,
+        stats: verdantWorld.fieldStats || null,
+      };
+    }
     hud.say('DEV · A Verdant Trail 场景已加载', 3.2);
   } catch (e) {
     verdantWorld = null;
     setHeightField(null);
     setPointScale(1, 0, 0);
     clearPlayableBounds();
+    setUndergroundCavesEnabled(true);
     console.warn('[verdant] 场景加载失败，退回程序化地形:', e);
     hud.say(`Verdant 场景加载失败，已退回程序化地形：${e?.message || e}`, 5.5);
   }
@@ -316,16 +331,23 @@ async function switchVerdantTier(preference, forceReload = false) {
   const next = autoVerdantTier();
   if (next === verdantTierActive && !forceReload) { verdantQualityState?.setActive?.(next); return; }
   const old = verdantWorld;
-  hud.setLoading(49);
-  const loaded = await loadVerdantWorldFn({ tier: next, onProgress: (p) => hud.setLoading(Math.round(49 + p * 18)), renderer });
+  hud.beginLoadingSession('正在切换 Verdant 画质档…');
+  const loaded = await loadVerdantWorldFn({ tier: next, onProgress: (p, label) => hud.setLoading(4 + Math.max(0, Math.min(1, p)) * 92, label || '加载 Verdant 场景'), renderer });
   if (requestId !== verdantTierLoadRequest) { disposeVerdantGroup(loaded.group); return; }
   const pose = { x: controller.position.x, z: controller.position.z, yaw: controller.yaw, pitch: controller.pitch };
   scene.remove(old.group); disposeVerdantGroup(old.group);
   verdantWorld = loaded; verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
-  scene.add(loaded.group); setHeightField(loaded.heightAt); setPlayableBounds(loaded.bounds);
-  controller.position.set(pose.x, loaded.heightAt(pose.x, pose.z), pose.z);
+  scene.add(loaded.group);
+  setHeightField(loaded.heightAt, { resolveGround: loaded.resolveGround, solidCollider: true });
+  setPlayableBounds(loaded.bounds);
+  setUndergroundCavesEnabled(false);
+  // 切档后若站位恰好在新高度场的无效竖列上，吸附到最近可行走面。
+  const safe = loaded.nearestWalkable ? loaded.nearestWalkable(pose.x, pose.z) : { x: pose.x, z: pose.z, y: loaded.heightAt(pose.x, pose.z) };
+  controller.position.set(safe.x, safe.y, safe.z);
+  controller._lastGround = { y: safe.y, walkable: true };
   controller.yaw = pose.yaw; controller.pitch = pose.pitch; controller.velocity.set(0, 0, 0); controller.externalVelocity.set(0, 0, 0); controller.vy = 0; controller.grounded = true;
-  hud.setLoading(100); hud.say(`Verdant 画质已切换：${verdantTierActive}`, 2.8);
+  hud.setLoading(100, 'Verdant 场景就绪'); hud.say(`Verdant 画质已切换：${verdantTierActive}`, 2.8);
+  setTimeout(() => hud.hideLoader(), 350);
   verdantQualityState?.setActive?.(verdantTierActive);
 }
 
@@ -343,7 +365,7 @@ let gsWorld = null;
 let gsStats = null;
 if (WANT_GS && rendererStatus.supportsSplat) {
   try {
-    hud.setLoading(48);
+    hud.setLoading(46, '读取 GS 场景模块');
     const { buildGsWorld, GS_AREA } = await import('./gs/world.js');
     // 注意：这里 import 的 world.js 用的 `three`，而渲染器走的是
     // `three/webgpu` 入口。两者共享同一个 three.module.js 核心
@@ -376,7 +398,7 @@ if (WANT_GS && rendererStatus.supportsSplat) {
     gsWorld = null;
     hud.say('GS 场景不可用：' + (e && e.message || e), 4.5);
   }
-  hud.setLoading(60);
+  hud.setLoading(69, 'GS 场景完成');
 }
 
 /**
@@ -396,7 +418,7 @@ const BURROW_X = baseBurrow.x;
 const BURROW_Z = baseBurrow.z;
 const burrow = burrowSet.baseObject;
 const scenery = new Scenery(scene, { verdant: !!verdantWorld });
-hud.setLoading(70);
+hud.setLoading(72, '布置场景与植被');
 
 // GS 全场景下，程序化布景必须让位：
 //  · 程序化地形（会和 GS 地面重叠）
@@ -435,7 +457,7 @@ const companion = new Companion(scene);
 const minimap = new Minimap();
 let debugVolumes = null;
 let foxes = [];
-hud.setLoading(86);
+hud.setLoading(86, '生成实体与模型');
 
 // —— 系统 ——
 const controller = new FirstPersonController(camera, canvas);
@@ -530,7 +552,7 @@ if (!verdantWorld) buildBackdrop().then((root) => {
 const keys = new Set();
 controller.keys = keys;
 
-hud.setLoading(96);
+hud.setLoading(96, '编译着色器 / 生成远景');
 
 // —— 版本角标 ——
 // 正式版右下角不显示任何版本标识（干净发布）；仅 dev 实验版显示角标以便对照。
@@ -752,6 +774,8 @@ function enterSandbox() {
 
 function exitSandbox() {
   sandboxState.active = false; game.sandbox = false; document.body.classList.remove('sandbox-active');
+  // 离开沙盒：低重力/空中跳绝不带入正式关卡
+  sandboxState.lowGravity = false; setGravityScale(1); controller.allowAirJump = false;
   testModeBtn.hidden = !TEST_MODE; testModeBtn.textContent = '测试';
   setTestPanelOpen(false);
   title();
@@ -766,7 +790,15 @@ function loadLevel(index, announce = true) {
   // 重置玩家
   const p = game.player;
   p.hp = 100; p.energy = 100; p.stress = 0; p.invuln = 2;
-  controller.teleport(BURROW_X + 4 * getPointScale(), BURROW_Z + 2 * getPointScale(), Math.PI * 0.05);
+  let spawnX = BURROW_X + 4 * getPointScale();
+  let spawnZ = BURROW_Z + 2 * getPointScale();
+  if (verdantWorld?.nearestWalkable) {
+    // 出生点必须落在有效可行走面上：设计出生点可能靠近水域/外缘。
+    const safe = verdantWorld.nearestWalkable(spawnX, spawnZ);
+    spawnX = safe.x; spawnZ = safe.z;
+  }
+  controller.teleport(spawnX, spawnZ, Math.PI * 0.05);
+  if (verdantWorld?.resolveGround) controller._lastGround = verdantWorld.resolveGround(spawnX, spawnZ);
   // 出生朝向：看向场地中央
   controller.yaw = Math.atan2(-(0 - controller.position.x), -(0 - controller.position.z));
   controller.pitch = -0.06;
@@ -2344,6 +2376,7 @@ function setTestPanelOpen(open) {
 const sandboxPanelUI = setupSandboxPanel({
   root: testPanel,
   state: sandboxState,
+  showLowGravity: IS_DEV,
   onAction: (action) => {
     if (action === 'refill') { game.player.hp = 100; game.player.energy = 100; }
     else if (action === 'clearStress') { game.player.stress = 0; game.stressWarned = false; }
@@ -2384,6 +2417,13 @@ const sandboxPanelUI = setupSandboxPanel({
     if (name === 'dummyDefeatable') {
       sandboxState.dummyDefeatable = value;
       setSandboxDummyDefeatable(sandboxState.dummy, value);
+    }
+    if (name === 'lowGravity') {
+      // dev-only：0.15g + 空中连跳可持续上升；关闭即恢复 9.8m/s² 与正常着地。
+      setGravityScale(value ? 0.15 : 1);
+      controller.allowAirJump = !!value;
+      if (!value) controller.vy = Math.min(controller.vy, 0);
+      hud.say(value ? '低重力 / 飞行观察已开启：空中连按跳跃可持续升高' : '已恢复正常重力', 2.6);
     }
     if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { if (!f.isSandboxDummy) { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; } }); }
   },
@@ -2660,7 +2700,7 @@ function frame(now) {
 //=====================================================
 // 启动
 //=====================================================
-hud.setLoading(100);
+hud.setLoading(100, '完成');
 loadLevel(0, false);
 // 标题状态下相机也需要正确落位，否则会渲染在场景原点（地下）
 controller.update(0.016, new Set(), 1);

@@ -2,6 +2,10 @@ import { BURROWS, scalePoint, scaleRadius } from '../core/config.js';
 import { terrainHeight, baseTerrainHeight, heightFieldActive, depressionAt } from '../core/utils.js';
 
 let _defs = [];
+// dev Verdant 实体场景里不存在程序化洞穴，腔室下沉会在出生点附近挖出深坑（真机掉底）。
+let _cavesEnabled = true;
+export function setUndergroundCavesEnabled(v) { _cavesEnabled = v !== false; }
+export function undergroundCavesEnabled() { return _cavesEnabled; }
 export function configureUnderground(defs = []) { _defs = defs; return _defs; }
 export function undergroundDefs() { return _defs; }
 
@@ -17,6 +21,8 @@ export function undergroundProfile(def) {
 
 export function undergroundFloorY(x, z, defs = _defs) {
   // 程序化地形的凹陷已写入 terrainHeight；GS 高度场则在这里叠加近似下沉腔室。
+  // 实体摄影场景（Verdant）没有地下层，直接返回高度场值。
+  if (!_cavesEnabled) return terrainHeight(x, z);
   let y = heightFieldActive() ? terrainHeight(x, z) : baseTerrainHeight(x, z);
   for (const b of defs || []) {
     const p = undergroundProfile(b);

@@ -1,0 +1,304 @@
+/**
+ * Dev-only：把 Verdant GLB 里的真实静态碰撞几何（地面 / 沙 / 岩石 / 悬崖 /
+ * 树根 / 树干）光栅化成「每个 (x,z) 竖列最高可站立面」高度场。
+ *
+ * 背景：Blender 导出的 verdant-trail-height.json 只对单个 ground 对象做
+ * 向下射线，未命中回退 0（水面/矩形外缘），独立集合 cliffs_boulders 完全
+ * 没进高度场——这是真机掉出地图、跳不上岩石的根因。这里在浏览器侧从
+ * 已加载的 GLB 重新采样，纯 JS、不依赖重新导出。
+ *
+ * - 只纳入不透明实体网格；BLEND 叶片/草/灌木/水面等可穿过装饰一律排除
+ *   （按材质 alphaMode + 节点/材质名双重判定）。
+ * - 三角形需朝上（normal.y >= 0.35，约 70° 坡以内）才算可站立面，
+ *   悬崖侧壁不会被当成地面。
+ * - 节点自带缩放/旋转，统一用 matrixWorld 换到运行时坐标。
+ */
+import * as THREE from 'three';
+
+const WALK_NORMAL_Y = 0.35;
+// 名字命中即视为可穿过装饰（叶片 / 草 / 灌木 / 水 / 远景背景件）。
+const FOLIAGE_RE = /(leaf|leaves|ivy|shrub|foliage|grass|fern|flower|petal|water|ocean|sea|monster|background|bacground)/i;
+
+function isSolidMaterial(material) {
+  const ms = Array.isArray(material) ? material : [material];
+  return ms.some((m) => {
+    if (!m) return false;
+    if (m.transparent && m.blending !== THREE.NormalBlending) return false;
+    if (m.transparent && /(leaf|leaves|grass|shrub|ivy|water|foliage|fern|flower)/i.test(m.name || '')) return false;
+    if (m.alphaTest > 0 && /(leaf|leaves|grass|shrub|ivy|foliage|fern|flower)/i.test(m.name || '')) return false;
+    return true;
+  });
+}
+
+function solidName(name) {
+  return !name || !FOLIAGE_RE.test(name);
+}
+
+/**
+ * @param {THREE.Object3D} sceneRoot 已加载的 GLB 场景（会先 updateMatrixWorld）
+ * @param {{minX,maxX,minZ,maxZ}} bounds 运行时可行走矩形
+ * @param {number} cellSize 采样栅格边长（米）
+ * @returns Float32Array（NaN=竖列内没有实体可站立面）+ 栅格信息
+ */
+export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
+  const width = bounds.maxX - bounds.minX;
+  const depth = bounds.maxZ - bounds.minZ;
+  const nx = Math.max(8, Math.ceil(width / cellSize));
+  const nz = Math.max(8, Math.ceil(depth / cellSize));
+  const top = new Float32Array(nx * nz).fill(NaN);
+
+  sceneRoot.updateMatrixWorld(true);
+  const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3();
+  const e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), n = new THREE.Vector3();
+  const mat = new THREE.Matrix4();
+
+  let triCount = 0, usedCount = 0, meshCount = 0;
+
+  sceneRoot.traverse((obj) => {
+    if (!obj.isMesh) return;
+    // BLEND 叶片网格与名字显式属于 foliage/背景的节点整体跳过。
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    if (!solidName(obj.name) || !solidName(obj.parent?.name) || !mats.some(isSolidMaterial)) return;
+    const geo = obj.geometry;
+    const pos = geo?.attributes?.position;
+    if (!pos) return;
+    obj.updateWorldMatrix(true, false);
+    mat.copy(obj.matrixWorld);
+    const index = geo.index;
+    const vCount = pos.count;
+    const triTotal = index ? index.count / 3 : vCount / 3;
+    // 远景背景件（背景悬崖/水面等）在可行走矩形之外，包围盒快速剔除即可。
+    triCount += triTotal;
+    meshCount++;
+
+    const put = (ia, ib, ic) => {
+      pA.fromBufferAttribute(pos, ia).applyMatrix4(mat);
+      pB.fromBufferAttribute(pos, ib).applyMatrix4(mat);
+      pC.fromBufferAttribute(pos, ic).applyMatrix4(mat);
+      // 整三角形在采样矩形（外扩 1 格）之外则跳过。
+      const minX = Math.min(pA.x, pB.x, pC.x), maxX = Math.max(pA.x, pB.x, pC.x);
+      const minZ = Math.min(pA.z, pB.z, pC.z), maxZ = Math.max(pA.z, pB.z, pC.z);
+      if (maxX < bounds.minX - cellSize || minX > bounds.maxX + cellSize
+        || maxZ < bounds.minZ - cellSize || minZ > bounds.maxZ + cellSize) return;
+      e1.subVectors(pB, pA); e2.subVectors(pC, pA);
+      n.crossVectors(e1, e2);
+      if (n.lengthSq() < 1e-12) return;
+      n.normalize();
+      // 只要朝上的面：悬崖竖直侧壁 / 树干侧面不提供落脚点。
+      if (n.y < WALK_NORMAL_Y) return;
+      usedCount++;
+      const i0 = Math.max(0, Math.floor((minX - bounds.minX) / cellSize));
+      const i1 = Math.min(nx - 1, Math.floor((maxX - bounds.minX) / cellSize));
+      const j0 = Math.max(0, Math.floor((minZ - bounds.minZ) / cellSize));
+      const j1 = Math.min(nz - 1, Math.floor((maxZ - bounds.minZ) / cellSize));
+      const invNy = -1 / n.y;
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) {
+          // 2x2 子采样，避免细长三角形在格心漏采。
+          for (let sj = 0; sj < 2; sj++) {
+            for (let si = 0; si < 2; si++) {
+              const cx = bounds.minX + (i + (si + 0.5) / 2) * cellSize;
+              const cz = bounds.minZ + (j + (sj + 0.5) / 2) * cellSize;
+              // 三角形平面在该竖列的高度：y = a.y + ((cx-a.x)*nx + (cz-a.z)*nz)/(-ny)
+              const y = pA.y + ((cx - pA.x) * n.x + (cz - pA.z) * n.z) * invNy;
+              if (!pointInTriXZ(cx, cz, pA, pB, pC)) continue;
+              const k = j * nx + i;
+              if (isNaN(top[k]) || y > top[k]) top[k] = y;
+            }
+          }
+        }
+      }
+    };
+
+    if (index) {
+      for (let t = 0; t < index.count; t += 3) put(index.getX(t), index.getX(t + 1), index.getX(t + 2));
+    } else {
+      for (let t = 0; t < vCount; t += 3) put(t, t + 1, t + 2);
+    }
+  });
+
+  return { top, nx, nz, cellSize, bounds, stats: { meshCount, triCount, usedCount } };
+}
+
+function pointInTriXZ(px, pz, a, b, c) {
+  const s1 = sign(px, pz, a, b);
+  const s2 = sign(px, pz, b, c);
+  const s3 = sign(px, pz, c, a);
+  const hasNeg = s1 < 0 || s2 < 0 || s3 < 0;
+  const hasPos = s1 > 0 || s2 > 0 || s3 > 0;
+  return !(hasNeg && hasPos);
+}
+function sign(px, pz, a, b) {
+  return (px - b.x) * (a.z - b.z) - (a.x - b.x) * (pz - b.z);
+}
+
+/** 双线性采样导出 JSON 高度（与 verdant.js 原 bilinearHeight 同构）。 */
+function sampleJsonHeight(height, x, z) {
+  const n = height.gridSize, b = height.bounds;
+  const tx = THREE.MathUtils.clamp((x - b.minX) / Math.max(1e-6, b.maxX - b.minX), 0, 1);
+  const tz = THREE.MathUtils.clamp((z - b.minZ) / Math.max(1e-6, b.maxZ - b.minZ), 0, 1);
+  const gx = tx * (n - 1), gz = tz * (n - 1);
+  const i0 = Math.floor(gx), j0 = Math.floor(gz);
+  const i1 = Math.min(n - 1, i0 + 1), j1 = Math.min(n - 1, j0 + 1);
+  const fx = gx - i0, fz = gz - j0;
+  const at = (i, j) => height.heights[j * n + i] || 0;
+  const a = at(i0, j0) * (1 - fx) + at(i1, j0) * fx;
+  const c = at(i0, j1) * (1 - fx) + at(i1, j1) * fx;
+  return a * (1 - fz) + c * fz;
+}
+
+/**
+ * 合并 GLB 光栅高度与导出 JSON 高度，并构建：
+ *   - 双线性 heightAt（NaN 竖列回退最近实体面，保证永不漏底）
+ *   - resolveGround(x,z) → { y, walkable }（water/边缘 walkable=false）
+ *   - nearestWalkable(x,z,radius)（出生点吸附）
+ */
+export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22, edgeMargin = 0.7 }) {
+  const __t0 = Date.now();
+  const __pt = (m) => console.info('PT ' + m + ' ' + (Date.now() - __t0) + 'ms');
+  const { top, nx, nz, stats } = rasterizeColumns(scene, bounds, cellSize);
+  __pt('rasterize');
+
+  // 1) 用导出 JSON（ground 对象）填补光栅遗漏：JSON 值 >0 才是有效命中。
+  let jsonFilled = 0;
+  for (let j = 0; j < nz; j++) {
+    for (let i = 0; i < nx; i++) {
+      const k = j * nx + i;
+      if (!isNaN(top[k])) continue;
+      const cx = bounds.minX + (i + 0.5) * cellSize;
+      const cz = bounds.minZ + (j + 0.5) * cellSize;
+      const h = sampleJsonHeight(heightJson, cx, cz);
+      if (h > 1e-4) { top[k] = h; jsonFilled++; }
+    }
+  }
+
+  __pt('jsonfill');
+  // 2) 两轮补洞：仅当 3×3 邻域多数有值时取邻域均值，消掉单格采样缝隙。
+  for (let pass = 0; pass < 2; pass++) {
+    const snapshot = Float32Array.from(top);
+    for (let j = 0; j < nz; j++) {
+      for (let i = 0; i < nx; i++) {
+        const k = j * nx + i;
+        if (!isNaN(snapshot[k])) continue;
+        let sum = 0, cnt = 0;
+        for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+          if (!di && !dj) continue;
+          const jj = j + dj, ii = i + di;
+          if (jj < 0 || jj >= nz || ii < 0 || ii >= nx) continue;
+          const v = snapshot[jj * nx + ii];
+          if (!isNaN(v)) { sum += v; cnt++; }
+        }
+        if (cnt >= 5) top[k] = sum / cnt;
+      }
+    }
+  }
+
+  __pt('fillholes');
+  // 3) 可行走掩膜：实体掩膜再按 edgeMargin 腐蚀一圈，边缘留安全带。
+  const solid = new Uint8Array(nx * nz);
+  for (let k = 0; k < top.length; k++) solid[k] = isNaN(top[k]) ? 0 : 1;
+  const erode = Math.max(1, Math.round(edgeMargin / cellSize));
+  const walkable = Uint8Array.from(solid);
+  for (let r = 0; r < erode; r++) {
+    const snap = Uint8Array.from(walkable);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i;
+      if (!snap[k]) continue;
+      if (i === 0 || j === 0 || i === nx - 1 || j === nz - 1
+        || !snap[k - 1] || !snap[k + 1] || !snap[k - nx] || !snap[k + nx]) walkable[k] = 0;
+    }
+  }
+
+  __pt('mask');
+  // 4) 最近实体格（两遍 chamfer SDF），供 NaN 竖列安全回退，绝不漏底。
+  const sx = new Int16Array(nx * nz).fill(-1), sz = new Int16Array(nx * nz).fill(-1);
+  for (let k = 0; k < top.length; k++) if (solid[k]) { sx[k] = 0; sz[k] = 0; }
+  // D(k) = 从最近实体格 S 指向 k 的位移（格坐标），即 S = k - D。
+  // 传播：D(k) = D(n) + (k - n)。
+  const pass = (js, je, jsign, xoff, zoff) => {
+    for (let j = js; j !== je; j += jsign) for (let i = 0; i < nx; i++) {
+      const k = j * nx + i;
+      let bx = 1e4, bz = 1e4;
+      const tryN = (kk, ox, oz) => {
+        if (sx[kk] < 0) return;
+        const dx = sx[kk] + ox, dz = sz[kk] + oz;
+        if (dx * dx + dz * dz < bx * bx + bz * bz) { bx = dx; bz = dz; }
+      };
+      if (i + xoff >= 0 && i + xoff < nx) tryN(k + xoff, -xoff, 0);
+      if (j + zoff >= 0 && j + zoff < nz) tryN(k + zoff * nx, 0, -zoff);
+      if (bx < 1e3) { sx[k] = bx; sz[k] = bz; }
+    }
+  };
+  pass(0, nz, 1, -1, -1);
+  // 第二遍必须从末行向首行扫描（j 递减），jsign=-1；
+  // 写成 +1 会让 j 从 nz-1 递增、永远到不了 -1，造成加载期无限循环。
+  pass(nz - 1, -1, -1, 1, 1);
+
+  const idxAt = (x, z) => [
+    THREE.MathUtils.clamp(Math.floor((x - bounds.minX) / cellSize), 0, nx - 1),
+    THREE.MathUtils.clamp(Math.floor((z - bounds.minZ) / cellSize), 0, nz - 1),
+  ];
+
+  __pt('sdf');
+  function heightAt(x, z) {
+    const gx = THREE.MathUtils.clamp((x - bounds.minX) / cellSize, 0, nx - 1.0001);
+    const gz = THREE.MathUtils.clamp((z - bounds.minZ) / cellSize, 0, nz - 1.0001);
+    const i0 = Math.floor(gx), j0 = Math.floor(gz);
+    const fx = gx - i0, fz = gz - j0;
+    const h = (i, j) => top[j * nx + i];
+    const i1 = Math.min(nx - 1, i0 + 1), j1 = Math.min(nz - 1, j0 + 1);
+    const corners = [h(i0, j0), h(i1, j0), h(i0, j1), h(i1, j1)];
+    if (corners.some((v) => isNaN(v))) {
+      // 任一角空：回退到最近实体格，保证返回有限地面（防持续下坠）。
+      const [ci, cj] = idxAt(x, z);
+      const k = cj * nx + ci;
+      if (sx[k] >= 0) {
+        // S = k - D：回到最近实体格取顶面高度。
+        const fi = THREE.MathUtils.clamp(ci - sx[k], 0, nx - 1);
+        const fj = THREE.MathUtils.clamp(cj - sz[k], 0, nz - 1);
+        return top[fj * nx + fi];
+      }
+      // 理论不可达：全场无实体时退回 JSON 采样。
+      return sampleJsonHeight(heightJson, x, z);
+    }
+    const a = corners[0] * (1 - fx) + corners[1] * fx;
+    const c = corners[2] * (1 - fx) + corners[3] * fx;
+    return a * (1 - fz) + c * fz;
+  }
+
+  function resolveGround(x, z) {
+    if (x < bounds.minX || x > bounds.maxX || z < bounds.minZ || z > bounds.maxZ) {
+      return { y: heightAt(x, z), walkable: false };
+    }
+    const [i, j] = idxAt(x, z);
+    return { y: heightAt(x, z), walkable: walkable[j * nx + i] === 1 };
+  }
+
+  function nearestWalkable(x, z, maxRadius = 12) {
+    const [si0, sj0] = idxAt(x, z);
+    const maxCells = Math.ceil(maxRadius / cellSize);
+    if (walkable[sj0 * nx + si0]) return { x, z, y: heightAt(x, z), moved: 0 };
+    for (let r = 1; r <= maxCells; r++) {
+      for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+        if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+        const i = si0 + di, j = sj0 + dj;
+        if (i < 0 || i >= nx || j < 0 || j >= nz) continue;
+        if (walkable[j * nx + i]) {
+          const wx = bounds.minX + (i + 0.5) * cellSize;
+          const wz = bounds.minZ + (j + 0.5) * cellSize;
+          return { x: wx, z: wz, y: top[j * nx + i], moved: r * cellSize };
+        }
+      }
+    }
+    return { x, z, y: heightAt(x, z), moved: -1 };
+  }
+
+  let solidCount = 0, walkCount = 0;
+  for (let k = 0; k < top.length; k++) { if (solid[k]) solidCount++; if (walkable[k]) walkCount++; }
+
+  return {
+    heightAt, resolveGround, nearestWalkable, bounds, cellSize, nx, nz,
+    stats: { ...stats, jsonFilled, solidCells: solidCount, walkableCells: walkCount, totalCells: nx * nz },
+    __ms: (() => { __pt('done'); return Date.now()-__t0; })(),
+  };
+}

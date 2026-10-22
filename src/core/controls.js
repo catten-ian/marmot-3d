@@ -7,8 +7,8 @@
  *   - 蹲伏（在洞口的低姿态）
  */
 import * as THREE from 'three';
-import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius } from '../core/config.js';
-import { terrainHeight, clamp } from '../core/utils.js';
+import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius, getGravityScale } from '../core/config.js';
+import { terrainHeight, terrainGround, groundResolveActive, solidColliderActive, clamp } from '../core/utils.js';
 import { undergroundFloorY } from '../world/underground.js';
 import { resolveMoveIntent, dampAngle, wrapAngle, resolveTouchDrive } from './move-facing.mjs';
 
@@ -35,6 +35,10 @@ export class FirstPersonController {
     this.touchUTurn = false;
     this._thirdPersonStrafeYaw = null;
     this.movementLocked = false;
+    // dev 沙盒：允许空中反复起跳（配合低重力实现飞行观察）
+    this.allowAirJump = false;
+    // 实体地面台阶最大可步行高度（米）；更高的差必须跳跃越过
+    this.stepUp = 0.42;
 
     this.onGroundY = 0;
     this.bobPhase = 0;
@@ -162,6 +166,8 @@ export class FirstPersonController {
     this.grounded = true;
     this.jumpCD = 0;
     this.airHeight = 0;
+    // 传送后清空上一帧落点缓存，避免实体高度场的台阶/水域阻挡用上一位点误判
+    this._lastGround = null;
     const baseFov = this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson;
     if (this.camera.fov !== baseFov) {
       this.camera.fov = baseFov;
@@ -185,10 +191,12 @@ export class FirstPersonController {
   jump() {
     const J = PLAYER.jump;
     // 地面才能起跳；滞空时间短，避免连续刷跳
-    if (!this.grounded || this.jumpCD > 0) return false;
-    // 起跳前先把 y 吸附到当前地面高度：否则在斜坡上位置还滞后于地形，
+    if (this.jumpCD > 0) return false;
+    if (!this.grounded && !this.allowAirJump) return false;
+    // 地面起跳前先把 y 吸附到当前地面高度：否则在斜坡上位置还滞后于地形，
     // 会导致起跳基准偏低（滞空高度被"吃掉"一部分）。
-    this.position.y = terrainHeight(this.position.x, this.position.z);
+    // 但 dev 沙盒低重力的空中连跳不能吸附——否则会瞬间被拽回地面、无法升高观察。
+    if (this.grounded) this.position.y = terrainHeight(this.position.x, this.position.z);
     this.vy = J.velocity;
     this.grounded = false;
     this.jumpCD = J.cooldown;
@@ -306,7 +314,9 @@ export class FirstPersonController {
     // 岩石碰撞：沿法线推出。
     // ROCKS 是设计坐标，GS 版必须缩放到运行时位置/半径，
     // 否则视觉上缩小的岩石仍按原位大半径碰撞（隐形墙）。
-    for (const rp of ROCKS) {
+    // dev Verdant 实体场景自带真实岩石高度碰撞，设计圆柱在这里是隐形墙，跳过。
+    const useDesignRocks = !solidColliderActive();
+    for (const rp of useDesignRocks ? ROCKS : []) {
       const [rx, rz] = scalePoint(rp);
       const rr = scaleRadius(rp[2]);
       const dx = this.position.x - rx, dz = this.position.z - rz;
@@ -333,15 +343,38 @@ export class FirstPersonController {
     const actualMoved = Math.hypot(this.position.x - prevX, this.position.z - prevZ);
     this.movingThisFrame = actualMoved > 0.0015;
 
-    // 地形跟随
-    const groundY = undergroundFloorY(this.position.x, this.position.z);
+    // 地形跟随（实体高度场走 terrainGround；程序化/GS 走地下腔室合成）
+    let groundInfo;
+    if (groundResolveActive()) {
+      // 记录移动前落点，用于台阶 / 水域边界阻挡
+      groundInfo = terrainGround(this.position.x, this.position.z);
+      const prevGround = this._lastGround ?? groundInfo;
+      // 低重力飞行观察模式下自由穿行（不被水域/台阶水平阻挡）；高度场 SDF 始终返回有限地面，不会掉出世界。
+      if (!this.allowAirJump) {
+        const blockedByVoid = !groundInfo.walkable;
+        const blockedByStep = this.grounded && (groundInfo.y - prevGround.y) > this.stepUp;
+        if (blockedByVoid || blockedByStep) {
+          // 水面/外缘不可进入；过高台阶不允许直接走上去（要跳）。
+          // 横向往回推，竖直仍吸附在原可行走面上，任何情况下都不会漏出世界。
+          this.position.x = prevX;
+          this.position.z = prevZ;
+          this.velocity.x = 0; this.velocity.z = 0;
+          this.externalVelocity.x = 0; this.externalVelocity.z = 0;
+          groundInfo = prevGround;
+        }
+      }
+      this._lastGround = groundInfo;
+    } else {
+      groundInfo = { y: undergroundFloorY(this.position.x, this.position.z), walkable: true };
+    }
+    const groundY = groundInfo.y;
     this.onGroundY = groundY;
 
-    // ---- 垂直运动（跳跃 / 重力）----
+    // ---- 垂直运动（跳跃 / 重力；重力系数供 dev 沙盒低重力注入）----
     const J = PLAYER.jump;
     this.jumpCD = Math.max(0, this.jumpCD - dt);
     if (!this.grounded) {
-      this.vy -= J.gravity * dt;
+      this.vy -= J.gravity * getGravityScale() * dt;
       this.position.y += this.vy * dt;
       // 落到地面：钳位并清零竖直速度，避免反复触发落地
       if (this.position.y <= groundY) {

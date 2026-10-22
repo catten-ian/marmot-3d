@@ -1,6 +1,6 @@
 import { SANDBOX_DIFFICULTIES } from './state.js';
 
-export function setupSandboxPanel({ root, state, onAction, onChange }) {
+export function setupSandboxPanel({ root, state, onAction, onChange, showLowGravity = false }) {
   if (!root) return null;
   const existing = root.querySelector('.sandbox-controls');
   if (existing) existing.remove();
@@ -12,6 +12,7 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
     <label class="test-toggle"><input id="sandboxGodMode" type="checkbox"> 无敌</label>
     <label class="test-toggle"><input id="sandboxFreezeTimer" type="checkbox" checked> 冻结 / 关闭计时</label>
     <label class="test-toggle"><input id="sandboxParryDrill" type="checkbox"> 迎击练习（单狐正面冲刺，击退即重来）</label>
+    ${showLowGravity ? '<label class="test-toggle"><input id="sandboxLowGravity" type="checkbox"> 低重力 / 飞行观察（可空中连跳升空）</label>' : ''}
     <div class="test-actions sandbox-actions">
       <button type="button" data-sandbox-action="refill">回满生命 / 储备</button>
       <button type="button" data-sandbox-action="clearStress">清零应激</button>
@@ -35,16 +36,19 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
   const god = section.querySelector('#sandboxGodMode');
   const freeze = section.querySelector('#sandboxFreezeTimer');
   const parryDrill = section.querySelector('#sandboxParryDrill');
+  const lowGravity = section.querySelector('#sandboxLowGravity');
   const dummyDefeatable = section.querySelector('#sandboxDummyDefeatable');
   const difficulty = section.querySelector('#sandboxDifficulty');
   god.checked = !!state.godMode;
   freeze.checked = state.freezeTimer !== false;
   parryDrill.checked = !!state.parryDrill;
+  if (lowGravity) lowGravity.checked = !!state.lowGravity;
   dummyDefeatable.checked = state.dummyDefeatable !== false;
   difficulty.value = state.difficulty;
   god.onchange = () => { state.godMode = god.checked; onChange?.('godMode', state.godMode); };
   freeze.onchange = () => { state.freezeTimer = freeze.checked; onChange?.('freezeTimer', state.freezeTimer); };
   parryDrill.onchange = () => { state.parryDrill = parryDrill.checked; onChange?.('parryDrill', parryDrill.checked); };
+  if (lowGravity) lowGravity.onchange = () => { state.lowGravity = lowGravity.checked; onChange?.('lowGravity', lowGravity.checked); };
   dummyDefeatable.onchange = () => { state.dummyDefeatable = dummyDefeatable.checked; onChange?.('dummyDefeatable', dummyDefeatable.checked); };
   difficulty.onchange = () => { onChange?.('difficulty', difficulty.value); };
   section.addEventListener('click', (event) => {

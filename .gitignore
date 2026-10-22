@@ -37,3 +37,9 @@ Thumbs.db
 # ── ultra 档超大二进制（>100MB，超过 GitHub 单文件上限）：仅经火山 TOS 分发，不入库 ──
 assets/verdant/tiers/ultra/verdant-trail-ultra.bin
 assets/verdant/tiers/ultra/textures/rock_07_nor_gl.png
+
+# 本地依赖与临时验证探针（不入库）
+node_modules/
+__*.html
+__*.js
+__*.mjs

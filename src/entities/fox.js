@@ -266,6 +266,7 @@ export class Fox {
         this._wolfMixer = new THREE.AnimationMixer(norm.wrap);
         this._wolfActions = Object.fromEntries(clips.map((clip) => [clip.name.toLowerCase(), this._wolfMixer.clipAction(clip)]));
         this._wolfModelBounds = { targetHeight: WOLF_TARGET_HEIGHT, source: norm.debug, clipNames: clips.map((clip) => clip.name) };
+        this._fixWolfMaterials(norm.wrap);
         this._setWolfAnimation('idle', 0);
       }
       this.mesh.add(norm.wrap);
@@ -403,6 +404,35 @@ export class Fox {
     }
 
     this._segmentAnimation = { parts, sourceHeading };
+  }
+
+  /**
+   * wolf.glb 从 Blender 导出时漏写 metallicFactor（glTF 默认 metalness=1），且带了法线贴图
+   * 却没有切线（tangent）。场景无 IBL 时金属度=1 的物理材质漫反射项为 0；而缺切线的
+   * 蒙皮网格上法线贴图会解算出错误法线，两者叠加让狼渲染成纯黑剪影。狼毛是电介质：
+   * metalness 归一为 0，并丢弃这张没有切线支撑的法线贴图，让 baseColor 毛色正常受光。
+   * 仅对 dev 狼模型生效，不触碰 stable/狐狸资产。
+   */
+  _fixWolfMaterials(root) {
+    root.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const materials = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of materials) {
+        if (!m) continue;
+        if ('metalness' in m) m.metalness = 0;
+        if ('roughness' in m && (!isFinite(m.roughness) || m.roughness < 0.2)) m.roughness = 0.85;
+        // 该 GLB 无切线属性，法线贴图会破坏蒙皮网格着色（发黑）；移除它。
+        if (m.normalMap) { m.normalMap = null; m.needsUpdate = true; }
+        // 不透明狼毛（opacity=1）应写深度；贴图边缘仅极少量半透明像素，
+        // 用 alphaTest 保留轮廓同时恢复深度写入，避免排序洞穿/发暗。
+        if (m.opacity >= 1 && m.transparent) {
+          m.transparent = false;
+          m.alphaTest = Math.max(m.alphaTest || 0, 0.5);
+          m.depthWrite = true;
+        }
+        m.needsUpdate = true;
+      }
+    });
   }
 
   _setWolfAnimation(name, fade = 0.18, timeScale = 1) {
