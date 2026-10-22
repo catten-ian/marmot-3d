@@ -20,6 +20,8 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
+import { getAssetCandidates } from '../world/local-pack.js';
 
 const loader = new GLTFLoader();
 const SOFT_TIMEOUT_MS = 15000;
@@ -156,9 +158,15 @@ export function loadModel(url, key = '') {
       console.warn('[models] 加载较慢（15s），继续等待；程序化模型保持可见:', url);
     }, SOFT_TIMEOUT_MS);
 
-    const resolvedUrl = assetResolver ? (assetResolver(url) || url) : url;
-    loader.load(
-      resolvedUrl,
+    const tier = typeof window !== 'undefined' ? (window.__VERDANT_ACTIVE_TIER__ || 'medium') : 'medium';
+    const candidates = getAssetCandidates(new URL(url, location.href).href, tier, false, assetResolver);
+    const tryCandidate = (candidateIndex) => {
+      const candidate = candidates[candidateIndex];
+      if (!candidate) {
+        if (key && STATUS[key]) { STATUS[key].level = 'failed'; STATUS[key].error = 'local → TOS → source 均无法加载'; }
+        done(null); return;
+      }
+      loader.load(candidate,
       (gltf) => {
         const root = gltf.scene;
         if (!root) {
@@ -203,17 +211,19 @@ export function loadModel(url, key = '') {
           STATUS[key].textured = textured;
         }
         console.info(`[models] ${key || url} 加载成功 [${level}] ${tris.toLocaleString()} 面`);
-        done({ scene: root, level, textured, tris });
+        done({ scene: root, level, textured, tris, animations: gltf.animations || [] });
       },
       undefined,
       (err) => {
-        clearTimeout(timer);
         const msg = (err && (err.message || err.type)) || String(err);
-        console.warn('[models] 加载失败，回退到程序化建模:', url, msg);
+        if (candidateIndex + 1 < candidates.length) { console.warn('[models] 资源回退：', candidate, msg); tryCandidate(candidateIndex + 1); return; }
+        clearTimeout(timer);
+        console.warn('[models] local → TOS → source 均加载失败，回退到程序化建模:', url, msg);
         if (key && STATUS[key]) { STATUS[key].level = 'failed'; STATUS[key].error = msg; }
         done(null);
-      },
-    );
+      });
+    };
+    tryCandidate(0);
   });
 
   cache.set(url, p);
@@ -227,7 +237,8 @@ export function loadModel(url, key = '') {
 export async function instantiate(url, key = '') {
   const rec = await loadModel(url, key);
   if (!rec) return null;
-  const clone = rec.scene.clone(true);
+  // SkeletonUtils.clone makes each skinned model instance retain an independent bone hierarchy.
+  const clone = cloneSkeleton(rec.scene);
   clone.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true;
@@ -243,6 +254,7 @@ export async function instantiate(url, key = '') {
   });
   clone.userData.level = rec.level;
   clone.userData.textured = rec.textured;
+  clone.userData.animations = rec.animations || [];
   return clone;
 }
 

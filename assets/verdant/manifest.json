@@ -1,72 +1,43 @@
 {
-  "format": 2,
+  "format": 3,
   "scene": "A Verdant Trail",
-  "source": {
-    "blend": "/home/fame/marmot3d-assets/verdant_trail/verdant_trail.blend",
-    "sha256": "1099755db10b036aae9a92db1b1d774b054cf3896dc0ada9bb99d6cca2644f28"
-  },
-  "files": {
-    "scene": "verdant-trail.glb",
-    "height": "verdant-trail-height.json"
-  },
-  "mapping": {
-    "runtimeField": {
-      "width": 130,
-      "height": 78
+  "defaultTier": "medium",
+  "tiers": {
+    "high": {
+      "manifest": "tiers/high/manifest-high.json",
+      "scene": "tiers/high/verdant-trail-high.glb",
+      "height": "verdant-trail-height.json",
+      "faces": 413432,
+      "bytes": 187549838,
+      "sha256": "2b6d26e229460559e4d7fd5e82aca007a1b4b9b9b986fc35f14a57b00875a291"
     },
-    "sourceHorizontalAxes": {
-      "runtimeX": "sourceY",
-      "runtimeZ": "sourceX"
+    "low": {
+      "manifest": "tiers/low/manifest-low.json",
+      "scene": "tiers/low/verdant-trail-low.glb",
+      "height": "verdant-trail-height.json",
+      "faces": 347786,
+      "bytes": 95593640,
+      "sha256": "5be7a9c65f9af2a8b8d5f3ff77d7e7de56dde468cfe7a922f17c54fda974e2a7"
     },
-    "scale": 4.417446522966308,
-    "horizontalScale": [
-      4.417446522966308,
-      4.941406000545672
-    ],
-    "sourceCenter": [
-      3.8650999069213867,
-      3.3580503463745117
-    ],
-    "verticalOffset": 1.719414878906521,
-    "playableBounds": {
-      "minX": -56.51360000000001,
-      "maxX": 56.51360000000001,
-      "minZ": -33.90816,
-      "maxZ": 33.90816
+    "medium": {
+      "manifest": "tiers/medium/manifest-medium.json",
+      "scene": "tiers/medium/verdant-trail-medium.glb",
+      "height": "verdant-trail-height.json",
+      "faces": 372831,
+      "bytes": 177007708,
+      "sha256": "b30a5796491d9acc0f0c3732728571e862b9a75b581e54781fb1ecf7a73d5dd7"
+    },
+    "ultra": {
+      "manifest": "tiers/ultra/manifest-ultra.json",
+      "scene": "tiers/ultra/verdant-trail-ultra.gltf",
+      "height": "verdant-trail-height.json",
+      "faces": 4298106,
+      "bytes": 2601935175,
+      "sha256": "17aa50a9cde2815b5300438b1d7f74fd74402cfb1966032738683922b5fb67d6",
+      "files": 148,
+      "packManifest": "tiers/ultra/pack-manifest.json"
     }
   },
-  "export": {
-    "collections": [
-      "background",
-      "cliffs_boulders",
-      "debris",
-      "debris_patches",
-      "foliage",
-      "grass_medium_02",
-      "hanging_grass",
-      "island_tree_01_branches",
-      "island_tree_01_leaves",
-      "jacaranda_tree_leaves",
-      "main_scene",
-      "scene_components",
-      "shrub_01",
-      "shrub_03",
-      "shrub_04",
-      "tree_small_02_leaves"
-    ],
-    "groundObject": "ground",
-    "maxTriangles": 650000,
-    "heightGrid": 129,
-    "texturePolicy": "PBR diff/rough web JPEG/PNG, normal PNG, displacement omitted",
-    "geometryOnly": false
-  },
-  "stats": {
-    "sourceObjects": 55,
-    "sourceTriangles": 2783719,
-    "exportTriangles": 347786,
-    "textureCount": 124,
-    "fileBytes": 52825048,
-    "heightBytes": 197996,
-    "textureBytes": 41978027
-  }
+  "selection": "localStorage verdant-quality; auto uses deviceMemory/hardwareConcurrency/WebGPU; manual high/ultra is never downgraded",
+  "height": "verdant-trail-height.json"
 }

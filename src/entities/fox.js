@@ -17,7 +17,7 @@
 import * as THREE from 'three';
 import { FOX, ROCKS, BURROW_AI, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
-import { IS_DEV, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX } from '../core/version.js';
+import { IS_DEV, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX, USE_DEV_WOLF_MODEL } from '../core/version.js';
 import { clamp } from '../core/utils.js';
 import { createProceduralFox } from './procedural-fox.js';
 import { createTibetanFox } from './tibetan-fox.js';
@@ -30,7 +30,7 @@ const USE_PROCEDURAL_FOX = FOX.useProcedural
 // 可用 ?hififox=off 临时关闭回退旧外观。
 const HIFI_FOX_OFF = typeof location !== 'undefined'
   && new URLSearchParams(location.search).get('hififox') === 'off';
-const USE_HIFI_FOX = !HIFI_FOX_OFF;
+const USE_HIFI_FOX = !HIFI_FOX_OFF && !USE_DEV_WOLF_MODEL;
 
 /**
  * 把 img2threejs 藏狐模型归一化到游戏尺度并接地。
@@ -55,14 +55,15 @@ function buildHiFiTibetanFox() {
 /** 真实藏狐模型的基准缩放：让成体在游戏里约 1.0m 高（与土拨鼠同量级） */
 const FOX_MODEL_BASE = 1.05;
 // dev 高质量贴图狐狸：启用时走带贴图的 fox.glb（静态网格），不再用无贴图的分段模型。
-const USE_TEXTURED_FOX_GLB = IS_DEV && USE_DEV_HQ_FOX;
-const SEGMENTED_FOX_MODEL = IS_DEV && !USE_TEXTURED_FOX_GLB
+const USE_TEXTURED_FOX_GLB = IS_DEV && USE_DEV_HQ_FOX && !USE_DEV_WOLF_MODEL;
+const SEGMENTED_FOX_MODEL = IS_DEV && !USE_TEXTURED_FOX_GLB && !USE_DEV_WOLF_MODEL
   && new URLSearchParams(location.search).get('foxmodel') !== 'off';
-const FOX_MODEL_PATH = SEGMENTED_FOX_MODEL
-  ? './assets/models/fox-segmented.glb'
-  : './assets/models/fox.glb';
+const FOX_MODEL_PATH = USE_DEV_WOLF_MODEL ? './assets/models/wolf.glb'
+  : SEGMENTED_FOX_MODEL ? './assets/models/fox-segmented.glb' : './assets/models/fox.glb';
 // 两个资产的原始前向都是局部 -X；旋转 +90° Y 后与实体 yaw 的局部 +Z 对齐。
 const FOX_MODEL_HEADING = Math.PI / 2;
+const WOLF_TARGET_HEIGHT = 0.68;
+const MODEL_BASE_SCALE = USE_DEV_WOLF_MODEL ? 1 : FOX_MODEL_BASE;
 
 /**
  * 真实藏狐归一化后的**目标高度**（米，容器内单位）。
@@ -129,6 +130,11 @@ export class Fox {
     this._runCycle = Math.random() * Math.PI * 2;
     this._runAmount = 0;
     this._segmentAnimation = null;
+    this._wolfMixer = null;
+    this._wolfActions = null;
+    this._wolfCurrentAction = null;
+    this._wolfAttackActive = false;
+    this._wolfAttackTimer = 0;
     this._proceduralFox = null;
     this._disposed = false;
     this.dead = false;
@@ -252,10 +258,16 @@ export class Fox {
         this.modelLevel = 'procedural';
         return;
       }
-      // 两个 GLB 的几何侧视图都显示头在局部 -X、尾在 +X；
-      // normalizeModel 保留节点原生姿态，统一的 -X → 游戏 +Z 修正只放在 wrap 层。
-      const norm = normalizeModel(inst, FOX_TARGET_HEIGHT, { upAxis: 'native' });
+      // 静态狐与狼的头部都在局部 -X；将朝向修正留在包装层，骨骼节点/动画原样保留。
+      const norm = normalizeModel(inst, USE_DEV_WOLF_MODEL ? WOLF_TARGET_HEIGHT : FOX_TARGET_HEIGHT, { upAxis: 'native' });
       norm.wrap.rotation.y = FOX_MODEL_HEADING;
+      if (USE_DEV_WOLF_MODEL) {
+        const clips = inst.userData.animations || [];
+        this._wolfMixer = new THREE.AnimationMixer(norm.wrap);
+        this._wolfActions = Object.fromEntries(clips.map((clip) => [clip.name.toLowerCase(), this._wolfMixer.clipAction(clip)]));
+        this._wolfModelBounds = { targetHeight: WOLF_TARGET_HEIGHT, source: norm.debug, clipNames: clips.map((clip) => clip.name) };
+        this._setWolfAnimation('idle', 0);
+      }
       this.mesh.add(norm.wrap);
       this.realModel = norm.wrap;
       this.modelLevel = inst.userData.level || 'full';
@@ -314,11 +326,12 @@ export class Fox {
     this.realModel = null;
     this.modelLevel = 'procedural';
     this._segmentAnimation = null;
+    this._wolfMixer?.stopAllAction?.(); this._wolfMixer = null; this._wolfActions = null; this._wolfCurrentAction = null;
     this._restoreVisibility();
   }
 
   _tintRealModel() {
-    if (!this.realModel || SEGMENTED_FOX_MODEL) return;
+    if (!this.realModel || SEGMENTED_FOX_MODEL || USE_DEV_WOLF_MODEL) return;
     const target = new THREE.Color(furColor(this.type));
     this.realModel.traverse((o) => {
       if (!o.isMesh) return;
@@ -392,7 +405,34 @@ export class Fox {
     this._segmentAnimation = { parts, sourceHeading };
   }
 
+  _setWolfAnimation(name, fade = 0.18, timeScale = 1) {
+    if (!this._wolfActions) return;
+    const next = this._wolfActions[name] || this._wolfActions.idle;
+    if (!next) return;
+    next.timeScale = timeScale;
+    if (name === 'attack') { next.setLoop(THREE.LoopOnce, 1); next.clampWhenFinished = true; }
+    else { next.setLoop(THREE.LoopRepeat, Infinity); next.clampWhenFinished = false; }
+    if (this._wolfCurrentAction === next) return;
+    if (this._wolfCurrentAction) this._wolfCurrentAction.fadeOut(fade);
+    next.reset().fadeIn(fade).play(); this._wolfCurrentAction = next;
+  }
+
+  _triggerWolfAttack() {
+    if (!this._wolfMixer || this._wolfAttackActive || !this._wolfActions?.attack) return;
+    this._wolfAttackActive = true;
+    this._wolfAttackTimer = Math.max(0.1, this._wolfActions.attack.getClip().duration || 1.0);
+    this._setWolfAnimation('attack', 0.08, 1);
+  }
+
   _updateSegmentedFox(dt, movingSpeed) {
+    if (this._wolfMixer) {
+      this._wolfMixer.update(dt);
+      if (this._wolfAttackActive && (this._wolfAttackTimer -= dt) <= 0) { this._wolfAttackActive = false; this._wolfAttackTimer = 0; }
+      const desired = this._wolfAttackActive ? 'attack' : (this.state === 'dash' || this.fleeing || movingSpeed > 0.22 ? 'run' : 'idle');
+      const rate = desired === 'run' ? clamp((movingSpeed || FOX.dashSpeed * 0.72) / 7.5, 0.72, 1.7) : 1;
+      this._setWolfAnimation(desired, 0.18, rate);
+      return;
+    }
     if (this._proceduralFox) {
       const anim = this.state === 'dash' || this.fleeing ? 'dash' : movingSpeed > 0.15 ? 'walk' : 'idle';
       this._proceduralFox.setAnimState({ anim, speed: movingSpeed || 1, phase: this._runCycle });
@@ -467,7 +507,7 @@ export class Fox {
       this.baseY = terrainAt(this.x, this.z);
       this.mesh.position.set(this.x, this.baseY, this.z);
       this.mesh.rotation.set(0, this.yaw, 0);
-      this.mesh.scale.setScalar(this.cfg.scale * FOX_MODEL_BASE);
+      this.mesh.scale.setScalar(this.cfg.scale * MODEL_BASE_SCALE);
       this.hpBar.position.set(this.x, this.baseY + 1.55 * this.cfg.scale, this.z);
       this._updateHpBar();
       this.hpBar.visible = this.hp > 0 && this.hp < this.maxHp;
@@ -665,6 +705,7 @@ export class Fox {
       // ---------- 冲刺 ----------
       case 'dash': {
         this.timer -= dt;
+        if (USE_DEV_WOLF_MODEL && d <= (FOX.contact[this.type] ?? FOX.contact.default) + 0.7) this._triggerWolfAttack();
         // turnRate > 0 的模式（首领连冲、幼狐跃扑）会在冲刺中继续修正方向，
         // 所以必须**每帧重算方向**，而不是像原版那样在开始时锁定一次。
         if (A.turnRate > 0) {
@@ -1030,7 +1071,7 @@ export class Fox {
     const speedish = this.state === 'dash' ? 12 : this.state === 'roam' ? 2 : 0;
     this.mesh.rotation.x = this.state === 'rest' ? 0.12 : (this.leap ? -0.34 * Math.min(1, this.leap) : 0);
     this._bob += dt * (2 + speedish);
-    this.mesh.position.y += Math.abs(Math.sin(this._bob)) * (speedish > 5 ? 0.16 : 0.05);
+    if (!USE_DEV_WOLF_MODEL) this.mesh.position.y += Math.abs(Math.sin(this._bob)) * (speedish > 5 ? 0.16 : 0.05);
     // 跃扑腾空：最高点要明显高于玩家跳跃的 dodgeHeight(0.34)，
     // 否则"跳过幼狐的扑击"这个反制手段无效。
     if (this.leap) {
@@ -1047,7 +1088,7 @@ export class Fox {
     // 统一缩放（类型体型 × 基准系数），两套模型共用同一条路径，
     // 这样切换模型时视觉大小一致。
     // normalizeModel 已把真实模型归一到 ~1m 高，故基准系数相同。
-    const bs = FOX_MODEL_BASE;
+    const bs = MODEL_BASE_SCALE;
     this.mesh.scale.set(
       this.cfg.scale * bs,
       this.cfg.scale * bs * (1 - crouch * 0.14),
@@ -1169,6 +1210,8 @@ export class Fox {
       });
     };
 
+    this._wolfMixer?.stopAllAction?.();
+    this._wolfMixer = null;
     scene.remove(this.mesh);
     scene.remove(this.warn);
     scene.remove(this.hpBar);

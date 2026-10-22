@@ -1,0 +1,86 @@
+{
+  "format": 2,
+  "scene": "A Verdant Trail",
+  "source": {
+    "blend": "verdant_trail.blend (external source asset)",
+    "sha256": "1099755db10b036aae9a92db1b1d774b054cf3896dc0ada9bb99d6cca2644f28"
+  },
+  "files": {
+    "scene": "verdant-trail-medium.glb",
+    "height": "verdant-trail-medium-height.json"
+  },
+  "mapping": {
+    "runtimeField": {
+      "width": 130,
+      "height": 78
+    },
+    "sourceHorizontalAxes": {
+      "runtimeX": "sourceY",
+      "runtimeZ": "sourceX"
+    },
+    "scale": 4.417446522966308,
+    "horizontalScale": [
+      4.417446522966308,
+      4.941406000545672
+    ],
+    "sourceCenter": [
+      3.8650999069213867,
+      3.3580503463745117
+    ],
+    "verticalOffset": 1.719414878906521,
+    "playableBounds": {
+      "minX": -56.51360000000001,
+      "maxX": 56.51360000000001,
+      "minZ": -33.90816,
+      "maxZ": 33.90816
+    },
+    "heightGrid": 257
+  },
+  "export": {
+    "collections": [
+      "background",
+      "cliffs_boulders",
+      "debris",
+      "debris_patches",
+      "foliage",
+      "grass_medium_02",
+      "hanging_grass",
+      "island_tree_01_branches",
+      "island_tree_01_leaves",
+      "jacaranda_tree_leaves",
+      "main_scene",
+      "scene_components",
+      "shrub_01",
+      "shrub_03",
+      "shrub_04",
+      "tree_small_02_leaves"
+    ],
+    "groundObject": "ground",
+    "tier": "medium",
+    "maxTriangles": 850000,
+    "heightGrid": 161,
+    "texturePolicy": "PBR diff/rough web JPEG/PNG, normal PNG, displacement omitted",
+    "geometryOnly": false,
+    "textureTiers": {
+      "near": 1280,
+      "far": 768,
+      "normal": 768
+    },
+    "decimation": true
+  },
+  "stats": {
+    "sourceObjects": 55,
+    "sourceTriangles": 2783719,
+    "exportTriangles": 372831,
+    "textureCount": 124,
+    "fileBytes": 88097556,
+    "heightBytes": 788347,
+    "textureBytes": 88119577,
+    "sha256": "b30a5796491d9acc0f0c3732728571e862b9a75b581e54781fb1ecf7a73d5dd7",
+    "packBytes": 177007708,
+    "packFileCount": 127,
+    "fileSha256": "b30a5796491d9acc0f0c3732728571e862b9a75b581e54781fb1ecf7a73d5dd7",
+    "heightSha256": "b4a3817b4e7c865f59c8abca691976ca36aa9d34ef83aca642015948ee1439d3"
+  },
+  "packManifest": "pack-manifest.json"
+}

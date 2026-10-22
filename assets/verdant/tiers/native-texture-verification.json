@@ -1,0 +1,429 @@
+{
+  "ok": true,
+  "sourceFiles": 142,
+  "convertedCount": 25,
+  "dimensionHistogram": {
+    "[2048, 1024]": 1,
+    "[4096, 4096]": 51,
+    "[2048, 2048]": 42,
+    "[1024, 1024]": 46,
+    "[8192, 4096]": 1,
+    "[8192, 8192]": 1
+  },
+  "sourceBytes": 2780108427,
+  "outputBytes": 2474386177,
+  "gltfImageReferences": 63,
+  "externalUris": 64,
+  "spotChecks": {
+    "rock_07_nor_gl.png": {
+      "dimensions": [
+        8192,
+        8192
+      ],
+      "bytes": 201662162,
+      "sha256": "1501b54cdbe1aa18de63ebe2bd95cb3b4507b4aa6df5a1d45c07bcbc07258c6c"
+    },
+    "dirt_floor_diff_4k.png": {
+      "dimensions": [
+        4096,
+        4096
+      ],
+      "bytes": 95240165,
+      "sha256": "156745b7a1f15b23025c8884ad2411beabca95d1cf300c3eeeec3b86f7be27bb"
+    },
+    "dirt_floor_nor_gl_4k.png": {
+      "dimensions": [
+        4096,
+        4096
+      ],
+      "bytes": 92617234,
+      "sha256": "10b38f6061dcd325b66f2644b4385f536b816b9236208be54cd77d1482281dc7"
+    },
+    "dirt_floor_rough_4k.png": {
+      "dimensions": [
+        4096,
+        4096
+      ],
+      "bytes": 38587104,
+      "sha256": "0a57198ebcf670cabfe9d7f6f52e3cac2fe91757bcf09a36f9c0bd97a82c80f5"
+    }
+  },
+  "conversions": [
+    {
+      "source": "alps_field_2k.hdr",
+      "kind": "environment",
+      "sourceDimensions": [
+        2048,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 128,
+      "sourceChannels": 4,
+      "output": "alps_field_2k.png",
+      "outputDepth": 8,
+      "bytes": 3142716,
+      "sha256": "4358c4e135641b945e816fbb5b07ee39b1a1db51cd9f2de6d18fedfafbbefea0"
+    },
+    {
+      "source": "coast_rocks_05_nor_gl_4k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        4096,
+        4096
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "coast_rocks_05_nor_gl_4k.png",
+      "outputDepth": 8,
+      "bytes": 33081900,
+      "sha256": "28b70478d96622925d9734e7c9f8eff1df5325bff4ef83c0d117dde03ef66b72"
+    },
+    {
+      "source": "coast_rocks_05_rough_4k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        4096,
+        4096
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "coast_rocks_05_rough_4k.png",
+      "outputDepth": 8,
+      "bytes": 5374336,
+      "sha256": "aff4cf5bf11f961f0d6e2e2decf336780496a4e36a5613d5dbfa0c5e6bda77e9"
+    },
+    {
+      "source": "coastal_cliff_02_nor_gl_2k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "coastal_cliff_02_nor_gl_2k.png",
+      "outputDepth": 8,
+      "bytes": 8021541,
+      "sha256": "24e9db65639cfef51a0bc35262ca66ec60f4c7babbae7f9ff342eedf46c9c0f7"
+    },
+    {
+      "source": "coastal_cliff_02_rough_2k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "coastal_cliff_02_rough_2k.png",
+      "outputDepth": 8,
+      "bytes": 1472769,
+      "sha256": "361285fae8097f3442c2b397c0ff346fbce89931a10ea5b55a37555c1aba7480"
+    },
+    {
+      "source": "coastal_cliff_04_nor_gl_2k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "coastal_cliff_04_nor_gl_2k.png",
+      "outputDepth": 8,
+      "bytes": 8616389,
+      "sha256": "02884db6091e5b44d7ad55110f19443f039aa06df53f65abedee91d1658150d3"
+    },
+    {
+      "source": "coastal_cliff_04_rough_2k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "coastal_cliff_04_rough_2k.png",
+      "outputDepth": 8,
+      "bytes": 1755677,
+      "sha256": "f4b62991f7bed8470f31a893e490b6d8e8ac1064435d1a9968a3a74f22dfb0d3"
+    },
+    {
+      "source": "dead_tree_trunk_nor_gl_2k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "dead_tree_trunk_nor_gl_2k.png",
+      "outputDepth": 8,
+      "bytes": 7213048,
+      "sha256": "6f17c37a9f6dca94f20c7b708d74b21d218f493edee950fcb45771b18e9fd904"
+    },
+    {
+      "source": "dead_tree_trunk_rough_2k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "dead_tree_trunk_rough_2k.png",
+      "outputDepth": 8,
+      "bytes": 1933268,
+      "sha256": "964cbf2f44dcea5784155ab11bc466f90cb6b399c8283c8ac502f74583887922"
+    },
+    {
+      "source": "dry_branches_medium_01_nor_gl_2k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "dry_branches_medium_01_nor_gl_2k.png",
+      "outputDepth": 8,
+      "bytes": 8438106,
+      "sha256": "adac1e7602df5749ebad453ee84b697c9809cc8ecb96115ca01679ecce384686"
+    },
+    {
+      "source": "dry_branches_medium_01_rough_2k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "dry_branches_medium_01_rough_2k.png",
+      "outputDepth": 8,
+      "bytes": 2089221,
+      "sha256": "6b3d0568db9cb00db5c0b1244d43111ab27176c0454ca80bd863de44bb49c9eb"
+    },
+    {
+      "source": "forest_ground_04_nor_gl_2k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "forest_ground_04_nor_gl_2k.png",
+      "outputDepth": 8,
+      "bytes": 9210199,
+      "sha256": "777318b70f5c39438bad9bd81be878300e5801776a78e41615541ebb30ed8360"
+    },
+    {
+      "source": "forest_ground_04_rough_2k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        2048,
+        2048
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "forest_ground_04_rough_2k.png",
+      "outputDepth": 8,
+      "bytes": 2503879,
+      "sha256": "0c37202939f3713b5ccd7fe91087d68bd67d45821ab1c1e9b2543ec830257238"
+    },
+    {
+      "source": "forest_leaves_04_nor_gl_4k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        4096,
+        4096
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "forest_leaves_04_nor_gl_4k.png",
+      "outputDepth": 8,
+      "bytes": 36592380,
+      "sha256": "1a0a2d53132d8202c5e3ce7ab31f80f0ff19714bf72c7e0924eef223d4081b3c"
+    },
+    {
+      "source": "island_tree_01_nor_gl_1k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        1024,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "island_tree_01_nor_gl_1k.png",
+      "outputDepth": 8,
+      "bytes": 2184515,
+      "sha256": "b0942ae3e00a3303c8ffb1673598364d62f166096d2b7017f6e79f172a062276"
+    },
+    {
+      "source": "island_tree_01_rough_1k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        1024,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "island_tree_01_rough_1k.png",
+      "outputDepth": 8,
+      "bytes": 444125,
+      "sha256": "38da4ee1ede094bf1d70ddb1015651abc57837f54c09cf6a89755084be526870"
+    },
+    {
+      "source": "kloofendal_48d_partly_cloudy_puresky_8k.exr",
+      "kind": "other",
+      "sourceDimensions": [
+        8192,
+        4096
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 128,
+      "sourceChannels": 4,
+      "output": "kloofendal_48d_partly_cloudy_puresky_8k.png",
+      "outputDepth": 8,
+      "bytes": 17357483,
+      "sha256": "2ebc3e32890ca3199271e850b77434d2d5a5bbb167e3d7277f45182359465028"
+    },
+    {
+      "source": "rocks_ground_01_nor_gl_4k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        4096,
+        4096
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "rocks_ground_01_nor_gl_4k.png",
+      "outputDepth": 8,
+      "bytes": 34212767,
+      "sha256": "31705a67f0d3834b3d4d54bd05b3be3abfb2c013700c69b532eca4ca336e5c6f"
+    },
+    {
+      "source": "rubber_duck_toy_metal_1k.exr",
+      "kind": "other",
+      "sourceDimensions": [
+        1024,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "rubber_duck_toy_metal_1k.png",
+      "outputDepth": 8,
+      "bytes": 3306,
+      "sha256": "6d650c4277e0b923a19574fc7eb44aaf4f9a7531b09c75c8786da65086969103"
+    },
+    {
+      "source": "rubber_duck_toy_nor_gl_1k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        1024,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "rubber_duck_toy_nor_gl_1k.png",
+      "outputDepth": 8,
+      "bytes": 74936,
+      "sha256": "9c8ecde1eb638c906e4491e256266abf5730dcc82bd1e6a2c99ae039de21dbf0"
+    },
+    {
+      "source": "rubber_duck_toy_rough_1k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        1024,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "rubber_duck_toy_rough_1k.png",
+      "outputDepth": 8,
+      "bytes": 274609,
+      "sha256": "4ec97c75233f3646098219f7171fbb8b2c2cb1146631c419a5d32709b68656cd"
+    },
+    {
+      "source": "sand_rocks_small_01_nor_gl_1k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        1024,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "sand_rocks_small_01_nor_gl_1k.png",
+      "outputDepth": 8,
+      "bytes": 2035672,
+      "sha256": "8713a28984a8c646f1993588903ea492c81af98b7f076efa2681ed56d0826aa5"
+    },
+    {
+      "source": "sand_rocks_small_01_rough_1k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        1024,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "sand_rocks_small_01_rough_1k.png",
+      "outputDepth": 8,
+      "bytes": 470072,
+      "sha256": "dea974e353f29f176874522b1dd6e7c551118ef1b34f72637406e843ee2b69ce"
+    },
+    {
+      "source": "tree_small_02_nor_gl_1k.exr",
+      "kind": "normal",
+      "sourceDimensions": [
+        1024,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "tree_small_02_nor_gl_1k.png",
+      "outputDepth": 8,
+      "bytes": 2225467,
+      "sha256": "8fc57eb0836a95f3e516e245a78d1d69d0635ec227224b649dfa3d36cd87ab22"
+    },
+    {
+      "source": "tree_small_02_rough_1k.exr",
+      "kind": "rough",
+      "sourceDimensions": [
+        1024,
+        1024
+      ],
+      "sourceFormat": null,
+      "sourceDepth": 96,
+      "sourceChannels": 4,
+      "output": "tree_small_02_rough_1k.png",
+      "outputDepth": 8,
+      "bytes": 553463,
+      "sha256": "4dceb461a65218b98a8a1e334458ba2f90128979d84942bcfcafdf7b4dbb6221"
+    }
+  ],
+  "errors": []
+}

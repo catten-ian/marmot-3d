@@ -78,7 +78,7 @@ import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX, VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX, USE_DEV_WOLF_MODEL, VERSION_LABEL } from './core/version.js';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
@@ -95,7 +95,7 @@ import { SettingsUI } from './ui/settings.js';
 import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
 import { TouchLayout } from './ui/touch-layout.js';
-import { restoreLocalPack, resolveLocalAsset, installLocalPackUI } from './world/local-pack.js';
+import { restoreLocalPack, resolveLocalAsset, getLocalPackStatus, getDownloadState, getTosBaseUrl, setTosBaseUrl, selectLocalPackDirectory, selectLocalPackFiles, requestStoredPackPermission, downloadVerdantZip, downloadVerdantFolder } from './world/local-pack.js';
 import { setAssetResolver } from './models/loader.js';
 import { Minimap } from './ui/minimap.js';
 import { cooldownOverlayData } from './ui/cooldown-overlay.js';
@@ -112,7 +112,6 @@ const hud = new HUD();
 const audio = new Audio();
 const localPackStatus = IS_DEV ? await restoreLocalPack() : null;
 if (IS_DEV && localPackStatus?.state === 'ready') setAssetResolver((url) => resolveLocalAsset(url));
-if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => resolveLocalAsset(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
 
 hud.setLoading(8);
 
@@ -134,7 +133,7 @@ const BOOT = (typeof window !== 'undefined' && window.__boot) || {
 const WANT_GS = BOOT.gsWorld === true && !devOn('verdantWorld');
 
 let renderer;
-let rendererStatus = { backend: 'webgl', supportsSplat: false, gpuReason: '' };
+let rendererStatus = { backend: 'webgl2', supportsSplat: false, gpuReason: '', gpuName: '', gpuVendor: '', hardwareAccelerated: false, hardwareAccelerationKnown: false };
 let renderProfile = getRenderProfile(TOUCH_DEVICE);
 
 if (WANT_GS) {
@@ -157,6 +156,10 @@ if (WANT_GS) {
     // Dev visual QA needs a readable WebGL backbuffer for managed CDP captures.
     preserveDrawingBuffer: IS_DEV,
   });
+  try {
+    const version = String(renderer.getContext()?.getParameter(renderer.getContext().VERSION) || '');
+    rendererStatus.backend = /WebGL 2/i.test(version) ? 'webgl2' : 'webgl';
+  } catch (_) {}
 }
 
 renderProfile = getRenderProfile(TOUCH_DEVICE);
@@ -171,6 +174,72 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // 曝光过高会把贴地的草地照成一片死白，0.92 是既能保留高光又不溢出的值
 renderer.toneMappingExposure = 0.92;
 
+function isSoftwareRenderer(name, vendor) {
+  return /swiftshader|llvmpipe|softpipe|microsoft basic render driver|software rasterizer/i.test(`${name || ''} ${vendor || ''}`);
+}
+function escapeHtmlText(value) {
+  return String(value ?? '').replace(/[&<>\"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[ch]));
+}
+function renderVerdantDiagnostics() {
+  if (!verdantQualityState) return;
+  const d = rendererStatus;
+  const backend = d.backend === 'webgpu' ? 'WebGPU'
+    : d.backend === 'webgl2-fallback' ? 'WebGL2 兜底（GS 深度排序退 CPU）' : d.backend === 'webgl2' ? 'WebGL2' : 'WebGL';
+  const hardware = !d.hardwareAccelerationKnown ? '硬件加速状态：无法确认' : d.hardwareAccelerated ? '硬件加速：已启用' : '未使用 GPU 硬件加速（软件渲染）';
+  verdantQualityState.diagnosticsText = `后端：${backend}<br>GPU：${escapeHtmlText(d.gpuName)} · ${escapeHtmlText(d.gpuVendor)}<br><b style=\"color:${d.hardwareAccelerated ? '#9fe6a0' : '#ff6b6b'}\">${hardware}</b>`;
+  settingsUI?.render?.();
+}
+function inspectGpuStatus() {
+  let gpuName = '', gpuVendor = '';
+  try {
+    const gl = renderer?.getContext?.();
+    const ext = gl?.getExtension?.('WEBGL_debug_renderer_info');
+    if (ext) { gpuName = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || ''); gpuVendor = String(gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) || ''); }
+    if (!gpuName) gpuName = String(gl?.getParameter?.(gl.RENDERER) || '');
+  } catch (_) {}
+  const name = gpuName || rendererStatus.gpuName || '';
+  const maker = gpuVendor || rendererStatus.gpuVendor || '';
+  rendererStatus = { ...rendererStatus, gpuName: name || '未知 GPU', gpuVendor: maker || '未知厂商', hardwareAccelerated: !!(name || maker) && !isSoftwareRenderer(name, maker), hardwareAccelerationKnown: !!(name || maker) };
+  return rendererStatus;
+}
+inspectGpuStatus();
+if (rendererStatus.backend === 'webgpu' && navigator.gpu?.requestAdapter) {
+  navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).then(async (adapter) => {
+    let info = adapter?.info || {};
+    if ((!info.device && !info.description && !info.vendor) && adapter?.requestAdapterInfo) {
+      try { info = await adapter.requestAdapterInfo(); } catch (_) {}
+    }
+    const gpuName = info.device || info.description || rendererStatus.gpuName;
+    const gpuVendor = info.vendor || rendererStatus.gpuVendor;
+    rendererStatus = { ...rendererStatus, gpuName: gpuName || '未知 GPU', gpuVendor: gpuVendor || '未知厂商', hardwareAccelerated: !!(gpuName || gpuVendor) && !isSoftwareRenderer(gpuName, gpuVendor), hardwareAccelerationKnown: !!(gpuName || gpuVendor) };
+    renderVerdantDiagnostics();
+  }).catch(() => {});
+}
+const VERDANT_TIERS = [
+  { id: 'auto', name: '自动', faces: '按设备推荐', size: '—' },
+  { id: 'low', name: '低', faces: '347,786 三角面', size: '场景 95.6 MB' },
+  { id: 'medium', name: '中', faces: '372,831 三角面', size: '场景 177.0 MB' },
+  { id: 'high', name: '高', faces: '413,432 三角面', size: '场景 187.5 MB' },
+  { id: 'ultra', name: '极致', faces: '4,298,106 三角面', size: '资源包 2.60 GB（原分辨率）' },
+];
+const requestedVerdantTier = (() => { try { const v = new URLSearchParams(location.search).get('verdantTier'); return ['auto','low','medium','high','ultra'].includes(v) ? v : null; } catch (_) { return null; } })();
+let verdantTierPreference = IS_DEV ? (requestedVerdantTier || (() => { try { return localStorage.getItem('verdant-quality'); } catch (_) { return null; } })() || 'auto') : 'auto';
+let verdantTierActive = 'medium';
+let loadVerdantWorldFn = null;
+let verdantTierLoadRequest = 0;
+let verdantQualityState = null;
+function autoVerdantTier() {
+  if (verdantTierPreference !== 'auto') return verdantTierPreference;
+  const mem = Number(navigator.deviceMemory) || 4;
+  const cores = Number(navigator.hardwareConcurrency) || 4;
+  if (rendererStatus.backend === 'webgpu' && mem >= 16 && cores >= 8) return 'ultra';
+  if (mem >= 8 && cores >= 6) return 'high';
+  if (mem >= 4 && cores >= 4) return 'medium';
+  return 'low';
+}
+function disposeVerdantGroup(group) {
+  group?.traverse?.((o) => { if (!o.isMesh) return; o.geometry?.dispose?.(); const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach((m) => { ['map','normalMap','roughnessMap','alphaMap'].forEach((k) => m?.[k]?.dispose?.()); m?.dispose?.(); }); });
+}
 // 如实显示后端徽标：不能让「跑在 WebGL2 兜底上」被误认为「跑在 WebGPU 上」
 {
   const tag = document.getElementById('backendTag');
@@ -202,11 +271,14 @@ if (devOn('verdantWorld')) {
   try {
     hud.setLoading(48);
     const { loadVerdantWorld } = await import('./world/verdant.js');
+    loadVerdantWorldFn = loadVerdantWorld;
     verdantWorld = await loadVerdantWorld({
+      tier: autoVerdantTier(),
       onProgress: (p, label) => hud.setLoading(Math.round(48 + p * 17)),
-      resolveAsset: (url) => resolveLocalAsset(url),
       renderer,
     });
+    verdantTierActive = verdantWorld.tier || autoVerdantTier();
+    window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
     scene.add(verdantWorld.group);
     setHeightField(verdantWorld.heightAt);
     // The exported trail fills 88% of the historic design rectangle in both axes.
@@ -225,6 +297,27 @@ if (devOn('verdantWorld')) {
     console.warn('[verdant] 场景加载失败，退回程序化地形:', e);
     hud.say(`Verdant 场景加载失败，已退回程序化地形：${e?.message || e}`, 5.5);
   }
+}
+
+async function switchVerdantTier(preference, forceReload = false) {
+  if (!verdantWorld || !loadVerdantWorldFn || !['auto','low','medium','high','ultra'].includes(preference)) return;
+  const requestId = ++verdantTierLoadRequest;
+  verdantTierPreference = preference;
+  try { localStorage.setItem('verdant-quality', preference); } catch (_) {}
+  const next = autoVerdantTier();
+  if (next === verdantTierActive && !forceReload) { verdantQualityState?.setActive?.(next); return; }
+  const old = verdantWorld;
+  hud.setLoading(49);
+  const loaded = await loadVerdantWorldFn({ tier: next, onProgress: (p) => hud.setLoading(Math.round(49 + p * 18)), renderer });
+  if (requestId !== verdantTierLoadRequest) { disposeVerdantGroup(loaded.group); return; }
+  const pose = { x: controller.position.x, z: controller.position.z, yaw: controller.yaw, pitch: controller.pitch };
+  scene.remove(old.group); disposeVerdantGroup(old.group);
+  verdantWorld = loaded; verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
+  scene.add(loaded.group); setHeightField(loaded.heightAt); setPlayableBounds(loaded.bounds);
+  controller.position.set(pose.x, loaded.heightAt(pose.x, pose.z), pose.z);
+  controller.yaw = pose.yaw; controller.pitch = pose.pitch; controller.velocity.set(0, 0, 0); controller.externalVelocity.set(0, 0, 0); controller.vy = 0; controller.grounded = true;
+  hud.setLoading(100); hud.say(`Verdant 画质已切换：${verdantTierActive}`, 2.8);
+  verdantQualityState?.setActive?.(verdantTierActive);
 }
 
 // —— GS 全场景（dev 版）——
@@ -385,7 +478,7 @@ setViewMode(thirdPerson);
 //   'full' 完整（几何+贴图） / 'geometry-only' 仅几何（贴图解码失败）
 //   'procedural' 回退到程序化建模 / 'timeout' / 'failed'
 const FOX_PRELOAD_FILE = IS_DEV && USE_REAL_FOX_MODEL
-  ? (USE_DEV_HQ_FOX ? 'fox.glb' : 'fox-segmented.glb')
+  ? (USE_DEV_WOLF_MODEL ? 'wolf.glb' : USE_DEV_HQ_FOX ? 'fox.glb' : 'fox-segmented.glb')
   : 'fox.glb';
 preloadModels('./assets/models/', { foxFile: FOX_PRELOAD_FILE }).then((st) => {
   modelLoadState = st;
@@ -942,14 +1035,6 @@ function title() {
     <b>夹着尾巴转身逃跑</b>，逃出草地才会消失 —— 一段时间后可能有同类再次出现。
     你要做的是在采食和救援时自卫，随后回洞。</p>
     ${IS_DEV ? `
-    <section class="local-pack-box" aria-label="Verdant 本地资源包">
-      <div class="dev-badge">Verdant 本地资源包（仅 DEV）</div>
-      <p>推荐在部署后的 <code>./release/verdant-dev-pack/</code> 下载并解压后选择<strong>资源包根目录</strong>。Chrome/Chromium 需使用 HTTPS 或 localhost。</p>
-      <div id="localPackStatus" class="local-pack-status" aria-live="polite"></div>
-      <div class="row"><button class="ghost" id="localPackChoose" type="button">选择资源包文件夹</button><button class="ghost" id="localPackReauth" type="button" hidden>重新授权</button></div>
-      <input id="localPackInput" type="file" webkitdirectory directory multiple hidden>
-      <p class="local-pack-note">需要 assets/verdant/manifest.json、verdant-trail-height.json、verdant-trail.glb，以及 assets/models/marmot.glb、fox-segmented.glb。选定后刷新页面，优先读取本地文件；缺少文件会逐项列出并回退服务器。</p>
-    </section>
     <div class="dev-intro">
       <div class="dev-badge">DEV 版 · 旱獭生态学改写</div>
       <p>旱獭是典型的<b>草食动物</b>，耐饥渴，主食为沙草料、禾本科叶茎与豆科花，
@@ -996,8 +1081,7 @@ function title() {
   document.getElementById('sandboxEntryBtn').onclick = enterSandbox;
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
-  if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => resolveLocalAsset(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
-}
+  }
 
 function showTeacherNote() {
   hud.showPanel(`
@@ -2114,10 +2198,27 @@ touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
 touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
 touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
-const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode);
+verdantQualityState = devOn('verdantWorld') ? { enabled: true, tiers: VERDANT_TIERS, preference: verdantTierPreference, activeName: VERDANT_TIERS.find((x) => x.id === verdantTierActive)?.name || verdantTierActive, activeTier: verdantTierActive, diagnosticsText: '', setPreference: (v) => { verdantQualityState.preference = v; switchVerdantTier(v).catch((e) => hud.say(`画质切换失败：${e.message}`, 4)); settingsUI?.render?.(); }, setActive: (v) => { verdantTierActive = v; verdantQualityState.activeName = VERDANT_TIERS.find((x) => x.id === v)?.name || v; verdantQualityState.activeTier = v; settingsUI?.render?.(); } } : null;
+if (verdantQualityState) {
+  verdantQualityState.resources = {
+    localStatus: localPackStatus || getLocalPackStatus(), downloadState: getDownloadState(), tosBase: getTosBaseUrl(),
+    canUseDirectory: 'showDirectoryPicker' in window,
+    selectDirectory: selectLocalPackDirectory, selectFiles: selectLocalPackFiles,
+    reauthorize: requestStoredPackPermission, downloadZip: downloadVerdantZip, downloadFolder: downloadVerdantFolder,
+    setTosBase: (value) => { verdantQualityState.resources.tosBase = setTosBaseUrl(value); return verdantQualityState.resources.tosBase; },
+    onLocalReady: (state) => { verdantQualityState.resources.localStatus = state; setAssetResolver((url) => resolveLocalAsset(url)); hud.say('资源包 SHA-256 校验通过，正在安全重载当前档位…', 4.5); switchVerdantTier(verdantTierPreference, true).catch((e) => hud.say(`本地包重载失败：${e.message}`, 5)); settingsUI?.render?.(); },
+  };
+}
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, verdantQualityState);
 // 设置面板切换输入模式 → 即时生效；启动时也同步一次（html 属性 / 鼠标兜底 / 布局入口可用性）。
 inputMode.onChange(() => applyInputMode());
 applyInputMode();
+if (verdantQualityState) {
+  const d = rendererStatus;
+  renderVerdantDiagnostics();
+  hud.say(`${d.backend === 'webgpu' ? 'WebGPU' : d.backend === 'webgl2-fallback' ? 'WebGL2 兜底（GS 排序退 CPU）' : d.backend === 'webgl2' ? 'WebGL2' : 'WebGL'} · ${!d.hardwareAccelerationKnown ? '硬件状态未知' : d.hardwareAccelerated ? '硬件加速已启用' : '未使用 GPU 硬件加速'}`, 3.8);
+}
+
 
 // 开发测试面板通过 ?test=1 显式启用，不进入普通用户界面。
 const testModeBtn = document.getElementById('testModeBtn');
@@ -2515,4 +2616,7 @@ window.__game = {
   gsWorld: () => gsWorld, gsStats: () => gsStats,
   foxesList: () => foxes,
   THREE,
+  rendererStatus: () => ({ ...rendererStatus }),
+  verdantQuality: verdantQualityState,
+  switchVerdantTier,
 };

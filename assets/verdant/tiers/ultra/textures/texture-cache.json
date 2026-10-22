@@ -1,0 +1,3627 @@
+[
+  {
+    "source": "alps_field_2k.hdr",
+    "output": "alps_field_2k.png",
+    "sourceName": "alps_field_2k.hdr",
+    "kind": "environment",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 6531494,
+    "sourceDepth": 128,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 3142716,
+    "sha256": "4358c4e135641b945e816fbb5b07ee39b1a1db51cd9f2de6d18fedfafbbefea0",
+    "sourceSha256": "90ef5a4e0c46d0177a06406b59142a6bb426176a85c195fa23d2e443383a9e12"
+  },
+  {
+    "source": "boulder_01_diff.png",
+    "output": "boulder_01_diff.png",
+    "sourceName": "boulder_01_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "3452df1cd9b59a8537b00234dec49e56879ace1dfea2b61dd066473c57a4a4be",
+    "sourceSha256": "3452df1cd9b59a8537b00234dec49e56879ace1dfea2b61dd066473c57a4a4be"
+  },
+  {
+    "source": "boulder_01_nor_gl.png",
+    "output": "boulder_01_nor_gl.png",
+    "sourceName": "boulder_01_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "c00d9ab742ce9a3c032626eb88a2481c6c3cbe6b6a064b33f0765c0bb39234f0",
+    "sourceSha256": "c00d9ab742ce9a3c032626eb88a2481c6c3cbe6b6a064b33f0765c0bb39234f0"
+  },
+  {
+    "source": "boulder_01_rough.png",
+    "output": "boulder_01_rough.png",
+    "sourceName": "boulder_01_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16808537,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16808537,
+    "sha256": "9b37784c98b79e7238cae510444c49a6b656e8663615f4a6a664af62dd036a21",
+    "sourceSha256": "9b37784c98b79e7238cae510444c49a6b656e8663615f4a6a664af62dd036a21"
+  },
+  {
+    "source": "coast_rocks_05_diff_4k.jpg",
+    "output": "coast_rocks_05_diff_4k.jpg",
+    "sourceName": "coast_rocks_05_diff_4k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 12157163,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 12157163,
+    "sha256": "f8864df95035d302273daaeed9faae6bd85968529d014cd429fc48b5ca74bd4e",
+    "sourceSha256": "f8864df95035d302273daaeed9faae6bd85968529d014cd429fc48b5ca74bd4e"
+  },
+  {
+    "source": "coast_rocks_05_nor_gl_4k.exr",
+    "output": "coast_rocks_05_nor_gl_4k.png",
+    "sourceName": "coast_rocks_05_nor_gl_4k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 35774556,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 33081900,
+    "sha256": "28b70478d96622925d9734e7c9f8eff1df5325bff4ef83c0d117dde03ef66b72",
+    "sourceSha256": "f7e3a1571fff64132f6e9ac698bb83649b87151e83bf37661becdeaa88bb9a64"
+  },
+  {
+    "source": "coast_rocks_05_rough_4k.exr",
+    "output": "coast_rocks_05_rough_4k.png",
+    "sourceName": "coast_rocks_05_rough_4k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 10546740,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 5374336,
+    "sha256": "aff4cf5bf11f961f0d6e2e2decf336780496a4e36a5613d5dbfa0c5e6bda77e9",
+    "sourceSha256": "6bcd8498a45063374887af3b60fff55b005b4e641f916cbf2f325d118bd43b1e"
+  },
+  {
+    "source": "coastal_cliff_02_diff_2k.jpg",
+    "output": "coastal_cliff_02_diff_2k.jpg",
+    "sourceName": "coastal_cliff_02_diff_2k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 2655313,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 2655313,
+    "sha256": "f2d65dfc3480ee2df23f47d768aa2a285cf1cd1a1b8be5173aa333f8ece854b8",
+    "sourceSha256": "f2d65dfc3480ee2df23f47d768aa2a285cf1cd1a1b8be5173aa333f8ece854b8"
+  },
+  {
+    "source": "coastal_cliff_02_nor_gl_2k.exr",
+    "output": "coastal_cliff_02_nor_gl_2k.png",
+    "sourceName": "coastal_cliff_02_nor_gl_2k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 8579847,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 8021541,
+    "sha256": "24e9db65639cfef51a0bc35262ca66ec60f4c7babbae7f9ff342eedf46c9c0f7",
+    "sourceSha256": "6943a4d0d59816159da6d22b832573395bc44776c7d7e88d3ee6006da10bd103"
+  },
+  {
+    "source": "coastal_cliff_02_rough_2k.exr",
+    "output": "coastal_cliff_02_rough_2k.png",
+    "sourceName": "coastal_cliff_02_rough_2k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 3406701,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 1472769,
+    "sha256": "361285fae8097f3442c2b397c0ff346fbce89931a10ea5b55a37555c1aba7480",
+    "sourceSha256": "9adbbf7276e3a8a235b909da6e0278bd3a94964cf20f13807976ebacc9641581"
+  },
+  {
+    "source": "coastal_cliff_04_diff_2k.jpg",
+    "output": "coastal_cliff_04_diff_2k.jpg",
+    "sourceName": "coastal_cliff_04_diff_2k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 2900951,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 2900951,
+    "sha256": "ffb03e9b43a4c5c44b5894bb79db473acd1b9119a3243c60ccee2a3d834bec75",
+    "sourceSha256": "ffb03e9b43a4c5c44b5894bb79db473acd1b9119a3243c60ccee2a3d834bec75"
+  },
+  {
+    "source": "coastal_cliff_04_nor_gl_2k.exr",
+    "output": "coastal_cliff_04_nor_gl_2k.png",
+    "sourceName": "coastal_cliff_04_nor_gl_2k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 9470899,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 8616389,
+    "sha256": "02884db6091e5b44d7ad55110f19443f039aa06df53f65abedee91d1658150d3",
+    "sourceSha256": "de7e362479240889c720c9639230059da51f9ecab9e4dc2f2b65ddf952c95c50"
+  },
+  {
+    "source": "coastal_cliff_04_rough_2k.exr",
+    "output": "coastal_cliff_04_rough_2k.png",
+    "sourceName": "coastal_cliff_04_rough_2k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 3603645,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 1755677,
+    "sha256": "f4b62991f7bed8470f31a893e490b6d8e8ac1064435d1a9968a3a74f22dfb0d3",
+    "sourceSha256": "87c9641f50ddcf68a47ef3bf1b823a2cd8d4cb20ff8ffd950794427c71cd2d52"
+  },
+  {
+    "source": "dead_tree_trunk_02_diff.png",
+    "output": "dead_tree_trunk_02_diff.png",
+    "sourceName": "dead_tree_trunk_02_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "73963957ebfbe36641fc20321d3d7d2fb9efb16f4e1989b70054662019879145",
+    "sourceSha256": "73963957ebfbe36641fc20321d3d7d2fb9efb16f4e1989b70054662019879145"
+  },
+  {
+    "source": "dead_tree_trunk_02_nor_gl.png",
+    "output": "dead_tree_trunk_02_nor_gl.png",
+    "sourceName": "dead_tree_trunk_02_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "ad84e113b41a10c32276112f24ba32fc5a3674c186249140d82a24ad87e50ae3",
+    "sourceSha256": "ad84e113b41a10c32276112f24ba32fc5a3674c186249140d82a24ad87e50ae3"
+  },
+  {
+    "source": "dead_tree_trunk_02_rough.png",
+    "output": "dead_tree_trunk_02_rough.png",
+    "sourceName": "dead_tree_trunk_02_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16808537,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16808537,
+    "sha256": "0ff8fb3c1bd5a2272f643a2eecf9d01502acb66bb5701a12deedeb3e8d8b87fa",
+    "sourceSha256": "0ff8fb3c1bd5a2272f643a2eecf9d01502acb66bb5701a12deedeb3e8d8b87fa"
+  },
+  {
+    "source": "dead_tree_trunk_diff_2k.jpg",
+    "output": "dead_tree_trunk_diff_2k.jpg",
+    "sourceName": "dead_tree_trunk_diff_2k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 2580084,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 2580084,
+    "sha256": "57b3f04a2b9b1017abfefbbca1b5d4f5421960fefd964a0b9dd4036be4d58d0c",
+    "sourceSha256": "57b3f04a2b9b1017abfefbbca1b5d4f5421960fefd964a0b9dd4036be4d58d0c"
+  },
+  {
+    "source": "dead_tree_trunk_nor_gl_2k.exr",
+    "output": "dead_tree_trunk_nor_gl_2k.png",
+    "sourceName": "dead_tree_trunk_nor_gl_2k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 7943845,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 7213048,
+    "sha256": "6f17c37a9f6dca94f20c7b708d74b21d218f493edee950fcb45771b18e9fd904",
+    "sourceSha256": "ca76a95d5b2b8340b4d485cc98eceda8d49422fe96fd15bed02929f329eb3ec7"
+  },
+  {
+    "source": "dead_tree_trunk_rough_2k.exr",
+    "output": "dead_tree_trunk_rough_2k.png",
+    "sourceName": "dead_tree_trunk_rough_2k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 3944387,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 1933268,
+    "sha256": "964cbf2f44dcea5784155ab11bc466f90cb6b399c8283c8ac502f74583887922",
+    "sourceSha256": "f72ac7b64b3c2c5fc82aabace676fd328e05d2902f9e3e8602821b67a4dd6b66"
+  },
+  {
+    "source": "dirt_floor_diff_4k.png",
+    "output": "dirt_floor_diff_4k.png",
+    "sourceName": "dirt_floor_diff_4k.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 95240165,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 95240165,
+    "sha256": "156745b7a1f15b23025c8884ad2411beabca95d1cf300c3eeeec3b86f7be27bb",
+    "sourceSha256": "156745b7a1f15b23025c8884ad2411beabca95d1cf300c3eeeec3b86f7be27bb"
+  },
+  {
+    "source": "dirt_floor_disp_4k.png",
+    "output": "dirt_floor_disp_4k.png",
+    "sourceName": "dirt_floor_disp_4k.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 35251269,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 35251269,
+    "sha256": "a727df08d917c00a826971b8df2d0776e4b51a6a131c953fe1e0ee0d96ff76dd",
+    "sourceSha256": "a727df08d917c00a826971b8df2d0776e4b51a6a131c953fe1e0ee0d96ff76dd"
+  },
+  {
+    "source": "dirt_floor_nor_gl_4k.png",
+    "output": "dirt_floor_nor_gl_4k.png",
+    "sourceName": "dirt_floor_nor_gl_4k.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 92617234,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 92617234,
+    "sha256": "10b38f6061dcd325b66f2644b4385f536b816b9236208be54cd77d1482281dc7",
+    "sourceSha256": "10b38f6061dcd325b66f2644b4385f536b816b9236208be54cd77d1482281dc7"
+  },
+  {
+    "source": "dirt_floor_rough_4k.png",
+    "output": "dirt_floor_rough_4k.png",
+    "sourceName": "dirt_floor_rough_4k.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 38587104,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 38587104,
+    "sha256": "0a57198ebcf670cabfe9d7f6f52e3cac2fe91757bcf09a36f9c0bd97a82c80f5",
+    "sourceSha256": "0a57198ebcf670cabfe9d7f6f52e3cac2fe91757bcf09a36f9c0bd97a82c80f5"
+  },
+  {
+    "source": "dry_branches_medium_01_diff_2k.jpg",
+    "output": "dry_branches_medium_01_diff_2k.jpg",
+    "sourceName": "dry_branches_medium_01_diff_2k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 2815859,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 2815859,
+    "sha256": "dcabdd1c0c4d801f5c0ce6376f42daba2a632a5433ea679d38bf4e44e5b4ead2",
+    "sourceSha256": "dcabdd1c0c4d801f5c0ce6376f42daba2a632a5433ea679d38bf4e44e5b4ead2"
+  },
+  {
+    "source": "dry_branches_medium_01_nor_gl_2k.exr",
+    "output": "dry_branches_medium_01_nor_gl_2k.png",
+    "sourceName": "dry_branches_medium_01_nor_gl_2k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 9155024,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 8438106,
+    "sha256": "adac1e7602df5749ebad453ee84b697c9809cc8ecb96115ca01679ecce384686",
+    "sourceSha256": "b1bf8cc8aaf648367ddd71b641e32e8e2ce2cf8376171d11e4b5f6c62b2c13b8"
+  },
+  {
+    "source": "dry_branches_medium_01_rough_2k.exr",
+    "output": "dry_branches_medium_01_rough_2k.png",
+    "sourceName": "dry_branches_medium_01_rough_2k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 3874550,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 2089221,
+    "sha256": "6b3d0568db9cb00db5c0b1244d43111ab27176c0454ca80bd863de44bb49c9eb",
+    "sourceSha256": "f7bfa4b67e9102435002f26b3d567112c68fc7291e193874e955b00bfeb022f5"
+  },
+  {
+    "source": "forest_ground_04_diff_2k.jpg",
+    "output": "forest_ground_04_diff_2k.jpg",
+    "sourceName": "forest_ground_04_diff_2k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 4529321,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 4529321,
+    "sha256": "24b8aaf4c8547305d80b0e029ec365219ab1b90748d4ca5651bdc9e75bfde5e6",
+    "sourceSha256": "24b8aaf4c8547305d80b0e029ec365219ab1b90748d4ca5651bdc9e75bfde5e6"
+  },
+  {
+    "source": "forest_ground_04_disp_2k.png",
+    "output": "forest_ground_04_disp_2k.png",
+    "sourceName": "forest_ground_04_disp_2k.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 5851483,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 5851483,
+    "sha256": "013c03f6f0cb1b6c7fbcf1ce950bc09e93285dad0c1d953714a36b8dc1c93c3b",
+    "sourceSha256": "013c03f6f0cb1b6c7fbcf1ce950bc09e93285dad0c1d953714a36b8dc1c93c3b"
+  },
+  {
+    "source": "forest_ground_04_nor_gl_2k.exr",
+    "output": "forest_ground_04_nor_gl_2k.png",
+    "sourceName": "forest_ground_04_nor_gl_2k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 10166059,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 9210199,
+    "sha256": "777318b70f5c39438bad9bd81be878300e5801776a78e41615541ebb30ed8360",
+    "sourceSha256": "727cb85f865e46746e9be0baffb49685746403d3f9c1e11285695e7d89106d43"
+  },
+  {
+    "source": "forest_ground_04_rough_2k.exr",
+    "output": "forest_ground_04_rough_2k.png",
+    "sourceName": "forest_ground_04_rough_2k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 3477073,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 2503879,
+    "sha256": "0c37202939f3713b5ccd7fe91087d68bd67d45821ab1c1e9b2543ec830257238",
+    "sourceSha256": "95310f9723b743369478ea9198add13e3b4786a72cb5a5f6427453749e111e67"
+  },
+  {
+    "source": "forest_leaves_04_diff_4k.jpg",
+    "output": "forest_leaves_04_diff_4k.jpg",
+    "sourceName": "forest_leaves_04_diff_4k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 4971662,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 4971662,
+    "sha256": "438ceda69d3f4a31005f32d116aab86f39ea59e4e7ec4bea41e943edb278fd32",
+    "sourceSha256": "438ceda69d3f4a31005f32d116aab86f39ea59e4e7ec4bea41e943edb278fd32"
+  },
+  {
+    "source": "forest_leaves_04_disp_4k.png",
+    "output": "forest_leaves_04_disp_4k.png",
+    "sourceName": "forest_leaves_04_disp_4k.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 25135067,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 25135067,
+    "sha256": "3e0a069f1438b66b31485f39d7142b193b5a7afd2fa09a54893d2d9a3f8ec7f5",
+    "sourceSha256": "3e0a069f1438b66b31485f39d7142b193b5a7afd2fa09a54893d2d9a3f8ec7f5"
+  },
+  {
+    "source": "forest_leaves_04_nor_gl_4k.exr",
+    "output": "forest_leaves_04_nor_gl_4k.png",
+    "sourceName": "forest_leaves_04_nor_gl_4k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 39994915,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 36592380,
+    "sha256": "1a0a2d53132d8202c5e3ce7ab31f80f0ff19714bf72c7e0924eef223d4081b3c",
+    "sourceSha256": "05436c65edcef7b20f4b50f1f33ce9fa14fc64fae5e65d3bd0da6a3ac5e71455"
+  },
+  {
+    "source": "forest_leaves_04_rough_4k.jpg",
+    "output": "forest_leaves_04_rough_4k.jpg",
+    "sourceName": "forest_leaves_04_rough_4k.jpg",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 3951624,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 3951624,
+    "sha256": "da05d07f6dabc3a704b92960c1e1d1a3747b32c8ddfff2eb8827c42731bb8545",
+    "sourceSha256": "da05d07f6dabc3a704b92960c1e1d1a3747b32c8ddfff2eb8827c42731bb8545"
+  },
+  {
+    "source": "grass_medium_02_alpha.png",
+    "output": "grass_medium_02_alpha.png",
+    "sourceName": "grass_medium_02_alpha.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12607561,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12607561,
+    "sha256": "279e323fad1813a1acb3b5efc0a6df63080e4c3d33e76caee8c1552d8322343e",
+    "sourceSha256": "279e323fad1813a1acb3b5efc0a6df63080e4c3d33e76caee8c1552d8322343e"
+  },
+  {
+    "source": "grass_medium_02_diff.png",
+    "output": "grass_medium_02_diff.png",
+    "sourceName": "grass_medium_02_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12607286,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12607286,
+    "sha256": "0b474ba9ca6b42b4b1e6dfa726394f489de105357bf68979d41fb792a682a405",
+    "sourceSha256": "0b474ba9ca6b42b4b1e6dfa726394f489de105357bf68979d41fb792a682a405"
+  },
+  {
+    "source": "grass_medium_02_disp.png",
+    "output": "grass_medium_02_disp.png",
+    "sourceName": "grass_medium_02_disp.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12607561,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12607561,
+    "sha256": "cceb88fd52a87e997642ccc0e6ab2abe7778c082c720841b277a1fcf408ce1da",
+    "sourceSha256": "cceb88fd52a87e997642ccc0e6ab2abe7778c082c720841b277a1fcf408ce1da"
+  },
+  {
+    "source": "grass_medium_02_dry_diff.png",
+    "output": "grass_medium_02_dry_diff.png",
+    "sourceName": "grass_medium_02_dry_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12607428,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12607428,
+    "sha256": "1afe875d746638ff177422ac0ccf6ecc3c8c5ccae82ba879a7b52e3307ac2aab",
+    "sourceSha256": "1afe875d746638ff177422ac0ccf6ecc3c8c5ccae82ba879a7b52e3307ac2aab"
+  },
+  {
+    "source": "grass_medium_02_nor_gl.png",
+    "output": "grass_medium_02_nor_gl.png",
+    "sourceName": "grass_medium_02_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12607561,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12607561,
+    "sha256": "a5addecbfe4bbd4bc5d900961b044b63d169de204ca1822229ac7cb1c240d529",
+    "sourceSha256": "a5addecbfe4bbd4bc5d900961b044b63d169de204ca1822229ac7cb1c240d529"
+  },
+  {
+    "source": "grass_medium_02_rough.png",
+    "output": "grass_medium_02_rough.png",
+    "sourceName": "grass_medium_02_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12607427,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12607427,
+    "sha256": "b0f438b62a50916e1bd832e2ccdad0a2e1df901404c01b39b8f167ac3417d600",
+    "sourceSha256": "b0f438b62a50916e1bd832e2ccdad0a2e1df901404c01b39b8f167ac3417d600"
+  },
+  {
+    "source": "ground_mask_01.png",
+    "output": "ground_mask_01.png",
+    "sourceName": "ground_mask_01.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGBA",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1145491,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGBA",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 1145491,
+    "sha256": "36b4bf14e9ff2f100d8e0844f6a545f067f66c814daedaaaecfd940bd96563f0",
+    "sourceSha256": "36b4bf14e9ff2f100d8e0844f6a545f067f66c814daedaaaecfd940bd96563f0"
+  },
+  {
+    "source": "island_tree_01_branches_diff_1k.png",
+    "output": "island_tree_01_branches_diff_1k.png",
+    "sourceName": "island_tree_01_branches_diff_1k.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 5300271,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 5300271,
+    "sha256": "ebd17e167f338582ff132b89ef5b873f37ece487408d0a776601cf159cf279d5",
+    "sourceSha256": "ebd17e167f338582ff132b89ef5b873f37ece487408d0a776601cf159cf279d5"
+  },
+  {
+    "source": "island_tree_01_branches_nor_gl_1k.png",
+    "output": "island_tree_01_branches_nor_gl_1k.png",
+    "sourceName": "island_tree_01_branches_nor_gl_1k.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 5400459,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 5400459,
+    "sha256": "e72c3bf652d998d75ef98fc51fb7a10de3b7efd072c191a8eb9c92b6f93340f0",
+    "sourceSha256": "e72c3bf652d998d75ef98fc51fb7a10de3b7efd072c191a8eb9c92b6f93340f0"
+  },
+  {
+    "source": "island_tree_01_branches_rough_1k.png",
+    "output": "island_tree_01_branches_rough_1k.png",
+    "sourceName": "island_tree_01_branches_rough_1k.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1625206,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 1625206,
+    "sha256": "c6db3c33f23654a8d31dcf5609d19d97ab1036b36b3d9a6bcd50ecc975f8fb3c",
+    "sourceSha256": "c6db3c33f23654a8d31dcf5609d19d97ab1036b36b3d9a6bcd50ecc975f8fb3c"
+  },
+  {
+    "source": "island_tree_01_diff_1k.jpg",
+    "output": "island_tree_01_diff_1k.jpg",
+    "sourceName": "island_tree_01_diff_1k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 788638,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 788638,
+    "sha256": "77a20f49b25442ae65d8000b5d628ea903dbe8e46ece5875b57070e7fc386383",
+    "sourceSha256": "77a20f49b25442ae65d8000b5d628ea903dbe8e46ece5875b57070e7fc386383"
+  },
+  {
+    "source": "island_tree_01_leaves_alpha_1k.png",
+    "output": "island_tree_01_leaves_alpha_1k.png",
+    "sourceName": "island_tree_01_leaves_alpha_1k.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 57438,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 57438,
+    "sha256": "f4341f147988dbe6b58d9ca841a8f0e4bcff25bc40d05f9877da82006d489c39",
+    "sourceSha256": "f4341f147988dbe6b58d9ca841a8f0e4bcff25bc40d05f9877da82006d489c39"
+  },
+  {
+    "source": "island_tree_01_leaves_diff_1k.png",
+    "output": "island_tree_01_leaves_diff_1k.png",
+    "sourceName": "island_tree_01_leaves_diff_1k.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 2627035,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 2627035,
+    "sha256": "a1d77122f93a0c323a2638879c33b5ea36a07ff3151393c96344b04a7aeefede",
+    "sourceSha256": "a1d77122f93a0c323a2638879c33b5ea36a07ff3151393c96344b04a7aeefede"
+  },
+  {
+    "source": "island_tree_01_leaves_nor_gl_1k.png",
+    "output": "island_tree_01_leaves_nor_gl_1k.png",
+    "sourceName": "island_tree_01_leaves_nor_gl_1k.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 2886859,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 2886859,
+    "sha256": "e58402f30c7108ec6321e0c689009508f6ab138c81612d9a67238038ac108211",
+    "sourceSha256": "e58402f30c7108ec6321e0c689009508f6ab138c81612d9a67238038ac108211"
+  },
+  {
+    "source": "island_tree_01_leaves_rough_1k.png",
+    "output": "island_tree_01_leaves_rough_1k.png",
+    "sourceName": "island_tree_01_leaves_rough_1k.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 879599,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 879599,
+    "sha256": "b7e9a1857f63617344968bb43693786bfed7dd15bedca3193ce333f233fbab78",
+    "sourceSha256": "b7e9a1857f63617344968bb43693786bfed7dd15bedca3193ce333f233fbab78"
+  },
+  {
+    "source": "island_tree_01_nor_gl_1k.exr",
+    "output": "island_tree_01_nor_gl_1k.png",
+    "sourceName": "island_tree_01_nor_gl_1k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 2415600,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 2184515,
+    "sha256": "b0942ae3e00a3303c8ffb1673598364d62f166096d2b7017f6e79f172a062276",
+    "sourceSha256": "c064e984f429277fec0257919bf7200d9aae1d2927e1b2a9cdde58b2c3230531"
+  },
+  {
+    "source": "island_tree_01_rough_1k.exr",
+    "output": "island_tree_01_rough_1k.png",
+    "sourceName": "island_tree_01_rough_1k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 875600,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 444125,
+    "sha256": "38da4ee1ede094bf1d70ddb1015651abc57837f54c09cf6a89755084be526870",
+    "sourceSha256": "b21cb67b4c528a14aa09cd82356f7e73169d568e0788f02170ed90614d1da3bc"
+  },
+  {
+    "source": "ivy_alpha.png",
+    "output": "ivy_alpha.png",
+    "sourceName": "ivy_alpha.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 300357,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 300357,
+    "sha256": "26921008f6faf169f70e99f6c4346265d0d331b69ff0e8c7adf7a7893a9cac7c",
+    "sourceSha256": "26921008f6faf169f70e99f6c4346265d0d331b69ff0e8c7adf7a7893a9cac7c"
+  },
+  {
+    "source": "ivy_diff.png",
+    "output": "ivy_diff.png",
+    "sourceName": "ivy_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGBA",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1335349,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGBA",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 1335349,
+    "sha256": "1ad3306a7af02b7111b627cc55f396f08fd2184eeb4631ee559f3871c36dfcde",
+    "sourceSha256": "1ad3306a7af02b7111b627cc55f396f08fd2184eeb4631ee559f3871c36dfcde"
+  },
+  {
+    "source": "ivy_disp.png",
+    "output": "ivy_disp.png",
+    "sourceName": "ivy_disp.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 858873,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 858873,
+    "sha256": "fdbee1d4f39325939144567237366b45423270635435659e98c5dcd0ab3649b8",
+    "sourceSha256": "fdbee1d4f39325939144567237366b45423270635435659e98c5dcd0ab3649b8"
+  },
+  {
+    "source": "ivy_normal.png",
+    "output": "ivy_normal.png",
+    "sourceName": "ivy_normal.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 2296076,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 2296076,
+    "sha256": "3fdea4b17ea8e7da8ace70e50372b5c6ea72658f55e033d79f9d7cd5c4888ee9",
+    "sourceSha256": "3fdea4b17ea8e7da8ace70e50372b5c6ea72658f55e033d79f9d7cd5c4888ee9"
+  },
+  {
+    "source": "ivy_rough.png",
+    "output": "ivy_rough.png",
+    "sourceName": "ivy_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGBA",
+    "sourceFormat": "PNG",
+    "sourceBytes": 736721,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGBA",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 736721,
+    "sha256": "a0afac41010a8bb3f8e879b43e4cd7f9ec8c667f878685b22b11861f9572c742",
+    "sourceSha256": "a0afac41010a8bb3f8e879b43e4cd7f9ec8c667f878685b22b11861f9572c742"
+  },
+  {
+    "source": "jacaranda_tree_branches_diff_1k.png",
+    "output": "jacaranda_tree_branches_diff_1k.png",
+    "sourceName": "jacaranda_tree_branches_diff_1k.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 5223386,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 5223386,
+    "sha256": "fe671f7fae88e269e4a517b6ff7be74ae3c2d1fdedfea206ebfa9941af0d9e20",
+    "sourceSha256": "fe671f7fae88e269e4a517b6ff7be74ae3c2d1fdedfea206ebfa9941af0d9e20"
+  },
+  {
+    "source": "jacaranda_tree_branches_nor_gl_1k.png",
+    "output": "jacaranda_tree_branches_nor_gl_1k.png",
+    "sourceName": "jacaranda_tree_branches_nor_gl_1k.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 5400459,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 5400459,
+    "sha256": "e72c3bf652d998d75ef98fc51fb7a10de3b7efd072c191a8eb9c92b6f93340f0",
+    "sourceSha256": "e72c3bf652d998d75ef98fc51fb7a10de3b7efd072c191a8eb9c92b6f93340f0"
+  },
+  {
+    "source": "jacaranda_tree_branches_rough_1k.png",
+    "output": "jacaranda_tree_branches_rough_1k.png",
+    "sourceName": "jacaranda_tree_branches_rough_1k.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1625206,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 1625206,
+    "sha256": "c6db3c33f23654a8d31dcf5609d19d97ab1036b36b3d9a6bcd50ecc975f8fb3c",
+    "sourceSha256": "c6db3c33f23654a8d31dcf5609d19d97ab1036b36b3d9a6bcd50ecc975f8fb3c"
+  },
+  {
+    "source": "jacaranda_tree_leaves_alpha_1k.png",
+    "output": "jacaranda_tree_leaves_alpha_1k.png",
+    "sourceName": "jacaranda_tree_leaves_alpha_1k.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGBA",
+    "sourceFormat": "PNG",
+    "sourceBytes": 505694,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGBA",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 505694,
+    "sha256": "8ce78c134d8a7178e33c68e2a47f7c57b14b1bdd02a1d47d6d115f0b9a484fdb",
+    "sourceSha256": "8ce78c134d8a7178e33c68e2a47f7c57b14b1bdd02a1d47d6d115f0b9a484fdb"
+  },
+  {
+    "source": "jacaranda_tree_leaves_diff_1k.png",
+    "output": "jacaranda_tree_leaves_diff_1k.png",
+    "sourceName": "jacaranda_tree_leaves_diff_1k.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 3116527,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 3116527,
+    "sha256": "d7dd30199c4c539d39cbdd06aeee1d5116a873760717dc67c027ac4c6c777ce8",
+    "sourceSha256": "d7dd30199c4c539d39cbdd06aeee1d5116a873760717dc67c027ac4c6c777ce8"
+  },
+  {
+    "source": "jacaranda_tree_leaves_nor_gl_1k.png",
+    "output": "jacaranda_tree_leaves_nor_gl_1k.png",
+    "sourceName": "jacaranda_tree_leaves_nor_gl_1k.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4154090,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 4154090,
+    "sha256": "4dc58cca117cb193629bf6a2b909bd281451c60a5d85f1b1d438d296b90a1091",
+    "sourceSha256": "4dc58cca117cb193629bf6a2b909bd281451c60a5d85f1b1d438d296b90a1091"
+  },
+  {
+    "source": "jacaranda_tree_leaves_rough_1k.png",
+    "output": "jacaranda_tree_leaves_rough_1k.png",
+    "sourceName": "jacaranda_tree_leaves_rough_1k.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 992522,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 992522,
+    "sha256": "2f6b89e7a1983cfa6fc2050f993c2c91c9afc86ce285607fa5a5f8f6b1b4c879",
+    "sourceSha256": "2f6b89e7a1983cfa6fc2050f993c2c91c9afc86ce285607fa5a5f8f6b1b4c879"
+  },
+  {
+    "source": "jacaranda_tree_trunk_diff_1k.png",
+    "output": "jacaranda_tree_trunk_diff_1k.png",
+    "sourceName": "jacaranda_tree_trunk_diff_1k.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 5450061,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 5450061,
+    "sha256": "9ba4a3af9d38d54638df35a2bae4f30455f5fb25c080825f6e22af4e5d65c7f2",
+    "sourceSha256": "9ba4a3af9d38d54638df35a2bae4f30455f5fb25c080825f6e22af4e5d65c7f2"
+  },
+  {
+    "source": "jacaranda_tree_trunk_disp_1k.png",
+    "output": "jacaranda_tree_trunk_disp_1k.png",
+    "sourceName": "jacaranda_tree_trunk_disp_1k.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1697879,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 1697879,
+    "sha256": "7fec8afc6a8c1b52db992d7c84e425d7aa7db42d4c35df76f82c9c4cf76ec20e",
+    "sourceSha256": "7fec8afc6a8c1b52db992d7c84e425d7aa7db42d4c35df76f82c9c4cf76ec20e"
+  },
+  {
+    "source": "jacaranda_tree_trunk_nor_gl_1k.png",
+    "output": "jacaranda_tree_trunk_nor_gl_1k.png",
+    "sourceName": "jacaranda_tree_trunk_nor_gl_1k.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 5486270,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 5486270,
+    "sha256": "d2c1dd8a274983731e2418b4eb6b49bddcf375d170c70010b799d7417eafbfac",
+    "sourceSha256": "d2c1dd8a274983731e2418b4eb6b49bddcf375d170c70010b799d7417eafbfac"
+  },
+  {
+    "source": "jacaranda_tree_trunk_rough_1k.png",
+    "output": "jacaranda_tree_trunk_rough_1k.png",
+    "sourceName": "jacaranda_tree_trunk_rough_1k.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1747236,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 1747236,
+    "sha256": "9262a1d4e8cc848a29bfc93333e8ad844c7e470e592787604b7e090e0ed149f2",
+    "sourceSha256": "9262a1d4e8cc848a29bfc93333e8ad844c7e470e592787604b7e090e0ed149f2"
+  },
+  {
+    "source": "kloofendal_48d_partly_cloudy_puresky_8k.exr",
+    "output": "kloofendal_48d_partly_cloudy_puresky_8k.png",
+    "sourceName": "kloofendal_48d_partly_cloudy_puresky_8k.exr",
+    "kind": "other",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      8192,
+      4096
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 290870780,
+    "sourceDepth": 128,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      8192,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 17357483,
+    "sha256": "2ebc3e32890ca3199271e850b77434d2d5a5bbb167e3d7277f45182359465028",
+    "sourceSha256": "102b29e13c4ffb3a369f932f49626250079c58333b861de0d910eccfb8441bc5"
+  },
+  {
+    "source": "rock_07_diff.png",
+    "output": "rock_07_diff.png",
+    "sourceName": "rock_07_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "8550fad282127c0fc7ee413a29d20929704409de4ae10f9ace6520401f59afb9",
+    "sourceSha256": "8550fad282127c0fc7ee413a29d20929704409de4ae10f9ace6520401f59afb9"
+  },
+  {
+    "source": "rock_07_nor_gl.png",
+    "output": "rock_07_nor_gl.png",
+    "sourceName": "rock_07_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      8192,
+      8192
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 201662162,
+    "outputDimensions": [
+      8192,
+      8192
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 201662162,
+    "sha256": "1501b54cdbe1aa18de63ebe2bd95cb3b4507b4aa6df5a1d45c07bcbc07258c6c",
+    "sourceSha256": "1501b54cdbe1aa18de63ebe2bd95cb3b4507b4aa6df5a1d45c07bcbc07258c6c"
+  },
+  {
+    "source": "rock_07_rough.png",
+    "output": "rock_07_rough.png",
+    "sourceName": "rock_07_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16810128,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16810128,
+    "sha256": "49b73553d2a1c971ffd000cc4efe6795871933df1d425c76152c939807ebf426",
+    "sourceSha256": "49b73553d2a1c971ffd000cc4efe6795871933df1d425c76152c939807ebf426"
+  },
+  {
+    "source": "rock_08_diff.png",
+    "output": "rock_08_diff.png",
+    "sourceName": "rock_08_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "9800bbfa2076778fc3ebde9196dd514d7b547e6f75933ad68ec43724aea313c8",
+    "sourceSha256": "9800bbfa2076778fc3ebde9196dd514d7b547e6f75933ad68ec43724aea313c8"
+  },
+  {
+    "source": "rock_08_nor_gl.png",
+    "output": "rock_08_nor_gl.png",
+    "sourceName": "rock_08_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "f75b5f55bf68c29083ca280f301878ae514ae1553de1a1e8d4277aabc9ac3291",
+    "sourceSha256": "f75b5f55bf68c29083ca280f301878ae514ae1553de1a1e8d4277aabc9ac3291"
+  },
+  {
+    "source": "rock_08_rough.png",
+    "output": "rock_08_rough.png",
+    "sourceName": "rock_08_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16808537,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16808537,
+    "sha256": "d8b6989945b171eba6e8af28c6ed41ac82d51eb2e4f46b3140a45ed7a035e04c",
+    "sourceSha256": "d8b6989945b171eba6e8af28c6ed41ac82d51eb2e4f46b3140a45ed7a035e04c"
+  },
+  {
+    "source": "rock_face_01_diff.png",
+    "output": "rock_face_01_diff.png",
+    "sourceName": "rock_face_01_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50419284,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50419284,
+    "sha256": "a6d5b317c89786ce40250ddad3755ca854da21797ee5cc2b8433b5a643dfa265",
+    "sourceSha256": "a6d5b317c89786ce40250ddad3755ca854da21797ee5cc2b8433b5a643dfa265"
+  },
+  {
+    "source": "rock_face_01_disp.png",
+    "output": "rock_face_01_disp.png",
+    "sourceName": "rock_face_01_disp.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16809990,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16809990,
+    "sha256": "07b59fce3c907ad9785baf4289eaed8c83c7d0a6b6a6fde02ace182998bd99e0",
+    "sourceSha256": "07b59fce3c907ad9785baf4289eaed8c83c7d0a6b6a6fde02ace182998bd99e0"
+  },
+  {
+    "source": "rock_face_01_nor_gl.png",
+    "output": "rock_face_01_nor_gl.png",
+    "sourceName": "rock_face_01_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50419144,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50419144,
+    "sha256": "2a2ae7f0a294955fdb7c5babc142652495293f90007be5a33acc56ca5e9fbf99",
+    "sourceSha256": "2a2ae7f0a294955fdb7c5babc142652495293f90007be5a33acc56ca5e9fbf99"
+  },
+  {
+    "source": "rock_face_01_rough.png",
+    "output": "rock_face_01_rough.png",
+    "sourceName": "rock_face_01_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16810412,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16810412,
+    "sha256": "17e5bac6509ffb327316f07d019b169730c4078aec5f118778add0c88dfc6ec8",
+    "sourceSha256": "17e5bac6509ffb327316f07d019b169730c4078aec5f118778add0c88dfc6ec8"
+  },
+  {
+    "source": "rock_face_2_diff.png",
+    "output": "rock_face_2_diff.png",
+    "sourceName": "rock_face_2_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "2584518ca276fcc430b04d7c2a20799d2860f2c50c9155a46c90e3ac2e7ac0e6",
+    "sourceSha256": "2584518ca276fcc430b04d7c2a20799d2860f2c50c9155a46c90e3ac2e7ac0e6"
+  },
+  {
+    "source": "rock_face_2_nor_gl.png",
+    "output": "rock_face_2_nor_gl.png",
+    "sourceName": "rock_face_2_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "00eb32c137a0c046288b2184a3e64f8bec64e9d27cbc072c417c61deaa17f0fe",
+    "sourceSha256": "00eb32c137a0c046288b2184a3e64f8bec64e9d27cbc072c417c61deaa17f0fe"
+  },
+  {
+    "source": "rock_face_2_rough.png",
+    "output": "rock_face_2_rough.png",
+    "sourceName": "rock_face_2_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16808537,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16808537,
+    "sha256": "b96f1be426bf3d5f6947b6c50236e9dacc94c601026ec8c8b830ad22f1b61bd2",
+    "sourceSha256": "b96f1be426bf3d5f6947b6c50236e9dacc94c601026ec8c8b830ad22f1b61bd2"
+  },
+  {
+    "source": "rock_face_diff.png",
+    "output": "rock_face_diff.png",
+    "sourceName": "rock_face_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "07109be439ff6af3a2b75d54507a7c9aa5eb0393224fc56c6ffc5d7fee6dc304",
+    "sourceSha256": "07109be439ff6af3a2b75d54507a7c9aa5eb0393224fc56c6ffc5d7fee6dc304"
+  },
+  {
+    "source": "rock_face_nor_gl.png",
+    "output": "rock_face_nor_gl.png",
+    "sourceName": "rock_face_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "7257410dd89668236584ba4ed7ce7a3d779c819ca8260dcd28092d1e4849ec05",
+    "sourceSha256": "7257410dd89668236584ba4ed7ce7a3d779c819ca8260dcd28092d1e4849ec05"
+  },
+  {
+    "source": "rock_face_rough.png",
+    "output": "rock_face_rough.png",
+    "sourceName": "rock_face_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16808537,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16808537,
+    "sha256": "6529277387bbe339d57a9dc777f7ab4e43237f3c5e28dc7c067473810170e828",
+    "sourceSha256": "6529277387bbe339d57a9dc777f7ab4e43237f3c5e28dc7c067473810170e828"
+  },
+  {
+    "source": "rocks_ground_01_diff_4k.jpg",
+    "output": "rocks_ground_01_diff_4k.jpg",
+    "sourceName": "rocks_ground_01_diff_4k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 8491979,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 8491979,
+    "sha256": "c33c05908a5c7c5314b6417f147e3cc099d9d3b1f155ab3df52973cd85754cc0",
+    "sourceSha256": "c33c05908a5c7c5314b6417f147e3cc099d9d3b1f155ab3df52973cd85754cc0"
+  },
+  {
+    "source": "rocks_ground_01_disp_4k.png",
+    "output": "rocks_ground_01_disp_4k.png",
+    "sourceName": "rocks_ground_01_disp_4k.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGBA",
+    "sourceFormat": "PNG",
+    "sourceBytes": 27524659,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGBA",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 27524659,
+    "sha256": "d976ca67390334c631e5643418fe797e16284f3eee114b8977b042019360d4c4",
+    "sourceSha256": "d976ca67390334c631e5643418fe797e16284f3eee114b8977b042019360d4c4"
+  },
+  {
+    "source": "rocks_ground_01_nor_gl_4k.exr",
+    "output": "rocks_ground_01_nor_gl_4k.png",
+    "sourceName": "rocks_ground_01_nor_gl_4k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 37155885,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 34212767,
+    "sha256": "31705a67f0d3834b3d4d54bd05b3be3abfb2c013700c69b532eca4ca336e5c6f",
+    "sourceSha256": "ce63c4fa089a196758ca4501f552b65fe54d5d63b5df9f0ca6c4f96da65f0736"
+  },
+  {
+    "source": "rocks_ground_01_rough_4k.jpg",
+    "output": "rocks_ground_01_rough_4k.jpg",
+    "sourceName": "rocks_ground_01_rough_4k.jpg",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 5278318,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 5278318,
+    "sha256": "ddcb0d9b4d0db868476027bf63711eef3b8afc926aea024ef1b8f124a204d3ea",
+    "sourceSha256": "ddcb0d9b4d0db868476027bf63711eef3b8afc926aea024ef1b8f124a204d3ea"
+  },
+  {
+    "source": "root_cluster_01_diff.png",
+    "output": "root_cluster_01_diff.png",
+    "sourceName": "root_cluster_01_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "36bbfcc5a9c53018236b654f4092559dd1327d1e05aabbcc03e0348b2cac757d",
+    "sourceSha256": "36bbfcc5a9c53018236b654f4092559dd1327d1e05aabbcc03e0348b2cac757d"
+  },
+  {
+    "source": "root_cluster_01_nor_gl.png",
+    "output": "root_cluster_01_nor_gl.png",
+    "sourceName": "root_cluster_01_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "e9d602d3fd8e33e43373422b4702b68c3cf417fcadbe28da5eb1af08a7f8f539",
+    "sourceSha256": "e9d602d3fd8e33e43373422b4702b68c3cf417fcadbe28da5eb1af08a7f8f539"
+  },
+  {
+    "source": "root_cluster_01_rough.png",
+    "output": "root_cluster_01_rough.png",
+    "sourceName": "root_cluster_01_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16808537,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16808537,
+    "sha256": "032c3b91560994413a707aa57ec2086c8b4b07d1894d658577b80e0bd9b3c2ae",
+    "sourceSha256": "032c3b91560994413a707aa57ec2086c8b4b07d1894d658577b80e0bd9b3c2ae"
+  },
+  {
+    "source": "root_cluster_2_diff.png",
+    "output": "root_cluster_2_diff.png",
+    "sourceName": "root_cluster_2_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "003f883d45efcf4d5ad2a8887f39e97c46d0b60b1a77538ff006002f4badd464",
+    "sourceSha256": "003f883d45efcf4d5ad2a8887f39e97c46d0b60b1a77538ff006002f4badd464"
+  },
+  {
+    "source": "root_cluster_2_disp.png",
+    "output": "root_cluster_2_disp.png",
+    "sourceName": "root_cluster_2_disp.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16808537,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16808537,
+    "sha256": "b15ba098d07812615dbd2e7273dbbbda6798350552fe47f9300afeefdf20abac",
+    "sourceSha256": "b15ba098d07812615dbd2e7273dbbbda6798350552fe47f9300afeefdf20abac"
+  },
+  {
+    "source": "root_cluster_2_nor_gl.png",
+    "output": "root_cluster_2_nor_gl.png",
+    "sourceName": "root_cluster_2_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "848c6f70f673cbab87ecdf63a185a0d0c7d34406d0d2e3aad5e7833766be274c",
+    "sourceSha256": "848c6f70f673cbab87ecdf63a185a0d0c7d34406d0d2e3aad5e7833766be274c"
+  },
+  {
+    "source": "root_cluster_2_rough.png",
+    "output": "root_cluster_2_rough.png",
+    "sourceName": "root_cluster_2_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50418859,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50418859,
+    "sha256": "2224996801ac30fbbe0f533525638e5504e33a1ee895b573ab7ca1a7d36a4cb3",
+    "sourceSha256": "2224996801ac30fbbe0f533525638e5504e33a1ee895b573ab7ca1a7d36a4cb3"
+  },
+  {
+    "source": "rubber_duck_toy_diff_1k.jpg",
+    "output": "rubber_duck_toy_diff_1k.jpg",
+    "sourceName": "rubber_duck_toy_diff_1k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 231027,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 231027,
+    "sha256": "c968d6185c3ec57a430818e6af85c2ba2880c7ee19ccb1a0171730926175cfd6",
+    "sourceSha256": "c968d6185c3ec57a430818e6af85c2ba2880c7ee19ccb1a0171730926175cfd6"
+  },
+  {
+    "source": "rubber_duck_toy_metal_1k.exr",
+    "output": "rubber_duck_toy_metal_1k.png",
+    "sourceName": "rubber_duck_toy_metal_1k.exr",
+    "kind": "other",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 4784,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 3306,
+    "sha256": "6d650c4277e0b923a19574fc7eb44aaf4f9a7531b09c75c8786da65086969103",
+    "sourceSha256": "3c1f32ec014206b15a8510837ff535efb002ecb206b86278aa7bf28f256c5f93"
+  },
+  {
+    "source": "rubber_duck_toy_nor_gl_1k.exr",
+    "output": "rubber_duck_toy_nor_gl_1k.png",
+    "sourceName": "rubber_duck_toy_nor_gl_1k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 110500,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 74936,
+    "sha256": "9c8ecde1eb638c906e4491e256266abf5730dcc82bd1e6a2c99ae039de21dbf0",
+    "sourceSha256": "05e61a7c61de9a432ab1a2abee0b9f0f524e6964fad9d74f389583cc72f7a954"
+  },
+  {
+    "source": "rubber_duck_toy_rough_1k.exr",
+    "output": "rubber_duck_toy_rough_1k.png",
+    "sourceName": "rubber_duck_toy_rough_1k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 519456,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 274609,
+    "sha256": "4ec97c75233f3646098219f7171fbb8b2c2cb1146631c419a5d32709b68656cd",
+    "sourceSha256": "226fcf30f2ef64690bd273ae19f3a279736a51c931c0586246249592622bc883"
+  },
+  {
+    "source": "sand_rocks_small_01_diff_1k.jpg",
+    "output": "sand_rocks_small_01_diff_1k.jpg",
+    "sourceName": "sand_rocks_small_01_diff_1k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 788042,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 788042,
+    "sha256": "86f57a6fefdc145dd1a386917ae8a73dbcc9230e2eed276df03e930310cd1cd6",
+    "sourceSha256": "86f57a6fefdc145dd1a386917ae8a73dbcc9230e2eed276df03e930310cd1cd6"
+  },
+  {
+    "source": "sand_rocks_small_01_nor_gl_1k.exr",
+    "output": "sand_rocks_small_01_nor_gl_1k.png",
+    "sourceName": "sand_rocks_small_01_nor_gl_1k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 2198463,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 2035672,
+    "sha256": "8713a28984a8c646f1993588903ea492c81af98b7f076efa2681ed56d0826aa5",
+    "sourceSha256": "157cd62a718d6b33b3bda40591e3e35e4a393cf57d0a9a6b651d6ef17f0e2d9b"
+  },
+  {
+    "source": "sand_rocks_small_01_rough_1k.exr",
+    "output": "sand_rocks_small_01_rough_1k.png",
+    "sourceName": "sand_rocks_small_01_rough_1k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 941714,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 470072,
+    "sha256": "dea974e353f29f176874522b1dd6e7c551118ef1b34f72637406e843ee2b69ce",
+    "sourceSha256": "d68a11215635074e53068cd3974b5b39e383dd22445227e7481c11a7f11074eb"
+  },
+  {
+    "source": "shrub_01_alpha.png",
+    "output": "shrub_01_alpha.png",
+    "sourceName": "shrub_01_alpha.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4204677,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4204677,
+    "sha256": "5aa132e9fa05563d9b5f5c956342452db9eaee73f72e991f3062cbd6402bdbcb",
+    "sourceSha256": "5aa132e9fa05563d9b5f5c956342452db9eaee73f72e991f3062cbd6402bdbcb"
+  },
+  {
+    "source": "shrub_01_diff.png",
+    "output": "shrub_01_diff.png",
+    "sourceName": "shrub_01_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12607009,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12607009,
+    "sha256": "79c90ed1f2f9feeedcd29ca1bb34831081bcd0a8b0678fb2c982542f53469ba2",
+    "sourceSha256": "79c90ed1f2f9feeedcd29ca1bb34831081bcd0a8b0678fb2c982542f53469ba2"
+  },
+  {
+    "source": "shrub_01_disp.png",
+    "output": "shrub_01_disp.png",
+    "sourceName": "shrub_01_disp.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4204677,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4204677,
+    "sha256": "a9a65ce0c100a973df7ce2a12e9e7a102af1ab0881c924bc063712a3903578c6",
+    "sourceSha256": "a9a65ce0c100a973df7ce2a12e9e7a102af1ab0881c924bc063712a3903578c6"
+  },
+  {
+    "source": "shrub_01_nor_gl.png",
+    "output": "shrub_01_nor_gl.png",
+    "sourceName": "shrub_01_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12607009,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12607009,
+    "sha256": "9dce7f4cedb416448879716ad1f0753bb1b3f0d38f328b6664174cf06f9aa23b",
+    "sourceSha256": "9dce7f4cedb416448879716ad1f0753bb1b3f0d38f328b6664174cf06f9aa23b"
+  },
+  {
+    "source": "shrub_01_rough.png",
+    "output": "shrub_01_rough.png",
+    "sourceName": "shrub_01_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4204677,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4204677,
+    "sha256": "78f2b76ba61c5e9ae19964f99892cbb86416d857946d9aca243ed48ad2870246",
+    "sourceSha256": "78f2b76ba61c5e9ae19964f99892cbb86416d857946d9aca243ed48ad2870246"
+  },
+  {
+    "source": "shrub_02_alpha.png",
+    "output": "shrub_02_alpha.png",
+    "sourceName": "shrub_02_alpha.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4203225,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4203225,
+    "sha256": "2ca05858517ceea5275a842bd39da44768705f06c2de2ef8c97ed54f8ab79e35",
+    "sourceSha256": "2ca05858517ceea5275a842bd39da44768705f06c2de2ef8c97ed54f8ab79e35"
+  },
+  {
+    "source": "shrub_02_diff.png",
+    "output": "shrub_02_diff.png",
+    "sourceName": "shrub_02_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12605396,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12605396,
+    "sha256": "a26225f5877c727f821512548c63c12aeda7fe0f4ae39237b0b5b023e0f0f09b",
+    "sourceSha256": "a26225f5877c727f821512548c63c12aeda7fe0f4ae39237b0b5b023e0f0f09b"
+  },
+  {
+    "source": "shrub_02_disp.png",
+    "output": "shrub_02_disp.png",
+    "sourceName": "shrub_02_disp.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4203225,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4203225,
+    "sha256": "ed167a10f68a0822227bef5d0fb1f18803adb5d1d31b46e9f52b2fa6bbf39f4a",
+    "sourceSha256": "ed167a10f68a0822227bef5d0fb1f18803adb5d1d31b46e9f52b2fa6bbf39f4a"
+  },
+  {
+    "source": "shrub_02_mask.png",
+    "output": "shrub_02_mask.png",
+    "sourceName": "shrub_02_mask.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12605396,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12605396,
+    "sha256": "ec2f3a2866f459b506813478b708d7fbf9f60c45eebfe9ae0e769d0ecd5db9fc",
+    "sourceSha256": "ec2f3a2866f459b506813478b708d7fbf9f60c45eebfe9ae0e769d0ecd5db9fc"
+  },
+  {
+    "source": "shrub_02_nor_gl.png",
+    "output": "shrub_02_nor_gl.png",
+    "sourceName": "shrub_02_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12605396,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12605396,
+    "sha256": "9dcbed4671d6aea9a86d63e1fda6942038f45c7fcf008121191444d23c60930b",
+    "sourceSha256": "9dcbed4671d6aea9a86d63e1fda6942038f45c7fcf008121191444d23c60930b"
+  },
+  {
+    "source": "shrub_02_rough.png",
+    "output": "shrub_02_rough.png",
+    "sourceName": "shrub_02_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4203225,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4203225,
+    "sha256": "dfca727bee9e0d0bb74780e5422680a67440b0dc655c45c1c1ae6c6fdd5bff70",
+    "sourceSha256": "dfca727bee9e0d0bb74780e5422680a67440b0dc655c45c1c1ae6c6fdd5bff70"
+  },
+  {
+    "source": "shrub_03_alpha.png",
+    "output": "shrub_03_alpha.png",
+    "sourceName": "shrub_03_alpha.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4203225,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4203225,
+    "sha256": "3fcc64f4f2eda488748255fceaf47bf1ab9f099f338fa4af7ebbdb0b5bca71ab",
+    "sourceSha256": "3fcc64f4f2eda488748255fceaf47bf1ab9f099f338fa4af7ebbdb0b5bca71ab"
+  },
+  {
+    "source": "shrub_03_diff.png",
+    "output": "shrub_03_diff.png",
+    "sourceName": "shrub_03_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12605396,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12605396,
+    "sha256": "a526eab207b9fd2e4cb1bebac0a86bad739db09d3a82e723acd3ddf3e8383473",
+    "sourceSha256": "a526eab207b9fd2e4cb1bebac0a86bad739db09d3a82e723acd3ddf3e8383473"
+  },
+  {
+    "source": "shrub_03_nor_gl.png",
+    "output": "shrub_03_nor_gl.png",
+    "sourceName": "shrub_03_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12605396,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12605396,
+    "sha256": "a003c3f639c5dc067f4c13292862b43004e8e1f9fc194862d0c5e5bb9eb37232",
+    "sourceSha256": "a003c3f639c5dc067f4c13292862b43004e8e1f9fc194862d0c5e5bb9eb37232"
+  },
+  {
+    "source": "shrub_03_rough.png",
+    "output": "shrub_03_rough.png",
+    "sourceName": "shrub_03_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4203225,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4203225,
+    "sha256": "e526c4e4369e56f7971783f5272c4c676c820645fd0e4c6c9f9c7398803b3617",
+    "sourceSha256": "e526c4e4369e56f7971783f5272c4c676c820645fd0e4c6c9f9c7398803b3617"
+  },
+  {
+    "source": "shrub_04_alpha.png",
+    "output": "shrub_04_alpha.png",
+    "sourceName": "shrub_04_alpha.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4203225,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4203225,
+    "sha256": "65198fe5436fe4d2133f9a59b69cd6defddb18316e104a842f5d52a4f8934948",
+    "sourceSha256": "65198fe5436fe4d2133f9a59b69cd6defddb18316e104a842f5d52a4f8934948"
+  },
+  {
+    "source": "shrub_04_diff.png",
+    "output": "shrub_04_diff.png",
+    "sourceName": "shrub_04_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12605396,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12605396,
+    "sha256": "1c985f38cba32befe84c105813d7411cd5adb02b8846939622e4e85c34918030",
+    "sourceSha256": "1c985f38cba32befe84c105813d7411cd5adb02b8846939622e4e85c34918030"
+  },
+  {
+    "source": "shrub_04_mask.png",
+    "output": "shrub_04_mask.png",
+    "sourceName": "shrub_04_mask.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4204675,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4204675,
+    "sha256": "04bfd3d9e5e1d3c18a80d690608c38538151a2c6344876fcd73104b61448dae2",
+    "sourceSha256": "04bfd3d9e5e1d3c18a80d690608c38538151a2c6344876fcd73104b61448dae2"
+  },
+  {
+    "source": "shrub_04_nor_gl.png",
+    "output": "shrub_04_nor_gl.png",
+    "sourceName": "shrub_04_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 12605396,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 12605396,
+    "sha256": "f3c7bf048482246e7bca44340e7f67fd2c9e2955c87e3190aae62b8c3c8fc307",
+    "sourceSha256": "f3c7bf048482246e7bca44340e7f67fd2c9e2955c87e3190aae62b8c3c8fc307"
+  },
+  {
+    "source": "shrub_04_rough.png",
+    "output": "shrub_04_rough.png",
+    "sourceName": "shrub_04_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      2048,
+      2048
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4203225,
+    "outputDimensions": [
+      2048,
+      2048
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 4203225,
+    "sha256": "fd42c2ced79bf02ea99a72988d554cf33d94e694c68369354f64d9041d4e95b6",
+    "sourceSha256": "fd42c2ced79bf02ea99a72988d554cf33d94e694c68369354f64d9041d4e95b6"
+  },
+  {
+    "source": "single_root_diff.png",
+    "output": "single_root_diff.png",
+    "sourceName": "single_root_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "177b7c33ddf61c9c98c876e28d1fcf76386ac8397498bda1e9fda088d35dc25c",
+    "sourceSha256": "177b7c33ddf61c9c98c876e28d1fcf76386ac8397498bda1e9fda088d35dc25c"
+  },
+  {
+    "source": "single_root_nor_gl.png",
+    "output": "single_root_nor_gl.png",
+    "sourceName": "single_root_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "ec0e42afaaf7d9de3c0c6b9039025f5dbb68a4b20aca1a1d35ccdc5369a23b56",
+    "sourceSha256": "ec0e42afaaf7d9de3c0c6b9039025f5dbb68a4b20aca1a1d35ccdc5369a23b56"
+  },
+  {
+    "source": "single_root_rough.png",
+    "output": "single_root_rough.png",
+    "sourceName": "single_root_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "de0cb9b0646f99e1e5bf83869b2df6241fc3643927525a4145ee7f09f6d8285c",
+    "sourceSha256": "de0cb9b0646f99e1e5bf83869b2df6241fc3643927525a4145ee7f09f6d8285c"
+  },
+  {
+    "source": "square_alpha.png",
+    "output": "square_alpha.png",
+    "sourceName": "square_alpha.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 6046,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 6046,
+    "sha256": "671c01ae30aa24ad23690c54d596a0913a2c0d74818c78533cdc0baf4c58e1de",
+    "sourceSha256": "671c01ae30aa24ad23690c54d596a0913a2c0d74818c78533cdc0baf4c58e1de"
+  },
+  {
+    "source": "stone_01_diff.png",
+    "output": "stone_01_diff.png",
+    "sourceName": "stone_01_diff.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "946a5c3fc3f7789f29bb26a4b61a9afc12d57a0e13fa80cde96d6bdb7cfb6dab",
+    "sourceSha256": "946a5c3fc3f7789f29bb26a4b61a9afc12d57a0e13fa80cde96d6bdb7cfb6dab"
+  },
+  {
+    "source": "stone_01_mask.png",
+    "output": "stone_01_mask.png",
+    "sourceName": "stone_01_mask.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50418859,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50418859,
+    "sha256": "e9c8ee7f920f92a5071517a92dad7340ee63de03e72628b14c0082c9fc70aa86",
+    "sourceSha256": "e9c8ee7f920f92a5071517a92dad7340ee63de03e72628b14c0082c9fc70aa86"
+  },
+  {
+    "source": "stone_01_nor_gl.png",
+    "output": "stone_01_nor_gl.png",
+    "sourceName": "stone_01_nor_gl.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 50417248,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 50417248,
+    "sha256": "a9153ee3b993c0fc6686d2009a7c0cd3127e10ef42df1ae9912204793f8b2b2a",
+    "sourceSha256": "a9153ee3b993c0fc6686d2009a7c0cd3127e10ef42df1ae9912204793f8b2b2a"
+  },
+  {
+    "source": "stone_01_rough.png",
+    "output": "stone_01_rough.png",
+    "sourceName": "stone_01_rough.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      4096,
+      4096
+    ],
+    "sourceMode": "L",
+    "sourceFormat": "PNG",
+    "sourceBytes": 16808537,
+    "outputDimensions": [
+      4096,
+      4096
+    ],
+    "outputMode": "L",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 16808537,
+    "sha256": "659d9cc7ad497b9a6a8ef1b76b4e4f12b3e4df56550f5eca6b3f3f540587ae3b",
+    "sourceSha256": "659d9cc7ad497b9a6a8ef1b76b4e4f12b3e4df56550f5eca6b3f3f540587ae3b"
+  },
+  {
+    "source": "tree_small_02_branch_diff_1k.png",
+    "output": "tree_small_02_branch_diff_1k.png",
+    "sourceName": "tree_small_02_branch_diff_1k.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGBA",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1277172,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGBA",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 1277172,
+    "sha256": "bba1a205f4caafb61d80c37ef7ab42c9a18c01d7d3a22b3df6860dc682d2ec65",
+    "sourceSha256": "bba1a205f4caafb61d80c37ef7ab42c9a18c01d7d3a22b3df6860dc682d2ec65"
+  },
+  {
+    "source": "tree_small_02_branch_disp_1k.png",
+    "output": "tree_small_02_branch_disp_1k.png",
+    "sourceName": "tree_small_02_branch_disp_1k.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGBA",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1559215,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGBA",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 1559215,
+    "sha256": "1d7bfb08838b93acd5fd1ab05a445aa89e956da27991d2242622e6804b2114c0",
+    "sourceSha256": "1d7bfb08838b93acd5fd1ab05a445aa89e956da27991d2242622e6804b2114c0"
+  },
+  {
+    "source": "tree_small_02_branch_nor_gl_1k.png",
+    "output": "tree_small_02_branch_nor_gl_1k.png",
+    "sourceName": "tree_small_02_branch_nor_gl_1k.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGBA",
+    "sourceFormat": "PNG",
+    "sourceBytes": 5754714,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGBA",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 5754714,
+    "sha256": "ff8148e39a6805ffe31b08ad4fc78c810f02d7e68e9f5592ddb7c66436f2820b",
+    "sourceSha256": "ff8148e39a6805ffe31b08ad4fc78c810f02d7e68e9f5592ddb7c66436f2820b"
+  },
+  {
+    "source": "tree_small_02_branch_rough_1k.png",
+    "output": "tree_small_02_branch_rough_1k.png",
+    "sourceName": "tree_small_02_branch_rough_1k.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGBA",
+    "sourceFormat": "PNG",
+    "sourceBytes": 421516,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGBA",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 421516,
+    "sha256": "b990754d307f9402522c9a63896b457318e2240cbf0a8061e3d397376dc31b41",
+    "sourceSha256": "b990754d307f9402522c9a63896b457318e2240cbf0a8061e3d397376dc31b41"
+  },
+  {
+    "source": "tree_small_02_diff_1k.jpg",
+    "output": "tree_small_02_diff_1k.jpg",
+    "sourceName": "tree_small_02_diff_1k.jpg",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "JPEG",
+    "sourceBytes": 863795,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "JPEG",
+    "outputDepth": 8,
+    "bytes": 863795,
+    "sha256": "3c60525a8cc9e86c5bc31a9df4b5024558cb348ebc66636db76d7061a7a11be4",
+    "sourceSha256": "3c60525a8cc9e86c5bc31a9df4b5024558cb348ebc66636db76d7061a7a11be4"
+  },
+  {
+    "source": "tree_small_02_disp_1k.png",
+    "output": "tree_small_02_disp_1k.png",
+    "sourceName": "tree_small_02_disp_1k.png",
+    "kind": "displacement",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1463510,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 1463510,
+    "sha256": "ee4ca0337a3c108d28f469fbb85d3fc077db2d8b6107483d50e58b1e986629c8",
+    "sourceSha256": "ee4ca0337a3c108d28f469fbb85d3fc077db2d8b6107483d50e58b1e986629c8"
+  },
+  {
+    "source": "tree_small_02_leaves_alpha_1k.png",
+    "output": "tree_small_02_leaves_alpha_1k.png",
+    "sourceName": "tree_small_02_leaves_alpha_1k.png",
+    "kind": "alpha",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 264711,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 264711,
+    "sha256": "4f143e2dda8a6a572f427ac378b92255d21761e4611de0d26e21816c01aa533b",
+    "sourceSha256": "4f143e2dda8a6a572f427ac378b92255d21761e4611de0d26e21816c01aa533b"
+  },
+  {
+    "source": "tree_small_02_leaves_diff_1k.png",
+    "output": "tree_small_02_leaves_diff_1k.png",
+    "sourceName": "tree_small_02_leaves_diff_1k.png",
+    "kind": "diff",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 2430587,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 2430587,
+    "sha256": "fcbf505ce631d5373c39ddbe2db9d23b7b751c17610123b69d517cec5fcc69c6",
+    "sourceSha256": "fcbf505ce631d5373c39ddbe2db9d23b7b751c17610123b69d517cec5fcc69c6"
+  },
+  {
+    "source": "tree_small_02_leaves_nor_gl_1k.png",
+    "output": "tree_small_02_leaves_nor_gl_1k.png",
+    "sourceName": "tree_small_02_leaves_nor_gl_1k.png",
+    "kind": "normal",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "RGB",
+    "sourceFormat": "PNG",
+    "sourceBytes": 4903387,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 4903387,
+    "sha256": "fa4ad390f2e68b745db8f568cad64c3272696c5e01312ae564795e37724d79b8",
+    "sourceSha256": "fa4ad390f2e68b745db8f568cad64c3272696c5e01312ae564795e37724d79b8"
+  },
+  {
+    "source": "tree_small_02_leaves_rough_1k.png",
+    "output": "tree_small_02_leaves_rough_1k.png",
+    "sourceName": "tree_small_02_leaves_rough_1k.png",
+    "kind": "rough",
+    "method": "copy-native",
+    "converted": false,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": "I;16",
+    "sourceFormat": "PNG",
+    "sourceBytes": 1043665,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "I;16",
+    "outputFormat": "PNG",
+    "outputDepth": 16,
+    "bytes": 1043665,
+    "sha256": "f005213467e38bcb355b00c9a6eb9896b8d810ee885d5c7fa308d9f3326ef602",
+    "sourceSha256": "f005213467e38bcb355b00c9a6eb9896b8d810ee885d5c7fa308d9f3326ef602"
+  },
+  {
+    "source": "tree_small_02_nor_gl_1k.exr",
+    "output": "tree_small_02_nor_gl_1k.png",
+    "sourceName": "tree_small_02_nor_gl_1k.exr",
+    "kind": "normal",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 2462967,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 2225467,
+    "sha256": "8fc57eb0836a95f3e516e245a78d1d69d0635ec227224b649dfa3d36cd87ab22",
+    "sourceSha256": "df69b78c930c249b0c9fb9f228a9324d17f7ac497df0321f282d8867b3eca942"
+  },
+  {
+    "source": "tree_small_02_rough_1k.exr",
+    "output": "tree_small_02_rough_1k.png",
+    "sourceName": "tree_small_02_rough_1k.exr",
+    "kind": "rough",
+    "method": "blender-native-dimensions-exr-hdr-to-png8",
+    "converted": true,
+    "sourceDimensions": [
+      1024,
+      1024
+    ],
+    "sourceMode": null,
+    "sourceFormat": null,
+    "sourceBytes": 978610,
+    "sourceDepth": 96,
+    "sourceChannels": 4,
+    "sourceFloat": true,
+    "outputDimensions": [
+      1024,
+      1024
+    ],
+    "outputMode": "RGB",
+    "outputFormat": "PNG",
+    "outputDepth": 8,
+    "bytes": 553463,
+    "sha256": "4dceb461a65218b98a8a1e334458ba2f90128979d84942bcfcafdf7b4dbb6221",
+    "sourceSha256": "13b1559c416333c8304f34475ce1c5e4e6aeeb6a042ae64598f1038da8005928"
+  }
+]

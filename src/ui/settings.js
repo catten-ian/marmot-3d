@@ -13,11 +13,12 @@ const INPUT_MODE_OPTIONS = [
 ];
 
 export class SettingsUI {
-  constructor(binds, touchLayout = null, feedback = null, inputMode = null) {
+  constructor(binds, touchLayout = null, feedback = null, inputMode = null, verdantQuality = null) {
     this.binds = binds;
     this.touchLayout = touchLayout;
     this.feedback = feedback;
     this.inputMode = inputMode;
+    this.verdantQuality = verdantQuality;
     this.el = {
       btn: document.getElementById('setBtn'),
       sheet: document.getElementById('setSheet'),
@@ -110,6 +111,28 @@ export class SettingsUI {
     }
     html += '</div>';
 
+    if (this.verdantQuality?.enabled) {
+      const tiers = this.verdantQuality.tiers || [];
+      html += `<section class="verdant-quality-settings" aria-label="Verdant 画面资源质量">
+        <h4>画面 / 资源质量（DEV）</h4>
+        <div class="scheme-row quality-row">${tiers.map((q) => `<button class="scheme-card ${this.verdantQuality.preference === q.id ? 'cur' : ''}" data-verdant-tier="${q.id}"><div class="scheme-name">${q.name}</div><div class="scheme-desc">${q.faces} · 约 ${q.size}</div></button>`).join('')}</div>
+        <p class="input-mode-status">当前生效：<b>${this.verdantQuality.activeName || '自动'}</b>。自动档按设备能力推荐；手动低/中/高/极致档不会被自动降档。</p>
+        <p class="verdant-quality-note">极致档为 4,298,106 三角面、贴图逐张保留源宽高（含 8K），场景包约 2.60 GB；建议 16 GB+ 内存、独显与 WebGPU。8-bit 格式转码项见转换报告。</p>
+        <div class="verdant-gpu-status">${this.verdantQuality.diagnosticsText || ''}</div>
+        <section class="verdant-resource-settings" aria-label="Verdant 资源加载与下载">
+          <h4>资源加载（DEV）</h4>
+          <p>本地文件夹 → 已配置 TOS → 同源服务器依次回退。选择本地包时会逐文件核对大小与 SHA-256。</p>
+          <label class="verdant-tos-config">TOS 对象前缀（可留空，留空绝不联网）：<input id="verdantTosBaseInput" type="url" placeholder="https://your-object-host.example" value="${this.verdantQuality.resources?.tosBase || ''}"></label>
+          <div id="localPackStatus" class="local-pack-status" aria-live="polite">${this.verdantQuality.resources?.localStatus?.message || '未选择本地资源包'}</div>
+          <div class="row"><button class="ghost" id="localPackChoose" type="button">选择/校验资源包文件夹</button><button class="ghost" id="localPackReauth" type="button" hidden>重新授权</button></div>
+          <input id="localPackInput" type="file" webkitdirectory directory multiple hidden>
+          <div class="row"><label for="verdantDownloadTier">下载档位</label><select id="verdantDownloadTier">${(this.verdantQuality.tiers || []).filter((x) => x.id !== 'auto').map((x) => `<option value="${x.id}" ${x.id === (this.verdantQuality.activeTier || 'high') ? 'selected' : ''}>${x.name} · ${x.size}</option>`).join('')}</select></div>
+          <div class="row"><button class="ghost" id="verdantZipDownload" type="button" ${this.verdantQuality.resources?.tosBase ? '' : 'disabled'}>下载 ZIP</button><button class="ghost" id="verdantFolderDownload" type="button" ${this.verdantQuality.resources?.tosBase && this.verdantQuality.resources?.canUseDirectory ? '' : 'disabled'}>下载为文件夹</button></div>
+          <div id="verdantTosStatus" class="local-pack-note">${this.verdantQuality.resources?.tosBase ? `TOS 已配置（版本 20261022，当前档位：${this.verdantQuality.activeTier}）` : 'TOS 尚未配置；不会尝试外网。'}</div><div id="verdantDownloadStatus" class="local-pack-status" aria-live="polite">${this.verdantQuality.resources?.downloadState?.message || '尚未开始资源下载'}</div>
+        </section>
+      </section>`;
+    }
+
     if (this.inputMode) {
       const pref = INPUT_MODES.includes(this.inputMode.preference) ? this.inputMode.preference : 'auto';
       const effTouch = this.inputMode.isTouch();
@@ -195,6 +218,53 @@ export class SettingsUI {
     if (rb) rb.onclick = () => this.binds.resetCustom();
     const fb = this.el.body.querySelector('#settingsFeedback');
     if (fb) fb.onclick = () => this.feedback.open();
+    this.el.body.querySelectorAll('[data-verdant-tier]').forEach((el) => {
+      el.onclick = () => this.verdantQuality?.setPreference?.(el.dataset.verdantTier);
+    });
+    const resources = this.verdantQuality?.resources;
+    const localStatus = this.el.body.querySelector('#localPackStatus');
+    const showStatus = (state) => { if (localStatus) localStatus.textContent = typeof state === 'string' ? state : (state?.message || ''); };
+    const choose = this.el.body.querySelector('#localPackChoose');
+    const reauth = this.el.body.querySelector('#localPackReauth');
+    const fileInput = this.el.body.querySelector('#localPackInput');
+    choose?.addEventListener('click', async () => {
+      try {
+        if (resources?.canUseDirectory) {
+          const status = await resources.selectDirectory((s) => showStatus(s));
+          resources.localStatus = status;
+          showStatus(status);
+          if (status.state === 'ready') resources.onLocalReady?.(status);
+          if (reauth) reauth.hidden = true;
+        } else fileInput?.click();
+      } catch (error) { if (error?.name !== 'AbortError') showStatus(`本地资源包选择失败：${error.message}`); }
+    });
+    fileInput?.addEventListener('change', async () => {
+      if (!fileInput.files?.length) return;
+      try {
+        const status = await resources?.selectFiles?.(fileInput.files, (s) => showStatus(s));
+        resources.localStatus = status; showStatus(status);
+        if (status?.state === 'ready') resources.onLocalReady?.(status);
+      } catch (error) { showStatus(`本地资源包校验失败：${error.message}`); }
+    });
+    reauth?.addEventListener('click', async () => {
+      try {
+        const status = await resources?.reauthorize?.((s) => showStatus(s));
+        resources.localStatus = status; showStatus(status);
+        if (status?.state === 'ready') resources.onLocalReady?.(status);
+      } catch (error) { showStatus(`重新授权失败：${error.message}`); }
+    });
+    this.el.body.querySelector('#verdantTosBaseInput')?.addEventListener('change', (event) => {
+      try { resources?.setTosBase?.(event.target.value); this.el.body.querySelector('#verdantZipDownload').disabled = !resources?.tosBase; this.el.body.querySelector('#verdantFolderDownload').disabled = !resources?.tosBase || !resources?.canUseDirectory; const message = this.el.body.querySelector('#verdantTosStatus'); if (message) message.textContent = resources.tosBase ? `TOS 已配置（版本 20261022，当前档位：${this.verdantQuality.activeTier}）` : 'TOS 尚未配置；不会尝试外网。'; }
+      catch (error) { const message = this.el.body.querySelector('#verdantTosStatus'); if (message) message.textContent = error.message; }
+    });
+    this.el.body.querySelector('#verdantZipDownload')?.addEventListener('click', () => {
+      try { resources?.downloadZip?.(this.el.body.querySelector('#verdantDownloadTier')?.value || 'high'); }
+      catch (error) { showStatus(error.message); }
+    });
+    this.el.body.querySelector('#verdantFolderDownload')?.addEventListener('click', async () => {
+      try { await resources?.downloadFolder?.(this.el.body.querySelector('#verdantDownloadTier')?.value || 'high'); }
+      catch (error) { if (error?.name !== 'AbortError') showStatus(error.message); }
+    });
     this.el.body.querySelectorAll('[data-input-mode]').forEach((el) => {
       el.onclick = () => { this.inputMode?.setPreference(el.dataset.inputMode); this.render(); };
     });
