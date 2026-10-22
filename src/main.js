@@ -104,8 +104,10 @@ import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 
-// =====================================================// 初始化
-// =====================================================const canvas = document.getElementById('scene');
+// =====================================================
+// 初始化
+// =====================================================
+const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
 const localPackStatus = IS_DEV ? await restoreLocalPack() : null;
@@ -544,8 +546,10 @@ hud.setLoading(96);
   document.body.classList.toggle('dev-version', IS_DEV);
 }
 
-// =====================================================// 游戏状态
-// =====================================================// Beta uses an independent record and an in-memory all-level unlock default;
+//=====================================================
+// 游戏状态
+//=====================================================
+// Beta uses an independent record and an in-memory all-level unlock default;
 // stable retains the original shared key and sequential unlock behavior.
 const progressStorage = {
   getItem: (...args) => localStorage.getItem(...args),
@@ -1196,8 +1200,10 @@ function resume() {
   }
 }
 
-// =====================================================// 战斗动作
-// =====================================================const _fwd = new THREE.Vector3();
+//=====================================================
+// 战斗动作
+//=====================================================
+const _fwd = new THREE.Vector3();
 // 缓存本次战斗数值，供 viewmodel 的攻击动画计算进度使用
 let stats_cache = { cd: 0 };
 // 当前玩家攻击动作类型（供第一/第三人称动作表现使用）：'' | tap | stand | lunge | dodge
@@ -1471,8 +1477,10 @@ function doInteract() {
   interact(game, (t, d) => hud.say(t, d));
 }
 
-// =====================================================// 主更新
-// =====================================================const _tmpV = new THREE.Vector3();
+//=====================================================
+// 主更新
+//=====================================================
+const _tmpV = new THREE.Vector3();
 
 function update(dt) {
   if (game.mode !== 'play') {
@@ -1832,8 +1840,10 @@ function update(dt) {
   hud.update(game, stats, cfg, dt);
 }
 
-// =====================================================// 输入绑定（由 keybinds 方案驱动）
-// =====================================================const binds = new Keybinds();
+//=====================================================
+// 输入绑定（由 keybinds 方案驱动）
+//=====================================================
+const binds = new Keybinds();
 
 let mouseDown = false;
 let touchControls = null;
@@ -2453,8 +2463,10 @@ binds.onChange(syncHelpKeys);
 // pointerlockchange —— 两处监听同一事件会在同一帧各调一次 pause()，
 // 虽有幂等守卫兜底，但属于冗余逻辑。
 
-// =====================================================// 全屏模式
-// =====================================================const fsBtn = document.getElementById('fsBtn');
+//=====================================================
+// 全屏模式
+//=====================================================
+const fsBtn = document.getElementById('fsBtn');
 
 function toggleFullscreen() {
   const d = document;
@@ -2521,8 +2533,10 @@ canvas.addEventListener('webglcontextrestored', () => {
   hud.say('画面已恢复。', 2.2);
 });
 
-// =====================================================// 主循环
-// =====================================================let last = performance.now();
+//=====================================================
+// 主循环
+//=====================================================
+let last = performance.now();
 let playerBodyYaw = controller.yaw;
 let fpsAcc = 0, fpsCount = 0, fpsTimer = 0;
 
@@ -2576,8 +2590,10 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// =====================================================// 启动
-// =====================================================hud.setLoading(100);
+//=====================================================
+// 启动
+//=====================================================
+hud.setLoading(100);
 loadLevel(0, false);
 // 标题状态下相机也需要正确落位，否则会渲染在场景原点（地下）
 controller.update(0.016, new Set(), 1);
