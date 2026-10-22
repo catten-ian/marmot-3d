@@ -648,6 +648,19 @@ async function enterPlayAsFox() {
       title();
     },
   });
+  // BETA 调试后台（lil-gui）：仅 ?pafdebug=1 懒加载，普通玩家/stable/dev 永不加载。
+  if (new URLSearchParams(location.search).get('pafdebug') === '1') {
+    try {
+      const { attachPlayAsFoxDebug } = await import('./play/play-as-fox-debug.js');
+      if (playAsFox && window.__playAsFox) {
+        attachPlayAsFoxDebug(window.__playAsFox, {
+          scene,
+          pounce: () => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true })),
+          openFeedback: () => feedbackUI.open(),
+        });
+      }
+    } catch (error) { console.warn('[pafdebug] disabled:', error); }
+  }
 }
 function exitPlayAsFox() { playAsFox?.exit(); }
 window.__enterPlayAsFox = enterPlayAsFox;
