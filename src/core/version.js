@@ -89,6 +89,15 @@ export const USE_REAL_FOX_MODEL = (() => {
   }
 })();
 
+/** DEV 视景捕食者使用完整 44 骨、idle/run/attack 三段动画狼；非 DEV 永远关闭。 */
+export const USE_DEV_WOLF_MODEL = (() => {
+  try {
+    return IS_DEV && USE_REAL_MODELS && new URLSearchParams(location.search).get('wolfmodel') !== 'off';
+  } catch (e) {
+    return IS_DEV && USE_REAL_MODELS;
+  }
+})();
+
 /**
  * dev 版捕食者改用带贴图的高质量 fox.glb（约 9.4 万面、内嵌 BaseColor 贴图）。
  * 仅 dev 生效：stable 继续原外观。fox.glb 是静态网格（无骨骼），

@@ -51,3 +51,52 @@
 - 优先把 GLB 拆为几何 GLB + 外置纹理，或采用 KTX2/BasisU；这会减少首屏主线程解码峰值。
 - 对背景巨崖做独立低 LOD，对近景 ground/hero 岩石保留 1K 法线；必要时再启用 Draco，并在 Three.js 中接本地 DRACOLoader。
 - 继续增加远景植被密度和地面边缘 LOD，修复素材包中少量悬空树根/地块切边；这属于几何与构图问题，不是本轮截图模糊根因。
+
+## 第二阶段（重启）
+
+日期：2026-10-22。此阶段仅作用于 `?version=dev` 的 Verdant 路径。
+
+### 源贴图普查与 native ultra
+
+源目录 `/home/fame/marmot3d-assets/verdant_trail/textures` 共 142 个文件、2,780,108,427 bytes；普查得到 4096² 贴图 47 张、8192² 贴图 1 张（`rock_07_nor_gl.png`）、2048² 贴图 32 张、1024² 贴图 37 张，其余 25 张为 EXR/HDR 或 PIL 无法直接识别的源格式。Ultra 输出位于 `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/assets/verdant/tiers/ultra`，共 148 个文件（147 个清单 payload + `pack-manifest.json`），目录字节数 2,601,965,527，payload 清单总字节数 2,601,935,175；外置 glTF、`.bin` 和贴图，不内嵌 2.6 GB 到单个 GLB。`verdant-trail-ultra.gltf` 112,702 bytes，外置 `.bin` 126,547,360 bytes。
+
+`python3 tools/verdant/verify_native_pack.py --source /home/fame/marmot3d-assets/verdant_trail/textures --pack assets/verdant/tiers/ultra` 通过：142/142 张源贴图逐图输出尺寸一致、源/输出 SHA-256 与 `texture-cache.json` 一致、64 个 glTF 外置 URI 均存在。抽查结果：`rock_07_nor_gl.png` 为 8192×8192、201,662,162 bytes、SHA-256 `1501b54cdbe1aa18de63ebe2bd95cb3b4507b4aa6df5a1d45c07bcbc07258c6c`；`dirt_floor_diff_4k.png` 为 4096×4096、95,240,165 bytes；`dirt_floor_nor_gl_4k.png` 为 4096×4096、92,617,234 bytes；`dirt_floor_rough_4k.png` 为 4096×4096、38,587,104 bytes。25 个 EXR/HDR 转码保持宽高，但生产转换器输出 RGB 8-bit PNG；这是浏览器兼容的位深转换，报告不宣称对这些源的位深无损。转换明细在 `assets/verdant/tiers/ultra/native-texture-verification.json`。
+
+>100 MB 未纳入 Git：
+
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/assets/verdant/tiers/ultra/textures/rock_07_nor_gl.png` — SHA-256 `1501b54cdbe1aa18de63ebe2bd95cb3b4507b4aa6df5a1d45c07bcbc07258c6c`
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/assets/verdant/tiers/ultra/verdant-trail-ultra.bin` — SHA-256 `822a9cf8017afd095209a76a0e83feffeee03c137311c8eb027c690272f4a920`
+
+其余超过 100 MB 的检查以 `find assets/verdant/tiers -size +100M` 为准；当前只有上述两项。
+
+### 四档产物与选择器
+
+四档独立清单与 `pack-manifest.json` 已重建，所有清单条目的 size/SHA-256/contentType 与文件复核一致：low 95,593,640 bytes / 127 payload files / 347,786 三角面；medium 177,007,708 / 127 / 372,831；high 187,549,838 / 127 / 413,432；ultra 2,601,935,175 payload bytes / 147 payload files（含清单目录共 148）/ 4,298,106 三角面。四档共用 `/assets/verdant/verdant-trail-height.json`，双线性 `heightAt`、runtime X=source Y、runtime Z=source X、bounds 与 xform 逐档契约测试一致。
+
+DEV 设置面板支持自动/低/中/高/极致。自动档按 `deviceMemory`、CPU 核数和 WebGPU 推荐；手动档通过 token 持久化，切档载入新包后释放旧 geometry/material/texture，保存玩家 x/z/yaw/pitch 并重新贴合 height。手动高/极致不会被自动降档；异步切档带请求序号，旧请求结果会释放并丢弃。极致文案明确 4,298,106 三角面、源宽高、约 2.60 GB、16 GB+ 内存、独显与 WebGPU 建议。
+
+### GPU/后端诊断
+
+`window.__game.rendererStatus()` 暴露 backend、GPU name/vendor、`hardwareAccelerationKnown` 与硬件加速判断。WebGL 使用 `WEBGL_debug_renderer_info`；WebGPU 使用 adapterInfo，命中 SwiftShader/llvmpipe/softpipe/Microsoft Basic Render Driver 时显示软件渲染红字；WebGL2 兜底显式注明 GS 深度排序退 CPU。本次托管 Chrome 实测为 WebGL2、`ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)`、厂商 `Google Inc. (Intel)`，硬件加速已启用。
+
+### 有效视觉证据与 FPS
+
+托管 Chrome CDP `http://127.0.0.1:18800`、静态端口 8342、未启动 headless。最终 QA 输出：
+
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/01-path-ground.png`
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/02-mid-foliage.png`
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/03-cliffs-depth.png`
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/04-third-person.png`
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/05-overview.png`
+
+五张均通过程序判废（每张 1280×720、>20 KB、mean/std 均超过阈值），MiniMax 人工复核确认 01/02/03/05 纹理与纵深可辨，04 已为真正第三人称且玩家模型可见、无黑帧；04 的捕食者在此固定机位被岩石遮挡，故保留为第三人称/场景证据并在报告中明确这一视觉限制。high 托管 Chrome 稳态采样为 24 FPS（采样窗口 `report.json`），WebGL2 Intel 硬件加速。
+
+### 外置纹理与后续建议
+
+Ultra 使用外置 glTF URI，避免单 GLB 2.6 GB；当前纹理仍为 PNG/JPEG，未新增 KTX2/BasisU 或 Draco。建议后续在 TOS 端按同一 pack-manifest 生成 ZIP 和可逐文件读取的目录对象，浏览器端已预留本地包 → 可配置 TOS → 同源资源三级回退、ZIP 下载和 File System Access 文件夹下载接口。
+
+## 第三阶段（狼 + TOS）
+
+DEV 已接入 `/assets/models/wolf.glb`（44 骨、`idle`/`run`/`attack` 三个完整骨骼 clip，SHA-256 `b43e8bf5ce3f9de23c09149d3a7a0efaf3f9c2475fe2d9be681c674b05f6a563`）。`SkeletonUtils.clone` 为每只狼隔离骨骼，`AnimationMixer` 在 idle/run/attack 间按 AI 状态切换，冲刺接触窗口触发 attack；dispose 会停止 mixer。stable/beta 不读取该开关。
+
+资源回退与下载代码已完成客户端协议，但没有伪造 TOS 地址：未设置 `window.__VERDANT_TOS__` 或设置面板中的对象前缀时，不会向外网发起请求。配置后按本地包 → TOS 对象前缀 → 同源服务器回退；ZIP 按 `pack.zip`/`zipUrls[tier]` 下载；文件夹下载用 File System Access API 按 manifest 逐文件下载、SHA-256 校验、断点复用已有正确文件后写入 `pack-manifest.json`。TOS stage 自洽目录已生成在 `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/release/tos-stage/m3d-dev/20261022/{low,medium,high,ultra}`；目录内包含公共模型、对应档位、height、wolf 和根级 pack-manifest，>100 MB 文件采用硬链接留在工作树，未加入 Git。实际 TOS 上传/key/ZIP 端点仍待提供。
