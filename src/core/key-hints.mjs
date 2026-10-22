@@ -18,33 +18,42 @@ export function bindText(binds, actionId, fallback = '—') {
 }
 
 export function schemeHints(binds, { isDev = false } = {}) {
-  const turning = isDev && binds.scheme === 'optimized';
+  const profile = binds?.controlProfile || '';
+  const turning = isDev ? binds.scheme === 'optimized' : !!binds?.turningEnabled;
+  const driving = profile === 'driving';
+  const primary = (id) => bindText(binds, id, '');
+  const alt = (id) => {
+    const code = { forward: 'ArrowUp', back: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' }[id];
+    return code ? Keybinds.pretty(code) : '';
+  };
   let movement;
-  if (turning) {
-    movement = `${bindText(binds, 'forward')} / ${bindText(binds, 'back')} 前后 · ${bindText(binds, 'turnLeft')} / ${bindText(binds, 'turnRight')} 转向 · 方向键横移`;
+  if (driving) {
+    movement = `${primary('forward')} / ${primary('back')} 前后移动 · ${primary('left')} / ${primary('right')} 转向（方向键上下前后、左右转向）`;
+  } else if (profile === 'dev-optimized-turning' || (isDev && binds.scheme === 'optimized' && turning)) {
+    movement = `${primary('forward')} / ${primary('back')} 前后移动 · ${primary('turnLeft')} / ${primary('turnRight')} 转向 · ${alt('left')} / ${alt('right')} 横移`;
   } else if (binds.scheme === 'optimized') {
-    // 正式版优化方案不占 A/D：前后 W/S，左右横移交给方向键。
-    movement = `${bindText(binds, 'forward')} / ${bindText(binds, 'back')} 前后 · 方向键左右横移`;
+    movement = `${primary('forward')} / ${primary('back')} 前后移动 · ${primary('left')} / ${primary('right')} 横移（方向键备选）`;
   } else {
     const wasd = ['forward', 'left', 'back', 'right']
-      .map((id) => bindText(binds, id, '')).filter(Boolean).join('');
+      .map((id) => primary(id)).filter(Boolean).join('');
     movement = `${wasd} 移动（方向键备选）`;
   }
 
   return {
     movement,
     turning,
-    attack: ['鼠标左键', bindText(binds, 'attack', '')].filter(Boolean).join(' / '),
-    parry: ['鼠标中键', bindText(binds, 'parry', '')].filter(Boolean).join(' / '),
-    jump: [bindText(binds, 'jump', ''), '鼠标右键'].filter(Boolean).join(' / '),
-    dodge: bindText(binds, 'dodge'),
-    burst: bindText(binds, 'burst'),
-    ultimate: bindText(binds, 'ultimate'),
-    interact: bindText(binds, 'interact'),
-    sprint: bindText(binds, 'sprint'),
-    pause: bindText(binds, 'pause'),
-    retry: bindText(binds, 'retry'),
-    restart: bindText(binds, 'restart'),
+    driving,
+    attack: ['鼠标左键', primary('attack')].filter(Boolean).join(' / '),
+    parry: ['鼠标中键', primary('parry')].filter(Boolean).join(' / '),
+    jump: [primary('jump'), '鼠标右键'].filter(Boolean).join(' / '),
+    dodge: primary('dodge'),
+    burst: primary('burst'),
+    ultimate: primary('ultimate'),
+    interact: primary('interact'),
+    sprint: primary('sprint'),
+    pause: primary('pause'),
+    retry: primary('retry'),
+    restart: primary('restart'),
   };
 }
 

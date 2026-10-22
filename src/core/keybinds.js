@@ -18,7 +18,21 @@
  *   7. 暂停/重试/重开放到远离战斗区的功能键，避免误触
  */
 
-import { IS_DEV } from './version.js';
+import { IS_BETA, IS_DEV } from './version.js';
+
+export const CONTROL_MODE_STORAGE_KEY = 'marmot3d.control-mode';
+export const CONTROL_MODE_OPTIONS = [
+  { id: 'driving', name: '转向驾驶', desc: '左右转向，前后移动；转向与油门可同时输入。' },
+  { id: 'classic', name: '经典横移', desc: 'WASD 横移，保留旧式平面移动。' },
+];
+
+export function normalizeControlMode(value, fallback = 'classic') {
+  return value === 'driving' || value === 'classic' ? value : fallback;
+}
+
+export function resolveDefaultControlMode(version, storedValue = null) {
+  return normalizeControlMode(storedValue, version === 'beta' ? 'driving' : 'classic');
+}
 
 // 动作定义（id 即为配置键）
 export const ACTIONS = [
@@ -90,15 +104,52 @@ const MOVE_ALTS = {
   left: 'ArrowLeft', right: 'ArrowRight',
 };
 
+/** Version-aware key-map policy. Dev's optimized turning contract stays untouched. */
+export function resolveControlMaps({ version = 'stable', scheme = 'compatible', controlMode = 'classic', bindings = {} } = {}) {
+  const devTurning = version === 'dev' && scheme === 'optimized';
+  const driving = version === 'beta' && normalizeControlMode(controlMode) === 'driving';
+  const moveMap = {
+    forward: bindings.forward ?? null, forwardAlt: MOVE_ALTS.forward,
+    back: bindings.back ?? null, backAlt: MOVE_ALTS.back,
+    left: bindings.left ?? null, leftAlt: MOVE_ALTS.left,
+    right: bindings.right ?? null, rightAlt: MOVE_ALTS.right,
+  };
+  if (devTurning) {
+    return {
+      profile: 'dev-optimized-turning', turningEnabled: true,
+      moveMap,
+      turnMap: { left: bindings.turnLeft ?? null, right: bindings.turnRight ?? null },
+    };
+  }
+  if (driving) {
+    moveMap.left = null; moveMap.leftAlt = null;
+    moveMap.right = null; moveMap.rightAlt = null;
+    return {
+      profile: 'driving', turningEnabled: true, moveMap,
+      turnMap: { left: bindings.left ?? null, right: bindings.right ?? null, leftAlt: MOVE_ALTS.left, rightAlt: MOVE_ALTS.right },
+    };
+  }
+  return {
+    profile: 'classic', turningEnabled: false, moveMap,
+    turnMap: version === 'beta' ? null : { left: null, right: null },
+  };
+}
+
 export class Keybinds {
   constructor() {
     this.scheme = 'compatible';
+    this.controlMode = resolveDefaultControlMode(IS_DEV ? 'dev' : IS_BETA ? 'beta' : 'stable');
     this.custom = { ...COMPAT };
     this.listeners = new Set();
     this._load();
   }
 
   _load() {
+    try {
+      this.controlMode = normalizeControlMode(
+        localStorage.getItem(CONTROL_MODE_STORAGE_KEY), this.controlMode,
+      );
+    } catch (e) { /* 无存储时使用版本默认 */ }
     try {
       const raw = localStorage.getItem('marmot3d.keybinds');
       if (!raw) return;
@@ -125,6 +176,14 @@ export class Keybinds {
     if (!['compatible', 'optimized', 'custom'].includes(name)) return;
     this.scheme = name;
     this._save();
+    this._emit();
+  }
+
+  setControlMode(name) {
+    const next = normalizeControlMode(name, null);
+    if (!next) return;
+    this.controlMode = next;
+    try { localStorage.setItem(CONTROL_MODE_STORAGE_KEY, next); } catch (e) { /* 忽略写入失败 */ }
     this._emit();
   }
 
@@ -163,23 +222,18 @@ export class Keybinds {
     return Array.isArray(v) ? v : [v];
   }
 
-  /** 移动键映射（供控制器查表），含方向键备选 */
-  get moveMap() {
-    return {
-      forward: this.key('forward'), forwardAlt: MOVE_ALTS.forward,
-      back: this.key('back'), backAlt: MOVE_ALTS.back,
-      left: this.key('left'), leftAlt: MOVE_ALTS.left,
-      right: this.key('right'), rightAlt: MOVE_ALTS.right,
-    };
+  /** 当前输入行为；beta 设置可选择驾驶/经典，dev 保持既有方案约定。 */
+  get controlMaps() {
+    const version = IS_DEV ? 'dev' : IS_BETA ? 'beta' : 'stable';
+    return resolveControlMaps({ version, scheme: this.scheme, controlMode: this.controlMode, bindings: this.map });
   }
 
-  /** 视角转向映射；只由 dev 优化方案提供。 */
-  get turnMap() {
-    return {
-      left: this.scheme === 'optimized' && IS_DEV ? this.key('turnLeft') : null,
-      right: this.scheme === 'optimized' && IS_DEV ? this.key('turnRight') : null,
-    };
-  }
+  get controlProfile() { return this.controlMaps.profile; }
+  get turningEnabled() { return this.controlMaps.turningEnabled; }
+
+  /** 移动与转向映射共享一个版本/操控模式策略，避免键位卡片与实际输入分叉。 */
+  get moveMap() { return this.controlMaps.moveMap; }
+  get turnMap() { return this.controlMaps.turnMap; }
 
   /** 判断某次 keydown code 是否触发指定动作（不含 repeat） */
   isAction(code, actionId) {
@@ -214,8 +268,11 @@ export class Keybinds {
       const keys = this.keys(a.id);
       // 移动动作额外展示方向键备选
       const alt = a.type === 'move' && MOVE_ALTS[a.id] ? MOVE_ALTS[a.id] : null;
+      const label = this.controlProfile === 'driving'
+        ? ({ left: '左转向', right: '右转向' }[a.id] || a.label)
+        : a.label;
       return {
-        ...a,
+        ...a, label,
         keys: keys.map(Keybinds.pretty),
         alt: alt ? Keybinds.pretty(alt) : null,
         empty: keys.length === 0,

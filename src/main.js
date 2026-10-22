@@ -934,12 +934,10 @@ function title() {
       去掉 URL 的 <code>?version=dev</code> 即回到正式版。</p>
     </div>` : ''}
     <div class="keys" id="titleKeys">
-      ${TOUCH_DEVICE ? '<span><kbd>触屏</kbd> 左侧摇杆移动 · 右侧拖动转视角 · 屏幕按钮执行动作</span>' : ''}
+      ${TOUCH_DEVICE ? '<span><kbd>触屏</kbd> 第一人称摇杆左右转向、前后移动（可同时）· 第三人称摇杆决定移动方向 · 右侧拖动视角 · 屏幕按钮执行动作</span>' : ''}
       <span><kbd>鼠标</kbd> 视角转动</span>
       <span><kbd>V</kbd> 第一 / 第三人称切换</span>
-      <span><kbd>${h.turning
-        ? ['forward', 'back', 'turnLeft', 'turnRight'].map((id) => bindText(binds, id, '')).join('')
-        : ['forward', 'left', 'back', 'right'].map((id) => bindText(binds, id, '')).join('')}</kbd> ${h.turning ? '前后 / 转向（方向键横移）' : '移动（方向键备选）'}</span>
+      <span id="titleMoveHint">${h.movement}</span>
       <span><kbd>${h.attack}</kbd> 攻击（可按住）</span>
       <span><kbd>${h.parry}</kbd> 迎击</span>
       <span><kbd>${h.jump}</kbd> 跳跃（可躲扑击）</span>
@@ -1041,7 +1039,7 @@ function pause() {
   hud.showPanel(`
     <div class="eyebrow">PAUSED</div>
     <h2>喘口气。</h2>
-    <p>${TOUCH_DEVICE ? '左侧摇杆移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : `${h.movement} · ${bindText(binds, 'attack', '左键')} 攻击 · ${bindText(binds, 'parry', '中键')} 迎击 · ${bindText(binds, 'burst')} 爆发 · ${bindText(binds, 'ultimate')} 大招 · ${bindText(binds, 'interact')} 救援。`}<br>暂停不会消耗时间。</p>
+    <p><span id="pauseMoveHint">${TOUCH_DEVICE ? '第一人称左摇杆左右转向、前后移动（可同时）；第三人称按摇杆方向移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : h.movement}</span>${TOUCH_DEVICE ? '' : ` · ${bindText(binds, 'attack', '左键')} 攻击 · ${bindText(binds, 'parry', '中键')} 迎击 · ${bindText(binds, 'burst')} 爆发 · ${bindText(binds, 'ultimate')} 大招 · ${bindText(binds, 'interact')} 救援。`}<br>暂停不会消耗时间。</p>
     <div class="row">
       <button class="primary" id="resumeBtn">继续 · ${bindText(binds, 'pause')} / Enter</button>
       <button class="ghost" id="pRetryBtn">重试本关 · ${bindText(binds, 'retry')}</button>
@@ -2359,10 +2357,13 @@ function syncHelpKeys() {
     optimized: '优化（optimized）',
     custom: '自定义（custom）',
   }[binds.scheme] || binds.scheme;
-  const turning = IS_DEV && binds.scheme === 'optimized';
-  const movement = turning
-    ? `<span>${keys('forward')} / ${keys('back')} 前后移动 · ${keys('left')} / ${keys('right')} 横移 · ${keys('turnLeft')} / ${keys('turnRight')} 转向（方向键为移动备选）</span>`
-    : `<span>${keys('forward')} / ${keys('back')} / ${keys('left')} / ${keys('right')} 移动（方向键为备选）</span>`;
+  const turning = !!binds.turningEnabled;
+  const driving = binds.controlProfile === 'driving';
+  const movement = driving
+    ? `<span>${keys('forward')} / ${keys('back')} 前后移动 · ${keys('left')} / ${keys('right')} 转向（方向键上下前后、左右转向）</span>`
+    : turning
+      ? `<span>${keys('forward')} / ${keys('back')} 前后移动 · ${keys('left')} / ${keys('right')} 横移 · ${keys('turnLeft')} / ${keys('turnRight')} 转向（方向键为移动备选）</span>`
+      : `<span>${keys('forward')} / ${keys('back')} / ${keys('left')} / ${keys('right')} 移动（方向键为备选）</span>`;
   const attackKeys = join(['鼠标左键', get('attack')]);
   const jumpKeys = join([get('jump'), '鼠标右键']);
   const parryKeys = join([get('parry'), '中键']);
@@ -2373,7 +2374,7 @@ function syncHelpKeys() {
   const html = `
     <h3>操作说明</h3>
     <div class="keys">
-      <span class="touch-help"><kbd>触屏</kbd> 左侧摇杆移动 · 右侧拖动视角 · 屏幕按钮执行动作</span>
+      <span class="touch-help"><kbd>触屏</kbd> 第一人称摇杆左右转向、前后移动（可同时）· 第三人称摇杆决定移动方向 · 右侧拖动视角 · 屏幕按钮执行动作</span>
       <span><kbd>方案</kbd> ${schemeLabel}</span>
       <span><kbd>鼠标</kbd> 视角</span>
       ${movement}
@@ -2394,6 +2395,11 @@ function syncHelpKeys() {
     <b>跳跃可以跳过扑击</b>：腾空够高时不会被藏狐碰到。</p>
     <button class="primary" id="helpClose2">知道了</button>`;
   helpSheet.innerHTML = html;
+  const moveHint = schemeHints(binds, { isDev: IS_DEV }).movement;
+  const titleMoveHint = document.getElementById('titleMoveHint');
+  const pauseMoveHint = document.getElementById('pauseMoveHint');
+  if (titleMoveHint) titleMoveHint.textContent = moveHint;
+  if (pauseMoveHint && !TOUCH_DEVICE) pauseMoveHint.textContent = moveHint;
   const c2 = document.getElementById('helpClose2');
   if (c2) c2.onclick = closeHelp;
 }

@@ -134,7 +134,7 @@ async function main() {
         check('stable optimized A remains lateral movement',
           Math.abs(stableA.yaw) < 1e-9 && Math.abs(stableA.dx) > 0.01,
           JSON.stringify(stableA));
-        check('stable optimized scheme has no turn mapping', !b.turnMap.left && !b.turnMap.right);
+        check('stable optimized scheme has no turn mapping', (!b.turnMap || (!b.turnMap.left && !b.turnMap.right)));
       } else {
         check('dev optimized scheme maps A/D to turning',
           b.turnMap.left === 'KeyA' && b.turnMap.right === 'KeyD'
@@ -156,8 +156,9 @@ async function main() {
     check('stable optimized scheme retains A/D movement when IS_DEV is false',
       source.includes("left: IS_DEV ? null : 'KeyA'")
       && source.includes("right: IS_DEV ? null : 'KeyD'"));
-    check('turn mapping is gated by dev and optimized scheme',
-      source.includes("this.scheme === 'optimized' && IS_DEV"));
+    check('dev optimized legacy turning is explicit and beta mode is independently selectable',
+      source.includes("version === 'dev' && scheme === 'optimized'")
+      && source.includes("version === 'beta' && normalizeControlMode(controlMode) === 'driving'"));
     check('turn actions are hidden outside dev optimized scheme',
       source.includes('IS_DEV && this.scheme === \'optimized\''));
     return checks;

@@ -2,8 +2,8 @@
  * 设置界面：键位方案选择与自定义绑定。
  * 方案切换即时生效并持久化到 localStorage。
  */
-import { Keybinds, ACTIONS, findConflicts } from '../core/keybinds.js';
-import { IS_DEV, VERSION } from '../core/version.js';
+import { Keybinds, ACTIONS, CONTROL_MODE_OPTIONS, findConflicts } from '../core/keybinds.js';
+import { IS_BETA, IS_DEV, VERSION } from '../core/version.js';
 import { INPUT_MODES } from '../core/input-mode.mjs';
 import { versionSwitchModel } from '../core/version-switch.mjs';
 
@@ -127,14 +127,27 @@ export class SettingsUI {
     const b = this.binds;
 
     const schemes = [
-      { id: 'compatible', name: '兼容方案', desc: '与 v1.0 完全一致，J 爆发 / K 大招 / E 交互' },
+      { id: 'compatible', name: '兼容方案', desc: '与 v1.0 键位一致，J 爆发 / K 大招 / E 交互' },
       { id: 'optimized', name: '优化方案', desc: IS_DEV
-        ? 'A/D 转向、方向键横移；Q-E-R 技能簇，鼠标左键攻击'
-        : 'WASD 移动；Q-E-R 技能簇，鼠标左键攻击，空格跳跃' },
+        ? '开发版原有 A/D 转向；Q-E-R 技能簇，鼠标左键攻击'
+        : 'Q/R 技能簇，鼠标左键攻击，空格跳跃；移动方式由操控模式单独决定' },
       { id: 'custom', name: '自定义', desc: '点击任意动作后按新键位' },
     ];
 
-    let html = '<div class="scheme-row">';
+    let html = '';
+    if (IS_BETA) {
+      html += `<section class="control-mode-settings" aria-label="操控模式">
+        <h4>操控模式</h4>
+        <div class="scheme-row control-mode-row">${CONTROL_MODE_OPTIONS.map((mode) => `
+          <button class="scheme-card ${b.controlMode === mode.id ? 'cur' : ''}" data-control-mode="${mode.id}">
+            <div class="scheme-name">${mode.name}${mode.id === 'driving' ? '（默认/新）' : ''}</div>
+            <div class="scheme-desc">${mode.id === 'classic' ? '经典横移（WASD strafe，旧）' : mode.desc}</div>
+          </button>`).join('')}
+        </div>
+        <p>此选择同时适用于兼容、优化和自定义键位方案；方向键左右跟随当前模式。</p>
+      </section>`;
+    }
+    html += '<div class="scheme-row">';
     for (const s of schemes) {
       html += `
         <button class="scheme-card ${b.scheme === s.id ? 'cur' : ''}" data-scheme="${s.id}">
@@ -237,6 +250,9 @@ export class SettingsUI {
     // 绑定事件
     this.el.body.querySelectorAll('[data-scheme]').forEach((el) => {
       el.onclick = () => this.binds.setScheme(el.dataset.scheme);
+    });
+    this.el.body.querySelectorAll('[data-control-mode]').forEach((el) => {
+      el.onclick = () => this.binds.setControlMode(el.dataset.controlMode);
     });
     this.el.body.querySelectorAll('[data-action]').forEach((el) => {
       el.onclick = (ev) => {
