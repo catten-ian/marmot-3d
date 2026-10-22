@@ -18,6 +18,11 @@
     "three/addons/": "./vendor/addons/"
 } }
 </script>
+<script>
+  // 公共只读 TOS 资源基址（仅匿名 GET，不含任何密钥）。DEV Verdant 素材三级回退：
+  // 本地资源包 → 火山 TOS（大文件/ultra）→ 同源服务器。stable/beta 不加载 verdant 代码，此配置对它们无效。
+  window.__VERDANT_TOS__ = { baseUrl: 'https://marmot.tos-cn-shanghai.volces.com', version: '20261022' };
+</script>
 </head>
 <body>
 
