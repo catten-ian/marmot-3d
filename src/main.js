@@ -134,6 +134,9 @@ const BOOT = (typeof window !== 'undefined' && window.__boot) || {
   gsWorld: false, gpuOk: false, gpuReason: '', forceWebGL: false,
 };
 const WANT_GS = BOOT.gsWorld === true && !devOn('verdantWorld');
+// dev Verdant 写实场景同样走 WebGPURenderer（WebGPU→WebGL2 兑底→经典）。
+// 仅 dev：stable 必须继续走下面逐字保留的经典 WebGLRenderer 路径。
+const WANT_WEBGPU_VERDANT = !WANT_GS && IS_DEV && devOn('verdantWorld');
 
 let renderer;
 let rendererStatus = { backend: 'webgl2', supportsSplat: false, gpuReason: '', gpuName: '', gpuVendor: '', hardwareAccelerated: false, hardwareAccelerationKnown: false };
@@ -147,6 +150,23 @@ if (WANT_GS) {
   renderer = result.renderer;
   rendererStatus = {
     backend: result.status.backend,
+    supportsSplat: splatUsable(result),
+    gpuReason: result.status.gpuReason,
+  };
+} else if (WANT_WEBGPU_VERDANT) {
+  // Verdant：WebGPU 优先，?webgl=1 强制 WebGPURenderer(forceWebGL)，家族失败才经典。
+  // three.webgpu 与经典 three 共享同一 three.core(r186)，类/常量身份一致；
+  // 渲染器相关设置仍在下方统一复用本模块的 THREE 常量（同值）再赋值一次。
+  const result = await createRenderer(canvas, {
+    preferWebGPU: true,
+    forceWebGL: BOOT.forceWebGL,
+    preserveDrawingBuffer: true,   // dev 真机 CDP 截图需可读 backbuffer
+    antialias: renderProfile.antialias,
+  });
+  renderer = result.renderer;
+  rendererStatus = {
+    backend: result.status.backend,
+    // Verdant 不依赖高斯泼溅；supportsSplat 仅对 GS 家族有意义，这里按后端如实记录。
     supportsSplat: splatUsable(result),
     gpuReason: result.status.gpuReason,
   };
@@ -188,7 +208,7 @@ function renderVerdantDiagnostics() {
   if (!verdantQualityState) return;
   const d = rendererStatus;
   const backend = d.backend === 'webgpu' ? 'WebGPU'
-    : d.backend === 'webgl2-fallback' ? 'WebGL2 兜底（GS 深度排序退 CPU）' : d.backend === 'webgl2' ? 'WebGL2' : 'WebGL';
+    : d.backend === 'webgl2-fallback' ? 'WebGL2 兼容后端（WebGPU 不可用）' : d.backend === 'webgl2' ? 'WebGL2' : 'WebGL';
   const hardware = !d.hardwareAccelerationKnown ? '硬件加速状态：无法确认' : d.hardwareAccelerated ? '硬件加速：已启用' : '未使用 GPU 硬件加速（软件渲染）';
   verdantQualityState.diagnosticsText = `后端：${backend}<br>GPU：${escapeHtmlText(d.gpuName)} · ${escapeHtmlText(d.gpuVendor)}<br><b style=\"color:${d.hardwareAccelerated ? '#9fe6a0' : '#ff6b6b'}\">${hardware}</b>`;
   settingsUI?.render?.();
@@ -252,15 +272,20 @@ function disposeVerdantGroup(group) {
   group?.traverse?.((o) => { if (!o.isMesh) return; o.geometry?.dispose?.(); const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach((m) => { ['map','normalMap','roughnessMap','alphaMap'].forEach((k) => m?.[k]?.dispose?.()); m?.dispose?.(); }); });
 }
 // 如实显示后端徽标：不能让「跑在 WebGL2 兜底上」被误认为「跑在 WebGPU 上」
+// GS 与 dev Verdant 都可能走 WebGPURenderer，两者都要如实显示真实后端。
 {
   const tag = document.getElementById('backendTag');
-  if (tag && WANT_GS) {
-    const label = rendererStatus.backend === 'webgpu' ? 'WebGPU'
-      : 'WebGL2 兜底（非 WebGPU）';
+  if (tag && (WANT_GS || WANT_WEBGPU_VERDANT)) {
+    const b = rendererStatus.backend;
+    const label = b === 'webgpu' ? 'WebGPU'
+      : b === 'webgl2-fallback' ? 'WebGL2 兜底（非 WebGPU）'
+      : b === 'webgl2' ? 'WebGL2'
+      : 'WebGL';
     tag.textContent = label;
     tag.classList.remove('hidden');
-    tag.style.color = rendererStatus.backend === 'webgpu' ? '#9fe6a0' : '#ffb35a';
-    tag.title = rendererStatus.gpuReason || '高斯泼溅需要 WebGPURenderer';
+    tag.style.color = b === 'webgpu' ? '#9fe6a0' : b === 'webgl2-fallback' ? '#ffb35a' : '#c9d6c3';
+    tag.title = rendererStatus.gpuReason
+      || (WANT_GS ? '高斯泼溅需要 WebGPURenderer' : 'Verdant 写实场景优先使用 WebGPU');
   }
 }
 
@@ -2382,7 +2407,7 @@ applyInputMode();
 if (verdantQualityState) {
   const d = rendererStatus;
   renderVerdantDiagnostics();
-  hud.say(`${d.backend === 'webgpu' ? 'WebGPU' : d.backend === 'webgl2-fallback' ? 'WebGL2 兜底（GS 排序退 CPU）' : d.backend === 'webgl2' ? 'WebGL2' : 'WebGL'} · ${!d.hardwareAccelerationKnown ? '硬件状态未知' : d.hardwareAccelerated ? '硬件加速已启用' : '未使用 GPU 硬件加速'}`, 3.8);
+  hud.say(`${d.backend === 'webgpu' ? 'WebGPU' : d.backend === 'webgl2-fallback' ? 'WebGL2 兼容后端（WebGPU 不可用）' : d.backend === 'webgl2' ? 'WebGL2' : 'WebGL'} · ${!d.hardwareAccelerationKnown ? '硬件状态未知' : d.hardwareAccelerated ? '硬件加速已启用' : '未使用 GPU 硬件加速'}`, 3.8);
 }
 
 
