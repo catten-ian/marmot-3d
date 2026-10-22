@@ -100,3 +100,14 @@ Ultra 使用外置 glTF URI，避免单 GLB 2.6 GB；当前纹理仍为 PNG/JPEG
 DEV 已接入 `/assets/models/wolf.glb`（44 骨、`idle`/`run`/`attack` 三个完整骨骼 clip，SHA-256 `b43e8bf5ce3f9de23c09149d3a7a0efaf3f9c2475fe2d9be681c674b05f6a563`）。`SkeletonUtils.clone` 为每只狼隔离骨骼，`AnimationMixer` 在 idle/run/attack 间按 AI 状态切换，冲刺接触窗口触发 attack；dispose 会停止 mixer。stable/beta 不读取该开关。
 
 资源回退与下载代码已完成客户端协议，但没有伪造 TOS 地址：未设置 `window.__VERDANT_TOS__` 或设置面板中的对象前缀时，不会向外网发起请求。配置后按本地包 → TOS 对象前缀 → 同源服务器回退；ZIP 按 `pack.zip`/`zipUrls[tier]` 下载；文件夹下载用 File System Access API 按 manifest 逐文件下载、SHA-256 校验、断点复用已有正确文件后写入 `pack-manifest.json`。TOS stage 自洽目录已生成在 `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/release/tos-stage/m3d-dev/20261022/{low,medium,high,ultra}`；目录内包含公共模型、对应档位、height、wolf 和根级 pack-manifest，>100 MB 文件采用硬链接留在工作树，未加入 Git。实际 TOS 上传/key/ZIP 端点仍待提供。
+
+### 第三阶段本地 TOS stage 校验补充
+
+为验证网页内 ZIP 下载钩子，本地忽略目录已为四档生成与自洽文件夹树同源的无压缩 ZIP，并用 `unzip -tq` 完整校验：
+
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/release/tos-stage/m3d-dev/20261022/low/pack.zip` — 107,658,736 bytes，SHA-256 `db5fd2cb6946f2dc01e2295d4c0d35a7f2b126e9d315d797bdb7d8d5d67c4919`
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/release/tos-stage/m3d-dev/20261022/medium/pack.zip` — 189,074,066 bytes，SHA-256 `a9588702271ac520ab241beecbb9843b54abd272682dfc65e4c22e0d78696ced`
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/release/tos-stage/m3d-dev/20261022/high/pack.zip` — 199,615,400 bytes，SHA-256 `6fc148363b47ddfa7396961d7b602c4c3cbb3808a0f3262547d95d6bdebd7807`
+- `/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/release/tos-stage/m3d-dev/20261022/ultra/pack.zip` — 2,614,017,588 bytes，SHA-256 `9fcdcab27ec6204f187fb884a2ceb04651c067700795850c802ce019a308ea8b`
+
+这些 ZIP 和文件夹树都包含公共模型、对应档位场景、height、狼模型及根级 `pack-manifest.json`；实际对象存储上传和正式 TOS 域名仍未执行。
