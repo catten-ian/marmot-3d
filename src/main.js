@@ -625,6 +625,33 @@ function exitSandbox() {
   title();
 }
 
+// —— BETA 专属：扮演藏狐（独立模式，懒加载，不影响 stable/dev 主路径）——
+let playAsFox = null;
+async function enterPlayAsFox() {
+  if (playAsFox) return;
+  hud.hidePanel();
+  game.sandbox = false; game.mode = 'play';
+  document.body.classList.remove('sandbox-active', 'touch-playing');
+  // 清掉场地上的敌狐，避免与扮演模式的猎物混淆
+  disposeAllFoxes();
+  const { createPlayAsFox } = await import('./play/play-as-fox.js');
+  if (playAsFox) return; // 防重入
+  playAsFox = createPlayAsFox({
+    scene, camera, renderer, canvas, sky,
+    playerModel, companion,
+    getFoxes: () => foxes,
+    requestLock: () => { if (!controller.touchEnabled) controller.requestLock(); },
+    onExit: () => {
+      playAsFox = null;
+      document.body.classList.remove('play-as-fox');
+      controller.update(0.016, new Set(), 1);
+      title();
+    },
+  });
+}
+function exitPlayAsFox() { playAsFox?.exit(); }
+window.__enterPlayAsFox = enterPlayAsFox;
+
 function loadLevel(index, announce = true) {
   clearPendingAerialParry();
   cancelAttackCharge();
@@ -911,6 +938,7 @@ function title() {
     <div class="eyebrow">CAMPAIGN / ${LEVELS.length} 关草原冒险 · 第一 / 第三人称 3D</div>
     <h2>从两只藏狐，到草原守望者。</h2>
     <button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>
+    ${IS_BETA ? `<button class="sandbox-entry" id="playAsFoxBtn" type="button" style="border-color:#b98a4a">扮演藏狐（BETA） <span>潜行 · 蓄力 · 扑击捕猎土拨鼠</span></button>` : ''}
     <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>V</b> 切换为第三人称跟随视角，随时按需选择。</p>
     <p>每关完成 <b>采食、救援与陪伴</b>，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
@@ -962,6 +990,8 @@ function title() {
   `);
   document.getElementById('startBtn').onclick = startPlay;
   document.getElementById('sandboxEntryBtn').onclick = enterSandbox;
+  const pafBtn = document.getElementById('playAsFoxBtn');
+  if (pafBtn) pafBtn.onclick = enterPlayAsFox;
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
 }
@@ -2519,6 +2549,15 @@ function frame(now) {
   }
   // 暂停态：供设置/帮助/布局编辑器在暂停层之上显示并保持游戏暂停。
   document.body.classList.toggle('paused', game.mode === 'pause');
+
+  // —— BETA 扮演藏狐模式：由独立模式接管相机/输入/实体/天空 ——
+  if (playAsFox) {
+    playAsFox.update(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+    return;
+  }
+
   update(dt);
   // 键鼠技能状态条在 play/pause 都要刷新（函数内部按模式与输入方式决定显隐）。
   updateKbSkillBar();
