@@ -179,6 +179,18 @@ export function createPlayAsFox(ctx) {
       body.play-as-fox #minimap,
       body.play-as-fox .minimap { display:none !important; }
       body.play-as-fox #overlay.overlay.on { display:none !important; }
+      #playAsFoxHud #pafTouch { position:absolute;inset:0;pointer-events:none;display:none }
+      #playAsFoxHud.paf-touch #pafTouch { display:block }
+      #pafStick { position:absolute;left:34px;bottom:46px;width:132px;height:132px;border-radius:50%;
+        background:rgba(30,40,28,.32);border:2px solid rgba(220,235,205,.35);pointer-events:auto;touch-action:none }
+      #pafKnob { position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;
+        background:rgba(225,238,205,.55);border:2px solid rgba(255,255,255,.5);pointer-events:none }
+      #pafBtns { position:absolute;right:26px;bottom:46px;display:flex;flex-direction:column;gap:16px;align-items:center;pointer-events:none }
+      #pafBtns button { pointer-events:auto;touch-action:none;border:none;cursor:pointer;color:#f4f3e6;
+        font-weight:800;font-size:16px;border-radius:50%;box-shadow:0 3px 10px rgba(0,0,0,.35) }
+      #pafPounce { width:92px;height:92px;background:radial-gradient(circle at 35% 30%,#d98a4a,#9c5320) }
+      #pafSprint { width:68px;height:68px;background:radial-gradient(circle at 35% 30%,#7c8f63,#48552f);font-size:14px }
+      #pafSprint.paf-on { outline:3px solid #ffe08a }
     `;
     document.head.appendChild(style);
   }
@@ -187,7 +199,14 @@ export function createPlayAsFox(ctx) {
     <div id="pafTop" style="position:absolute;top:12px;left:0;right:0;text-align:center;color:#ffe9c2;text-shadow:0 1px 4px #000;font-size:18px;font-weight:800"></div>
     <div id="pafTip" style="position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#dfe8d6;text-shadow:0 1px 3px #000;font-size:13px;line-height:1.6"></div>
     <div id="pafCenter" style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);color:#ffd24a;font-size:30px;font-weight:900;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .15s"></div>
-    <button id="pafExit" style="position:absolute;top:12px;right:14px;pointer-events:auto;padding:8px 14px;border-radius:10px;border:1px solid #6f7d5f;background:rgba(20,28,20,.72);color:#e7eedf;font-size:13px;cursor:pointer">退出扮演 (Esc)</button>`;
+    <button id="pafExit" style="position:absolute;top:12px;right:14px;pointer-events:auto;padding:8px 14px;border-radius:10px;border:1px solid #6f7d5f;background:rgba(20,28,20,.72);color:#e7eedf;font-size:13px;cursor:pointer">退出扮演 (Esc)</button>
+    <div id="pafTouch">
+      <div id="pafStick"><div id="pafKnob"></div></div>
+      <div id="pafBtns">
+        <button id="pafSprint" type="button">冲刺</button>
+        <button id="pafPounce" type="button">扑击</button>
+      </div>
+    </div>`;
   document.body.appendChild(overlay);
   const elTop = overlay.querySelector('#pafTop');
   const elTip = overlay.querySelector('#pafTip');
@@ -248,6 +267,42 @@ export function createPlayAsFox(ctx) {
   renderer.domElement.addEventListener('click', onCanvasClick);
   window.addEventListener('resize', onResize);
 
+  // —— 触屏：左下摇杆（上下=前后，左右=转向），右下扑击/冲刺 ——
+  const isTouch = (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
+  const touch = { throttle: 0, turn: 0, sprint: false };
+  const stick = overlay.querySelector('#pafStick');
+  const knob = overlay.querySelector('#pafKnob');
+  const sprintBtn = overlay.querySelector('#pafSprint');
+  const pounceBtn = overlay.querySelector('#pafPounce');
+  if (isTouch) overlay.classList.add('paf-touch');
+  let stickId = null;
+  const setKnob = (dx = 0, dy = 0) => { knob.style.transform = `translate(${dx}px,${dy}px)`; };
+  const stickVec = (clientX, clientY) => {
+    const r = stick.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    let dx = clientX - cx, dy = clientY - cy;
+    const max = r.width * 0.36, len = Math.hypot(dx, dy);
+    if (len > max) { dx = dx / len * max; dy = dy / len * max; }
+    setKnob(dx, dy);
+    const nx = dx / max, ny = dy / max;      // 屏幕上为负 y
+    const dead = 0.18;
+    touch.turn = Math.abs(nx) > dead ? -nx : 0;     // 向右拖→顺时针右转
+    touch.throttle = Math.abs(ny) > dead ? -ny : 0; // 向上拖→前进
+  };
+  const onStickDown = (e) => { e.preventDefault(); stickId = e.pointerId; stick.setPointerCapture?.(e.pointerId); stickVec(e.clientX, e.clientY); };
+  const onStickMove = (e) => { if (stickId !== e.pointerId) return; e.preventDefault(); stickVec(e.clientX, e.clientY); };
+  const onStickUp = (e) => { if (stickId !== null && e.pointerId !== stickId) return; stickId = null; touch.throttle = 0; touch.turn = 0; setKnob(0, 0); };
+  const setSprint = (on) => { touch.sprint = on; sprintBtn?.classList.toggle('paf-on', on); };
+  stick?.addEventListener('pointerdown', onStickDown);
+  stick?.addEventListener('pointermove', onStickMove);
+  stick?.addEventListener('pointerup', onStickUp);
+  stick?.addEventListener('pointercancel', onStickUp);
+  pounceBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); startPounce(); });
+  sprintBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); setSprint(true); });
+  sprintBtn?.addEventListener('pointerup', () => setSprint(false));
+  sprintBtn?.addEventListener('pointercancel', () => setSprint(false));
+  sprintBtn?.addEventListener('pointerleave', () => setSprint(false));
+
   // 镜头先就位
   fox.y = terrainHeight(fox.x, fox.z);
   foxVisual.group.position.set(fox.x, fox.y, fox.z);
@@ -255,7 +310,7 @@ export function createPlayAsFox(ctx) {
   function update(dt) {
     if (!running) return;
     elapsed += dt;
-    fox.sprint = keys.has('ShiftLeft') || keys.has('ShiftRight');
+    fox.sprint = touch.sprint || keys.has('ShiftLeft') || keys.has('ShiftRight');
 
     // 相位推进
     if (fox.phase === 'wind') {
@@ -275,16 +330,17 @@ export function createPlayAsFox(ctx) {
 
     // 常规移动 / 转向（蓄力与扑击中锁向）
     const canSteer = fox.phase === 'idle' || fox.phase === 'recover';
-    let turn = 0;
+    let turn = touch.turn;
     if (canSteer) {
       if (keys.has('KeyA') || keys.has('ArrowLeft')) turn += 1;
       if (keys.has('KeyD') || keys.has('ArrowRight')) turn -= 1;
       fox.yaw += turn * TURN_RATE * dt;
     }
-    let throttle = 0;
+    let throttle = touch.throttle;
     if (fox.phase === 'idle') {
       if (keys.has('KeyW') || keys.has('ArrowUp')) throttle += 1;
       if (keys.has('KeyS') || keys.has('ArrowDown')) throttle -= 0.55;
+      throttle = clamp(throttle, -0.6, 1);
       const sp = fox.sprint ? RUN_SPEED : STALK_SPEED;
       fox.x += Math.sin(fox.yaw) * sp * throttle * dt;
       fox.z += Math.cos(fox.yaw) * sp * throttle * dt;
@@ -331,7 +387,9 @@ export function createPlayAsFox(ctx) {
     // HUD
     elTop.textContent = `扮演藏狐 · 捕猎 ${score} 只 · ${elapsed.toFixed(0)}s`;
     const phaseLabel = fox.phase === 'wind' ? '蓄力中…' : fox.phase === 'lunge' ? '扑击！' : fox.phase === 'recover' ? '硬直' : fox.sprint ? '冲刺（易被发现）' : '潜行';
-    elTip.innerHTML = `W/S 前后 · 鼠标或 A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 扑击（${phaseLabel}）`;
+    elTip.innerHTML = isTouch
+      ? `左下摇杆移动/转向 · <b>冲刺</b>切换潜行 · <b>扑击</b>捕猎（${phaseLabel}）`
+      : `W/S 前后 · 鼠标或 A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 扑击（${phaseLabel}）`;
   }
 
   function exit() {
@@ -344,6 +402,10 @@ export function createPlayAsFox(ctx) {
     renderer.domElement.removeEventListener('mousedown', onMouseDown);
     renderer.domElement.removeEventListener('click', onCanvasClick);
     window.removeEventListener('resize', onResize);
+    stick?.removeEventListener('pointerdown', onStickDown);
+    stick?.removeEventListener('pointermove', onStickMove);
+    stick?.removeEventListener('pointerup', onStickUp);
+    stick?.removeEventListener('pointercancel', onStickUp);
     for (const p of prey) p.dispose(scene);
     prey = [];
     scene.remove(foxVisual.group);
