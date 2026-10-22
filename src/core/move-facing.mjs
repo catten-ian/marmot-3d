@@ -24,6 +24,25 @@ export function resolveMoveIntent(mx, mz, yaw, backpedalSpeed = 0.58) {
   };
 }
 
+/** Resolve keyboard movement and optional steering independently, then combine them. */
+export function resolveKeyboardDrive(keys, moveMap, turnMap, yaw, turnRate, dt, backpedalSpeed = 0.58) {
+  const down = (code) => !!code && keys.has(code);
+  const turn = Number(down(turnMap?.left) || down(turnMap?.leftAlt))
+    - Number(down(turnMap?.right) || down(turnMap?.rightAlt));
+  const nextYaw = yaw + turn * turnRate * dt;
+  let mx = 0, mz = 0;
+  if (down(moveMap?.forward) || down(moveMap?.forwardAlt)) mz += 1;
+  if (down(moveMap?.back) || down(moveMap?.backAlt)) mz -= 1;
+  if (down(moveMap?.left) || down(moveMap?.leftAlt)) mx -= 1;
+  if (down(moveMap?.right) || down(moveMap?.rightAlt)) mx += 1;
+  const turnActive = down(turnMap?.left) || down(turnMap?.leftAlt)
+    || down(turnMap?.right) || down(turnMap?.rightAlt);
+  return {
+    yaw: nextYaw, mx, mz, turn, turnActive,
+    intent: resolveMoveIntent(mx, mz, nextYaw, backpedalSpeed),
+  };
+}
+
 export function dampAngle(current, target, dt, rate) {
   const delta = Math.atan2(Math.sin(target - current), Math.cos(target - current));
   return current + delta * (1 - Math.exp(-rate * dt));
@@ -34,84 +53,55 @@ export function wrapAngle(a) {
 }
 
 /**
- * 触屏跑动模型：
- *
- * 第一人称（thirdPerson=false，默认）：摇杆是“油门 + 连续转向”，不是瞬时方向平移。
- * - 左右按住：bodyYaw 每帧持续朝该侧旋转，同时仍向前跑，所以持续左推会跑圈；
- * - 前推/斜推：沿当前身体朝向给油门，横向分量负责弧线；
- * - 后拉：平滑 U-turn 到镜头后方，掉头后继续向前跑（没有后退步）。
- *
- * 第三人称（thirdPerson=true）：“滑向哪就跑向哪”。
- * - 摇杆屏幕方向（x 右正、y 上正）经【当前镜头朝向】旋转后直接成为世界移动方向，
- *   bodyYaw 即时对准该方向，旱獭朝移动方向转身；
- * - throttle 由推杆距离 mag 决定；横推 = 真的朝左/右跑，不再画圈；
- * - 后拉自然映射为 cameraYaw+π（朝镜头后方跑），不需要专门的 U-turn 状态。
- *
- * 关键：第三人称下摇杆【绝不驱动镜头】。cameraYaw 原样回传，镜头 yaw 只允许
- * 由 #touchLookZone 右手 look 指针（或键鼠视角）改变——移动与环视是两根独立指针。
+ * 触屏摇杆的第一人称“转向 + 油门”模型，以及不写镜头的第三人称方向跑动。
+ * 第一人称：x 连续控制角速度，y 是带符号的前进/后退速度；两者同帧叠加，
+ * 后退只反转移动向量并乘 backpedalSpeed，不掉头。
+ * 第三人称：保留现有屏幕方向跑动语义，cameraYaw 只读不写。
  */
 export function resolveTouchDrive(input) {
   const {
     bodyYaw, cameraYaw, x, y, dt,
     turnRate = 2.7,
-    uTurnRate = 3.4,
-    uTurn = false,
+    backpedalSpeed = 0.58,
     thirdPerson = false,
   } = input;
   const dead = 0.14;
-  const ax = Math.abs(x);
-  const ay = Math.abs(y);
-  const mag = Math.hypot(x, y);
-  if (mag < dead) return { bodyYaw, throttle: 0, uTurn: false, finishedTurn: false, cameraYaw };
+  const rawMag = Math.hypot(x, y);
+  if (rawMag < dead) {
+    return {
+      bodyYaw, throttle: 0, moveX: 0, moveZ: 0, isBackpedal: false,
+      speedScale: 1, uTurn: false, finishedTurn: false, cameraYaw,
+    };
+  }
 
-  let nextYaw = bodyYaw;
-  let nextCameraYaw = cameraYaw;
-  let throttle = Math.min(1, mag);
-  let finishedTurn = false;
-  let nextUTurn = uTurn;
+  // 与摇杆触控层一致：输入半径最多为 1，斜向总幅度不超过满杆。
+  const axisScale = rawMag > 1 ? 1 / rawMag : 1;
+  const sx = x * axisScale;
+  const sy = y * axisScale;
+  const mag = Math.min(1, rawMag);
 
   if (thirdPerson) {
-    // 屏幕向量(x,y)（y 上为正）按【当前镜头】yaw 旋转成世界向量：
-    //   镜头前方 = (-sin cy, -cos cy)，镜头右方 = (cos cy, -sin cy)。
-    //   world = x*右 + y*前，yaw=0（相机朝 -Z）时：屏幕正上 → 世界 -Z，正右 → +X。
-    const wx = Math.cos(cameraYaw) * x - Math.sin(cameraYaw) * y;
-    const wz = -Math.sin(cameraYaw) * x - Math.cos(cameraYaw) * y;
-    // Three.js 约定 forward(yaw)=(-sin yaw,-cos yaw)，
-    // 要让身体正对世界移动方向 (wx,wz)，必须 yaw=atan2(-wx,-wz)。
-    // （旧写法 atan2(wx,-wz) 使移动方向 = (-wx,wz)：前后正确、左右恒反。）
-    nextYaw = Math.atan2(-wx, -wz);
-    // 只转身/移动，不动镜头：cameraYaw 必须原样回传。
-    // 镜头 yaw 只由右手 lookZone（或键鼠视角）改变，摇杆推到任何方向都不得回写。
-    throttle = Math.min(1, mag);
-    nextUTurn = false;
-    return { bodyYaw: wrapAngle(nextYaw), throttle, uTurn: false, finishedTurn, cameraYaw };
+    // 屏幕向量(x,y)按当前相机 yaw 旋转成世界方向；镜头由 lookZone 单独负责。
+    const wx = Math.cos(cameraYaw) * sx - Math.sin(cameraYaw) * sy;
+    const wz = -Math.sin(cameraYaw) * sx - Math.cos(cameraYaw) * sy;
+    const nextYaw = Math.atan2(-wx, -wz);
+    return {
+      bodyYaw: wrapAngle(nextYaw), throttle: mag,
+      moveX: -Math.sin(nextYaw) * mag, moveZ: -Math.cos(nextYaw) * mag,
+      isBackpedal: false, speedScale: 1, uTurn: false, finishedTurn: false, cameraYaw,
+    };
   }
 
-  if (y < -0.35) {
-    // 后拉：以镜头正后方为目标做一次平滑掉头；掉正后自动退出。
-    nextUTurn = true;
-    const target = cameraYaw + Math.PI;
-    const before = Math.abs(wrapAngle(target - nextYaw));
-    nextYaw = dampAngle(nextYaw, target, dt, uTurnRate);
-    const after = Math.abs(wrapAngle(target - nextYaw));
-    finishedTurn = after < 0.08 || after > before;
-    if (finishedTurn) nextUTurn = false;
-    throttle = Math.max(0.25, -y);
-  } else {
-    nextUTurn = false;
-    // 纯横推也要给基础油门：这样“一直向左”=边向前跑边持续左转=画圈。
-    const forwardThrottle = y > 0 ? y : ax * 0.82;
-    throttle = Math.max(0.2, Math.min(1, Math.hypot(Math.max(0, y), x * 0.82), forwardThrottle));
-    if (ax > dead) {
-      nextYaw -= x * turnRate * dt;
-    }
-    // 前推时如果身体和镜头朝向偏离很大（例如刚 U-turn / 转了圈），柔和回到镜头前方。
-    if (y > 0.35 && ax < 0.45) {
-      nextYaw = dampAngle(nextYaw, cameraYaw, dt, 1.15 * Math.max(0.15, y));
-    }
-  }
-
-  return { bodyYaw: wrapAngle(nextYaw), throttle, uTurn: nextUTurn, finishedTurn, cameraYaw: nextCameraYaw };
+  const nextYaw = wrapAngle(bodyYaw - sx * turnRate * dt);
+  const throttle = sy;
+  const isBackpedal = throttle < 0;
+  const speedScale = isBackpedal ? backpedalSpeed : 1;
+  return {
+    bodyYaw: nextYaw, throttle,
+    moveX: -Math.sin(nextYaw) * throttle,
+    moveZ: -Math.cos(nextYaw) * throttle,
+    isBackpedal, speedScale, uTurn: false, finishedTurn: false, cameraYaw,
+  };
 }
 
 export function classifyMoveFacing(mx, mz, thirdPerson = false) {

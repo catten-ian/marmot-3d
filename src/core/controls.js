@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { terrainHeight, clamp } from '../core/utils.js';
 import { undergroundFloorY } from '../world/underground.js';
-import { resolveMoveIntent, dampAngle, wrapAngle, resolveTouchDrive } from './move-facing.mjs';
+import { resolveMoveIntent, resolveKeyboardDrive, dampAngle, wrapAngle, resolveTouchDrive } from './move-facing.mjs';
 
 export class FirstPersonController {
   constructor(camera, domElement) {
@@ -32,7 +32,6 @@ export class FirstPersonController {
     this.moveFacingYaw = 0;
     this.isBackpedal = false;
     this.moveSpeedScale = 1;
-    this.touchUTurn = false;
     this._thirdPersonStrafeYaw = null;
     this.movementLocked = false;
 
@@ -208,22 +207,17 @@ export class FirstPersonController {
     turnMap = null,
   ) {
     const base = PLAYER.speed * speedMul;
-    if (turnMap) {
-      const turn = Number(keys.has(turnMap.left)) - Number(keys.has(turnMap.right));
-      this.yaw += turn * PLAYER.handling.turnRate * dt;
-    }
-    let mx = 0, mz = 0;
-    // 通过键位方案查表取移动键，而不是硬编码 KeyW
-    if (keys.has(moveMap.forward) || keys.has(moveMap.forwardAlt)) mz += 1;
-    if (keys.has(moveMap.back) || keys.has(moveMap.backAlt)) mz -= 1;
-    if (keys.has(moveMap.left) || keys.has(moveMap.leftAlt)) mx -= 1;
-    if (keys.has(moveMap.right) || keys.has(moveMap.rightAlt)) mx += 1;
+    const keyboard = resolveKeyboardDrive(
+      keys, moveMap, turnMap, this.yaw, PLAYER.handling.turnRate, dt, PLAYER.backpedalSpeed,
+    );
+    this.yaw = keyboard.yaw;
+    let mx = keyboard.mx, mz = keyboard.mz;
     // Touch joystick axes share the same acceleration/collision path as WASD.
     // The combined vector is normalized below, so mixing keyboard and touch
     // never increases movement speed beyond the existing diagonal cap.
     mx += this.touchAxes.x;
     mz += this.touchAxes.y;
-    const turnActive = !!(turnMap && (keys.has(turnMap.left) || keys.has(turnMap.right)));
+    const turnActive = keyboard.turnActive;
     if (this.movementLocked) { mx = 0; mz = 0; this.velocity.set(0, 0, 0); }
 
     // 外力（阵风、受击）以速度积分；与玩家输入分开，仍共用后续碰撞处理。
@@ -239,26 +233,23 @@ export class FirstPersonController {
     let intent = resolveMoveIntent(mx, mz, this.yaw, PLAYER.backpedalSpeed);
     const touchActive = Math.hypot(this.touchAxes.x, this.touchAxes.y) > 1e-6;
     if (touchActive && !turnActive) {
-      // 触屏摇杆：油门 + 连续转向。身体朝向(bodyYaw)与镜头朝向(yaw)分离。
-      // 持续左/右推会让土拨鼠一直转头同时向前跑 → 跑圈；后拉做平滑 U-turn。
-      // 第三人称下移动绝不带动镜头；第一人称镜头跟随身体。
+      // 第一人称把摇杆横向转向与带符号前后油门同帧合并；
+      // 第三人称仍按屏幕方向跑，且摇杆绝不写入镜头 yaw。
       const drive = resolveTouchDrive({
-        // 拉视角中：第一人称用身体朝向做转向参考，避免手指环视的 yaw 串入 U-turn/回正。
+        // 拉视角中：第一人称用身体朝向计算移动，避免右手环视瞬间改变摇杆方向。
         bodyYaw: this.bodyYaw, cameraYaw: (!this.thirdPerson && this.touchLookActive) ? this.bodyYaw : this.yaw,
         x: this.touchAxes.x, y: this.touchAxes.y, dt,
-        turnRate: 2.7, uTurnRate: 3.4, uTurn: this.touchUTurn,
+        turnRate: 2.7, backpedalSpeed: PLAYER.backpedalSpeed,
         thirdPerson: this.thirdPerson,
       });
       this.bodyYaw = wrapAngle(drive.bodyYaw);
-      this.touchUTurn = drive.uTurn;
-      const th = drive.throttle;
       intent = {
-        mx: 0, mz: 0,
-        moveX: -Math.sin(this.bodyYaw) * th,
-        moveZ: -Math.cos(this.bodyYaw) * th,
+        mx: 0, mz: drive.throttle,
+        moveX: drive.moveX,
+        moveZ: drive.moveZ,
         facingYaw: this.bodyYaw,
-        isBackpedal: false,
-        speedScale: 1,
+        isBackpedal: drive.isBackpedal,
+        speedScale: drive.speedScale,
       };
       if (this.thirdPerson) {
         // 第三人称：摇杆只决定身体朝向/移动方向，镜头 yaw 永远不被摇杆回写。
@@ -273,8 +264,7 @@ export class FirstPersonController {
         this.moveFacingYaw = this.yaw;
       }
     } else {
-      // 键盘/鼠标路径：保持原有 strafe + 转向键逻辑；身体朝向移动方向。
-      this.touchUTurn = false;
+      // 键盘/鼠标路径：操控模式决定是横移还是独立转向；身体朝向沿用移动意图。
       this.bodyYaw = dampAngle(this.bodyYaw, intent.facingYaw, dt, PLAYER.bodyTurnRate);
       this.moveFacingYaw = intent.facingYaw;
     }

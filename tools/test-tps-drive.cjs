@@ -1,7 +1,7 @@
 /* fix/touch-intent-corrections 验收测试（纯 Node，不启动浏览器）：
  * A. resolveTouchDrive 第三人称：身体按当前相机 yaw 转向，但 cameraYaw 必须原样回传
  *    （摇杆绝不驱动镜头）；左右符号必须正确（推右 = 镜头右侧，旧实现横向恒反）；
- *    第一人称行为保持不变。
+ *    第一人称使用连续转向和正负油门；斜后输入应后退而不掉头。
  * B. 沙盒只有一个可调整入口：现有的 #testModeBtn（沙盒中文字“沙盒控制”），
  *    不再有 #sandboxTouchLayer / 七个浮动按钮 / collectSandboxButtons。
  */
@@ -84,17 +84,22 @@ const angleErr = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))
     }
   }
 
-  // ---------- A2. 第一人称行为完全保持（旧“油门+连续转向”模型） ----------
+  // ---------- A2. 第一人称使用带符号油门与连续转向，第三人称不变 ----------
   const fp = { bodyYaw: 0, cameraYaw: 0, dt: 1 / 60 };
   const fpRight = resolveTouchDrive({ ...fp, x: 1, y: 0 });
-  approxEq(fpRight.bodyYaw, -2.7 / 60, 1e-9, 'FP 横推右仍持续转 bodyYaw（画圈模型保留）');
-  approxEq(fpRight.throttle, 0.82, 1e-9, 'FP 纯横推基础油门 0.82 不变');
+  approxEq(fpRight.bodyYaw, -2.7 / 60, 1e-9, 'FP 横推右持续转 bodyYaw');
+  approxEq(fpRight.throttle, 0, 1e-9, 'FP 纯横推只转向、不产生前进油门');
   eq(fpRight.cameraYaw, 0, 'FP 输出 cameraYaw 原样不变');
   const fpDefault = resolveTouchDrive({ bodyYaw: 0, cameraYaw: 0, x: 1, y: 0, dt: 1 / 60 });
-  approxEq(fpDefault.bodyYaw, -2.7 / 60, 1e-9, '默认（无 thirdPerson）仍是 FP 行为');
-  const fpBack = resolveTouchDrive({ ...fp, x: 0, y: -0.8 });
-  eq(fpBack.uTurn, true, 'FP 后拉保留 U-turn 分支');
-  approxEq(fpBack.throttle, 0.8, 1e-9, 'FP 后拉油门 .8');
+  approxEq(fpDefault.bodyYaw, -2.7 / 60, 1e-9, '默认（无 thirdPerson）仍是 FP 连续转向');
+  const fpBack = resolveTouchDrive({ ...fp, x: 0, y: -0.8, backpedalSpeed: 0.58 });
+  eq(fpBack.uTurn, false, 'FP 后拉默认不触发 U-turn');
+  approxEq(fpBack.throttle, -0.8, 1e-9, 'FP 后拉输出负油门');
+  eq(fpBack.isBackpedal, true, 'FP 后拉标记 backpedal');
+  approxEq(fpBack.speedScale, 0.58, 1e-9, 'FP 后拉使用 backpedal 减速');
+  approxEq(fpBack.bodyYaw, 0, 1e-9, 'FP 直向后拉保持当前朝向');
+  const fpRearRight = resolveTouchDrive({ ...fp, x: 0.7, y: -0.7 });
+  ok(fpRearRight.bodyYaw < 0 && fpRearRight.throttle < 0 && !fpRearRight.uTurn, 'FP 斜后右推同时右转与后退，不掉头');
 
   // 调用方契约：controls.js 第三人称 touch-drive 分支禁止把摇杆结果写回 this.yaw。
   const controlsSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'controls.js'), 'utf8');
