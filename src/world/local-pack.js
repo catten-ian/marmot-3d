@@ -1,4 +1,4 @@
-import { normalizePath } from './local-pack-resolver.mjs';
+function normalizePath(path) { return String(path || '').replaceAll('\\', '/').split('/').filter((part) => part && part !== '.').join('/'); }
 /** Dev-only Verdant package picker, integrity validator and tier download hooks. */
 const DB_NAME = 'marmot3d-local-pack';
 const STORE = 'handles';
@@ -78,6 +78,7 @@ async function validate(root, entries, onProgress = null, verifyHashes = true) {
   for (const [rawPath, entry] of files) normalized.set(normalizeInputPath(rawPath), entry);
   const found = REQUIRED.filter((p) => normalized.has(p));
   const missing = REQUIRED.filter((p) => !found.includes(p));
+  if (!normalized.size) { status = { state: 'none', found: [], missing: REQUIRED.slice(), message: '未选择本地资源包' }; active = null; return status; }
   if (missing.length) {
     active = null;
     status = { state: 'partial', found, missing, message: `资源包不完整：缺少 ${missing.length} 个必要文件` };
