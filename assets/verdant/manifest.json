@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "scene": "A Verdant Trail",
   "source": {
     "blend": "/home/fame/marmot3d-assets/verdant_trail/verdant_trail.blend",
@@ -55,18 +55,18 @@
       "tree_small_02_leaves"
     ],
     "groundObject": "ground",
-    "maxTriangles": 120000,
-    "heightGrid": 65,
-    "texturePolicy": "geometry proxy + material base colors; no source images",
-    "textureSizePolicy": 1024
+    "maxTriangles": 650000,
+    "heightGrid": 129,
+    "texturePolicy": "PBR diff/rough web JPEG/PNG, normal PNG, displacement omitted",
+    "geometryOnly": false
   },
   "stats": {
-    "sourceObjects": 153,
-    "sourceTriangles": 5851910,
-    "proxyObjects": 153,
-    "proxyBudget": 3000,
-    "proxyTriangles": 5962,
-    "fileBytes": 584988,
-    "heightBytes": 50045
+    "sourceObjects": 55,
+    "sourceTriangles": 2783719,
+    "exportTriangles": 347786,
+    "textureCount": 124,
+    "fileBytes": 52825048,
+    "heightBytes": 197996,
+    "textureBytes": 41978027
   }
 }
