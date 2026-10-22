@@ -131,6 +131,64 @@ function stripTextures(root, label) {
   return stripped;
 }
 
+/**
+ * 收集材质上仍在解码（image 尺寸为 0）的贴图。
+ * 真机慢盘/高负载时，createImageBitmap 或 HTMLImageElement 解码可能晚于
+ * GLTFLoader 的 onLoad 回调一拍；此时直接 strip 会把完好贴图永久剥成纯色，
+ * 迟到的解码结果再也换不回来。
+ */
+function collectPendingTextures(root) {
+  const set = new Set();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of ms) {
+      if (!m) continue;
+      for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) {
+        if (m[k] && !textureUsable(m[k])) set.add(m[k]);
+      }
+    }
+  });
+  return [...set];
+}
+
+/**
+ * 等待「已挂载但尚未解码完」的贴图就绪。
+ * 贴图对象本身保持挂载：实体材质是它的浅拷贝，解码完成后 needsUpdate
+ * 会让 GPU 重新上传，迟到的真实毛色能自动换上，无需重建实体。
+ * @returns {Promise<{ready:number, failed:Texture[]}>}
+ */
+function waitForPendingTextures(root, { timeoutMs = 10000, intervalMs = 100 } = {}) {
+  return new Promise((resolve) => {
+    let pending = collectPendingTextures(root);
+    if (!pending.length) { resolve({ ready: 0, failed: [] }); return; }
+    const deadline = Date.now() + timeoutMs;
+    const tick = () => {
+      const still = [];
+      let ready = 0;
+      for (const tex of pending) {
+        if (textureUsable(tex)) {
+          tex.needsUpdate = true; // GPU 侧重新上传迟到的解码结果
+          ready++;
+          continue;
+        }
+        const img = tex.image;
+        // HTMLImageElement：主动催促解码；ImageBitmap 没有 decode()。
+        if (img && typeof img.decode === 'function' && !img.__decodeTried) {
+          img.__decodeTried = true;
+          Promise.resolve(img.decode()).then(() => { tex.needsUpdate = true; }).catch(() => {});
+        }
+        still.push(tex);
+      }
+      pending = still;
+      if (!pending.length) { resolve({ ready, failed: [] }); return; }
+      if (Date.now() >= deadline) { resolve({ ready, failed: pending }); return; }
+      setTimeout(tick, intervalMs);
+    };
+    tick();
+  });
+}
+
 /** 统计三角面数（用于状态展示） */
 function countTris(root) {
   let tris = 0;
@@ -186,14 +244,47 @@ export function loadModel(url, key = '') {
         }
 
         // —— L1 判定：贴图是否可用 ——
+        // 注意：贴图「已挂载但还在解码」不能立刻剥掉——真机高负载下解码会
+        // 晚于 onLoad 一拍，立即 strip 会把完好的狼毛色永久退成纯色。
         let textured = false;
         root.traverse((o) => {
           if (!o.isMesh) return;
           const ms = Array.isArray(o.material) ? o.material : [o.material];
           for (const m of ms) if (m && textureUsable(m.map)) textured = true;
         });
-        if (!textured) {
+        let pendingTextures = textured ? [] : collectPendingTextures(root);
+        if (!textured && !pendingTextures.length) {
           stripTextures(root, key || url);
+        } else if (pendingTextures.length) {
+          if (key && STATUS[key]) {
+            STATUS[key].level = 'texture-pending';
+            STATUS[key].error = '贴图解码中，先挂载实体、就绪后自动换上';
+          }
+          console.info(`[models] ${key || url}: ${pendingTextures.length} 张贴图解码中，延迟剥离判定`);
+          // 不 await：模型先给实体使用；贴图对象共享，解码完成后自动换图。
+          waitForPendingTextures(root).then(({ ready, failed }) => {
+            failed.forEach((tex) => { tex.dispose?.(); });
+            // 只剥离最终仍失败的贴图。
+            root.traverse((o) => {
+              if (!o.isMesh) return;
+              const one = (m) => {
+                if (!m) return m;
+                for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) {
+                  if (m[k] && failed.includes(m[k])) { m[k] = null; m.needsUpdate = true; }
+                }
+                return m;
+              };
+              if (Array.isArray(o.material)) o.material = o.material.map(one);
+              else o.material = one(o.material);
+            });
+            const ok = ready > 0;
+            if (key && STATUS[key]) {
+              STATUS[key].level = ok ? 'full' : 'geometry-only';
+              STATUS[key].textured = ok;
+              STATUS[key].error = ok ? null : '贴图解码超时，已退到纯色材质';
+            }
+            console.info(`[models] ${key || url}: 迟到贴图就绪 ${ready} 张，失败 ${failed.length} 张`);
+          });
         }
 
         const tris = countTris(root);
@@ -213,15 +304,15 @@ export function loadModel(url, key = '') {
             '（简化后的摄影测量网格绕序不一致，单面会渲染成空壳）');
         }
 
-        const level = textured ? 'full' : 'geometry-only';
+        const level = textured ? 'full' : (pendingTextures.length ? 'texture-pending' : 'geometry-only');
         if (key && STATUS[key]) {
           STATUS[key].level = level;
-          STATUS[key].error = null;
+          STATUS[key].error = level === 'texture-pending' ? '贴图解码中，就绪后自动换上' : null;
           STATUS[key].tris = tris;
           STATUS[key].textured = textured;
         }
         console.info(`[models] ${key || url} 加载成功 [${level}] ${tris.toLocaleString()} 面`);
-        done({ scene: root, level, textured, tris, animations: gltf.animations || [] });
+        done({ scene: root, level, textured: textured || pendingTextures.length > 0, texturesPending: pendingTextures.length, tris, animations: gltf.animations || [] });
       },
       undefined,
       (err) => {

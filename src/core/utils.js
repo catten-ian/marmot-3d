@@ -66,13 +66,34 @@ export const TERRAIN = { amp: 2.6, flatRadius: 16 };
  * 传 null 恢复程序化地形。
  */
 let _heightField = null;
+// 可选的实体地面协议（dev Verdant 场景）：
+//   resolveGround(x,z) -> { y, walkable }，walkable=false 表示水面/外缘等不可进入区域；
+//   solidCollider 为真时控制器跳过设计岩石圆柱碰撞（真实岩石已在高度场内）。
+let _groundResolve = null;
+let _groundOpts = {};
 
-export function setHeightField(fn) {
+export function setHeightField(fn, opts = {}) {
   _heightField = typeof fn === 'function' ? fn : null;
+  _groundResolve = typeof opts.resolveGround === 'function' ? opts.resolveGround : null;
+  _groundOpts = _groundResolve ? opts : {};
   return _heightField;
 }
 export function heightFieldActive() {
   return _heightField !== null;
+}
+/** 是否由注入高度场自带实体碰撞（控制器据此禁用程序化岩石碰撞）。 */
+export function solidColliderActive() {
+  return _heightField !== null && !!_groundOpts.solidCollider;
+}
+/**
+ * 查询实体地面。无协议时返回 walkable:true，行为与历史 terrainHeight 完全一致。
+ */
+export function terrainGround(x, z) {
+  if (_groundResolve) return _groundResolve(x, z);
+  return { y: terrainHeight(x, z), walkable: true };
+}
+export function groundResolveActive() {
+  return _groundResolve !== null;
 }
 /** 当前使用的高度源名称（UI 展示用） */
 export function heightSourceName() {

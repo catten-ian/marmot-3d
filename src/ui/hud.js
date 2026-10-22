@@ -34,7 +34,9 @@ export class HUD {
       perfHint: document.getElementById('perfHint'),
       loader: document.getElementById('loader'),
       loaderFill: document.getElementById('loaderFill'),
+      loaderText: document.querySelector('.loader-text'),
     };
+    this._loadingMax = -1;
 
     this.toastTimer = 0;
     this.bannerTimer = 0;
@@ -56,8 +58,27 @@ export class HUD {
     this._ultFlashTimer = null;
   }
 
-  setLoading(pct) {
-    this.el.loaderFill.style.width = pct + '%';
+  /**
+   * 更新加载进度。单调递增、不回退不突跳（同一加载会话内）；
+   * label 同步显示当前正在执行的步骤（读清单 / 高度场 / 加载场景…）。
+   * 任何一次更新都喂狗一次，index.html 的看门狗只在真·静默挂起时报警。
+   */
+  setLoading(pct, label) {
+    const p = Math.max(0, Math.min(100, Number(pct) || 0));
+    if (p > this._loadingMax) {
+      this._loadingMax = p;
+      this.el.loaderFill.style.width = p + '%';
+    }
+    if (label) this.el.loaderText.textContent = label;
+    try { window.dispatchEvent(new Event('app:boot-progress')); } catch (_) {}
+  }
+
+  /** 切档等二次加载：显式开始新会话，允许进度条从低位重新连续爬升。 */
+  beginLoadingSession(label) {
+    this._loadingMax = -1;
+    this.el.loader.style.display = '';
+    this.el.loader.classList.remove('gone');
+    this.setLoading(0, label || '准备加载…');
   }
 
   hideLoader() {

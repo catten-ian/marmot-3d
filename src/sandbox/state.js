@@ -33,6 +33,8 @@ export function createSandboxState() {
     dummy: null,
     dummyDefeatable: true,
     parryDrill: false,
+    // dev 沙盒专属：低重力 / 飞行观察（稳定版面板不显示此项）
+    lowGravity: false,
     fps: 0,
     lastCommand: '',
   };

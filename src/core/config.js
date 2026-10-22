@@ -544,6 +544,18 @@ const POINT_SCALE = { k: 1, cx: 0, cz: 0 };
 // Optional dev-only absolute playable bounds supplied by the imported Verdant environment.
 let PLAYABLE_BOUNDS = null;
 
+/**
+ * 运行时重力系数（dev 沙盒「低重力 / 飞行观察」用）。
+ * 稳定版恒为 1；不写死全局常量，任何关闭动作都能即时恢复 9.8m/s²。
+ */
+let GRAVITY_SCALE = 1;
+export function setGravityScale(v) {
+  const n = Number(v);
+  GRAVITY_SCALE = Number.isFinite(n) && n > 0 ? n : 1;
+  return GRAVITY_SCALE;
+}
+export function getGravityScale() { return GRAVITY_SCALE; }
+
 export function setPlayableBounds(bounds) {
   if (bounds && Number.isFinite(bounds.minX) && Number.isFinite(bounds.maxX)
     && Number.isFinite(bounds.minZ) && Number.isFinite(bounds.maxZ)) {

@@ -2,21 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getAssetCandidates } from './local-pack.js';
-
-function bilinearHeight(data, x, z) {
-  const n = data.gridSize;
-  const b = data.bounds;
-  const tx = THREE.MathUtils.clamp((x - b.minX) / Math.max(1e-6, b.maxX - b.minX), 0, 1);
-  const tz = THREE.MathUtils.clamp((z - b.minZ) / Math.max(1e-6, b.maxZ - b.minZ), 0, 1);
-  // Export grid rows follow source Y (runtime X), columns follow source X (runtime Z).
-  const gx = tx * (n - 1), gz = tz * (n - 1);
-  const i0 = Math.floor(gx), j0 = Math.floor(gz), i1 = Math.min(n - 1, i0 + 1), j1 = Math.min(n - 1, j0 + 1);
-  const fx = gx - i0, fz = gz - j0;
-  const at = (i, j) => data.heights[j * n + i] || 0;
-  const a = at(i0, j0) * (1 - fx) + at(i1, j0) * fx;
-  const c = at(i0, j1) * (1 - fx) + at(i1, j1) * fx;
-  return a * (1 - fz) + c * fz;
-}
+import { buildWalkableField } from './verdant-collision.js';
 
 async function fetchJson(path, tier, sourceOnly = false) {
   const errors = [];
@@ -114,6 +100,16 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   });
   const group = new THREE.Group(); group.name = 'VerdantTrailEnvironment'; group.add(scene);
   group.userData.verdantManifest = manifest; group.userData.packManifest = packManifest;
+  onProgress?.(0.99, '光栅化可行走地面（地面 / 岩石 / 树根）');
+  // 用真实 GLB 静态碰撞几何重建可行走高度场（导出 JSON 只采样了 ground，
+  // 岩石/悬崖缺失、外缘水面为 0——真机掉底与跳不上岩石的根因）。
+  const field = buildWalkableField({ scene, heightJson: height, bounds: manifest.mapping.playableBounds });
+  console.info('[verdant] 可行走高度场:', field.stats);
   onProgress?.(1, 'Verdant 场景就绪');
-  return { group, manifest, packManifest, tier: activeTier, height, heightAt: (x, z) => bilinearHeight(height, x, z), bounds: manifest.mapping.playableBounds };
+  return {
+    group, manifest, packManifest, tier: activeTier, height,
+    heightAt: field.heightAt, resolveGround: field.resolveGround,
+    nearestWalkable: field.nearestWalkable, fieldStats: field.stats,
+    bounds: manifest.mapping.playableBounds,
+  };
 }
