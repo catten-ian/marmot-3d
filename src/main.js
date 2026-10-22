@@ -795,8 +795,9 @@ function updateEnv(dt, inBurrow = false) {
   }
   // 洞内以及沙尘结束后都恢复关卡本来的雾；洞穴照明仍由 sky.setUnderground 单独处理。
   if (!env.sandOn) {
-    scene.fog.near = verdantWorld ? 42 : env.fogBase;
-    scene.fog.far = verdantWorld ? 175 : env.fogFarBase;
+    scene.fog.near = env.fogBase;
+    scene.fog.far = env.fogFarBase;
+    if (verdantWorld) { scene.fog.near = 42; scene.fog.far = 175; }
   }
   return sandMsg;
 }
