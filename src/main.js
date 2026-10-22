@@ -2351,6 +2351,7 @@ function syncHelpKeys() {
   };
   const kbd = (text) => text ? `<kbd>${text}</kbd>` : '';
   const keys = (id, emptyFallback = '') => kbd(get(id, emptyFallback));
+  const turnKeys = (side, fallback = '') => kbd(Keybinds.pretty(binds.turnMap?.[side]) || fallback);
   const join = (values) => values.filter(Boolean).join(' / ');
   const schemeLabel = {
     compatible: '兼容（compatible）',
@@ -2360,7 +2361,7 @@ function syncHelpKeys() {
   const turning = !!binds.turningEnabled;
   const driving = binds.controlProfile === 'driving';
   const movement = driving
-    ? `<span>${keys('forward')} / ${keys('back')} 前后移动 · ${keys('left')} / ${keys('right')} 转向（方向键上下前后、左右转向）</span>`
+    ? `<span>${keys('forward')} / ${keys('back')} 前后移动 · ${turnKeys('left', get('left', 'A'))} / ${turnKeys('right', get('right', 'D'))} 转向（方向键上下前后、左右转向）</span>`
     : turning
       ? `<span>${keys('forward')} / ${keys('back')} 前后移动 · ${keys('left')} / ${keys('right')} 横移 · ${keys('turnLeft')} / ${keys('turnRight')} 转向（方向键为移动备选）</span>`
       : `<span>${keys('forward')} / ${keys('back')} / ${keys('left')} / ${keys('right')} 移动（方向键为备选）</span>`;

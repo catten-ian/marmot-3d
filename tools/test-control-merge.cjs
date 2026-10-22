@@ -50,6 +50,7 @@ const path = require('node:path');
     bindings: { ...binds.map, forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD' },
   });
   assert.equal(betaOptimized.turnMap.left, 'KeyA', 'optimized beta scheme also uses selected driving mode');
+  assert.equal(betaOptimized.turnMap.right, 'KeyD');
   assert.equal(betaOptimized.moveMap.left, null);
   const betaClassic = resolveControlMaps({
     version: 'beta', scheme: 'compatible', controlMode: 'classic', bindings: binds.map,
@@ -100,6 +101,11 @@ const path = require('node:path');
   const betaHint = schemeHints(betaHintBinds, { isDev: false });
   assert.ok(betaHint.movement.includes('前后移动') && betaHint.movement.includes('转向'));
   assert.ok(betaHint.movement.includes('A / D'), 'beta hint shows active A/D bindings');
+  const optimizedHintBinds = Object.create(opt);
+  Object.defineProperty(optimizedHintBinds, 'controlProfile', { value: 'driving' });
+  Object.defineProperty(optimizedHintBinds, 'turningEnabled', { value: true });
+  Object.defineProperty(optimizedHintBinds, 'turnMap', { value: { left: 'KeyA', right: 'KeyD' } });
+  assert.ok(schemeHints(optimizedHintBinds, { isDev: false }).movement.includes('A / D'), 'optimized beta hint retains A/D fallback');
   assert.equal(betaHint.turning, true);
   const devHint = schemeHints(opt, { isDev: true });
   assert.ok(devHint.movement.includes('转向'), 'dev optimized hint remains turning');

@@ -22,13 +22,17 @@ export function schemeHints(binds, { isDev = false } = {}) {
   const turning = isDev ? binds.scheme === 'optimized' : !!binds?.turningEnabled;
   const driving = profile === 'driving';
   const primary = (id) => bindText(binds, id, '');
+  const turnText = (side, fallback) => {
+    const code = binds?.turnMap?.[side];
+    return code ? Keybinds.pretty(code) : fallback;
+  };
   const alt = (id) => {
     const code = { forward: 'ArrowUp', back: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' }[id];
     return code ? Keybinds.pretty(code) : '';
   };
   let movement;
   if (driving) {
-    movement = `${primary('forward')} / ${primary('back')} 前后移动 · ${primary('left')} / ${primary('right')} 转向（方向键上下前后、左右转向）`;
+    movement = `${primary('forward')} / ${primary('back')} 前后移动 · ${turnText('left', primary('left') || 'A')} / ${turnText('right', primary('right') || 'D')} 转向（方向键上下前后、左右转向）`;
   } else if (profile === 'dev-optimized-turning' || (isDev && binds.scheme === 'optimized' && turning)) {
     movement = `${primary('forward')} / ${primary('back')} 前后移动 · ${primary('turnLeft')} / ${primary('turnRight')} 转向 · ${alt('left')} / ${alt('right')} 横移`;
   } else if (binds.scheme === 'optimized') {

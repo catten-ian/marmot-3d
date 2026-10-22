@@ -124,9 +124,13 @@ export function resolveControlMaps({ version = 'stable', scheme = 'compatible', 
   if (driving) {
     moveMap.left = null; moveMap.leftAlt = null;
     moveMap.right = null; moveMap.rightAlt = null;
+    // beta optimized 的历史表把 A/D 留在 dev 专用 turnLeft/turnRight 字段；
+    // 驾驶模式仍必须给出可用的 A/D，且自定义 left/right 优先。
+    const left = bindings.left ?? bindings.turnLeft ?? 'KeyA';
+    const right = bindings.right ?? bindings.turnRight ?? 'KeyD';
     return {
       profile: 'driving', turningEnabled: true, moveMap,
-      turnMap: { left: bindings.left ?? null, right: bindings.right ?? null, leftAlt: MOVE_ALTS.left, rightAlt: MOVE_ALTS.right },
+      turnMap: { left, right, leftAlt: MOVE_ALTS.left, rightAlt: MOVE_ALTS.right },
     };
   }
   return {
