@@ -154,6 +154,8 @@ if (WANT_GS) {
     antialias: renderProfile.antialias,
     powerPreference: 'high-performance',
     stencil: false,
+    // Dev visual QA needs a readable WebGL backbuffer for managed CDP captures.
+    preserveDrawingBuffer: IS_DEV,
   });
 }
 
@@ -203,6 +205,7 @@ if (devOn('verdantWorld')) {
     verdantWorld = await loadVerdantWorld({
       onProgress: (p, label) => hud.setLoading(Math.round(48 + p * 17)),
       resolveAsset: (url) => resolveLocalAsset(url),
+      renderer,
     });
     scene.add(verdantWorld.group);
     setHeightField(verdantWorld.heightAt);
@@ -211,7 +214,8 @@ if (devOn('verdantWorld')) {
     setPlayableBounds(verdantWorld.bounds);
     sky.terrain.visible = false;
     sky.hills.visible = false;
-    sky.dome.visible = false;
+    sky.dome.visible = true;
+    sky.setVerdantMood?.();
     hud.say('DEV · A Verdant Trail 场景已加载', 3.2);
   } catch (e) {
     verdantWorld = null;
@@ -711,8 +715,8 @@ function loadLevel(index, announce = true) {
 
   sky.applyLevel(cfg);
   // applyLevel 只改雾色，这里补上关卡的能见度（near/far）
-  scene.fog.near = env.fogBase;
-  scene.fog.far = env.fogFarBase;
+  scene.fog.near = verdantWorld ? 42 : env.fogBase;
+  scene.fog.far = verdantWorld ? 175 : env.fogFarBase;
 
   if (announce) {
     game.mode = 'play';
@@ -791,8 +795,8 @@ function updateEnv(dt, inBurrow = false) {
   }
   // 洞内以及沙尘结束后都恢复关卡本来的雾；洞穴照明仍由 sky.setUnderground 单独处理。
   if (!env.sandOn) {
-    scene.fog.near = env.fogBase;
-    scene.fog.far = env.fogFarBase;
+    scene.fog.near = verdantWorld ? 42 : env.fogBase;
+    scene.fog.far = verdantWorld ? 175 : env.fogFarBase;
   }
   return sandMsg;
 }

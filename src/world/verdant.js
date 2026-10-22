@@ -29,7 +29,7 @@ function loadGltf(url, onProgress) {
   });
 }
 
-export async function loadVerdantWorld({ base = './assets/verdant/', onProgress, resolveAsset } = {}) {
+export async function loadVerdantWorld({ base = './assets/verdant/', onProgress, resolveAsset, renderer } = {}) {
   const root = base.endsWith('/') ? base : `${base}/`;
   onProgress?.(0.04, '读取 Verdant 清单');
   const readJson = async (path) => {
@@ -52,6 +52,17 @@ export async function loadVerdantWorld({ base = './assets/verdant/', onProgress,
       const m = material.clone();
       m.roughness = 0.94;
       m.metalness = 0;
+      const maxAniso = renderer?.capabilities?.getMaxAnisotropy?.() || 4;
+      for (const key of ['map', 'normalMap', 'roughnessMap', 'alphaMap']) {
+        const tex = m[key];
+        if (!tex) continue;
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        tex.anisotropy = Math.min(maxAniso, 8);
+        tex.colorSpace = key === 'map' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        tex.needsUpdate = true;
+      }
       return m;
     };
     obj.material = Array.isArray(obj.material) ? obj.material.map(apply) : apply(obj.material);

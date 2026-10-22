@@ -49,6 +49,27 @@ export class Sky {
     scene.fog = new THREE.Fog(0x93a4a8, 70, 420);
   }
 
+  /** Verdant Trail 的阴天森林光照：保留柔和方向性，避免 PBR 植被死黑或塑料高光。 */
+  setVerdantMood() {
+    this.hemi.color.set(0xb8cfe0);
+    this.hemi.groundColor.set(0x42513a);
+    this.hemi.intensity = 0.82;
+    this.ambient.color.set(0xdce8e4);
+    this.ambient.intensity = 0.42;
+    this.sun.color.set(0xd8e4dc);
+    this.sun.intensity = 1.65;
+    this.sun.position.set(-34, 52, 22);
+    this.sun.target.position.set(0, 0, 0);
+    this.scene.fog = new THREE.Fog(0x82969a, 42, 175);
+    if (this.dome?.material?.uniforms) {
+      this.dome.material.uniforms.topColor.value.set('#718a9c');
+      this.dome.material.uniforms.bottomColor.value.set('#b9c8c8');
+      this.dome.material.uniforms.hazeColor.value.set('#82969a');
+      this.dome.material.uniforms.glowColor.value.set('#d9e4df');
+      this.dome.material.uniforms.cloudiness.value = 0.62;
+    }
+  }
+
   /** 渐变天穹：半透明大球，从天顶色渐变到地平线色。
    *  半径必须大于地形边缘半径（FIELD_W/2+150 = 215），
    *  否则地面与天球之间会露出缝隙，在地平线处显示为一条亮带。
