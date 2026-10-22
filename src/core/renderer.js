@@ -45,6 +45,9 @@ export async function createRenderer(canvas, {
   preferWebGPU = true,
   forceWebGL = false,
   onStatus = null,
+  // dev 真机自动化用 headless CDP 截图：需要可读 backbuffer。
+  preserveDrawingBuffer = false,
+  antialias = false,
 } = {}) {
   const status = {
     backend: 'webgl',      // 'webgpu' | 'webgl2-fallback' | 'webgl'
@@ -65,9 +68,10 @@ export async function createRenderer(canvas, {
         const THREE = await import('three/webgpu');
         const r = new THREE.WebGPURenderer({
           canvas,
-          antialias: false,     // GS 是软边叠加，MSAA 对它无益
+          antialias,     // GS 是软边叠加，MSAA 对它无益；Verdant 由调用方传 true
           alpha: false,
           powerPreference: 'high-performance',
+          preserveDrawingBuffer,
         });
         await r.init();
         // init 之后才知道真实后端（可能内部又退回了 WebGL2）
@@ -97,10 +101,11 @@ export async function createRenderer(canvas, {
     const THREE = await import('three/webgpu');
     const r = new THREE.WebGPURenderer({
       canvas,
-      antialias: false,
+      antialias,
       alpha: false,
       powerPreference: 'high-performance',
       forceWebGL: true,
+      preserveDrawingBuffer,
     });
     await r.init();
     status.backend = 'webgl2-fallback';
@@ -118,9 +123,10 @@ export async function createRenderer(canvas, {
   const THREE = await import('three');
   const r = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    antialias: antialias || true,
     powerPreference: 'high-performance',
     stencil: false,
+    preserveDrawingBuffer,
   });
   status.backend = 'webgl';
   status.supportsSplat = false;

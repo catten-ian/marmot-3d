@@ -70,34 +70,45 @@ export class Sky {
     }
   }
 
-  /** 渐变天穹：半透明大球，从天顶色渐变到地平线色。
-   *  半径必须大于地形边缘半径（FIELD_W/2+150 = 215），
-   *  否则地面与天球之间会露出缝隙，在地平线处显示为一条亮带。
-   *  同时把球心跟随玩家，保证玩家永远看不到天球边缘。
-   *
-   *  云与太阳辉光：程序化 fbm 云沿海平线透视压扁、随时间漂移；
-   *  太阳方向与主平行光一致（sun.position - player = (26,44,20) 归一化），
-   *  辉光颜色随关卡日照色变化，阴天关不会出现暖阳违和感。 */
+  /** 按渲染器后端选择天穹实现：
+   *  - 经典 WebGLRenderer：原有 GLSL ShaderMaterial 穹顶（stable 逐字保留）。
+   *  - WebGPURenderer（webgpu / webgl2-fallback）：NodeBuilder 无法转换旧式
+   *    ShaderMaterial（会告警 "Material ShaderMaterial is not compatible" 并渲染成
+   *    空白），改用后端无关的烘焙等距柱状天空贴图 + MeshBasicMaterial。
+   * 两者暴露一致的 material.uniforms 适配接口，setVerdantMood/applyLevel 无需分叉。 */
   _buildDome() {
-    const geo = new THREE.SphereGeometry(900, 40, 24);
-    this.domeTime = { value: 0 };
+    this._skyPalette = {
+      top: '#8fa8c4', bottom: '#c9d8dd', haze: '#93a4a8',
+      glow: '#fff3d4', cloudiness: 0.42,
+    };
     this.sunDir = new THREE.Vector3(26, 44, 20).normalize();
+    this.domeTime = { value: 0 };
+    if (this.renderer && this.renderer.isWebGPURenderer === true) {
+      this._buildDomeBaked();
+    } else {
+      this._buildDomeGL();
+    }
+  }
+
+  /** 经典 GLSL 天穹（仅经典 WebGLRenderer；stable 路径逐字保留）。 */
+  _buildDomeGL() {
+    const geo = new THREE.SphereGeometry(900, 40, 24);
     const mat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
       fog: false,
       uniforms: {
-        topColor: { value: new THREE.Color('#8fa8c4') },
-        bottomColor: { value: new THREE.Color('#c9d8dd') },
+        topColor: { value: new THREE.Color(this._skyPalette.top) },
+        bottomColor: { value: new THREE.Color(this._skyPalette.bottom) },
         // 地平线以下的球面渐变到雾色，与远处地形无缝衔接
-        hazeColor: { value: new THREE.Color('#93a4a8') },
-        glowColor: { value: new THREE.Color('#fff3d4') },
+        hazeColor: { value: new THREE.Color(this._skyPalette.haze) },
+        glowColor: { value: new THREE.Color(this._skyPalette.glow) },
         sunDir: { value: this.sunDir },
         uTime: this.domeTime,
         offset: { value: 60 },
         exponent: { value: 0.85 },
         // 云量：0.42 左右的覆盖率最像草原多云天；阴天关由天空色自然压暗
-        cloudiness: { value: 0.42 },
+        cloudiness: { value: this._skyPalette.cloudiness },
       },
       vertexShader: /* glsl */ `
         varying vec3 vWorldPosition;
@@ -171,6 +182,129 @@ export class Sky {
     this.dome = new THREE.Mesh(geo, mat);
     this.dome.frustumCulled = false;
     this.scene.add(this.dome);
+  }
+
+  /**
+   * 后端无关天穹（WebGPURenderer：webgpu / webgl2-fallback）。
+   * NodeBuilder 不支持旧式 ShaderMaterial，这里把与 GLSL 版等价的
+   * 「天顶→地平线渐变 + 地平线雾过渡 + fbm 云带 + 太阳辉光」逐像素烘焙到
+   * 等距柱状（equirectangular）canvas，再用 MeshBasicMaterial 贴到 BackSide 球。
+   * 两类渲染器都能正常显示；烘焙为静态云（无时间漂移），换关/变天只重烘一次。
+   * 暴露与 GLSL 版一致的 material.uniforms 适配接口（topColor/bottomColor/
+   * hazeColor/glowColor 用 .set()，cloudiness 赋 .value），调用点无需分叉。
+   */
+  _buildDomeBaked() {
+    this._skyW = 1024; this._skyH = 512;
+    this._skyCanvas = document.createElement('canvas');
+    this._skyCanvas.width = this._skyW; this._skyCanvas.height = this._skyH;
+    this._skyCtx = this._skyCanvas.getContext('2d');
+    this._skyImg = this._skyCtx.createImageData(this._skyW, this._skyH);
+    this._bakeSkyCanvas();
+    const tex = new THREE.CanvasTexture(this._skyCanvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    this._skyTexture = tex;
+
+    const geo = new THREE.SphereGeometry(900, 48, 24);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex, side: THREE.BackSide, depthWrite: false, fog: false,
+      // 原 GLSL ShaderMaterial 未走 tonemapping/颜色管线；这里同样跳过 ACES，
+      // 让烘焙的 sRGB 天色直出，两后端观感与经典版最接近。
+      toneMapped: false,
+    });
+    this.dome = new THREE.Mesh(geo, mat);
+    this.dome.frustumCulled = false;
+
+    // uniforms 适配：set() 合入调色板并合并重烘（同一帧内多次 set 只烘一次）。
+    const colorUniform = (key) => ({
+      value: { set: (hex) => { this._skyPalette[key] = hex; this._queueSkyRebake(); } },
+    });
+    mat.uniforms = {
+      topColor: colorUniform('top'),
+      bottomColor: colorUniform('bottom'),
+      hazeColor: colorUniform('haze'),
+      glowColor: colorUniform('glow'),
+      sunDir: { value: this.sunDir },
+      uTime: this.domeTime,
+      cloudiness: { set value(v) { this._skyPalette.cloudiness = v; this._queueSkyRebake(); }, get value() { return this._skyPalette.cloudiness; } },
+    };
+    this.scene.add(this.dome);
+  }
+
+  _queueSkyRebake() {
+    if (this._skyRebakeQueued || !this._skyImg) return;
+    this._skyRebakeQueued = true;
+    const run = () => { this._skyRebakeQueued = false; if (!this._skyImg) return; this._bakeSkyCanvas(); if (this._skyTexture) this._skyTexture.needsUpdate = true; };
+    if (typeof queueMicrotask === 'function') queueMicrotask(run); else setTimeout(run, 0);
+  }
+
+  /** #rrgggb → sRGB 字节三元组（天色直接在 sRGB 空间烘焙，贴近原 shader 直出）。 */
+  static _hexRGB(hex) {
+    const n = parseInt(String(hex).replace('#', ''), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  _bakeSkyCanvas() {
+    const W = this._skyW, H = this._skyH, data = this._skyImg.data;
+    const P = this._skyPalette;
+    const top = Sky._hexRGB(P.top), bottom = Sky._hexRGB(P.bottom);
+    const haze = Sky._hexRGB(P.haze), glow = Sky._hexRGB(P.glow);
+    const sd = this.sunDir; const sx = sd.x, sy = sd.y, sz = sd.z;
+    const offset = 60, exponent = 0.85, cloudiness = P.cloudiness;
+    const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+    const mix = (a, b, t) => a + (b - a) * t;
+    const smooth = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
+    const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
+    const vnoise = (x, y) => {
+      const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+      const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+      const a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1);
+      return mix(mix(a, b, ux), mix(c, d, ux), uy);
+    };
+    const fbm = (x, y) => { let v = 0, a = 0.5; for (let i = 0; i < 4; i++) { v += a * vnoise(x, y); x *= 2.03; y *= 2.03; a *= 0.5; } return v; };
+    let p = 0;
+    for (let y = 0; y < H; y++) {
+      // 对齐 SphereGeometry：v=1 在天顶；theta 从天顶 0 到天底 π。
+      const theta = (y / H) * Math.PI;
+      const ny = Math.cos(theta), st = Math.sin(theta);
+      for (let x = 0; x < W; x++) {
+        const phi = (x / W) * Math.PI * 2;
+        const nx = -Math.cos(phi) * st, nz = Math.sin(phi) * st;
+
+        const upLen = Math.hypot(nx, ny + offset, nz) || 1;
+        const h = Math.max((ny + offset) / upLen, 0);
+        const t = Math.pow(h, exponent);
+        let r = mix(bottom[0], top[0], t), g = mix(bottom[1], top[1], t), b = mix(bottom[2], top[2], t);
+
+        const below = smooth(0.06, -0.02, ny);
+        r = mix(r, haze[0], below); g = mix(g, haze[1], below); b = mix(b, haze[2], below);
+
+        const above = smooth(0.0, 0.14, ny);
+        if (above > 0.001) {
+          const invY = 1 / Math.max(ny, 0.06);
+          const cu = (nx * invY) * 0.55, cv = (nz * invY) * 0.55; // uTime=0 静态云
+          const cc = fbm(cu * 1.4, cv * 1.4);
+          const cc2 = fbm(cu * 4.1 + 7.3, cv * 4.1 + 7.3);
+          const cloud = smooth(1 - cloudiness, 1 - cloudiness + 0.28, cc * 0.78 + cc2 * 0.22) * above;
+          let cr = mix(top[0], 270, 0.55), cg = mix(top[1], 270, 0.55), cb = mix(top[2], 270, 0.55);
+          const dotn = Math.max(nx * sx + ny * sy + nz * sz, 0);
+          const gw = Math.pow(dotn, 6) * 0.35;
+          cr = mix(cr, glow[0], gw); cg = mix(cg, glow[1], gw); cb = mix(cb, glow[2], gw);
+          const k = cloud * 0.85;
+          r = mix(r, cr, k); g = mix(g, cg, k); b = mix(b, cb, k);
+        }
+
+        const sdot = Math.max(nx * sx + ny * sy + nz * sz, 0);
+        const glowAmt = (Math.pow(sdot, 220) * 0.55 + Math.pow(sdot, 10) * 0.10) * (1 - below);
+        r += glow[0] * glowAmt; g += glow[1] * glowAmt; b += glow[2] * glowAmt;
+
+        data[p++] = r < 0 ? 0 : r > 255 ? 255 : r;
+        data[p++] = g < 0 ? 0 : g > 255 ? 255 : g;
+        data[p++] = b < 0 ? 0 : b > 255 ? 255 : b;
+        data[p++] = 255;
+      }
+    }
+    this._skyCtx.putImageData(this._skyImg, 0, 0);
   }
 
   /** 地形网格：顶点位移采样高度场，逐顶点色做草地斑驳 */
