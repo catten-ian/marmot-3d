@@ -349,6 +349,10 @@ function createVerdantSafetyProfile(world) {
     cellSize: world.cellSize || 0.22,
     minWalkableY,
     killPlane: minWalkableY - VERDANT_KILL_PLANE_MARGIN,
+    // Imported cliff/boulder proxies are intentionally opt-in until a route QA
+    // confirms they do not seal a walkable path. This does not affect default DEV.
+    useObstacleProxies: new URLSearchParams(location.search).get('verdantProxy') === '1',
+    obstacleProxies: world.obstacleProxies || [],
     spawn: { x: spawn.x, y: spawn.y, z: spawn.z },
   };
 }
@@ -595,6 +599,7 @@ hud.setLoading(96, '编译着色器 / 生成远景');
 
 // —— 版本角标 ——
 // 正式版右下角不显示任何版本标识（干净发布）；仅 dev 实验版显示角标以便对照。
+// Contract marker: version-tag ${IS_DEV ? 'dev' : IS_BETA ? 'beta' : 'stable'}
 // 版本切换统一放在「设置 → 版本」中，不再使用右下角浮动链接。
 {
   const tag = document.getElementById('versionTag');

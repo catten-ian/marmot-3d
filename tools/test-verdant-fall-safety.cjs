@@ -59,3 +59,9 @@ test('nearest walkable resolves an invalid column and rejects an empty mask', ()
   assert.deepEqual(nearest, { x: 0.5, y: 2, z: 0.5, moved: Math.hypot(0.7, 0.3) });
   assert.equal(findNearestWalkableCell({ ...args, walkable: new Uint8Array(15) }), null);
 });
+
+test('grounded uphill snaps physical feet while airborne pose remains untouched', () => {
+  const { resolveGroundedY } = require('../src/world/verdant-fall-safety.mjs');
+  assert.equal(resolveGroundedY(1, 4, true), 4);
+  assert.equal(resolveGroundedY(1, 4, false), 1);
+});
