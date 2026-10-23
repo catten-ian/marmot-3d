@@ -292,43 +292,76 @@ function publishVerdantField(world) {
   });
   window.__verdantField = probe;
 }
-if (devOn('verdantWorld')) {
-  try {
-    hud.setLoading(46, '读取 Verdant 场景模块');
-    const { loadVerdantWorld } = await import('./world/verdant.js');
-    loadVerdantWorldFn = loadVerdantWorld;
-    verdantWorld = await loadVerdantWorld({
-      tier: autoVerdantTier(),
-      onProgress: (p, label, stats) => hud.setLoading(46 + Math.max(0, Math.min(1, p)) * 24, label, stats),
-      renderer,
-    });
-    verdantTierActive = verdantWorld.tier || autoVerdantTier();
-    window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
-    scene.add(verdantWorld.group);
-    // 高度场自带真实地面/岩石碰撞与可行走掩膜（resolveGround）。
-    setHeightField(verdantWorld.heightAt, { resolveGround: verdantWorld.resolveGround, solidCollider: true });
-    // The exported trail fills 88% of the historic design rectangle in both axes.
-    setPointScale(0.88, 0, 0);
-    setPlayableBounds(verdantWorld.bounds);
-    // 实体场景里没有程序化洞穴；腔室下沉会在出生点附近凭空挖坑导致掉底。
-    setUndergroundCavesEnabled(false);
-    sky.terrain.visible = false;
-    sky.hills.visible = false;
-    sky.dome.visible = true;
-    sky.setVerdantMood?.();
-    // dev-only QA/diagnostic hook; kept current when the active quality tier changes.
-    publishVerdantField(verdantWorld);
-    hud.say('DEV · A Verdant Trail 场景已加载', 3.2);
-  } catch (e) {
-    verdantWorld = null;
-    setHeightField(null);
-    setPointScale(1, 0, 0);
-    clearPlayableBounds();
-    setUndergroundCavesEnabled(true);
-    console.warn('[verdant] 场景加载失败，退回程序化地形:', e);
-    hud.say(`Verdant 场景加载失败，已退回程序化地形：${e?.message || e}`, 5.5);
+let verdantBootOverride = false;
+let verdantBootReject = null;
+function verdantErrorDetail(error) {
+  const text = String(error?.message || error || '未知错误').replace(/https?:\/\/[^\s]+/g, '[资源地址]');
+  const stats = window.__verdantLastDownloadStats;
+  const extra = stats ? `\n来源：${stats.sourceLabel || '未知'} · 缓存：${stats.cached ? '是' : '否'} · 速度：${Math.round(stats.speedBytesPerSecond || 0)} B/s` : '';
+  return (text + extra).slice(0, 500);
+}
+function showVerdantFailure(error, tier = autoVerdantTier()) {
+  try { window.__bootWatchdogPause?.(); } catch (_) {}
+  let panel = document.getElementById('verdantBootFailure');
+  if (!panel) {
+    panel = document.createElement('div'); panel.id = 'verdantBootFailure';
+    panel.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(5,10,7,.88);color:#e8eee3;font-family:system-ui,sans-serif;padding:24px;text-align:center';
+    panel.innerHTML = '<div style="max-width:420px;width:100%;background:#17251d;border:1px solid #526b55;border-radius:12px;padding:22px;box-shadow:0 12px 40px #0008"><h2 style="margin:0 0 10px;color:#f0c86d;font-size:20px">Verdant 场景未就绪</h2><p style="margin:0 0 12px;line-height:1.6;color:#d7dfd3">下载或解析失败，继续进入会显示简化地图。请选择操作：</p><details style="text-align:left;margin:0 0 16px;color:#aebcaf;font-size:12px"><summary style="cursor:pointer">技术原因</summary><pre id="verdantBootReason" style="white-space:pre-wrap;word-break:break-word;max-height:120px;overflow:auto"></pre></details><div style="display:grid;gap:8px"><button id="verdantRetry" type="button">重试下载</button><button id="verdantDowngrade" type="button">换低画质档重试</button><button id="verdantFallback" type="button">进入简化地图（程序化地形）</button></div></div>';
+    document.body.appendChild(panel);
+    [...panel.querySelectorAll('button')].forEach((btn) => { btn.style.cssText = 'padding:10px;border-radius:7px;border:1px solid #60755f;background:#263a2b;color:#e7eddf;font-size:14px;cursor:pointer'; });
+    panel.querySelector('#verdantRetry').onclick = () => { panel.hidden = true; verdantBootReject?.({ action: 'retry' }); };
+    panel.querySelector('#verdantDowngrade').onclick = () => { panel.hidden = true; verdantBootReject?.({ action: 'downgrade' }); };
+    panel.querySelector('#verdantFallback').onclick = () => { panel.hidden = true; verdantBootReject?.({ action: 'fallback' }); };
+  }
+  panel.hidden = false;
+  panel.querySelector('#verdantBootReason').textContent = verdantErrorDetail(error);
+  panel.querySelector('#verdantDowngrade').disabled = tier === 'low';
+}
+async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
+  window.__verdantLastDownloadStats = null;
+  hud.setLoading(46, '读取 Verdant 场景模块');
+  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js');
+  loadVerdantWorldFn = mod.loadVerdantWorld;
+  const world = await loadVerdantWorldFn({ tier, signal: attempt?.controller.signal || null, onProgress: (p, label, stats) => { if (attempt) { attempt.lastProgressAt = Date.now(); if (stats?.doneBytes > 0) attempt.receivedBytes = true; } if (!attempt?.cancelled) hud.setLoading(46 + Math.max(0, Math.min(1, p)) * 24, label, stats); }, renderer });
+  if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
+  verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
+  scene.add(world.group); setHeightField(world.heightAt, { resolveGround: world.resolveGround, solidCollider: true });
+  setPointScale(0.88, 0, 0); setPlayableBounds(world.bounds); setUndergroundCavesEnabled(false);
+  sky.terrain.visible = false; sky.hills.visible = false; sky.dome.visible = true; sky.setVerdantMood?.(); publishVerdantField(world);
+  hud.say('DEV · 一套 Verdant Trail 场景已加载', 3.2); return world;
+}
+window.__verdantBootFailure = showVerdantFailure;
+async function ensureVerdantBootGate() {
+  if (!devOn('verdantWorld') || verdantBootOverride) return true;
+  // main.js 已开始执行后由此门控负责下载停滞与总耗时；关掉 index.html 的并行 watchdog。
+  try { window.__bootWatchdogPause?.(); } catch (_) {}
+  let tier = autoVerdantTier(), attempts = 0;
+  for (;;) {
+    if (attempts++) hud.beginLoadingSession('重试 Verdant 场景下载…');
+    const attempt = { startedAt: Date.now(), lastProgressAt: Date.now(), cancelled: false, controller: typeof AbortController === 'function' ? new AbortController() : { signal: null, abort() {} } };
+    let timer;
+    try {
+      const timeout = new Promise((_, reject) => {
+        timer = setInterval(() => {
+          const now = Date.now();
+          if (now - attempt.startedAt >= 180000) { attempt.cancelled = true; attempt.controller.abort(); reject(new Error('Verdant 下载超过 180 秒')); }
+          else if (!attempt.receivedBytes && now - attempt.lastProgressAt >= 25000) { attempt.cancelled = true; attempt.controller.abort(); reject(new Error('Verdant 加载停滞超过 25 秒')); }
+        }, 500);
+      });
+      await Promise.race([loadInitialVerdant(tier, attempt), timeout]);
+      return true;
+    } catch (error) {
+      attempt.cancelled = true; attempt.controller.abort(); clearInterval(timer);
+      verdantWorld = null; setHeightField(null); setPointScale(1, 0, 0); clearPlayableBounds(); setUndergroundCavesEnabled(true);
+      sky.terrain.visible = true; sky.hills.visible = true; delete window.__verdantField;
+      showVerdantFailure(error, tier);
+      const action = await new Promise((resolve) => { verdantBootReject = resolve; }); verdantBootReject = null;
+      if (action.action === 'fallback') { verdantBootOverride = true; return true; }
+      if (action.action === 'downgrade') { tier = tier === 'high' || tier === 'ultra' ? (tier === 'ultra' ? 'high' : 'medium') : 'low'; continue; }
+    } finally { clearInterval(timer); }
   }
 }
+await ensureVerdantBootGate();
 
 function createVerdantSafetyProfile(world) {
   if (!IS_DEV || !world?.nearestWalkable || !world?.resolveGround) return null;

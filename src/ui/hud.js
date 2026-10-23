@@ -78,7 +78,7 @@ export class HUD {
       if (byteStats?.text) { this.el.loaderBytes.textContent = byteStats.text; this.el.loaderBytes.hidden = false; }
       else if (byteStats && Number.isFinite(byteStats.totalBytes) && byteStats.totalBytes > 0) {
         const fmt = (n) => { const b = Math.max(0, Number(n) || 0); if (b < 1024) return `${Math.round(b)} B`; const u = ['KiB','MiB','GiB']; let x = b, i = -1; do { x /= 1024; i++; } while (x >= 1024 && i < u.length - 1); return `${x.toFixed(x >= 100 ? 0 : x >= 10 ? 1 : 2)} ${u[i]}`; };
-        this.el.loaderBytes.textContent = byteStats.cached ? `已缓存 ${fmt(byteStats.totalBytes)}` : `${fmt(byteStats.doneBytes)} / ${fmt(byteStats.totalBytes)}（剩 ${fmt(byteStats.remainingBytes)}）${byteStats.speedBytesPerSecond > 0 ? ` · ${fmt(byteStats.speedBytesPerSecond)}/s` : ''}`;
+        this.el.loaderBytes.textContent = byteStats.cached ? `已缓存 ${fmt(byteStats.totalBytes)}${byteStats.sourceLabel ? ` · ${byteStats.sourceLabel}` : ''}` : `${fmt(byteStats.doneBytes)} / ${fmt(byteStats.totalBytes)}（剩 ${fmt(byteStats.remainingBytes)}）${byteStats.speedBytesPerSecond > 0 ? ` · ${fmt(byteStats.speedBytesPerSecond)}/s` : ''}${byteStats.sourceLabel ? ` · ${byteStats.sourceLabel}` : ''}`;
         this.el.loaderBytes.hidden = false;
       }
     }
@@ -90,6 +90,7 @@ export class HUD {
     this._loadingMax = -1;
     this.el.loader.style.display = '';
     this.el.loader.classList.remove('gone');
+    if (this.el.loaderBytes) { this.el.loaderBytes.hidden = true; this.el.loaderBytes.textContent = ''; }
     try {
       const v = this.el.loaderVideo;
       if (v) { v.currentTime = 0; void v.play(); }
