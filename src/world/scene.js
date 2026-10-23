@@ -219,6 +219,7 @@ export class Sky {
     const colorUniform = (key) => ({
       value: { set: (hex) => { this._skyPalette[key] = hex; this._queueSkyRebake(); } },
     });
+    const sky = this;
     mat.uniforms = {
       topColor: colorUniform('top'),
       bottomColor: colorUniform('bottom'),
@@ -226,7 +227,10 @@ export class Sky {
       glowColor: colorUniform('glow'),
       sunDir: { value: this.sunDir },
       uTime: this.domeTime,
-      cloudiness: { set value(v) { this._skyPalette.cloudiness = v; this._queueSkyRebake(); }, get value() { return this._skyPalette.cloudiness; } },
+      cloudiness: {
+        set value(v) { sky._skyPalette.cloudiness = v; sky._queueSkyRebake(); },
+        get value() { return sky._skyPalette.cloudiness; },
+      },
     };
     this.scene.add(this.dome);
   }
