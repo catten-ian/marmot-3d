@@ -735,6 +735,7 @@ function disposeAllFoxes() {
   }
 }
 
+let sandboxEnterHooks = [];
 function enterSandbox() {
   hud.hidePanel(); sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
   game.sandbox = true; game.mode = 'play'; document.body.classList.add('sandbox-active');
@@ -746,6 +747,7 @@ function enterSandbox() {
   game.player.stress = 0; game.charge = 100;
   applySandboxDifficulty(sandboxState, sandboxState.difficulty);
   if (!controller.touchEnabled) controller.requestLock();
+  sandboxEnterHooks.forEach((fn) => { try { fn(); } catch (e) { console.warn('[sandbox] enter hook failed', e); } });
 }
 
 function exitSandbox() {
@@ -2386,6 +2388,64 @@ const sandboxPanelUI = setupSandboxPanel({
     if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { if (!f.isSandboxDummy) { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; } }); }
   },
 });
+
+// —— 沙盒数值后台（dev-only，?sandboxdebug=1 懒加载，仅在沙盒内挂载）——
+let sandboxDebugGUI = null;
+if (IS_DEV && new URLSearchParams(location.search).get('sandboxdebug') === '1') {
+  const ensureDebugVolumes = async () => {
+    if (!debugVolumes) {
+      const { DebugVolumes } = await import('./systems/debug-volumes.js');
+      debugVolumes = new DebugVolumes({ scene, controller, foxes: () => foxes });
+    }
+    return debugVolumes;
+  };
+  import('./systems/sandbox-debug.js').then(({ createSandboxDebugGUI }) => {
+    // 进入沙盒后再挂载，离开沙盒不卸载（调试工具复用同一 GUI）。
+    const mount = () => {
+      if (sandboxDebugGUI || !game.sandbox) return;
+      sandboxDebugGUI = createSandboxDebugGUI({
+        state: sandboxState,
+        actions: {
+          spawnOne: () => spawnSandboxFoxes({ state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) }),
+          spawnGroup: () => spawnSandboxFoxes({ count: 6, state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) }),
+          clearFoxes: () => clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes }),
+          placeDummy: () => placeSandboxDummy({
+            state: sandboxState,
+            createDummy: () => spawnSandboxFox('normal', -1, { sandboxDummy: true, dummyDefeatable: sandboxState.dummyDefeatable }),
+            removeDummy: (dummy) => { foxes = foxes.filter((f) => f !== dummy); dummy.dispose(scene); },
+          }),
+          removeDummy: () => removeSandboxDummy({
+            state: sandboxState,
+            removeDummy: (dummy) => { foxes = foxes.filter((f) => f !== dummy); dummy.dispose(scene); },
+          }),
+          refill: () => { game.player.hp = 100; game.player.energy = 100; },
+          charge: () => { game.charge = 100; },
+          onState: () => foxes.forEach((f) => { if (!f.isSandboxDummy) { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; } }),
+          onFlag: (name, value) => {
+            if (name === 'godMode') testState.godMode = value;
+            if (name === 'freezeTimer') testState.freezeTimer = value;
+            const map = { godMode: '#sandboxGodMode', freezeTimer: '#sandboxFreezeTimer' };
+            const el = map[name] && document.querySelector(map[name]);
+            if (el) el.checked = value;
+          },
+          async toggleVolumes() {
+            const dv = await ensureDebugVolumes();
+            dv.state.enabled = !dv.state.enabled;
+            hud.say(dv.state.enabled ? '已显示攻击/碰撞范围' : '已隐藏攻击/碰撞范围', 1.6);
+          },
+        },
+      });
+      // 进入即默认打开战斗范围可视化，便于与数值滑块对照。
+      ensureDebugVolumes().then((dv) => { window.__debugVolumes = dv; }).catch(() => {});
+      window.__sandboxDebug = sandboxDebugGUI;
+      hud.say('沙盒数值后台已载入（?sandboxdebug=1）', 2.4);
+    };
+    // 进入沙盒时由 enterSandbox() 末尾触发钩子，与本模块/函数引用时机无关。
+    sandboxEnterHooks.push(mount);
+    // 若挂载本模块时已在沙盒（热重载场景），立即挂载。
+    if (game.sandbox) mount();
+  }).catch((error) => console.warn('[sandbox-debug] disabled:', error));
+}
 
 function updateCooldownButtons() {
   for (const id of ['burst', 'ultimate']) {
