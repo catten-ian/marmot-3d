@@ -2,6 +2,35 @@
 export const SMART_INTENTS = ['observe', 'approach', 'feint', 'pounce', 'recover', 'abandon'];
 
 const clamp = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
+
+export function separationVector(position, neighbors = [], minDistance = 1.8, strength = 2.4) {
+  let x = 0, z = 0;
+  for (const n of neighbors || []) {
+    const dx = position.x - n.x, dz = position.z - n.z;
+    const d = Math.hypot(dx, dz);
+    if (d <= 1e-5 || d >= minDistance) continue;
+    const w = (minDistance - d) / minDistance;
+    x += (dx / d) * w; z += (dz / d) * w;
+  }
+  const len = Math.hypot(x, z);
+  if (!len) return { x: 0, z: 0 };
+  const scale = Math.min(strength, len * strength);
+  return { x: x / len * scale, z: z / len * scale };
+}
+
+export function isSegmentReachable(start, target, obstacles = [], clearance = 0.8) {
+  const ax = start.x, az = start.z, bx = target.x, bz = target.z;
+  const dx = bx - ax, dz = bz - az;
+  const len2 = dx * dx + dz * dz;
+  for (const o of obstacles || []) {
+    const r = Math.max(0, Number(o.r) || 0) + clearance;
+    const t = len2 > 1e-8 ? Math.max(0, Math.min(1, ((o.x - ax) * dx + (o.z - az) * dz) / len2)) : 0;
+    const px = ax + dx * t - o.x, pz = az + dz * t - o.z;
+    if (px * px + pz * pz < r * r) return false;
+  }
+  return true;
+}
+
 const wrapAngle = (a) => {
   let v = a;
   while (v > Math.PI) v -= Math.PI * 2;

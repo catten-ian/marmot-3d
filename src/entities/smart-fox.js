@@ -1,11 +1,13 @@
 import { Fox } from './fox.js';
-import { FOX, roamBounds } from '../core/config.js';
+import { FOX, ROCKS, BURROWS, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { clamp, terrainHeight } from '../core/utils.js';
 import {
   utilityScores,
   updatePerception,
   applyInterruption,
   stepSmartMotion,
+  separationVector,
+  isSegmentReachable,
 } from './smart-fox-core.mjs';
 
 /**
@@ -31,11 +33,11 @@ export class SmartFox extends Fox {
     this.pounceCommitted = false;
     this._smartState = {
       x, z, vx: 0, vz: 0, yaw: this.yaw,
-      maxTurnRate: 2.8, acceleration: 18, pounceCooldown: 0,
+      maxTurnRate: 2.8, acceleration: 18, pounceCooldown: 0, telegraphT: 0,
     };
   }
 
-  update(dt, p, safe, levelCfg, burrows, terrainAt = terrainHeight) {
+  update(dt, p, safe, levelCfg, burrows, terrainAt = terrainHeight, _currentBurrow = null, allFoxes = []) {
     // 被驱退/死亡/眩晕时退回普通狐狸逻辑（逃跑、击退位移等）。
     if (this.fleeing || this.hp <= 0 || this.stun > 0) {
       return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
@@ -45,6 +47,10 @@ export class SmartFox extends Fox {
     const dz = p.z - this.z;
     const distance = Math.hypot(dx, dz);
     const facingYaw = p.facingYaw ?? p.bodyYaw ?? p.yaw ?? 0;
+    const obstacles = ROCKS.map((rock) => { const [ox, oz] = scalePoint(rock); return { x: ox, z: oz, r: scaleRadius(rock[2]) + 0.72 * this.cfg.scale }; });
+    for (const b of (Array.isArray(burrows) ? burrows : burrows ? [burrows] : BURROWS)) obstacles.push({ x: b.x, z: b.z, r: (b.r || 0) + 2.5 });
+    const reachable = isSegmentReachable(this, p, obstacles, 0.82);
+    const separation = separationVector(this, (allFoxes || []).filter((f) => f !== this && f.alive !== false), 1.85, 2.2);
     const viewDot = Math.cos(facingYaw - Math.atan2(this.x - p.x, this.z - p.z));
     const guard = !!(p.guard || p.guarding);
 
@@ -65,6 +71,20 @@ export class SmartFox extends Fox {
     });
     let intent = this.pounceCommitted ? 'pounce' : scores.topIntent;
     if (safe) intent = 'recover';
+    // Telegraph is finite and path-gated: an obstructed target becomes approach/reposition.
+    if (!this.pounceCommitted && this._smartState.telegraphT > 0) {
+      this._smartState.telegraphT = Math.max(0, this._smartState.telegraphT - dt);
+      if (!reachable || this._smartState.telegraphT <= 0 && !reachable) {
+        this._smartState.telegraphT = 0; intent = 'approach';
+      } else if (this._smartState.telegraphT <= 0) {
+        intent = 'pounce';
+      } else {
+        intent = 'observe';
+      }
+    } else if (!this.pounceCommitted && intent === 'pounce') {
+      if (reachable) { this._smartState.telegraphT = 0.55; intent = 'observe'; }
+      else intent = 'approach';
+    }
     this.intent = intent;
     this.topScores = scores.scores;
 
@@ -75,7 +95,7 @@ export class SmartFox extends Fox {
     const toP = Math.atan2(dx, dz);          // 狐→玩家 方位角
     const dn = distance || 1;
     const ux = -dx / dn, uz = -dz / dn;      // 玩家→狐 单位向量（身后方向）
-    let aimX = p.x, aimZ = p.z;
+    let aimX = p.x + separation.x * 2.2, aimZ = p.z + separation.z * 2.2;
     if (!this.pounceCommitted) {
       if (intent === 'recover' || intent === 'abandon') {
         const R = STAND[intent];
@@ -101,7 +121,7 @@ export class SmartFox extends Fox {
       },
       { x: aimX, z: aimZ },
       dt,
-      this.intent,
+      intent,
     );
     this._smartState = next;
     this.x = next.x;
@@ -112,6 +132,7 @@ export class SmartFox extends Fox {
     // 映射到既有动画状态：扑击=dash（驱动预警/接触），喘息/放弃=rest，其余=roam。
     this.state = this.pounceCommitted
       ? 'dash'
+      : this._smartState.telegraphT > 0 ? 'wind'
       : (intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam';
     this.leap = 0;
 
@@ -127,7 +148,7 @@ export class SmartFox extends Fox {
     this._resolveObstacleOverlaps(burrows);
     this._applyTransform(dt, terrainAt);
     this._updateHpBar();
-    this.warn.visible = this.pounceCommitted;
+    this.warn.visible = this.pounceCommitted || this._smartState.telegraphT > 0;
     this._updateWarn?.(terrainAt);
   }
 
