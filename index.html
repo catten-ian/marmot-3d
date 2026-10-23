@@ -354,14 +354,17 @@ const watchdog = setInterval(() => {
   if (pct > lastFillPct) { lastFillPct = pct; lastProgressAt = now; }
   if (now - bootStartedAt > HARD_LIMIT_MS) {
     clearInterval(watchdog);
+    if (typeof window.__verdantBootFailure === 'function' && params.get('version') === 'dev') { window.__verdantBootFailure(new Error('下载超过 180 秒仍未完成')); return; }
     bootFail('加载超时',
       `超过 ${HARD_LIMIT_MS / 1000} 秒仍未进入游戏。网络可能过慢或中断，请重试或切换网络（手机建议在设置里选“低”画质档）。`);
   } else if (now - lastProgressAt > STALL_MS) {
     clearInterval(watchdog);
+    if (typeof window.__verdantBootFailure === 'function' && params.get('version') === 'dev') { window.__verdantBootFailure(new Error(`加载进度已 ${STALL_MS / 1000} 秒没有变化`)); return; }
     bootFail('加载停滞',
       `加载进度已 ${STALL_MS / 1000} 秒没有变化（当前约 ${Math.max(0, Math.round(lastFillPct))}%）。可能是网络中断，或 CDN 缓存了不匹配的旧模块。`);
   }
 }, 1000);
+window.__bootWatchdogPause = () => { clearInterval(watchdog); };
 
 try {
   await import('./src/main.js?v=m20261023load');
