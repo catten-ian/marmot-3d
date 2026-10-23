@@ -1,9 +1,28 @@
 /* 游戏内反馈：离线优先，提交失败也不影响主循环。 */
 const QUEUE_KEY = 'm3d_feedback_queue';
+const INSTALL_KEY = 'm3d_install_id';
 const MAX_QUEUE = 20;
 const MAX_ERRORS = 10;
 const errorRing = [];
 let installed = false;
+
+/** 匿名安装标识（随机，无 PII），跨会话稳定，用于后台聚合同一设备的反馈。 */
+export function getInstallId(storage = typeof localStorage !== 'undefined' ? localStorage : null) {
+  if (!storage) return '';
+  try {
+    let id = storage.getItem(INSTALL_KEY);
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : 'm3d-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
+      storage.setItem(INSTALL_KEY, id);
+    }
+    return String(id).slice(0, 64);
+  } catch (_) { return ''; }
+}
+
+/** 当前渠道：优先 ?version，其次快照传入；本基线只有 stable/dev。 */
+function channelFromQuery() {
+  try { return new URLSearchParams(location.search).get('version')?.replace(/\/+$/, '') || 'stable'; } catch (_) { return 'stable'; }
+}
 
 function installErrorBuffer() {
   if (installed || typeof window === 'undefined' || !window.addEventListener) return;
@@ -32,7 +51,7 @@ export function collectGameSnapshot(context = {}) {
   const viewport = { width: Number(win.innerWidth) || 0, height: Number(win.innerHeight) || 0 };
   return {
     timestamp: new Date().toISOString(),
-    version: context.version || 'unknown',
+    version: context.version || channelFromQuery(),
     level: Number.isFinite(game.level) ? game.level + 1 : null,
     viewMode: context.thirdPerson ? 'third-person' : 'first-person',
     sandbox: !!(context.sandbox || game.sandbox),
@@ -80,6 +99,50 @@ export async function submitFeedback(payload, options = {}) {
   } catch (_) { if (timer) clearTimeout(timer); enqueueFeedback(payload, storage); return { ok: false, queued: true, timedOut }; }
 }
 
+function writeQueue(storage, queue) {
+  try { storage.setItem(QUEUE_KEY, JSON.stringify(queue)); return true; } catch (_) { return false; }
+}
+
+/**
+ * 按时间顺序补传本地离线队列：成功一条移除一条；遇失败立即停止并保留剩余。
+ * 返回 {flushed, remaining}。全程静默，不打扰玩家。
+ */
+export async function flushFeedbackQueue({ endpoint, storage = typeof localStorage !== 'undefined' ? localStorage : null, fetchFn = typeof fetch === 'function' ? fetch : null } = {}) {
+  if (!endpoint || !storage || !fetchFn) return { flushed: 0, remaining: 0 };
+  const queue = readQueue(storage);
+  if (!queue.length) return { flushed: 0, remaining: 0 };
+  let flushed = 0;
+  while (queue.length) {
+    const payload = queue[0];
+    let ok = false;
+    try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), 5000) : null;
+      const res = await fetchFn(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller && controller.signal });
+      if (timer) clearTimeout(timer);
+      ok = !!(res && res.ok);
+    } catch (_) { ok = false; }
+    if (!ok) break;
+    queue.shift(); flushed++;
+    writeQueue(storage, queue); // 每条成功即落盘，避免崩溃重复上报
+  }
+  if (queue.length) writeQueue(storage, queue);
+  try { if (flushed) console.debug(`[feedback] 已补传 ${flushed} 条，剩余 ${queue.length}`); } catch (_) { /* ignore */ }
+  return { flushed, remaining: queue.length };
+}
+
+let flushInit = false;
+/** 启动后、浏览器重新上线、以及定时尝试补传；失败静默。幂等，只初始化一次。 */
+export function initFeedbackFlush({ endpoint = '', intervalMs = 8000 } = {}) {
+  if (flushInit || typeof window === 'undefined' || !endpoint) return;
+  flushInit = true;
+  const storage = typeof localStorage !== 'undefined' ? localStorage : null;
+  const run = () => { flushFeedbackQueue({ endpoint, storage }).catch(() => {}); };
+  run();
+  window.addEventListener('online', run);
+  if (intervalMs > 0) setInterval(run, intervalMs);
+}
+
 export class FeedbackUI {
   constructor({ getSnapshot, endpoint = '', onClose } = {}) { this.getSnapshot = getSnapshot || (() => collectGameSnapshot()); this.endpoint = endpoint; this.onClose = onClose; this.lastSubmit = 0; this.root = null; }
   open() {
@@ -96,7 +159,7 @@ export class FeedbackUI {
     if (!this.root || Date.now() - this.lastSubmit < 1000) return;
     const text = this.root.querySelector('#feedbackText').value.trim(); if (!text) { this.root.querySelector('.feedback-status').textContent = '请先描述问题或建议。'; return; }
     this.lastSubmit = Date.now(); const button = this.root.querySelector('#feedbackSubmit'); button.disabled = true;
-    const payload = { createdAt: new Date().toISOString(), type: this.root.querySelector('#feedbackType').value, description: text, snapshot: this.getSnapshot() };
+    const payload = { createdAt: new Date().toISOString(), type: this.root.querySelector('#feedbackType').value, description: text, installId: getInstallId(), version: channelFromQuery(), snapshot: this.getSnapshot() };
     const result = await submitFeedback(payload, { endpoint: this.endpoint });
     if (this.root) { this.root.querySelector('.feedback-status').textContent = result.ok || result.queued ? '已记录，感谢反馈' : '提交失败，已保存到本地队列'; button.disabled = false; }
   }
