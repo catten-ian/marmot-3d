@@ -4,6 +4,8 @@
 
 项目采用零构建、零运行时安装的静态架构：Three.js 和游戏资源放在仓库内，页面通过本地模块路径加载。它适合直接部署到静态文件服务，也适合在没有外网的环境中运行；ES module 仍要求通过 HTTP 访问，不能直接用 `file://` 双击 HTML。
 
+如果这个项目对你有帮助，欢迎在 [爱发电](https://afdian.com/a/catten) 支持作者继续开发。
+
 ## 当前版本与运行
 
 默认 URL 是稳定主线：
@@ -90,6 +92,10 @@ node --test experiments/rapier-ts/test/*.test.mjs
 - `experiments/rapier-ts/test/`：原生 Node 测试。
 - `experiments/rapier-ts/vendor/`：本地 Rapier compat 包及其 wasm 资源。
 - `tsconfig.rapier-slice.json`：只包含该切片 TypeScript 源码和声明文件的配置。
+
+## 支持开发
+
+欢迎在 [爱发电](https://afdian.com/a/catten) 支持《土拨鼠大作战 3D》的持续开发。
 
 ## 目录速览
 
