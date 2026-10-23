@@ -115,7 +115,8 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   return {
     group, manifest, packManifest, tier: activeTier, height,
     heightAt: field.heightAt, resolveGround: field.resolveGround,
-    nearestWalkable: field.nearestWalkable, obstacleProxies: field.obstacleProxies, fieldStats: field.stats,
+    nearestWalkable: field.nearestWalkable, hasPlacementClearance: field.hasPlacementClearance, obstacleProxies: field.obstacleProxies,
+    placementField: field, fieldStats: field.stats,
     bounds: manifest.mapping.playableBounds, cellSize: field.cellSize,
   };
 }

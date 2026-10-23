@@ -131,7 +131,7 @@ export class SettingsUI {
           <input id="localPackInput" type="file" webkitdirectory directory multiple hidden>
           <div class="row"><label for="verdantDownloadTier">下载档位</label><select id="verdantDownloadTier">${(this.verdantQuality.tiers || []).filter((x) => x.id !== 'auto').map((x) => `<option value="${x.id}" ${x.id === (this.verdantQuality.activeTier || 'high') ? 'selected' : ''}>${x.name} · ${x.size}</option>`).join('')}</select></div>
           <div class="row"><button class="ghost" id="verdantZipDownload" type="button" ${this.verdantQuality.resources?.tosBase ? '' : 'disabled'}>下载 ZIP</button><button class="ghost" id="verdantFolderDownload" type="button" ${this.verdantQuality.resources?.tosBase && this.verdantQuality.resources?.canUseDirectory ? '' : 'disabled'}>下载为文件夹</button></div>
-          <div id="verdantTosStatus" class="local-pack-note">${this.verdantQuality.resources?.tosBase ? `TOS 已配置（版本 20261022，当前档位：${this.verdantQuality.activeTier}）` : 'TOS 尚未配置；不会尝试外网。'}</div><div id="verdantDownloadStatus" class="local-pack-status" aria-live="polite">${this.verdantQuality.resources?.downloadState?.message || '尚未开始资源下载'}</div>
+          <div id="verdantTosStatus" class="local-pack-note">${this.verdantQuality.resources?.tosBase ? `TOS 已配置（版本 20261022，当前档位：${this.verdantQuality.activeTier}）` : 'TOS 尚未配置；不会尝试外网。'}</div><div id="verdantDownloadStatus" class="local-pack-status" aria-live="polite">${this.verdantQuality.resources?.downloadState?.message || '尚未开始资源下载'}</div><progress id="verdantDownloadProgress" class="verdant-download-progress" max="1" value="${this.verdantQuality.resources?.downloadState?.fraction || 0}" aria-label="Verdant 下载字节进度"></progress>
         </section>
       </section>`;
     }

@@ -16,6 +16,7 @@
 import * as THREE from 'three';
 import { findNearestWalkableCell } from './verdant-fall-safety.mjs';
 import { selectConnectedObstacleProxies } from './verdant-obstacles.mjs';
+import { buildSurfaceComponents } from './verdant-placement.mjs';
 
 const WALK_NORMAL_Y = 0.35;
 // 名字命中即视为可穿过装饰（叶片 / 草 / 灌木 / 水 / 远景背景件）。
@@ -48,6 +49,20 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
   const nx = Math.max(8, Math.ceil(width / cellSize));
   const nz = Math.max(8, Math.ceil(depth / cellSize));
   const top = new Float32Array(nx * nz).fill(NaN);
+  const layerCount = 4;
+  const surfaceLayers = new Float32Array(nx * nz * layerCount).fill(NaN);
+  const addLayer = (cell, y) => {
+    const base = cell * layerCount;
+    for (let slot = 0; slot < layerCount; slot++) {
+      const old = surfaceLayers[base + slot];
+      if (Number.isFinite(old) && Math.abs(old - y) < 0.12) return;
+      if (!Number.isFinite(old) || y > old) {
+        for (let move = layerCount - 1; move > slot; move--) surfaceLayers[base + move] = surfaceLayers[base + move - 1];
+        surfaceLayers[base + slot] = y;
+        return;
+      }
+    }
+  };
   const rockCliffCells = new Uint8Array(nx * nz);
 
   sceneRoot.updateMatrixWorld(true);
@@ -108,6 +123,7 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
               if (!pointInTriXZ(cx, cz, pA, pB, pC)) continue;
               const k = j * nx + i;
               if (namedRockCliff) rockCliffCells[k] = 1;
+              addLayer(k, y);
               if (isNaN(top[k]) || y > top[k]) top[k] = y;
             }
           }
@@ -124,7 +140,7 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
 
   let rockCliffSurfaceCells = 0;
   for (const hit of rockCliffCells) rockCliffSurfaceCells += hit;
-  return { top, nx, nz, cellSize, bounds, rockCliffCells, stats: { meshCount, triCount, usedCount, rockCliffSurfaceCells } };
+  return { top, surfaceLayers, layerCount, nx, nz, cellSize, bounds, rockCliffCells, stats: { meshCount, triCount, usedCount, rockCliffSurfaceCells } };
 }
 
 function pointInTriXZ(px, pz, a, b, c) {
@@ -155,6 +171,39 @@ function sampleJsonHeight(height, x, z) {
 }
 
 /** Build conservative, opt-in circle proxies for named cliffs/boulders. */
+/** Build a small, exact vertical clearance query for candidate placement points. */
+function createPlacementClearance(sceneRoot) {
+  const meshes = [];
+  const box = new THREE.Box3();
+  sceneRoot.updateMatrixWorld(true);
+  sceneRoot.traverse((obj) => {
+    if (!obj.isMesh || !obj.geometry || !solidName(obj.name) || !solidName(obj.parent?.name)) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    if (!mats.some(isSolidMaterial)) return;
+    obj.geometry.computeBoundingBox?.();
+    if (!obj.geometry.boundingBox) return;
+    box.copy(obj.geometry.boundingBox).applyMatrix4(obj.matrixWorld);
+    meshes.push({ obj, bounds: box.clone() });
+  });
+  const ray = new THREE.Raycaster();
+  const origin = new THREE.Vector3(), direction = new THREE.Vector3(0, 1, 0);
+  const offsets = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+  return ({ x, z, y, radius = 0, height = 1.5 }) => {
+    for (const [dx, dz] of offsets) {
+      const px = x + dx * radius * 0.78, pz = z + dz * radius * 0.78;
+      origin.set(px, y + 0.055, pz);
+      ray.set(origin, direction); ray.near = 0; ray.far = Math.max(0, height - 0.055);
+      for (const item of meshes) {
+        const b = item.bounds;
+        if (px < b.min.x || px > b.max.x || pz < b.min.z || pz > b.max.z
+          || b.max.y <= y + 0.08 || b.min.y >= y + height) continue;
+        if (ray.intersectObject(item.obj, false).length) return false;
+      }
+    }
+    return true;
+  };
+}
+
 export function buildObstacleProxies(sceneRoot, bounds, maxProxies = 24) {
   if (!sceneRoot || !bounds) return [];
   sceneRoot.updateMatrixWorld(true);
@@ -192,7 +241,7 @@ export function buildObstacleProxies(sceneRoot, bounds, maxProxies = 24) {
 export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22, edgeMargin = 0.7 }) {
   const __t0 = Date.now();
   const __pt = (m) => console.info('PT ' + m + ' ' + (Date.now() - __t0) + 'ms');
-  const { top, nx, nz, rockCliffCells, stats } = rasterizeColumns(scene, bounds, cellSize);
+  const { top, surfaceLayers, layerCount, nx, nz, rockCliffCells, stats } = rasterizeColumns(scene, bounds, cellSize);
   const obstacleProxies = buildObstacleProxies(scene, bounds);
   __pt('rasterize');
 
@@ -337,10 +386,16 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
     start: { i: centerIndex[0], j: centerIndex[1] }, minReachableRatio: 0.995,
   });
   const safeObstacleProxies = obstacleSelection.proxies;
+  const components = buildSurfaceComponents({
+    surfaceLayers, walkable, nx, nz, cellSize, layerCount,
+  });
+  const mainComponent = components.sizes.reduce((best, size, index, all) => size > (all[best] || 0) ? index : best, -1);
 
   return {
-    heightAt, resolveGround, nearestWalkable, bounds, cellSize, nx, nz, obstacleProxies: safeObstacleProxies,
-    obstacleMask: obstacleSelection.mask,
+    heightAt, resolveGround, nearestWalkable, bounds, cellSize, nx, nz,
+    top, walkable, surfaceLayers, layerCount, layerLabels: components.labels, componentSizes: components.sizes, mainComponent,
+    hasPlacementClearance: createPlacementClearance(scene),
+    obstacleProxies: safeObstacleProxies, obstacleMask: obstacleSelection.mask,
     stats: { ...stats, jsonFilled, solidCells: solidCount, walkableCells: walkCount, totalCells: nx * nz, walkableRockCliffCells, minWalkableY: Number.isFinite(minWalkableY) ? minWalkableY : null, maxWalkableY: Number.isFinite(maxWalkableY) ? maxWalkableY : null, walkableRatio: walkCount / (nx * nz), obstacleCandidates: obstacleProxies.length, obstacleProxies: safeObstacleProxies.length, obstacleRejected: obstacleSelection.rejected, obstacleReachableRatio: obstacleSelection.baselineReachable ? obstacleSelection.reachable / obstacleSelection.baselineReachable : 0 },
     __ms: (() => { __pt('done'); return Date.now()-__t0; })(),
   };
