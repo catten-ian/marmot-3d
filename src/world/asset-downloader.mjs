@@ -24,8 +24,11 @@ export function aggregateManifestBytes(manifest) {
 function likelyCached(url, response) {
   if (response?.status === 304) return true;
   try {
+    // 磁盘缓存再验证(304)：transferSize=0 且 encodedBodySize>0；
+    // 内存缓存命中：transferSize=0 且 encodedBodySize 可能也为 0。两者都算缓存命中，
+    // 避免二次进入时不显示「已缓存」、反而闪出瞬时假速度。
     const entries = globalThis.performance?.getEntriesByName?.(url) || [];
-    return entries.some((entry) => entry.transferSize === 0 && entry.encodedBodySize > 0);
+    return entries.some((entry) => entry.transferSize === 0);
   } catch (_) { return false; }
 }
 
