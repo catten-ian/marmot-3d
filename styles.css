@@ -1648,6 +1648,7 @@ body.touch-layout-editing .objective {
   pointer-events: auto;
   touch-action: none;
   cursor: grab;
+  transition: none; /* 拖动时不要被实玩态 transform 过渡追着跑。 */
   outline: 1px dashed rgba(255, 232, 177, .72);
   outline-offset: 3px;
 }
@@ -1932,8 +1933,13 @@ body.touch-mode.touch-layout-editing .touch-controls { display: block; }
 }
 .kb-layout-done[hidden] { display: none; }
 
-/* 进入调整时游戏自动暂停，但暂停面板会盖住控件导致无法拖动，调整态下隐藏它 */
-body.touch-layout-editing #overlay { display: none !important; }
+/* 进入调整时游戏逻辑仍暂停，但暂停面板不得盖住、模糊或接收卡片拖动指针。 */
+body.touch-layout-editing #overlay {
+  display: none !important;
+  pointer-events: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
 
 /* 暂停态下打开设置/帮助：面板与其触发按钮必须浮在暂停遮罩(z-index:40)之上，
    否则会被“喘口气”暂停面板盖住；游戏仍保持暂停，不会因为打开它们而继续。 */
@@ -1997,6 +2003,8 @@ body.touch-mode .kb-skill-bar { display: none !important; }
 .kb-skill.is-charging .kb-state { color: #c9a8ec; }
 .kb-skill.is-no-energy .kb-state { color: #ffb1a4; }
 body.touch-layout-editing .touch-controls { z-index: 41; }
+/* 编辑态让全屏视角拖动层退让，HUD 卡片/小地图不能被它遮住；摇杆和动作按钮仍可选中拖动。 */
+.touch-controls.layout-editing .touch-look-zone { pointer-events: none; }
 .touch-controls.layout-editing .touch-actions button { cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
 .touch-controls.layout-editing .touch-actions button.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
 .touch-controls.layout-editing .touch-actions button.layout-dragging { cursor: grabbing; filter: brightness(1.25); }
@@ -2050,12 +2058,26 @@ body.touch-layout-editing .touch-controls { z-index: 41; }
 }
 /* 站立观察小地图：右上方独立于右下动作盘，带安全区适配。 */
 .minimap { position: fixed; top: calc(64px + var(--safe-top, 0px)); right: calc(14px + var(--safe-right, 0px)); width: 174px; z-index: 18; opacity: 0; transform: translateY(-6px) scale(.96); pointer-events: none; transition: opacity .16s ease, transform .16s ease; }
-.minimap.on { opacity: 1; transform: none; }
+.minimap.on { opacity: var(--touch-layout-opacity, 1); transform: none; }
+/* Layout-managed map stays centered even as .on toggles; scale/position come from TouchLayout. */
+.minimap.touch-layout-managed { transform: translate(-50%, -50%) scale(var(--touch-layout-card-scale, 1)); }
 .minimap canvas { display: block; width: 174px; height: 174px; border: 1px solid #5e7b63; border-radius: 8px; image-rendering: auto; }
 .minimap span { display: block; margin-top: 3px; color: #dcebc9; font-size: 10px; text-align: center; text-shadow: 0 1px 3px #000; }
 @media (max-width: 860px) { .minimap { top: calc(96px + var(--safe-top, 0px)); right: calc(9px + var(--safe-right, 0px)); } }
-@media (max-width: 420px) { .minimap, .minimap canvas { width: 142px; height: 142px; } }
-@media (orientation: landscape) and (max-height: 520px) { .minimap { top: calc(42px + var(--safe-top, 0px)); } .minimap, .minimap canvas { width: 128px; height: 128px; } }
+@media (max-width: 420px) { .minimap { width: 142px; } .minimap canvas { width: 142px; height: 142px; } }
+@media (orientation: landscape) and (max-height: 520px) { .minimap { top: calc(42px + var(--safe-top, 0px)); width: 128px; } .minimap canvas { width: 128px; height: 128px; } }
+/* 编辑时地图即使没有 observing/.on 也临时显形并接入既有 HUD 卡片选中/拖动系统。 */
+body.touch-layout-editing .minimap {
+  opacity: var(--touch-layout-opacity, 1);
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  transition: none; /* 拖动时不要被实玩态 transform 过渡追着跑。 */
+  outline: 1px dashed rgba(255, 232, 177, .72);
+  outline-offset: 3px;
+}
+body.touch-layout-editing .minimap.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
+body.touch-layout-editing .minimap.layout-dragging { cursor: grabbing; filter: brightness(1.18); }
 .cooldown-overlay { position:absolute; inset:0; border-radius:inherit; pointer-events:none; background:conic-gradient(rgba(90,100,100,.75) var(--cd-angle,0deg), transparent 0); opacity:0; }
 .cooldown-overlay.on { opacity:1; } .cooldown-overlay em { position:absolute; inset:0; display:grid; place-items:center; color:#fff; font-size:11px; font-style:normal; text-shadow:0 1px 3px #000; }
 .touch-actions button.no-energy { background:rgba(126,180,215,.65); }
@@ -2088,7 +2110,7 @@ body.touch-layout-editing .touch-controls { z-index: 41; }
   transition: opacity .16s ease, visibility .16s ease;
 }
 .sandbox-status.on { visibility: visible; opacity: 1; }
-body.touch-layout-editing .sandbox-status { pointer-events: auto; touch-action: none; cursor: grab; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
+body.touch-layout-editing .sandbox-status { visibility: visible !important; pointer-events: auto; touch-action: none; cursor: grab; transition: none; outline: 1px dashed rgba(255, 232, 177, .72); outline-offset: 3px; }
 body.touch-layout-editing .sandbox-status.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
 body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; filter: brightness(1.18); }
 @media (max-width: 860px) {

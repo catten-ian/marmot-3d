@@ -11,7 +11,8 @@
  *   摇杆内圈（疾跑判定圈）大小即 joystick.sprintThreshold，滑动即时写回
  *   TouchControls.setSprintThreshold 并持久化。
  * - 常驻 HUD 信息卡（顶部状态 .vitals / 关卡信息 .mission /
- *   本关目标 .objective / 沙盒状态 .sandbox-status），布局存在独立的 cards 命名空间。
+ *   本关目标 .objective / 沙盒状态 .sandbox-status / 站立观察小地图 .minimap），
+ *   布局存在独立的 cards 命名空间。
  * 四类 id 互不冲突，编辑态下点击/拖动任意一类都只做选中与布局，
  * 非编辑态各自走原来的输入/点击逻辑（摇杆照常移动，沙盒按钮仍开/关测试面板）。
  *
@@ -45,11 +46,20 @@ const SELECTABLE_IDS = [...ALL_IDS, JOYSTICK];
 // 摇杆整体大小滑块范围（相对 CSS 基准尺寸的倍数）。
 const JOYSTICK_SCALE_MIN = 0.7, JOYSTICK_SCALE_MAX = 1.4;
 // 可调整的常驻 HUD 信息卡：布局 id → 页面元素。
-const CARDS = ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox'];
-const CARD_SELECTORS = { hudVitals: '.vitals', hudMission: '.mission', hudObjective: '.objective', hudSandbox: '.sandbox-status' };
+const CARDS = ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox', 'hudMinimap'];
+const CARD_SELECTORS = {
+  hudVitals: '.vitals', hudMission: '.mission', hudObjective: '.objective',
+  hudSandbox: '.sandbox-status', hudMinimap: '.minimap',
+};
 // 卡片单卡缩放/透明度范围（比按钮更保守，避免卡片被缩到不可读）。
 const CARD_SCALE = [0.75, 1.25];
 const CARD_OPACITY = [0.35, 1];
+const MINIMAP = 'hudMinimap';
+function minimapDimensions(w, h) {
+  const width = w > h && h <= 520 ? 128 : w <= 420 ? 142 : 174;
+  // Canvas + 3px label margin + the 15px line box of the 10px label.
+  return { w: width, h: width + 18 };
+}
 // 与 styles.css 中 .touch-joystick 的响应式基准直径保持一致（媒体查询同口径）。
 function joystickBaseSize(w = innerWidth || 390, h = innerHeight || 844) {
   if (w > h && h <= 520) return 104; // 横屏低高度
@@ -65,12 +75,44 @@ const LABELS = {
   hudMission: '关卡信息卡（第 X 关/时间/位置）',
   hudObjective: '本关目标卡',
   hudSandbox: '沙盒状态卡',
+  hudMinimap: '站立观察小地图',
 };
 const SIZE = {
   attack: 76, dodge: 58, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38,
   sandboxControl: 56,
 };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/** Pure, DOM-free card normalization; missing card entries inherit their defaults. */
+export function normalizeCardEntries(inputCards, baseCards, ids = CARDS) {
+  const out = {};
+  for (const id of ids) {
+    const c = inputCards?.[id] || baseCards[id];
+    out[id] = {
+      x: clamp(Number.isFinite(Number(c.x)) ? Number(c.x) : baseCards[id].x, 0, 1),
+      y: clamp(Number.isFinite(Number(c.y)) ? Number(c.y) : baseCards[id].y, 0, 1),
+      scale: clamp(Number(c.scale) || 1, CARD_SCALE[0], CARD_SCALE[1]),
+      opacity: clamp(Number(c.opacity) || 1, CARD_OPACITY[0], CARD_OPACITY[1]),
+    };
+  }
+  return out;
+}
+
+/** Pure, DOM-free safe-area clamp using the element's current rendered dimensions. */
+export function clampCardCenter(x, y, scale, safe, w, h, rect, currentScale = 1, design = null) {
+  const bw = rect?.width ? rect.width / currentScale : (design?.w || 170);
+  const bh = rect?.height ? rect.height / currentScale : (design?.h || 92);
+  const hx = Math.min(bw * scale / 2 + 4, w / 2);
+  const hy = Math.min(bh * scale / 2 + 4, h / 2);
+  const axis = (value, size, minInset, maxInset, half) => {
+    const min = minInset + half, max = size - maxInset - half;
+    return min <= max ? clamp(value, min, max) : size / 2;
+  };
+  return {
+    x: axis(x, w, safe.left, safe.right, hx),
+    y: axis(y, h, safe.top, safe.bottom, hy),
+  };
+}
 // 攻击键内圈（装饰触发核心）默认占外圈 55%、不透明度 92%，滑块范围 40-100% / 30-100%。
 const ATTACK_CORE_DEFAULTS = { size: 0.55, opacity: 0.92 };
 
@@ -92,6 +134,7 @@ export class TouchLayout {
     this.touchModeAvailable = true;
     // 由 main.js 注入的游戏暂停/恢复钩子；调整态进出时自动暂停/继续。
     this.pauseHooks = null;
+    this.onEditingStart = null;
     // 本次调整是否由编辑器发起的暂停（调整前已在暂停态则退出调整时保持暂停）。
     this._pausedByEditor = false;
     // 疾跑触发范围变化时由 main.js 注入 TouchControls 实时生效。
@@ -110,6 +153,7 @@ export class TouchLayout {
     // 因此先在改动任何样式之前量出 CSS 设计位置，作为默认布局与卡片宽度基准。
     this.cards = Object.fromEntries(CARDS.map((id) => [id, document.querySelector?.(CARD_SELECTORS[id]) || null]));
     this._design = this._measureCards();
+    this._appliedCardScale = {};
     // 用户拖过的卡片位置：refreshCardDefaults 只跟随仍为默认位置的卡，
     // 用户拖过（或存档里已有）的卡片位置永远以用户方案为准。
     this._cardPosTouched = {};
@@ -133,6 +177,11 @@ export class TouchLayout {
 
   /** main.js 注入暂停钩子：{ pause(), resume(), isPaused() } */
   setPauseHooks(hooks) { this.pauseHooks = hooks || null; }
+
+  /** Transfer a pause already owned by an enclosing settings sheet to this editor. */
+  adoptExistingPause() {
+    if (this.editing && this.pauseHooks?.isPaused?.()) this._pausedByEditor = true;
+  }
 
   _syncAdjustVisibility() {
     // CSS 据此隐藏/显示所有带 data-touch-adjust 的"调整键"。
@@ -174,11 +223,24 @@ export class TouchLayout {
    */
   _measureCard(el) {
     if (!el?.getBoundingClientRect) return null;
-    const PROPS = ['position', 'left', 'top', 'right', 'bottom', 'margin', 'width', 'maxWidth', 'transform', 'transformOrigin', 'opacity', 'zIndex'];
+    const PROPS = ['position', 'left', 'top', 'right', 'bottom', 'margin', 'width', 'maxWidth', 'transform', 'transformOrigin', 'opacity', 'zIndex', 'transition'];
     const saved = {};
+    // The managed class mirrors the map's center transform in CSS so minimap.on
+    // visibility changes cannot drop its persisted center positioning. Remove it
+    // during design measurement, then restore it with the original inline styles.
+    const isMinimap = el.classList?.contains('minimap');
+    const managedMinimap = el.classList?.contains('touch-layout-managed');
+    if (managedMinimap) el.classList.remove('touch-layout-managed');
     for (const p of PROPS) { saved[p] = el.style[p] || ''; el.style[p] = ''; }
+    // 小地图 opacity:0 仍有正常布局盒；清掉隐藏态的 translateY/scale，
+    // 默认中心应与实玩态 top/right 锚点一致，而不是向上偏移 6px、缩小 4%。
+    if (isMinimap) {
+      el.style.transition = 'none';
+      el.style.transform = 'none';
+    }
     const rect = el.getBoundingClientRect();
     for (const p of PROPS) el.style[p] = saved[p];
+    if (managedMinimap) el.classList.add('touch-layout-managed');
     if (!rect || rect.width <= 0 || rect.height <= 0) return null;
     return { cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, w: rect.width, h: rect.height };
   }
@@ -207,9 +269,14 @@ export class TouchLayout {
     if (id === 'hudMission') return [Math.min(w / 2, safe.left + 560), safe.top + (landscape ? 30 : 42)];
     // hudObjective：桌面右下；触屏实玩/窄屏放右上安全区（顶部 HUD 下方，避开动作轮盘）。
     if (id === 'hudSandbox') {
-      // 小地图位于右上（移动端约 96/142px 起，宽度 142px；横屏约 42px 起，宽度 128px），
-      // 沙盒卡固定放在其下方并保留一段间距，避免覆盖地图。
+      // 小地图位于右上，沙盒卡固定放在其下方并保留一段间距，避免覆盖地图。
       return [w - safe.right - (landscape ? 76 : 86), safe.top + (landscape ? 222 : 300)];
+    }
+    if (id === MINIMAP) {
+      const { w: mapWidth, h: mapHeight } = minimapDimensions(w, h);
+      const top = landscape && h <= 520 ? 42 : w <= 860 ? 96 : 64;
+      const right = w <= 860 ? 9 : 14;
+      return [w - safe.right - right - mapWidth / 2, safe.top + top + mapHeight / 2];
     }
     if (w <= 860 || landscape) return [w - safe.right - 86, safe.top + (landscape ? 122 : 196)];
     return [w - safe.right - 116, h - safe.bottom - 100];
@@ -284,17 +351,8 @@ export class TouchLayout {
         out.buttons[id].coreOpacity = clamp(Number.isFinite(Number(opacitySrc)) ? Number(opacitySrc) : ATTACK_CORE_DEFAULTS.opacity, .3, 1);
       }
     }
-    // HUD 卡片：旧存档缺 cards 字段时用设计默认位置，不影响 buttons / joystick。
-    out.cards = {};
-    for (const id of CARDS) {
-      const c = input.cards?.[id] || base.cards[id];
-      out.cards[id] = {
-        x: clamp(Number.isFinite(Number(c.x)) ? Number(c.x) : base.cards[id].x, 0, 1),
-        y: clamp(Number.isFinite(Number(c.y)) ? Number(c.y) : base.cards[id].y, 0, 1),
-        scale: clamp(Number(c.scale) || 1, CARD_SCALE[0], CARD_SCALE[1]),
-        opacity: clamp(Number(c.opacity) || 1, CARD_OPACITY[0], CARD_OPACITY[1]),
-      };
-    }
+    // HUD 卡片：旧存档缺 cards 或 hudMinimap 时按设计默认补齐，不覆盖已保存卡片。
+    out.cards = normalizeCardEntries(input.cards, base.cards);
     // 摇杆：位置/整体大小/真实疾跑触发范围；旧布局缺字段时安全补默认值。
     // 旧版的 joystick.coreSize / coreOpacity（装饰圆）字段直接忽略；
     // 仅含 sprintThreshold 的旧数据（rev7 之前）保留阈值、其余取默认，不清空存储。
@@ -336,15 +394,9 @@ export class TouchLayout {
   _safeCardCenter(id, x, y, scale, safe, w, h) {
     const el = this.cards[id];
     const rect = el?.getBoundingClientRect?.();
-    const cur = this.layout?.cards?.[id]?.scale || 1;
-    const bw = rect?.width ? rect.width / cur : (this._design?.[id]?.w || 170);
-    const bh = rect?.height ? rect.height / cur : (this._design?.[id]?.h || 92);
-    const hx = Math.min(bw * scale / 2 + 4, w / 2);
-    const hy = Math.min(bh * scale / 2 + 4, h / 2);
-    return {
-      x: clamp(x, safe.left + hx, w - safe.right - hx),
-      y: clamp(y, safe.top + hy, h - safe.bottom - hy),
-    };
+    const cur = this._appliedCardScale[id] || this.layout?.cards?.[id]?.scale || 1;
+    const design = id === MINIMAP && !rect?.width ? minimapDimensions(w, h) : this._design?.[id];
+    return clampCardCenter(x, y, scale, safe, w, h, rect, cur, design);
   }
 
   apply() {
@@ -390,6 +442,16 @@ export class TouchLayout {
       if (!el || !item) continue;
       const scale = clamp(item.scale, CARD_SCALE[0], CARD_SCALE[1]);
       const opacity = clamp(item.opacity, CARD_OPACITY[0], CARD_OPACITY[1]);
+      if (id === MINIMAP) {
+        // Before measuring the safe clamp, expose the target scale through the live
+        // rect. Its authored hidden transform is .96, which otherwise underestimates
+        // the actual editable map dimensions on the first apply / scale change.
+        el.classList.add('touch-layout-managed');
+        el.style.setProperty('--touch-layout-card-scale', String(scale));
+        el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        el.style.transformOrigin = 'center';
+        this._appliedCardScale[id] = scale;
+      }
       const p = this._safeCardCenter(id, item.x * w, item.y * h, scale, safe, w, h);
       el.style.position = 'fixed';
       el.style.left = `${p.x}px`;
@@ -400,12 +462,26 @@ export class TouchLayout {
       // 卡片脱离 flex/grid 后必须显式给宽度，否则 shrink-to-fit 改变默认观感；
       // 宽度用设计时量到的值，并按当前视口夹紧，旋转/窄屏不溢出。
       const dw = this._design?.[id]?.w;
-      if (dw) el.style.width = `${Math.min(dw, Math.max(120, w - safe.left - safe.right - 16))}px`;
-      el.style.maxWidth = 'calc(100vw - 16px)';
+      if (id === MINIMAP) {
+        // 保留 .minimap 的断点宽度（174/142/128px），而非冻结构造时尺寸；
+        // class 同时保证 .on 显隐切换不丢失居中 transform。
+        el.classList.add('touch-layout-managed');
+        el.style.setProperty('--touch-layout-card-scale', String(scale));
+        el.style.width = '';
+        el.style.maxWidth = '';
+        el.style.setProperty('--touch-layout-opacity', String(opacity));
+        el.style.opacity = this.editing ? String(opacity) : '';
+        el.style.visibility = this.editing ? 'visible' : '';
+      } else {
+        if (dw) el.style.width = `${Math.min(dw, Math.max(120, w - safe.left - safe.right - 16))}px`;
+        el.style.maxWidth = 'calc(100vw - 16px)';
+        el.style.opacity = String(opacity);
+        if (id === 'hudSandbox') el.style.visibility = this.editing ? 'visible' : '';
+      }
       el.style.transform = `translate(-50%, -50%) scale(${scale})`;
       el.style.transformOrigin = 'center';
-      el.style.opacity = String(opacity);
       el.style.zIndex = '24';
+      this._appliedCardScale[id] = scale;
     }
     this.root.classList.toggle('layout-editing', this.editing);
     document.body.classList.toggle('touch-layout-editing', this.editing);
@@ -449,7 +525,8 @@ export class TouchLayout {
       this._pausedByEditor = false;
     } else {
       this._pausedByEditor = true;
-      this.pauseHooks?.pause?.();
+      // 自动暂停模拟，但不弹全屏暂停面板到 HUD 卡片上方。
+      this.pauseHooks?.pause?.({ silent: true });
     }
   }
 
@@ -496,7 +573,7 @@ export class TouchLayout {
   settingsMarkup() {
     const options = (ids) => ids.map((id) => `<option value="${id}" ${id === this.selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
     return `<section class="touch-layout-settings" aria-label="触屏技能盘设置">
-      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮、移动摇杆和 HUD 卡片；选择单个控件后可单独调尺寸和透明度。「沙盒控制」是唯一可调整的沙盒入口（即打开测试/沙盒面板的那个按钮），不会新增其他浮动按钮。「整体大小 / 整体透明度」只作用于动作按钮；摇杆、HUD 卡片请选中后用对应单项控制。摇杆内圈决定推多远进入疾跑，档位环会同步显示真实位置。</p>
+      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮、移动摇杆、HUD 卡片和站立观察小地图；小地图会在编辑时临时显示。选择单个控件后可单独调尺寸和透明度。「沙盒控制」是唯一可调整的沙盒入口（即打开测试/沙盒面板的那个按钮），不会新增其他浮动按钮。「整体大小 / 整体透明度」只作用于动作按钮；摇杆、HUD 卡片和小地图请选中后用对应单项控制。摇杆内圈决定推多远进入疾跑，档位环会同步显示真实位置。</p>
       <div class="layout-setting-row"><label for="layoutGlobalScale">整体大小</label><input id="layoutGlobalScale" type="range" min="0.75" max="1.3" step="0.05" value="${this.layout.scale}"><output data-layout-value="globalScale"></output></div>
       <div class="layout-setting-row"><label for="layoutGlobalOpacity">整体透明度</label><input id="layoutGlobalOpacity" type="range" min="0.35" max="1" step="0.05" value="${this.layout.opacity}"><output data-layout-value="globalOpacity"></output></div>
       <div class="layout-setting-row"><label for="layoutSelected">单个控件</label><select id="layoutSelected"><optgroup label="动作按钮">${options(ACTIONS)}</optgroup><optgroup label="沙盒控制">${options([SANDBOX_CONTROL])}</optgroup><optgroup label="移动摇杆">${options([JOYSTICK])}</optgroup><optgroup label="HUD 卡片">${options(CARDS)}</optgroup></select></div>
@@ -512,7 +589,7 @@ export class TouchLayout {
   }
 
   /**
-   * 键鼠模式的 HUD 布局设置：只能调整常驻信息卡（状态/关卡/目标/沙盒状态），
+   * 键鼠模式的 HUD 布局设置：只能调整常驻信息卡（状态/关卡/目标/沙盒状态/小地图），
    * 不提供虚拟摇杆与触屏动作按钮（键鼠模式下它们本来就不显示）。
    * 元素 id 与触屏版相同，复用 bindSettings 的事件绑定与 _syncEditor 刷新。
    */
@@ -520,7 +597,7 @@ export class TouchLayout {
     const selected = CARDS.includes(this.selected) ? this.selected : 'hudVitals';
     const options = CARDS.map((id) => `<option value="${id}" ${id === selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
     return `<section class="touch-layout-settings kb-hud-layout" aria-label="HUD 信息卡布局">
-      <h4>HUD 信息卡布局（键鼠）</h4><p>进入拖动编辑会自动暂停游戏，可拖动顶部状态卡、关卡信息卡、本关目标卡与沙盒状态卡改变位置；在下方选中单张卡片后还能调大小与透明度。键鼠模式不显示虚拟摇杆和触屏动作按钮，因此它们不参与调整。</p>
+      <h4>HUD 信息卡布局（键鼠）</h4><p>进入拖动编辑会自动暂停游戏，可拖动顶部状态卡、关卡信息卡、本关目标卡、沙盒状态卡与小地图改变位置；小地图仅在编辑期间强制显示，退出后恢复站立观察显隐。在下方选中单张卡片后还能调大小与透明度。键鼠模式不显示虚拟摇杆和触屏动作按钮，因此它们不参与调整。</p>
       <div class="layout-setting-row"><label for="layoutSelected">单个卡片</label><select id="layoutSelected"><optgroup label="HUD 卡片">${options}</optgroup></select></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonScale">卡片大小</label><input id="layoutButtonScale" type="range" min="0.75" max="1.25" step="0.05"><output data-layout-value="buttonScale"></output></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonOpacity">卡片透明度</label><input id="layoutButtonOpacity" type="range" min="0.35" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
@@ -574,6 +651,7 @@ export class TouchLayout {
     container.querySelector('[data-layout-edit]')?.addEventListener('click', (e) => {
       this.setEditing(!this.editing); e.currentTarget.textContent = this.editing ? '完成拖动编辑' : '进入拖动编辑';
       if (this.editing) {
+        this.onEditingStart?.();
         const sheet = document.getElementById('setSheet');
         if (sheet && !sheet.hidden) { sheet.hidden = true; document.body.classList.remove('settings-open'); }
       }

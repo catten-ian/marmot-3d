@@ -1069,6 +1069,7 @@ function retryLevel() {
 }
 
 function pause() {
+  const silent = !!arguments[0]?.silent;
   if (game.mode !== 'play') return;
   clearPendingAerialParry();
   cancelAttackCharge();
@@ -1078,6 +1079,11 @@ function pause() {
   keys.clear();
   touchControls?.releaseAll();
   controller.exitLock();
+  if (silent) {
+    // 布局编辑只需要暂停模拟，不需要显示会遮住 HUD 卡片的全屏暂停面板。
+    hud.hidePanel();
+    return;
+  }
   const h = schemeHints(binds, { isDev: IS_DEV });
   hud.showPanel(`
     <div class="eyebrow">PAUSED</div>
@@ -2140,7 +2146,7 @@ const feedbackUI = new FeedbackUI({
 });
 // 进入触屏布局调整时自动暂停，退出时恢复；调整前已暂停则保持暂停。
 touchLayout.setPauseHooks({
-  pause: () => pause(),
+  pause: ({ silent = false } = {}) => pause({ silent }),
   resume: () => { if (game.mode === 'pause') resume(); },
   isPaused: () => game.mode !== 'play',
 });
@@ -2152,6 +2158,7 @@ touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
 touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
 const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState);
+touchLayout.onEditingStart = () => settingsUI.transferPauseToLayoutEditor();
 // 游戏中打开设置自动暂停；关闭时仅在由设置发起暂停时恢复（已暂停/标题态保持）。
 settingsUI.setPauseHooks({
   pause: () => pause(),

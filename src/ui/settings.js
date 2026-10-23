@@ -75,6 +75,14 @@ export class SettingsUI {
     }
   }
 
+  /** Hand the pause started by this sheet to the layout editor when the sheet is dismissed for editing. */
+  transferPauseToLayoutEditor() {
+    if (!this._pausedByPanel || !this.touchLayout?.editing) return false;
+    this._pausedByPanel = false;
+    this.touchLayout.adoptExistingPause?.();
+    return true;
+  }
+
   toggle() {
     if (this.el.sheet.hidden) this.open(); else this.close();
   }
