@@ -2119,3 +2119,21 @@ body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; fi
 @media (orientation: landscape) and (max-height: 520px) {
   .sandbox-status { top: calc(188px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: min(140px, 24vw); }
 }
+
+/* BETA audio controls stay isolated from stable/dev settings markup. */
+.audio-settings {
+  margin: 0 0 14px;
+  padding: 13px;
+  border: 1px solid rgba(214, 232, 189, .24);
+  border-radius: 10px;
+  background: rgba(8, 20, 13, .5);
+}
+.audio-settings h4 { margin: 0 0 10px; color: var(--gold); font-size: 14px; }
+.audio-slider { display: grid; gap: 5px; margin: 9px 0; color: var(--ink); font-size: 12px; }
+.audio-slider span { display: flex; justify-content: space-between; align-items: center; }
+.audio-slider output { color: var(--teal); font-variant-numeric: tabular-nums; }
+.audio-slider input[type="range"] { width: 100%; accent-color: var(--gold); touch-action: pan-y; }
+.audio-toggles { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 11px; font-size: 12px; }
+.audio-toggles label { display: inline-flex; align-items: center; gap: 6px; }
+.audio-toggles input { accent-color: var(--gold); }
+.audio-settings p { margin: 8px 0 0; color: var(--soft); font-size: 11px; line-height: 1.5; }

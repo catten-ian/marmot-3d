@@ -20,12 +20,13 @@ const INPUT_MODE_OPTIONS = [
 ];
 
 export class SettingsUI {
-  constructor(binds, touchLayout = null, feedback = null, inputMode = null, graphicsPreference = null) {
+  constructor(binds, touchLayout = null, feedback = null, inputMode = null, graphicsPreference = null, audio = null) {
     this.binds = binds;
     this.touchLayout = touchLayout;
     this.feedback = feedback;
     this.inputMode = inputMode;
     this.graphicsPreference = graphicsPreference;
+    this.audio = audio;
     this.el = {
       btn: document.getElementById('setBtn'),
       sheet: document.getElementById('setSheet'),
@@ -165,6 +166,30 @@ export class SettingsUI {
     }
     html += '</div>';
 
+    if (IS_BETA && this.audio) {
+      const audioSettings = this.audio.getAudioSettings();
+      html += `<section class="audio-settings" aria-label="音频设置">
+        <h4>音频</h4>
+        <label class="audio-slider" for="audioMasterVolume">
+          <span>总音量 <output id="audioMasterValue">${audioSettings.masterVolume}%</output></span>
+          <input id="audioMasterVolume" type="range" min="0" max="100" step="1" value="${audioSettings.masterVolume}">
+        </label>
+        <label class="audio-slider" for="audioSfxVolume">
+          <span>音效音量 <output id="audioSfxValue">${audioSettings.sfxVolume}%</output></span>
+          <input id="audioSfxVolume" type="range" min="0" max="100" step="1" value="${audioSettings.sfxVolume}">
+        </label>
+        <label class="audio-slider" for="audioBgmVolume">
+          <span>音乐音量 <output id="audioBgmValue">${audioSettings.bgmVolume}%</output></span>
+          <input id="audioBgmVolume" type="range" min="0" max="100" step="1" value="${audioSettings.bgmVolume}">
+        </label>
+        <div class="audio-toggles">
+          <label><input id="audioSfxEnabled" type="checkbox"${audioSettings.sfxEnabled ? ' checked' : ''}> 启用音效</label>
+          <label><input id="audioBgmEnabled" type="checkbox"${audioSettings.bgmEnabled ? ' checked' : ''}> 启用音乐</label>
+        </div>
+        <p>音量会立即生效并保存在本设备；音频文件缺失时会自动使用内置音效。</p>
+      </section>`;
+    }
+
     if (this.graphicsPreference) {
       const pref = GRAPHICS_OPTIONS.some((item) => item.id === this.graphicsPreference.preference)
         ? this.graphicsPreference.preference : 'auto';
@@ -272,6 +297,27 @@ export class SettingsUI {
     if (rb) rb.onclick = () => this.binds.resetCustom();
     const fb = this.el.body.querySelector('#settingsFeedback');
     if (fb) fb.onclick = () => this.feedback.open();
+    if (IS_BETA && this.audio) {
+      const sliderSettings = [
+        ['audioMasterVolume', 'masterVolume', 'audioMasterValue'],
+        ['audioSfxVolume', 'sfxVolume', 'audioSfxValue'],
+        ['audioBgmVolume', 'bgmVolume', 'audioBgmValue'],
+      ];
+      for (const [inputId, key, outputId] of sliderSettings) {
+        const input = this.el.body.querySelector(`#${inputId}`);
+        const output = this.el.body.querySelector(`#${outputId}`);
+        input?.addEventListener('input', () => {
+          const next = Number(input.value);
+          this.audio.setSettings({ [key]: next });
+          if (output) output.value = `${next}%`;
+          if (output) output.textContent = `${next}%`;
+        });
+      }
+      for (const [inputId, key] of [['audioSfxEnabled', 'sfxEnabled'], ['audioBgmEnabled', 'bgmEnabled']]) {
+        const input = this.el.body.querySelector(`#${inputId}`);
+        input?.addEventListener('change', () => this.audio.setSettings({ [key]: input.checked }));
+      }
+    }
     const graphicsSelect = this.el.body.querySelector('#graphicsPreference');
     graphicsSelect?.addEventListener('change', () => {
       this.graphicsPreference?.setPreference(graphicsSelect.value);

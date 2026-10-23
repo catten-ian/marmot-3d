@@ -32,3 +32,11 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.log
+
+# Generated offline audio is served as static assets but not checked in.
+assets/audio/**/*.mp3
+!assets/audio/**/.gitkeep
+!assets/audio/**/manifest.json
+
+# Local beta audio QA captures (do not commit screenshots).
+/outputs/audio-qa/

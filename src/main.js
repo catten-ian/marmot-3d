@@ -109,6 +109,7 @@ import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
+if (IS_BETA) audio.bindUserGesture(window);
 
 hud.setLoading(8);
 
@@ -2157,7 +2158,7 @@ touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
 touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
 touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
-const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState);
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState, audio);
 touchLayout.onEditingStart = () => settingsUI.transferPauseToLayoutEditor();
 // 游戏中打开设置自动暂停；关闭时仅在由设置发起暂停时恢复（已暂停/标题态保持）。
 settingsUI.setPauseHooks({
@@ -2572,6 +2573,7 @@ function frame(now) {
 
   // —— BETA 扮演藏狐模式：由独立模式接管相机/输入/实体/天空 ——
   if (playAsFox) {
+    if (IS_BETA) audio.updateBgmState({ mode: 'play', hp: game.player.hp, stress: 0, threats: 0, combat: false });
     playAsFox.update(dt);
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
@@ -2579,6 +2581,19 @@ function frame(now) {
   }
 
   update(dt);
+  if (IS_BETA) {
+    const inRangeFoxes = foxes.filter((fox) => fox.alive && !game.inBurrow
+      && Math.hypot(fox.x - game.player.x, fox.z - game.player.z) < 22);
+    audio.updateBgmState({
+      mode: game.mode,
+      hp: game.player.hp,
+      stress: game.player.stress,
+      threats: inRangeFoxes.length,
+      winding: inRangeFoxes.some((fox) => fox.state === 'wind'),
+      combat: game.overdrive > 0 || inRangeFoxes.some((fox) => fox.state === 'dash'),
+      overdrive: game.overdrive,
+    });
+  }
   // 键鼠技能状态条在 play/pause 都要刷新（函数内部按模式与输入方式决定显隐）。
   updateKbSkillBar();
   playerModel.position.set(controller.position.x, controller.position.y, controller.position.z);
@@ -2641,6 +2656,7 @@ const DEBUG_HIDE = (() => {
 
 window.__game = {
   game, controller, scene, renderer, camera, keys, LEVELS,
+  audio: IS_BETA ? audio : null,
   testMode: TEST_MODE, sandboxMode: SANDBOX_MODE, sandboxState, enterSandbox, exitSandbox,
   testState, testLogs, recordTestLog, testSnapshot, exportTestLogs,
   foxes: () => foxes, berries: () => berries, companion,
