@@ -21,7 +21,10 @@ import { IS_DEV, USE_REAL_FOX_MODEL } from '../core/version.js';
 import { clamp } from '../core/utils.js';
 import { createProceduralFox } from './procedural-fox.js';
 import { createTibetanFox } from './tibetan-fox.js';
-import { foxRecoverySeconds, stepFoxTurn, stepFoxRecovery } from '../core/fox-motion.js';
+import {
+  foxRecoverySeconds, stepFoxTurn, stepFoxRecovery,
+  estimatePlayerVelocity, straightWindAimYaw,
+} from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
 /** 手搓程序化狐狸：config 开关，或 beta 用 ?procfox=1 临时启用对比；默认仍走现有模型 */
 const USE_PROCEDURAL_FOX = FOX.useProcedural
@@ -535,6 +538,9 @@ export class Fox {
     const dx = p.x - this.x, dz = p.z - this.z;
     const d = Math.hypot(dx, dz);
     const A = this.attack;                 // 攻击档案（config.FOX_ATTACKS）
+    // Wind 仅保留近期玩家位移估计；用有界低通避免坐标噪声/瞬时跳位变成预瞄。
+    this._attackPlayerMotion = estimatePlayerVelocity(this._attackPlayerMotion, p, dt);
+    const playerMotion = this._attackPlayerMotion;
     const speed = levelCfg.speed * this.cfg.speed * (this.sandboxSpeedMul || 1);
     // 关卡的蓄力基准时长（实际蓄力 = 该值 × 档案 windMul）
     this.levelCfgWind = levelCfg.wind;
@@ -612,7 +618,8 @@ export class Fox {
       // ---------- 蓄力：预警线亮起，朝玩家缓慢修正 ----------
       case 'wind': {
         this.timer -= dt;
-        const a = Math.atan2(dx, dz);
+        const a = straightWindAimYaw({ foxX: this.x, foxZ: this.z,
+          player: p, motion: playerMotion, mode: A.mode, leadTime: A.windLeadTime });
         // 虚晃（lure）：厚皮狐蓄到一半突然放弃、跳开并重新蓄力，
         // 目的是打乱"看到红线就开始躲"的固定节奏 —— 逼玩家学会**看而不是背节奏**。
         if (A.lureChance && !this.lured && this.timer < this.windTotal * 0.45) {
@@ -662,7 +669,7 @@ export class Fox {
         this.timer -= dt;
         // turnRate > 0 的模式（首领连冲、幼狐跃扑）会在冲刺中继续修正方向，
         // 所以必须**每帧重算方向**，而不是像原版那样在开始时锁定一次。
-        if (A.turnRate > 0) {
+        if (A.turnRate > 0 && !this.drillCtx) {
           const a = Math.atan2(dx, dz);
           const turn = stepFoxTurn(this.yaw, a, this.turnVelocity, dt,
             Math.min(FOX.handling.maxTurnRate, A.turnRate || 0), FOX.handling.turnAccel);

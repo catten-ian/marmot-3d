@@ -20,6 +20,26 @@ export function stepFoxTurn(yaw, targetYaw, turnVelocity, dt, maxRate, accelerat
   return { yaw: yaw + step, turnVelocity: reached ? 0 : nextVelocity };
 }
 
+export function estimatePlayerVelocity(motion, p, dt, maxSpeed = 6.8, blendRate = 8) {
+  const state = motion || { x: p.x, z: p.z, vx: 0, vz: 0 };
+  if (dt > 0) {
+    const blend = 1 - Math.exp(-dt * blendRate);
+    const measuredVX = Math.max(-maxSpeed, Math.min(maxSpeed, (p.x - state.x) / dt));
+    const measuredVZ = Math.max(-maxSpeed, Math.min(maxSpeed, (p.z - state.z) / dt));
+    state.vx += (measuredVX - state.vx) * blend;
+    state.vz += (measuredVZ - state.vz) * blend;
+  }
+  state.x = p.x;
+  state.z = p.z;
+  return state;
+}
+
+export function straightWindAimYaw({ foxX, foxZ, player, motion, mode, leadTime }) {
+  const lead = mode === 'straight' ? (leadTime || 0) : 0;
+  return Math.atan2(player.x + (motion?.vx || 0) * lead - foxX,
+    player.z + (motion?.vz || 0) * lead - foxZ);
+}
+
 export function dashFrictionFactor(dt) {
   return Math.exp(-FOX.handling.brakeLerp * Math.max(0, dt));
 }

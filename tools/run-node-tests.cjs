@@ -1,7 +1,8 @@
 /**
- * 跑全部可在纯 Node 下执行的 tools/test-*.cjs / tools/test-*.js 逻辑测试。
+ * 跑全部可在纯 Node 下执行的 tools/test-*.{cjs,js,mjs} 逻辑测试。
  * 依赖 Chrome CDP / 本地服务器截图的浏览器测试在此环境不可用，
  * 列出为 SKIP 而不是失败（由外层浏览器流水线负责）。
+ * .mjs 用 node:test 编写，直接 `node file.mjs` 即运行其内置测试。
  *
  * 用法：node tools/run-node-tests.cjs
  */
@@ -12,7 +13,7 @@ const { spawnSync } = require('node:child_process');
 const toolsDir = __dirname;
 const root = path.resolve(toolsDir, '..');
 const files = fs.readdirSync(toolsDir)
-  .filter((f) => /^test-.*\.(cjs|js)$/.test(f))
+  .filter((f) => /^test-.*\.(cjs|js|mjs)$/.test(f))
   .sort();
 
 const isBrowserTest = (file) => {

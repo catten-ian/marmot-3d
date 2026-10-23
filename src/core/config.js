@@ -142,6 +142,7 @@ export const SOCIAL_RANGE = 2.4;
  *            **必须与预警线长度一致**，否则玩家会失去"线到头了就该躲完了"的信任
  * turnRate   冲刺中可修正朝向的速率（弧度/秒）：0 = 方向锁死（好躲）；
  *            大 = 追踪玩家（难躲，所以 windMul 也要相应加长，给玩家反应时间）
+ * windLeadTime 蓄力时仅按近期玩家移动速度估计冲刺方向的提前量（秒）；0 = 不预瞄
  * dashSpeedMul 冲刺速度倍率
  * circleTime 绕行阶段时长（'circle' 模式）
  * lureChance 虚晃概率（'circle' 模式）：蓄力中途放弃并重新绕行
@@ -155,15 +156,16 @@ const FOX_ATTACKS = {
     mode: 'leap', windMul: 1.12, dashTime: 0.34, turnRate: 0.42,
     leapHeight: 0.9, label: '跃扑',
   },
-  // 普通狐：标准直线冲刺，作为基准（最好躲）。14.5 × 0.62 ≈ 9.0m
+  // 普通狐：适度追踪 + 有限移动预瞄；加长蓄力和冲刺，让线索可读、横移仍能躲。
+  // 14.5 × 0.76 ≈ 11.0m，预警线按此真实最大距离绘制。
   normal: {
-    mode: 'straight', windMul: 1.0, dashTime: 0.62, turnRate: 0,
+    mode: 'straight', windMul: 1.2, dashTime: 0.76, turnRate: 0.42, windLeadTime: 0.75,
     label: '直线冲刺',
   },
-  // 疾行狐：蓄力极短、冲刺最快且方向锁死 —— 「来不及反应，但可以靠距离躲开」。
+  // 疾行狐：蓄力仍更短，极弱追踪与更短预瞄；适度延长预警补偿追踪。
   // 14.5 × 0.68 ≈ 9.9m，是全场最远的一击
   fast: {
-    mode: 'straight', windMul: 0.7, dashTime: 0.68, turnRate: 0,
+    mode: 'straight', windMul: 0.85, dashTime: 0.68, turnRate: 0.16, windLeadTime: 0.35,
     label: '疾冲',
   },
   // 厚皮狐：绕行 + 虚晃，从侧面反复试探才真的冲 —— 「难以预判会从哪一侧来」。
