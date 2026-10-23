@@ -308,6 +308,7 @@ berries = buildFoods(0);
 const companion = new Companion(scene);
 const minimap = new Minimap();
 let debugVolumes = null;
+let debugVolumesReady = Promise.resolve();
 let foxes = [];
 hud.setLoading(86);
 
@@ -323,9 +324,9 @@ viewModel.resize(window.innerWidth / window.innerHeight);
 
 // 独立数据显示模式默认完全不加载 lil-gui，也不创建额外几何体。
 if (new URLSearchParams(location.search).get('debugvolumes') === '1') {
-  import('./systems/debug-volumes.js').then(({ DebugVolumes }) => {
+  debugVolumesReady = import('./systems/debug-volumes.js').then(({ DebugVolumes }) => {
     debugVolumes = new DebugVolumes({ scene, controller, foxes: () => foxes });
-  }).catch((error) => console.warn('[debugvolumes] disabled:', error));
+  }).catch((error) => { console.warn('[debugvolumes] disabled:', error); });
 }
 
 const playerModel = new THREE.Group();
@@ -445,6 +446,8 @@ function saveProgress() {
 
 const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
 const SANDBOX_MODE = new URLSearchParams(location.search).get('sandbox') === '1';
+const SANDBOX_DEBUG_MODE = IS_BETA && new URLSearchParams(location.search).get('sandboxdebug') === '1';
+const sandboxEnterHooks = [];
 const sandboxState = createSandboxState();
 if (SANDBOX_MODE) sandboxState.active = true;
 const TEST_LOG_LIMIT = 2000;
@@ -570,7 +573,8 @@ function spawnSandboxFox(_type = 'normal', slot = foxes.filter((f) => !f.isSandb
     x = controller.position.x + Math.sin(angle) * distance;
     z = controller.position.z + Math.cos(angle) * distance;
   }
-  const fox = new Fox(scene, x, z, 'normal', 0, slot,
+  const type = opts.allowConfiguredType && Object.prototype.hasOwnProperty.call(FOX.types || {}, _type) ? _type : 'normal';
+  const fox = new Fox(scene, x, z, type, opts.allowConfiguredType ? game.level : 0, slot,
     { lureBias: 1.15, dummyDefeatable: sandboxState.dummyDefeatable, ...opts });
   if (opts.sandboxDummy) {
     fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
@@ -605,8 +609,127 @@ function disposeAllFoxes() {
   }
 }
 
+let sandboxResumeLevel = null;
+let sandboxDebugGUI = null;
+function destroySandboxDebugGUI() {
+  const instance = sandboxDebugGUI;
+  sandboxDebugGUI = null;
+  try { instance?.destroy?.(); } catch (error) { console.warn('[sandboxdebug] cleanup failed:', error); }
+}
+
+function replicateSandboxLevel(levelIndex) {
+  if (!IS_BETA || !game.sandbox || !sandboxState.active) return '请先进入自由沙盒再复现关卡';
+  const index = Number(levelIndex);
+  if (!Number.isInteger(index) || index < 0 || index >= LEVELS.length) return '无效关卡';
+  const cfg = LEVELS[index];
+  const count = Number(cfg?.count);
+  if (!Number.isFinite(count) || count < 0 || !cfg || typeof cfg !== 'object') return '关卡配置无效';
+  const types = Array.isArray(cfg.types) && cfg.types.length
+    ? cfg.types.filter((type) => type != null && Object.prototype.hasOwnProperty.call(FOX.types || {}, String(type))).map((type) => String(type))
+    : ['normal'];
+  const rosterTypes = types.length ? types : ['normal'];
+  const roster = Array.from({ length: Math.floor(count) }, (_, slot) => rosterTypes[slot % rosterTypes.length]);
+
+  // 只在沙盒内更换演练配置；game.sandbox 保持 true，因此没有计时/失败/正式通关结算。
+  clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes });
+  game.level = index;
+  sandboxState.active = true;
+  applySandboxDifficulty(sandboxState, 'standard');
+  const difficultyControl = document.getElementById('sandboxDifficulty');
+  if (difficultyControl) difficultyControl.value = 'standard';
+  roster.forEach((type, slot) => spawnSandboxFox(type, slot, {
+    allowConfiguredType: true,
+    lureBias: cfg.lureBias || 1,
+  }));
+  foxes.forEach((fox) => {
+    if (!fox.isSandboxDummy) {
+      fox.sandboxSpeedMul = 1;
+      fox.sandboxAlertMul = 1;
+    }
+  });
+  game.time = Infinity;
+  game.foodCount = 0;
+  game.levelRepels = 0;
+  applyEnvModifiers(cfg);
+  sky.applyLevel(cfg);
+  scene.fog.near = env.fogBase;
+  scene.fog.far = env.fogFarBase;
+  env._msgOn = false;
+
+  const typeSummary = [...new Set(rosterTypes)].join('、') || 'normal';
+  const environment = [
+    `风力 ${Number(cfg.windGust || 0).toFixed(1)}`,
+    `雾 ${env.fogBase}/${env.fogFarBase}`,
+    cfg.sandstorm ? '沙尘' : '无沙尘',
+  ].join(' · ');
+  const keyConfig = `配置：速度 ${Number(cfg.speed || 0).toFixed(1)}、蓄力 ${Number(cfg.wind || 0).toFixed(2)}s、增援 ${Number(cfg.reinforce || 0).toFixed(1)}s、目标 ${cfg.goal ?? '—'}、原限时 ${cfg.time ?? '—'}s`;
+  const summary = `已复现第 ${index + 1} 关「${cfg.name || '未命名'}」：${roster.length} 只（类型 ${typeSummary}）；${keyConfig}；${environment}。仍处于自由沙盒，不计时、不结算。${cfg.brief ? ` 提示：${cfg.brief}` : ''}`;
+  hud.say(summary, 5.5);
+  return summary;
+}
+
+function createSandboxDebugActions() {
+  const actions = {
+    getLevels: () => LEVELS,
+    spawnOne: () => spawnSandboxFoxes({ state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) }),
+    spawnGroup: () => spawnSandboxFoxes({ count: 6, state: sandboxState, spawnFox: (type) => spawnSandboxFox(type) }),
+    clearFoxes: () => clearSandboxFoxes({ state: sandboxState, clearFoxes: disposeAllFoxes }),
+    placeDummy: () => placeSandboxDummy({
+      state: sandboxState,
+      createDummy: () => spawnSandboxFox('normal', -1, { sandboxDummy: true, dummyDefeatable: sandboxState.dummyDefeatable }),
+      removeDummy: (dummy) => { foxes = foxes.filter((fox) => fox !== dummy); dummy.dispose(scene); },
+    }),
+    removeDummy: () => removeSandboxDummy({
+      state: sandboxState,
+      removeDummy: (dummy) => { foxes = foxes.filter((fox) => fox !== dummy); dummy.dispose(scene); },
+    }),
+    refill: () => { game.player.hp = PLAYER.maxHp; game.player.energy = PLAYER.maxEnergy; },
+    charge: () => { game.charge = 100; },
+    onState: () => foxes.forEach((fox) => {
+      if (!fox.isSandboxDummy) {
+        fox.sandboxSpeedMul = sandboxState.speedMultiplier;
+        fox.sandboxAlertMul = sandboxState.alertMultiplier;
+      }
+    }),
+    onFlag: (name, value) => {
+      if (name === 'godMode') testState.godMode = !!value;
+      if (name === 'freezeTimer') { testState.freezeTimer = !!value; game.freezeTimer = !!value; }
+      const controlId = name === 'godMode' ? 'testGodMode' : name === 'freezeTimer' ? 'testFreezeTimer' : null;
+      const control = controlId && document.getElementById(controlId);
+      if (control) control.checked = !!value;
+    },
+    onReset: () => actions.onState?.(),
+    replicateLevel: replicateSandboxLevel,
+  };
+  if (debugVolumes?.state && typeof debugVolumes._rebuildAttack === 'function') {
+    actions.toggleVolumes = () => {
+      debugVolumes.state.enabled = !debugVolumes.state.enabled;
+      debugVolumes._rebuildAttack();
+      debugVolumes.gui?.controllersRecursive?.().forEach((controller) => controller.updateDisplay());
+      return debugVolumes.state.enabled;
+    };
+  }
+  return actions;
+}
+
+if (IS_BETA && SANDBOX_DEBUG_MODE) {
+  sandboxEnterHooks.push(async () => {
+    if (!game.sandbox || !sandboxState.active || sandboxDebugGUI) return;
+    try {
+      const { createSandboxDebugGUI } = await import('./systems/sandbox-debug.js');
+      await debugVolumesReady;
+      if (!game.sandbox || !sandboxState.active || sandboxDebugGUI) return;
+      sandboxDebugGUI = createSandboxDebugGUI({ actions: createSandboxDebugActions(), state: sandboxState });
+    } catch (error) {
+      console.warn('[sandboxdebug] disabled:', error);
+    }
+  });
+}
+
 function enterSandbox() {
-  hud.hidePanel(); sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
+  hud.hidePanel();
+  sandboxResumeLevel = game.level;
+  sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
   game.sandbox = true; game.mode = 'play'; document.body.classList.add('sandbox-active');
   testModeBtn.hidden = false; testModeBtn.textContent = '沙盒控制';
   testState.godMode = true; testState.freezeTimer = true;
@@ -616,10 +739,17 @@ function enterSandbox() {
   game.player.stress = 0; game.charge = 100;
   applySandboxDifficulty(sandboxState, sandboxState.difficulty);
   if (!controller.touchEnabled) controller.requestLock();
+  for (const hook of sandboxEnterHooks) {
+    try { Promise.resolve(hook()).catch((error) => console.warn('[sandboxdebug] hook failed:', error)); }
+    catch (error) { console.warn('[sandboxdebug] hook failed:', error); }
+  }
 }
-
 function exitSandbox() {
-  sandboxState.active = false; game.sandbox = false; document.body.classList.remove('sandbox-active');
+  sandboxState.active = false; game.sandbox = false;
+  if (sandboxResumeLevel != null) game.level = sandboxResumeLevel;
+  sandboxResumeLevel = null;
+  destroySandboxDebugGUI();
+  document.body.classList.remove('sandbox-active');
   testModeBtn.hidden = !TEST_MODE; testModeBtn.textContent = '测试';
   setTestPanelOpen(false);
   title();
@@ -941,6 +1071,10 @@ function showLevelSelect() {
 }
 
 function title() {
+  destroySandboxDebugGUI();
+  if (game.sandbox && sandboxResumeLevel != null) game.level = sandboxResumeLevel;
+  sandboxResumeLevel = null;
+  sandboxState.active = false;
   clearPendingAerialParry();
   cancelAttackCharge();
   game.mode = 'title';

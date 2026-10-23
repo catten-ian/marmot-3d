@@ -106,8 +106,10 @@ const TYPE_FUR = {
 
 export class Fox {
   constructor(scene, x, z, type, level, slot, opts = {}) {
-    // The game now has one real species; normalize legacy callers as well as campaign spawns.
+    // Campaign callers remain normal-only; only beta sandbox replay opts into level-configured types.
+    const configuredType = type;
     type = 'normal';
+    if (opts.allowConfiguredType && Object.prototype.hasOwnProperty.call(FOX.types || {}, configuredType)) type = configuredType;
     this.type = type;
     this.level = level;
     this.slot = slot;
