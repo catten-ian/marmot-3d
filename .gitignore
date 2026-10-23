@@ -40,3 +40,5 @@ assets/audio/**/*.mp3
 
 # Local beta audio QA captures (do not commit screenshots).
 /outputs/audio-qa/
+outputs/audio-live-qa/
+qa-audio-live.html

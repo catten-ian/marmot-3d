@@ -1,6 +1,36 @@
 {
   "version": 1,
-  "assets": {},
-  "generatedAt": null,
-  "note": "Generated MP3 assets are intentionally absent in the initial beta rollout. Offline generators populate assets and metadata here."
+  "generatedAt": "2026-10-23T14:44:59.215Z",
+  "assets": {
+    "menu": {
+      "file": "assets/audio/bgm/menu.mp3",
+      "durationSeconds": 180.036,
+      "sha256": "da7ec3ca918066888b2591fd3891d4c393385758e57c7855ddcac67240f28325"
+    },
+    "explore": {
+      "file": "assets/audio/bgm/explore.mp3",
+      "durationSeconds": 180.036,
+      "sha256": "5bcb314531b4ce677c679d79ccdfce430241b070e5fc773062615c1fb3ae6313"
+    },
+    "tension": {
+      "file": "assets/audio/bgm/tension.mp3",
+      "durationSeconds": 180.036,
+      "sha256": "c4fd42b992a2c1765e48f66e6ac24c56409e77a264946683d44e2418ea9db391"
+    },
+    "combat": {
+      "file": "assets/audio/bgm/combat.mp3",
+      "durationSeconds": 120.033,
+      "sha256": "7ff4c9c2c629897746aba958884e36aefe72766361d05e5bd9f510d19f56d9fa"
+    },
+    "victory": {
+      "file": "assets/audio/bgm/victory.mp3",
+      "durationSeconds": 120.085,
+      "sha256": "2543116822e12cc5767ea0208a6e714ee4bc22afb2dd5650426e6521ab5a6842"
+    },
+    "defeat": {
+      "file": "assets/audio/bgm/defeat.mp3",
+      "durationSeconds": 180.036,
+      "sha256": "0af09c24d7f7380f586daddb6b8e45236361fce8661177ce9c54e249f0df7ac0"
+    }
+  }
 }
