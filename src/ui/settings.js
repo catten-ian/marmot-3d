@@ -280,7 +280,7 @@ export class SettingsUI {
         const url = key === 'fox' ? './assets/models/fox-segmented.glb' : key === 'marmot' ? './assets/models/marmot.glb' : key.startsWith('asset:') ? `./${key.slice(6)}` : null;
         if (!url) return;
         if (key === 'fox' || key === 'marmot') { clearModelCache(); await instantiate(url, key); }
-        else { try { await fetch(url, { cache: 'no-store' }); } catch (_) {} }
+        else { try { await fetch(url); } catch (_) {} }
         this.render();
       }));
       installLocalPackUI({ onChange: () => this.render() });

@@ -299,7 +299,7 @@ if (devOn('verdantWorld')) {
     loadVerdantWorldFn = loadVerdantWorld;
     verdantWorld = await loadVerdantWorld({
       tier: autoVerdantTier(),
-      onProgress: (p, label) => hud.setLoading(46 + Math.max(0, Math.min(1, p)) * 24, label),
+      onProgress: (p, label, stats) => hud.setLoading(46 + Math.max(0, Math.min(1, p)) * 24, label, stats),
       renderer,
     });
     verdantTierActive = verdantWorld.tier || autoVerdantTier();
@@ -362,7 +362,7 @@ async function switchVerdantTier(preference, forceReload = false) {
   if (next === verdantTierActive && !forceReload) { verdantQualityState?.setActive?.(next); return; }
   const old = verdantWorld;
   hud.beginLoadingSession('正在切换 Verdant 画质档…');
-  const loaded = await loadVerdantWorldFn({ tier: next, onProgress: (p, label) => hud.setLoading(4 + Math.max(0, Math.min(1, p)) * 92, label || '加载 Verdant 场景'), renderer });
+  const loaded = await loadVerdantWorldFn({ tier: next, onProgress: (p, label, stats) => hud.setLoading(4 + Math.max(0, Math.min(1, p)) * 92, label || '加载 Verdant 场景', stats), renderer });
   if (requestId !== verdantTierLoadRequest) { disposeVerdantGroup(loaded.group); return; }
   const pose = { x: controller.position.x, z: controller.position.z, yaw: controller.yaw, pitch: controller.pitch };
   scene.remove(old.group); disposeVerdantGroup(old.group);
