@@ -171,12 +171,13 @@ def main():
  keep=set(x['name'] for x in source)
  for o in list(bpy.context.scene.objects):
   if o.type=='MESH' and o.name not in keep: bpy.data.objects.remove(o,do_unlink=True)
- # geometry transform and decimation
+ # geometry transform and decimation. Bake world matrices and clear parents so
+ # Blender children (notably jacaranda branches) are not transformed twice by glTF.
  for o in bpy.context.scene.objects:
   if o.type!='MESH': continue
   if o.name!='ground' and len(o.data.polygons) > 3 and CURRENT_PROFILE['decimate']:
    r=ratio_for(o,total); mod=o.modifiers.new('web_budget_decimate','DECIMATE'); mod.decimate_type='COLLAPSE'; mod.ratio=r; mod.use_collapse_triangulate=True
-  o.matrix_world=transform@o.matrix_world; o.select_set(True)
+  baked_world=transform@o.matrix_world.copy(); o.parent=None; o.matrix_world=baked_world; o.select_set(True)
  used=remap_materials(blend,out,CURRENT_PROFILE['near'],CURRENT_PROFILE['far'],a.geometry_only)
  bpy.context.view_layer.objects.active=ground
  bpy.ops.object.select_all(action='SELECT')

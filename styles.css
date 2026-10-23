@@ -2033,3 +2033,5 @@ body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; fi
 .resource-row .resource-error { color: #ffb2a6; overflow-wrap: anywhere; }
 .resource-row .ghost-btn { min-height: 25px; padding: 3px 6px; font-size: 10px; }
 @media (max-width: 700px) { .resource-row { grid-template-columns: 1fr 1fr; } .resource-row .resource-error { grid-column: 1 / -1; } }
+
+.verdant-download-progress { display:block; width:100%; height:8px; margin:6px 0 2px; accent-color:#9fe8b8; }

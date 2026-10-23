@@ -25,10 +25,10 @@ function buildBurrowLabel(text) {
   ctx.fillText(text, 128, 42);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false });
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: true });
   const sprite = new THREE.Sprite(mat);
   sprite.scale.set(2.4, 0.75, 1);
-  sprite.renderOrder = 20;
+  sprite.renderOrder = 1;
   return sprite;
 }
 
@@ -46,7 +46,7 @@ export class Burrow {
     const underground = undergroundProfile(pos);
 
     const y = terrainHeight(pos.x, pos.z);
-    this.group.position.set(pos.x, y, pos.z);
+    this.group.position.set(pos.x, Number.isFinite(pos.groundY) ? pos.groundY : y, pos.z);
 
     // 少量挖出土：只在井口外一圈形成低土环（用 Torus，不再用覆盖洞口的半球土丘）。
     const spoilGeo = new THREE.TorusGeometry(underground.slopeRadius * 0.96, isBase ? 0.34 : 0.2, 8, 32);

@@ -3,769 +3,896 @@
   "pack": "m3d-dev/20261022/high",
   "tier": "high",
   "generatedAt": "2026-10-22",
-  "totalBytes": 187549838,
+  "totalBytes": 187549821,
   "fileCount": 127,
   "files": [
     {
       "path": "boulder_01_diff_1536.jpg",
       "size": 576097,
       "sha256": "5d5fabf644c716fcc84ae28856f5fa5b7de1365afa74f0b49cb9e99e19f8a1dc",
+      "md5": "f3b3f8b22bba75ddb3182f5595f5ca37",
       "contentType": "image/jpeg"
     },
     {
       "path": "boulder_01_nor_gl_768.png",
       "size": 1368641,
       "sha256": "1cfd2ada1c09fb5ae3f1180ff732595456167796f86c5c211616df4f71139024",
+      "md5": "11a655bbfd13104fa24c22b0f975d8a9",
       "contentType": "image/png"
     },
     {
       "path": "boulder_01_rough_1536.jpg",
       "size": 240291,
       "sha256": "47267fb5318b516f25def80530ca8dab44ce386c1b0c489b530189611dde89fd",
+      "md5": "2cf4d309cddd4ba91eff5019b0533fec",
       "contentType": "image/jpeg"
     },
     {
       "path": "coast_rocks_05_diff_4k_1536.jpg",
       "size": 568004,
       "sha256": "53d8ac38640124c9fc7371b9dbd6dca1354e2088fbe1049d120b20f4a7f01e0c",
+      "md5": "584b607acfef0756ddf4b9002c35ba2f",
       "contentType": "image/jpeg"
     },
     {
       "path": "coast_rocks_05_nor_gl_4k_768.png",
       "size": 3368477,
       "sha256": "c8bb16b054c8bca701b4084fcd4b1f20f42d951c5a56f7f9d5a6ace03934ecb3",
+      "md5": "11de3f4428c18f89f766b194b6df050d",
       "contentType": "image/png"
     },
     {
       "path": "coast_rocks_05_rough_4k_1536.jpg",
       "size": 200756,
       "sha256": "03c9dcac1efdcc1e0f4767d7d28ceab3b8ae955056e547e142c7891d714112e3",
+      "md5": "11b71d80d9c98b8880d5dbc26493951f",
       "contentType": "image/jpeg"
     },
     {
       "path": "coastal_cliff_02_diff_2k_768.jpg",
       "size": 121422,
       "sha256": "3e6cf0305061becd84ebc17b09c3ac57dd98aeb6ce8cc78f6233357e051ecd5b",
+      "md5": "4b9b165330721be0ac3433be9f846b95",
       "contentType": "image/jpeg"
     },
     {
       "path": "coastal_cliff_02_nor_gl_2k_768.png",
       "size": 3095575,
       "sha256": "fd003d2db1b1fa8f23a474a1bb15c8bd180727f0952e91de93a33b568095aefe",
+      "md5": "f94d7592118abadb7c0415e65fae41de",
       "contentType": "image/png"
     },
     {
       "path": "coastal_cliff_02_rough_2k_768.jpg",
       "size": 57367,
       "sha256": "8148960ffc64f1cd36efd410b3124a0146949b9dd9deeea0772c898564d9a67f",
+      "md5": "738d8f0b546cd8c31999c8d9b3a10372",
       "contentType": "image/jpeg"
     },
     {
       "path": "coastal_cliff_04_diff_2k_768.jpg",
       "size": 110067,
       "sha256": "c9c248d8eb1e40cfbcb6cfeb7bafbd8d2dafe89d631796140ebc9697c17320c9",
+      "md5": "aa09ed629484925dba296c242d537fed",
       "contentType": "image/jpeg"
     },
     {
       "path": "coastal_cliff_04_nor_gl_2k_768.png",
       "size": 3296325,
       "sha256": "36062b364b61a7b3fc3539e9854e73fb14a6388b863f235609fa17768d3ce2a2",
+      "md5": "3f7b52827b74651ea3754daace18eeca",
       "contentType": "image/png"
     },
     {
       "path": "coastal_cliff_04_rough_2k_768.jpg",
       "size": 61380,
       "sha256": "8a88ba5b1daab068cd0bee4d69c3c3b21ba3a1b5ab6e73eb7b985086779204bf",
+      "md5": "cf7e0fc39ca1873f86d51563c70712ef",
       "contentType": "image/jpeg"
     },
     {
       "path": "dead_tree_trunk_02_diff_1536.jpg",
       "size": 573128,
       "sha256": "5df27053d0be4d122ed91b67a2a30e233ba46fe9732a65132f373f71d95d0ac4",
+      "md5": "4f4af3d03ae2a8bbaf456cea11fad1be",
       "contentType": "image/jpeg"
     },
     {
       "path": "dead_tree_trunk_02_nor_gl_768.png",
       "size": 1387184,
       "sha256": "dd0a20b89fbde9d14eba5591c9f7855027f9d826e4946ab89bae03bdf8bf7fb1",
+      "md5": "f7047170203c483a396290cc28c0a354",
       "contentType": "image/png"
     },
     {
       "path": "dead_tree_trunk_02_rough_1536.jpg",
       "size": 211238,
       "sha256": "f76fd78676322c7eb63195b53d70b0baa4fabfa6132113a9fd8149877c289a49",
+      "md5": "56523f598ba44f49a839e93ecf406f70",
       "contentType": "image/jpeg"
     },
     {
       "path": "dead_tree_trunk_diff_2k_1536.jpg",
       "size": 355384,
       "sha256": "b5fad14020de01a363186d3a18b9410c5c18d81acf726d898337c95f052aa5ff",
+      "md5": "e0b7818e02f0b7019a9cb870fb4ca103",
       "contentType": "image/jpeg"
     },
     {
       "path": "dead_tree_trunk_nor_gl_2k_768.png",
       "size": 3194291,
       "sha256": "15af4e02c51c037481889c2464f601c148d9dfbfae54bcaa9410f7152bb26c5a",
+      "md5": "d3a0982f276384d3016029903941ca3e",
       "contentType": "image/png"
     },
     {
       "path": "dead_tree_trunk_rough_2k_1536.jpg",
       "size": 284435,
       "sha256": "ac0f4af5cc2b047be9a4b45696133abf74bd0b9d6d44da2497e04a2166dc2c32",
+      "md5": "d1fad7fa14c3764b571a5453c74a2e92",
       "contentType": "image/jpeg"
     },
     {
       "path": "dirt_floor_diff_4k_1536.jpg",
       "size": 561147,
       "sha256": "d5036149159f86e4566b24f10318dbe2e2ac555fa68dea69365c2456dd337f94",
+      "md5": "f8e0f8f9f668ebdc58e43616784d3495",
       "contentType": "image/jpeg"
     },
     {
       "path": "dirt_floor_nor_gl_4k_768.png",
       "size": 3306526,
       "sha256": "e1891e58c7709fd97e8f94b79d797c6e3c8b6680ede1eb1171936c6887d55799",
+      "md5": "f125f012f77497a984b5793cb28cce7f",
       "contentType": "image/png"
     },
     {
       "path": "dirt_floor_rough_4k_1536.jpg",
       "size": 137107,
       "sha256": "78937242f0da4fd2c486a82f095eb20268a277fb6cbe30cb9222138d63637f70",
+      "md5": "96f140bfa1aecd63171e0ab7bcd37fe0",
       "contentType": "image/jpeg"
     },
     {
       "path": "dry_branches_medium_01_diff_2k_768.jpg",
       "size": 121705,
       "sha256": "8c71c58e50a8e62576edb796e7690e2dc1c133c891694a39ebd33269d2bb3576",
+      "md5": "8ef795473224b0cb2463aa39562ee3a7",
       "contentType": "image/jpeg"
     },
     {
       "path": "dry_branches_medium_01_nor_gl_2k_768.png",
       "size": 3224478,
       "sha256": "5eeb3193a770bbec201496a617cc62e5d3aaec94b182249c1c9f1dfd0f6f7713",
+      "md5": "2d6d7472f3a7dd687e0f0905011e3bd7",
       "contentType": "image/png"
     },
     {
       "path": "dry_branches_medium_01_rough_2k_768.jpg",
       "size": 95183,
       "sha256": "19b576241c9646d2b8ed09aa86e3eb1d395439f436715cee2755af07f9ffd062",
+      "md5": "1bcc3f443f064846f2b7827d29fa1f24",
       "contentType": "image/jpeg"
     },
     {
       "path": "forest_ground_04_diff_2k_1536.jpg",
       "size": 704178,
       "sha256": "7588f651a9ea0846fce4392dda00d324ff24707ad503aab7ed7f8b68a89658de",
+      "md5": "f843b315fa449341d9d695e27cefb14d",
       "contentType": "image/jpeg"
     },
     {
       "path": "forest_ground_04_nor_gl_2k_768.png",
       "size": 3364062,
       "sha256": "0a7ac8283c38a1e591dcd61ed2859a5a3bd3d67703bdd9dda6fa7c9dbbb5d2ba",
+      "md5": "1b2df9b931c995a6cc331535556aa084",
       "contentType": "image/png"
     },
     {
       "path": "forest_ground_04_rough_2k_1536.jpg",
       "size": 358008,
       "sha256": "4fbffa01cf9ae2d87ba284f8617f0105121933e09f70d1a71f17fc1ebc24c919",
+      "md5": "0bc27ef824976fef743d8c5c7998e2fb",
       "contentType": "image/jpeg"
     },
     {
       "path": "forest_leaves_04_diff_4k_768.jpg",
       "size": 215155,
       "sha256": "5115ceb17dc877022b002e3c19efd5568145e41f079b3841a6db64720ab63fd1",
+      "md5": "d6eff1199a5e76a8405c705d7e4d5772",
       "contentType": "image/jpeg"
     },
     {
       "path": "forest_leaves_04_nor_gl_4k_768.png",
       "size": 3445119,
       "sha256": "58651f624d1695b0c69524d12198adbb26869efc58c5c32afb4ec6b5ca3721ae",
+      "md5": "95d4bf44f62d7410bec7a05537a21a9c",
       "contentType": "image/png"
     },
     {
       "path": "forest_leaves_04_rough_4k_768.jpg",
       "size": 166094,
       "sha256": "b60173d21b4a9388c97c83951f03a27c5eea31372d25aa23a70c9f6b36179c9d",
+      "md5": "2d8285e349307d7dd276c81d76738080",
       "contentType": "image/jpeg"
     },
     {
       "path": "grass_medium_02_alpha_768.png",
       "size": 78871,
       "sha256": "d0188477e3d53d264845c3ba63c4361c2ff46a0a1449c3a12beefdb8a1ac3935",
+      "md5": "875b53724935dfba22da61a0ed764d3d",
       "contentType": "image/png"
     },
     {
       "path": "grass_medium_02_diff_768.jpg",
       "size": 56294,
       "sha256": "d467ee5d3ce3418d79ac89a94a55b7a79ecb5509719b3d38afbc93ca2d6cf9d2",
+      "md5": "baee3086c88524e7857a8d79b4527b55",
       "contentType": "image/jpeg"
     },
     {
       "path": "grass_medium_02_dry_diff_768.jpg",
       "size": 56095,
       "sha256": "477bc26b80676aefebcf4d0ba9e30d5059c3839318fd06baf12c6ec6be3124e1",
+      "md5": "58bae63abbf8039bc4afff26d170dd03",
       "contentType": "image/jpeg"
     },
     {
       "path": "grass_medium_02_nor_gl_768.png",
       "size": 139169,
       "sha256": "44bbaa73aaf25fc43584d3bdec8ef897c21cd8f41c3d74ec95762a0291dd2c74",
+      "md5": "a2b2af13ee5fa87f3e4e24543a7a1b7c",
       "contentType": "image/png"
     },
     {
       "path": "grass_medium_02_rough_768.jpg",
       "size": 37827,
       "sha256": "e5f41a39d5d48b4bfa5b68f1e3e1789a5577ad9675ff6d08d754c2eb0924106a",
+      "md5": "00171163991d5a83a24ce184441abe74",
       "contentType": "image/jpeg"
     },
     {
       "path": "ground_mask_01_1536.png",
       "size": 236366,
       "sha256": "be87e00c3df7007bb9d689827849a2b922c4358a7d76c13859876bbf19f9e933",
+      "md5": "7df040176c1360b4809fd0b11c6f0d45",
       "contentType": "image/png"
     },
     {
       "path": "island_tree_01_branches_diff_1k_768.jpg",
       "size": 102175,
       "sha256": "35cad206840a579c912a93887677620d8e13a0c547a04373ba42e34e0f44cf24",
+      "md5": "7d47528f43a3e8c2a50f02b6b8524684",
       "contentType": "image/jpeg"
     },
     {
       "path": "island_tree_01_branches_nor_gl_1k_768.png",
       "size": 3112981,
       "sha256": "ffed2e0be867112993121d23d37a5aaf6e991a3718ed9547c9e0e184f9132333",
+      "md5": "7da750918cd603283ee51cb7a0303ba1",
       "contentType": "image/png"
     },
     {
       "path": "island_tree_01_branches_rough_1k_768.jpg",
       "size": 54497,
       "sha256": "5b7283e1141a7162d8b5f6dac660b163a7a5e102bec87c2f6e41fc2fc21450a2",
+      "md5": "69ca6f0584de8d4ea6918b7b641cb7b6",
       "contentType": "image/jpeg"
     },
     {
       "path": "island_tree_01_diff_1k_768.jpg",
       "size": 117740,
       "sha256": "6b9565a1282aa8d7230d8834c9775ce316dc7ae4db8c3434d0d0f1dbb1a86bbc",
+      "md5": "4b581463f432eeacb85846c85cd63c6c",
       "contentType": "image/jpeg"
     },
     {
       "path": "island_tree_01_leaves_alpha_1k_768.png",
       "size": 55973,
       "sha256": "266ca56d11aaace38bcdf0116e33d261fa6e932e93dd0687743912026dba734e",
+      "md5": "44e0121c449d69d224533d23c92604e0",
       "contentType": "image/png"
     },
     {
       "path": "island_tree_01_leaves_diff_1k_768.jpg",
       "size": 47148,
       "sha256": "a118b0453280e000599926df12b7014bb1ba5a2697cd653d663c91f361bfa801",
+      "md5": "aa35d5e6419f5d157a1039619335f7d4",
       "contentType": "image/jpeg"
     },
     {
       "path": "island_tree_01_leaves_nor_gl_1k_768.png",
       "size": 2033209,
       "sha256": "8b76f4f018657cc0f92931f47abed25b08e36d96f7201f6d2f995c97cd8483c7",
+      "md5": "f5b9f8224da9da41e11a2393ad35d4b6",
       "contentType": "image/png"
     },
     {
       "path": "island_tree_01_leaves_rough_1k_768.jpg",
       "size": 74242,
       "sha256": "2a3936f281e6a2073d06a449a1e3b34699cf5a39509b660f0b87ade73d731f45",
+      "md5": "bd9d435a5e397411e5c036ad693fa010",
       "contentType": "image/jpeg"
     },
     {
       "path": "island_tree_01_nor_gl_1k_768.png",
       "size": 3253387,
       "sha256": "1983499947679dc2c2d737320bc6423ff0c9183d54f2de281122a7743863fd6d",
+      "md5": "32d770a2ab651d4025d73002c5dadef3",
       "contentType": "image/png"
     },
     {
       "path": "island_tree_01_rough_1k_768.jpg",
       "size": 50803,
       "sha256": "888ccbe08f7bde422050b890684707d71f6ad44ca7505ddc24cc2216b05d2aeb",
+      "md5": "1b7cea7c774a98317675816a5a662a87",
       "contentType": "image/jpeg"
     },
     {
       "path": "ivy_alpha_768.png",
       "size": 120986,
       "sha256": "7313bdf72015b4960d1e2aa8c12cf5ee5f0f36a2f630109af3ef8b6898edf049",
+      "md5": "b72b3b126d8b790250eb9c2a3cd9d708",
       "contentType": "image/png"
     },
     {
       "path": "ivy_diff_768.jpg",
       "size": 21071,
       "sha256": "b12123a66c18c57f0eac52634b0ade4ce5d9e388af16a5eca608354d966a53e0",
+      "md5": "40ddbf60b1935a491cee1d0e9c187283",
       "contentType": "image/jpeg"
     },
     {
       "path": "ivy_normal_768.png",
       "size": 1562131,
       "sha256": "19818a76c6a647dfe11505028500f2bbbcce44af6be3c192752adece1c88020d",
+      "md5": "e22c3c2355b764e4fc8f348d7106fec9",
       "contentType": "image/png"
     },
     {
       "path": "ivy_rough_768.jpg",
       "size": 16559,
       "sha256": "edf5c9b73226214a5af8d9f36f8ea3f7cbc05786c7f92717b9f0f1ace5739748",
+      "md5": "60a54e2340f863fd8008cc74c2cd65cb",
       "contentType": "image/jpeg"
     },
     {
       "path": "jacaranda_tree_branches_diff_1k_768.jpg",
       "size": 97811,
       "sha256": "e8f9e9998c0d9f6b5047f420d1e9669aaf31f2d146006208ef4459ac613c551b",
+      "md5": "93b56836cbd2f567513f650b371f51d6",
       "contentType": "image/jpeg"
     },
     {
       "path": "jacaranda_tree_branches_nor_gl_1k_768.png",
       "size": 3112981,
       "sha256": "ffed2e0be867112993121d23d37a5aaf6e991a3718ed9547c9e0e184f9132333",
+      "md5": "7da750918cd603283ee51cb7a0303ba1",
       "contentType": "image/png"
     },
     {
       "path": "jacaranda_tree_branches_rough_1k_768.jpg",
       "size": 54497,
       "sha256": "5b7283e1141a7162d8b5f6dac660b163a7a5e102bec87c2f6e41fc2fc21450a2",
+      "md5": "69ca6f0584de8d4ea6918b7b641cb7b6",
       "contentType": "image/jpeg"
     },
     {
       "path": "jacaranda_tree_leaves_alpha_1k_768.png",
       "size": 544106,
       "sha256": "ccd629cdb2aba123658b3f344038b48f6242d1d7dd6f70148dbd733b98cbd602",
+      "md5": "9ec3fc95a1cab4f102d4f379549a64e1",
       "contentType": "image/png"
     },
     {
       "path": "jacaranda_tree_leaves_diff_1k_768.jpg",
       "size": 58429,
       "sha256": "72c423d895e74364084e990e40fcc1314fec2ef83e4e3cf4a560bfd2a93eb9d6",
+      "md5": "b56f0a4a884c673e1785c4fe7271e362",
       "contentType": "image/jpeg"
     },
     {
       "path": "jacaranda_tree_leaves_nor_gl_1k_768.png",
       "size": 2562195,
       "sha256": "2dad0959f56e0d29027e0a52662522ed4c44fee748d2be0e7540731e3667e0bc",
+      "md5": "595977ed20ea738358cc8e53c42ab72f",
       "contentType": "image/png"
     },
     {
       "path": "jacaranda_tree_leaves_rough_1k_768.jpg",
       "size": 33085,
       "sha256": "3549d0aed3854cd14e8b10732ab46b84b6f40f0bd4cfa00ba398ed56cef5d762",
+      "md5": "93ee9bbb8a65c7993557fe4f7bfa4345",
       "contentType": "image/jpeg"
     },
     {
       "path": "jacaranda_tree_trunk_diff_1k_1536.jpg",
       "size": 404755,
       "sha256": "334a85f5baea0c92ea5a0407254e73af93e054809e092716b0855304da0c61ba",
+      "md5": "95c95dc7b9bf33c58c626e2eefbab606",
       "contentType": "image/jpeg"
     },
     {
       "path": "jacaranda_tree_trunk_nor_gl_1k_768.png",
       "size": 3168442,
       "sha256": "9f7620706afbb7486959f9589f141854201adb49a5126a1efd020665187efe8d",
+      "md5": "14b8d77a1fccd04df2fa734959eeb98a",
       "contentType": "image/png"
     },
     {
       "path": "jacaranda_tree_trunk_rough_1k_1536.jpg",
       "size": 254565,
       "sha256": "4538bf16535ff515322125f27da0ea28afb24fa155429679f810ef9927cc45ec",
+      "md5": "40d4da308b8c427ef4ba826acd1e6cef",
       "contentType": "image/jpeg"
     },
     {
       "path": "manifest-high.json",
-      "size": 2223,
-      "sha256": "d33ea341365fe7f25a8d6ef71cfed1de4a653d6ecf8ad306bc985035d43cd952",
+      "size": 2206,
+      "sha256": "c645fe301db557a0228c43edafd09e18009b0d4c2129e793108ceec40459e015",
+      "md5": "2dec001fa6244e8ba3c00d4d064ec7c7",
       "contentType": "application/json"
     },
     {
       "path": "rock_07_diff_1536.jpg",
       "size": 276292,
       "sha256": "108201d8a5f2640ff8360bca7ec032a83e94a62959c998c9bb362ba12948a83a",
+      "md5": "ff8c48e4085f63a9484e1967fecacd09",
       "contentType": "image/jpeg"
     },
     {
       "path": "rock_07_nor_gl_768.png",
       "size": 918161,
       "sha256": "e9fd79fc17bd1f34b41f068586f394aa64f1977bb58fd5d58ffc317fb01a96c2",
+      "md5": "27852d754d1e26e7c1c22ccad4174594",
       "contentType": "image/png"
     },
     {
       "path": "rock_07_rough_1536.jpg",
       "size": 122763,
       "sha256": "186b54265cf1421bbf9014260afc1baf466c8af356e91bc0b8b969b5f53d2e77",
+      "md5": "310697f9590f68a057b2bf52b7ec5d9a",
       "contentType": "image/jpeg"
     },
     {
       "path": "rock_08_diff_1536.jpg",
       "size": 311613,
       "sha256": "176607aacc84866e81bb7e121a8a36e8bfae8bb4ac16441f49147d92524492f8",
+      "md5": "7b5cf7701b30773368dc0fd92d717800",
       "contentType": "image/jpeg"
     },
     {
       "path": "rock_08_nor_gl_768.png",
       "size": 1009266,
       "sha256": "c2e4ec52f85a0edee057609cb91517173188d9e361bcd1c763217fa3e07e70d1",
+      "md5": "531b8578bbfcc04ceaf482bfbba72883",
       "contentType": "image/png"
     },
     {
       "path": "rock_08_rough_1536.jpg",
       "size": 28144,
       "sha256": "971c5806b067817487fd62e3cda5f857d1b94f867998be1c3a69c38ca1f753fc",
+      "md5": "ec8542a65eac2c4727d181b255fa178b",
       "contentType": "image/jpeg"
     },
     {
       "path": "rock_face_01_diff_1536.jpg",
       "size": 529010,
       "sha256": "9868e4a19d35126e1e93bb74eaf24fe641d4f71d7193ddcd0eea2387704ce3c6",
+      "md5": "50797c6d70d43c74635901e60f78d6c3",
       "contentType": "image/jpeg"
     },
     {
       "path": "rock_face_01_nor_gl_768.png",
       "size": 1345933,
       "sha256": "e8a7a29cad1424af1afcb8e4de79d4c3a7c61954424125f666587cfbde4ac4e8",
+      "md5": "8c25d2eb266165ecf9933e0db901104a",
       "contentType": "image/png"
     },
     {
       "path": "rock_face_01_rough_1536.jpg",
       "size": 381021,
       "sha256": "3367b0cd9ba90bbc22603e6f21a70f981de5c274766843a7a0b869445ea50d01",
+      "md5": "645763e6998d2d2ee53009961823aae2",
       "contentType": "image/jpeg"
     },
     {
       "path": "rock_face_2_diff_1536.jpg",
       "size": 553433,
       "sha256": "ac6691e5be9fd4e3c0230ac207c9c4d30b80e1e66064a6b855d8f3a3d07b0257",
+      "md5": "55e685ca8be26e875f1c20f4eb2ebf94",
       "contentType": "image/jpeg"
     },
     {
       "path": "rock_face_2_nor_gl_768.png",
       "size": 1339967,
       "sha256": "ee84e09fcca82ea32889ccf4dcee74df57ab1a5123636c7acc1ebdd0928ba4d4",
+      "md5": "f9c27f7057db8ff478d8372b2da8659b",
       "contentType": "image/png"
     },
     {
       "path": "rock_face_2_rough_1536.jpg",
       "size": 115390,
       "sha256": "12e7783f09aeb2215128d3e0788f114eb925f2f9c144b31eaa0db4d8fa322adc",
+      "md5": "6a2bec588ad1b7a55fe5dbbf83401b97",
       "contentType": "image/jpeg"
     },
     {
       "path": "rock_face_diff_1536.jpg",
       "size": 486578,
       "sha256": "f0ec6edc350b921cee8ac82ddc1e4ba3d948d966c60c296b6fb7c754da6a2934",
+      "md5": "c5d93bf4f773fb19b67cae94f83743ab",
       "contentType": "image/jpeg"
     },
     {
       "path": "rock_face_nor_gl_768.png",
       "size": 1219367,
       "sha256": "3a317644b4a68c69540a60094cfcbac42829b57e53ff1c6fb5a4d4cbb1e1b5c2",
+      "md5": "7fc4bf20a9f2dd74df706ef87b98ce4c",
       "contentType": "image/png"
     },
     {
       "path": "rock_face_rough_1536.jpg",
       "size": 175882,
       "sha256": "3924a56829a51a2c9bd7a4b41b951e0fe2b7d3e0513de9c4f49140063f8a4ec7",
+      "md5": "e9a67f7f8baef28e2871c2755a9a7337",
       "contentType": "image/jpeg"
     },
     {
       "path": "rocks_ground_01_diff_4k_1536.jpg",
       "size": 687260,
       "sha256": "fa2c0b98ded69762b504c1027aee7f2b7b8322db593f5648965ac5b2f6108f24",
+      "md5": "27735383d27676e59df3d058025eeb42",
       "contentType": "image/jpeg"
     },
     {
       "path": "rocks_ground_01_rough_4k_1536.jpg",
       "size": 507217,
       "sha256": "ab7b16119354a2bb9779c0d38d93b75e23647ca2d09468f457cf3cb01b730ed3",
+      "md5": "5d7f9153e8c17428115f25de29f2efa4",
       "contentType": "image/jpeg"
     },
     {
       "path": "root_cluster_01_diff_1536.jpg",
       "size": 363812,
       "sha256": "ce988094dd2c817b3a8c4330f100e912e4382df155356728bc488260ee63ae1b",
+      "md5": "9a292e0974c1aa2d352bfdcb8172a50c",
       "contentType": "image/jpeg"
     },
     {
       "path": "root_cluster_01_nor_gl_768.png",
       "size": 1453622,
       "sha256": "d8dbd1fb52dede2fe9cb85376f9b88bc6358ae896959c2342e8d98bcf82289b3",
+      "md5": "5e43247085de15c773e3f481fc2ef5c2",
       "contentType": "image/png"
     },
     {
       "path": "root_cluster_01_rough_1536.jpg",
       "size": 331672,
       "sha256": "df27e48aa52742ef48ba8e000ca99fd7adf0e7f563460334bca563c9fa269f39",
+      "md5": "6b164ac2205fd5bdeb4d61ea1a793235",
       "contentType": "image/jpeg"
     },
     {
       "path": "root_cluster_2_diff_1536.jpg",
       "size": 225324,
       "sha256": "a6ca0eef1e4eae666675fd8666c80da82ca7f0d88df1a6b72a1b1764ea526844",
+      "md5": "c4c4bcd8eafdc2ca4acb0fed6767e86b",
       "contentType": "image/jpeg"
     },
     {
       "path": "root_cluster_2_nor_gl_768.png",
       "size": 1271592,
       "sha256": "fd27531460e436a204b656ddb2f0ee9e7730c47e2e14a4c8548ce331078c2a54",
+      "md5": "678818b48db97c6d8f4d065756961d4f",
       "contentType": "image/png"
     },
     {
       "path": "root_cluster_2_rough_1536.jpg",
       "size": 229776,
       "sha256": "b496dfd0dabcc469f6a48f854d64e5f3d08d3b66d90474b39fcd133fba7ae6c0",
+      "md5": "88703e9eac1e9aae009a90276290c385",
       "contentType": "image/jpeg"
     },
     {
       "path": "rubber_duck_toy_diff_1k_768.jpg",
       "size": 27380,
       "sha256": "bdb6a2dbf3ad7a57e1bda293b51f570b03646b4a775ef8b9aa310cf50f7a2c54",
+      "md5": "779dda8009e7736735d2fdad6dcd2acf",
       "contentType": "image/jpeg"
     },
     {
       "path": "rubber_duck_toy_nor_gl_1k_768.png",
       "size": 670979,
       "sha256": "311757085d7e2f8b66dc49a04bda98dc0a610764791ecbdd701582c8b60c6567",
+      "md5": "3c03718d6209f406bb8c712cc4efaaa8",
       "contentType": "image/png"
     },
     {
       "path": "rubber_duck_toy_rough_1k_768.jpg",
       "size": 35082,
       "sha256": "9da5cafc54a61f51c869eba0778cddc195c8bfeae07a3faee2b364e6c70fb3f4",
+      "md5": "4059b3aff3da1aa7010204a100f2d040",
       "contentType": "image/jpeg"
     },
     {
       "path": "sand_rocks_small_01_diff_1k_1536.jpg",
       "size": 330712,
       "sha256": "53033687b931127c80de1f849b3145f319a7f4af5419fa4200006126f7492851",
+      "md5": "f6cd77b9c81cab3f7aa65ea75ff4bab9",
       "contentType": "image/jpeg"
     },
     {
       "path": "sand_rocks_small_01_nor_gl_1k_768.png",
       "size": 3192244,
       "sha256": "e677fd39732608c42870bb77115adf6399d64261c00f7e7236bd1f94bde56bec",
+      "md5": "dc18673820da82221e494c83e61842a7",
       "contentType": "image/png"
     },
     {
       "path": "sand_rocks_small_01_rough_1k_1536.jpg",
       "size": 177134,
       "sha256": "6681d53f7a99d93af1298452ca472bccb2396c7ca8bcbe051f66f939b300aff4",
+      "md5": "9fa6f1cbaa6e79acebb7917910d0d479",
       "contentType": "image/jpeg"
     },
     {
       "path": "shrub_01_alpha_768.png",
       "size": 62555,
       "sha256": "3146ed84317c000c2a5d72269937a8a67c1668f670ffdecf82cf09da442b0ecf",
+      "md5": "2fbc5df65e6ddc8f20cfb693dfb634fe",
       "contentType": "image/png"
     },
     {
       "path": "shrub_01_diff_768.jpg",
       "size": 75572,
       "sha256": "59720ff9b2475f1153117c7e0afd563f52511c87123bd396ee4c099f8e848d1d",
+      "md5": "9b62783ad05f24a7c74b73781451e96b",
       "contentType": "image/jpeg"
     },
     {
       "path": "shrub_01_nor_gl_768.png",
       "size": 880835,
       "sha256": "413158b714594acb1601e90abe9adea813225a56d44d4e90e17b2c4346aa3fc7",
+      "md5": "62ec45321ee4ecce7d3ec36f137aef0e",
       "contentType": "image/png"
     },
     {
       "path": "shrub_01_rough_768.jpg",
       "size": 44937,
       "sha256": "44297f3999ba9c70c411c3cc854c3a1f86c352aa81d3223cfc5b062466f330af",
+      "md5": "b7e345de37234b00ed70e63a3d4cf776",
       "contentType": "image/jpeg"
     },
     {
       "path": "shrub_02_alpha_768.png",
       "size": 49823,
       "sha256": "83b04361db87a7daff8d2061bac1bd874a6105a5ac85bd3c75a8c8a50be0a309",
+      "md5": "46356efee71162ff49ea5e2e2fdabb61",
       "contentType": "image/png"
     },
     {
       "path": "shrub_02_diff_768.jpg",
       "size": 62308,
       "sha256": "380505f59e263f7c861176469da5c3c45b57a24d5ef4a998a3afaa3f0ac25b17",
+      "md5": "0656fbdde57790dd330ce7c02be95840",
       "contentType": "image/jpeg"
     },
     {
       "path": "shrub_02_mask_768.png",
       "size": 16989,
       "sha256": "e0cc23b931fcd1e9260837c287eae1c1812f1d2bf724bcf899041f6b527900be",
+      "md5": "9ef5788f688a7a1f7d288233967637c6",
       "contentType": "image/png"
     },
     {
       "path": "shrub_02_nor_gl_768.png",
       "size": 585786,
       "sha256": "071d28e734b95c2b0b25eeef2581c1d47333755dcc99c159cf273a95ec0a7be3",
+      "md5": "ead25d5942385ca2ba4765996ac0e05a",
       "contentType": "image/png"
     },
     {
       "path": "shrub_02_rough_768.jpg",
       "size": 42034,
       "sha256": "45a66285a02b986ea6c41a578b60d918e68c6541a16d0146504b07a094ee5fb5",
+      "md5": "b86de0bacb704df42889931ee108974a",
       "contentType": "image/jpeg"
     },
     {
       "path": "shrub_03_alpha_768.png",
       "size": 46348,
       "sha256": "bbdc2b25778f94d0d3d2fd5cc937108168606c37862c0a05c2448920a73835e5",
+      "md5": "8bc403acfd98653b0108b8d16039a8d2",
       "contentType": "image/png"
     },
     {
       "path": "shrub_03_diff_768.jpg",
       "size": 75421,
       "sha256": "b44cc8f759d59f6a8266bd41d04bda7573f315c0b837af81f837eda11b43440a",
+      "md5": "774cf404c8939d8dcc594d5aba900a41",
       "contentType": "image/jpeg"
     },
     {
       "path": "shrub_03_nor_gl_768.png",
       "size": 680630,
       "sha256": "0de013ba097a4fd8e66cf6fee4b8ab4afb6ca6360a20c1703f6553f5b018b3ca",
+      "md5": "a8f2b3e2dbf633da5e8b104efd616e1b",
       "contentType": "image/png"
     },
     {
       "path": "shrub_03_rough_768.jpg",
       "size": 40385,
       "sha256": "c6aa0866a39faae6596fe068e7ab2d8f94ff215b06b9c21caf68264faba1044d",
+      "md5": "0e71b5a628a310dc7062ae018d1519bb",
       "contentType": "image/jpeg"
     },
     {
       "path": "shrub_04_alpha_768.png",
       "size": 28848,
       "sha256": "74020e4087e431ba339537b51523c602f06e18b59c16c71a40ebff5773189697",
+      "md5": "87d00f1e608a2c41814120b55f946df3",
       "contentType": "image/png"
     },
     {
       "path": "shrub_04_diff_768.jpg",
       "size": 59478,
       "sha256": "77a37505a763a08f3aa2704bd1dcd0fb65773d383972e93b41867920f985b34a",
+      "md5": "8f79cb686377112c67f1b7f93d2da90e",
       "contentType": "image/jpeg"
     },
     {
       "path": "shrub_04_mask_768.png",
       "size": 9805,
       "sha256": "6960e79b4c210602325db3772d77799b5904b59b6f2239736dfd635696a4dc7d",
+      "md5": "41adc71cfe4e00a4b93ea14d49f52d91",
       "contentType": "image/png"
     },
     {
       "path": "shrub_04_nor_gl_768.png",
       "size": 576602,
       "sha256": "c0297ee95cf9243001284b712811316b2502627303a292027549fb07f96d33c0",
+      "md5": "025b4188b3f50bdbd152c4538f6a5d7c",
       "contentType": "image/png"
     },
     {
       "path": "shrub_04_rough_768.jpg",
       "size": 35358,
       "sha256": "7d2dc49d577296e7d67054fee7ce4aeaab5bf287e78f457c71f6290c39f3d8e6",
+      "md5": "f7f8041ce1046eb5e2e6546579f9ade0",
       "contentType": "image/jpeg"
     },
     {
       "path": "single_root_diff_1536.jpg",
       "size": 331490,
       "sha256": "df057634405b424bc73e63006c35037099ea7ac294795e39d3b5985c14e51608",
+      "md5": "266a0bd7d184be30e8a6345214ff9e8c",
       "contentType": "image/jpeg"
     },
     {
       "path": "single_root_nor_gl_768.png",
       "size": 1042447,
       "sha256": "3038512393b7327cb1a83fd27f32b19a0fbde9088fa5a26e7d4d436230e08c02",
+      "md5": "e006c83b063687fd45cb102ad5df02ea",
       "contentType": "image/png"
     },
     {
       "path": "single_root_rough_1536.jpg",
       "size": 99518,
       "sha256": "227f94db3a68c000d5514375c78b5c1c88a0acd7c53a934f443bcef4536252e2",
+      "md5": "08b40f1e7603b99b4fa26c5df72290c4",
       "contentType": "image/jpeg"
     },
     {
       "path": "stone_01_diff_768.jpg",
       "size": 93903,
       "sha256": "1771a7c28eb0990baba151cd8a329d3e73209b0d33cbfb8ea62153604e12a272",
+      "md5": "32eb5c89d23a35049e34441ec49d1ed3",
       "contentType": "image/jpeg"
     },
     {
       "path": "stone_01_mask_768.png",
       "size": 549707,
       "sha256": "3b23bcb38e7e813b5e815e081690f3e43aa1ef09297d2fad0ac8f2c6ed1b7c54",
+      "md5": "64ae22f8c382529a7be9f963a6bd3ac3",
       "contentType": "image/png"
     },
     {
       "path": "stone_01_nor_gl_768.png",
       "size": 1184774,
       "sha256": "0db9dd6ec7a5a8c3bacd09fcbc7736df3ad56ad64f9d62648ac70ae2e4c1992d",
+      "md5": "f308ac0ccc1a287f33b77ca5e4b09f06",
       "contentType": "image/png"
     },
     {
       "path": "stone_01_rough_768.jpg",
       "size": 114348,
       "sha256": "5edd4055a80f53792249b216a1c66641164770279a6da17f81006d2a8643250f",
+      "md5": "6e6c8bed167c72418394a00ef1f98e6a",
       "contentType": "image/jpeg"
     },
     {
       "path": "tree_small_02_branch_diff_1k_768.jpg",
       "size": 77838,
       "sha256": "d07582b618c6a26b9201c49536e1c3c11a8220f65536b1f105c0a5a8bfb4e2cf",
+      "md5": "ffca5cac814a8bd2efc03df53d52c545",
       "contentType": "image/jpeg"
     },
     {
       "path": "tree_small_02_branch_nor_gl_1k_768.png",
       "size": 3439396,
       "sha256": "c71d149b0983de84c9a2002629fb56b5a9941f0f09c886095548f1262d0c4b2e",
+      "md5": "620efcc88faf3c24ead8735864910801",
       "contentType": "image/png"
     },
     {
       "path": "tree_small_02_branch_rough_1k_768.jpg",
       "size": 46995,
       "sha256": "4e5b3c1e67d8ae5c8b6b0699a5e78ed7872556f015abe1381bdb4a9d1a41e623",
+      "md5": "6a406cd4df0a659bd5914d61d7d489a7",
       "contentType": "image/jpeg"
     },
     {
       "path": "tree_small_02_diff_1k_768.jpg",
       "size": 127675,
       "sha256": "fc376e967448a9564734f26ebdd27da416ebdab0cbe3681039e5fc6ffa904598",
+      "md5": "5eeb4be5a130ba6278e0cd2a18d865f5",
       "contentType": "image/jpeg"
     },
     {
       "path": "tree_small_02_leaves_alpha_1k_768.png",
       "size": 231783,
       "sha256": "ff89f1676fcb40baf33af0e40964255e5a5ad1ddb052107ff22a7e876550fd8e",
+      "md5": "35740a81c9c9585f84d84f5ee722647e",
       "contentType": "image/png"
     },
     {
       "path": "tree_small_02_leaves_diff_1k_768.jpg",
       "size": 44849,
       "sha256": "042f74691acfa4e9f3c7c9ac4c4e6119a403ff4da185b0b8e1bcc035429e01c4",
+      "md5": "5632a600ccbb0d5f4e518cf1f9a68f41",
       "contentType": "image/jpeg"
     },
     {
       "path": "tree_small_02_leaves_nor_gl_1k_768.png",
       "size": 2791839,
       "sha256": "c0885a8dd24daa2efc6c75d2079d123b6616eb5c767b06b32ca369ba1ae2659c",
+      "md5": "4e921405595100cc727e836494eeb437",
       "contentType": "image/png"
     },
     {
       "path": "tree_small_02_leaves_rough_1k_768.jpg",
       "size": 51600,
       "sha256": "ef64f911e1f524b66e1b00a13ddf7f9b21e600c51bac6aa5bd37943a69fc07eb",
+      "md5": "3fd15365750f4ff6ed7aa69cce08befc",
       "contentType": "image/jpeg"
     },
     {
       "path": "tree_small_02_nor_gl_1k_768.png",
       "size": 3291262,
       "sha256": "c773cc10b617a5a0351f3d9c831a0c33f0b4ca828392ceaee098f14832bbc81d",
+      "md5": "a93362dab7e8ebe224f091d712a9f5f9",
       "contentType": "image/png"
     },
     {
       "path": "tree_small_02_rough_1k_768.jpg",
       "size": 69746,
       "sha256": "3c11a4223a7806cfeafb8a8f1ca72db7d5e1c5e492e3152e2a13d72fc2206b66",
+      "md5": "0ff43337c5426492ff2751c0b306181f",
       "contentType": "image/jpeg"
     },
     {
       "path": "verdant-trail-high-height.json",
       "size": 788347,
       "sha256": "b4a3817b4e7c865f59c8abca691976ca36aa9d34ef83aca642015948ee1439d3",
+      "md5": "1f7ed31a66fa34fca103602f38fde403",
       "contentType": "application/json"
     },
     {
       "path": "verdant-trail-high.glb",
       "size": 95192544,
-      "sha256": "2b6d26e229460559e4d7fd5e82aca007a1b4b9b9b986fc35f14a57b00875a291",
+      "sha256": "9578ba4cb94b23b3d82ec4bc501fb189b5c2a6202c418dea2891289f32eb6608",
+      "md5": "da24e1867c1bb9b05f8c3134df6d1ab6",
       "contentType": "image/png"
     }
   ]

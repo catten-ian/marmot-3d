@@ -105,6 +105,7 @@ import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 import { VERDANT_KILL_PLANE_MARGIN } from './world/verdant-fall-safety.mjs';
+import { findRobustPlacement, resolveEntityGround, chooseCentralBaseSite } from './world/verdant-placement.mjs';
 
 // =====================================================
 // 初始化
@@ -289,6 +290,7 @@ function publishVerdantField(world) {
     nearestWalkable: world.nearestWalkable,
     bounds: world.bounds,
     stats: world.fieldStats || null,
+    placementField: world.placementField || null,
   });
   window.__verdantField = probe;
 }
@@ -353,9 +355,63 @@ function createVerdantSafetyProfile(world) {
     // confirms they do not seal a walkable path. This does not affect default DEV.
     useObstacleProxies: new URLSearchParams(location.search).get('verdantProxy') === '1',
     obstacleProxies: world.obstacleProxies || [],
+    placementField: world.placementField || null,
+    hasPlacementClearance: world.hasPlacementClearance || null,
     spawn: { x: spawn.x, y: spawn.y, z: spawn.z },
   };
 }
+
+function verdantPlacement(def, { radius, bodyHeight, clearance, maxSurfaceVariation, exclude = [], referenceY = NaN } = {}) {
+  const field = verdantWorld?.placementField;
+  if (!field) return null;
+  return findRobustPlacement(field, {
+    x: def.x, z: def.z, radius, bodyHeight, clearance, referenceY,
+    maxSurfaceVariation, maxDistance: 16, avoidObstacles: true, exclude,
+    hasClearance: verdantWorld.hasPlacementClearance,
+  });
+}
+
+function chooseVerdantBurrowDefinition(def, index, placed) {
+  if (!verdantWorld?.placementField) return def;
+  const isBase = index === 0;
+  const interest = [...BERRY_POINTS, ...SPAWN_POINTS].map(scalePoint);
+  const exclude = placed.map((p) => ({ x: p.x, z: p.z, radius: p.r, gap: 2 }));
+  if (isBase) {
+    const site = chooseCentralBaseSite(verdantWorld.placementField, {
+      interestPoints: interest, radius: def.r, clearance: def.openingRadius * 2.2,
+      centerX: 0, centerZ: 0, stride: 4, hasClearance: verdantWorld.hasPlacementClearance,
+      exclude,
+    });
+    if (site) return { ...def, x: site.x, z: site.z, groundY: site.y, placement: site };
+  }
+  const site = verdantPlacement(def, {
+    radius: def.slopeRadius, bodyHeight: 0.25, clearance: def.openingRadius * 1.8,
+    maxSurfaceVariation: 0.45, exclude,
+  });
+  return site ? { ...def, x: site.x, z: site.z, groundY: site.y, placement: site } : def;
+}
+
+let verdantCompanionLastPlacement = null;
+function resolveVerdantCompanion(x, z) {
+  const field = verdantWorld?.placementField;
+  if (!field) return null;
+  const exact = resolveEntityGround(field, x, z, {
+    radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
+    avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
+    component: verdantCompanionLastPlacement?.component ?? null,
+    referenceY: verdantCompanionLastPlacement?.y,
+  });
+  if (exact) { verdantCompanionLastPlacement = exact; return exact; }
+  // Search is only used after an invalid move or initial spawn; normal frames
+  // stay on the local exact resolver and therefore never scan the full field.
+  const recovered = findRobustPlacement(field, {
+    x, z, radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
+    maxDistance: 14, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
+  });
+  if (recovered) verdantCompanionLastPlacement = recovered;
+  return recovered;
+}
+
 
 async function switchVerdantTier(preference, forceReload = false) {
   if (!verdantWorld || !loadVerdantWorldFn || !['auto','low','medium','high','ultra'].includes(preference)) return;
@@ -444,7 +500,7 @@ if (WANT_GS && rendererStatus.supportsSplat) {
  * 稳定版缩放系数为 1，这里等价于原始常量。
  */
 const PT_K = getPointScale();
-const burrowSet = createBurrows(scene);
+const burrowSet = createBurrows(scene, { resolveDefinition: chooseVerdantBurrowDefinition });
 const burrowDefs = burrowSet.defs;
 const baseBurrow = burrowSet.base;
 const BURROW_R = baseBurrow.r;
@@ -487,7 +543,7 @@ function buildFoods(levelIndex) {
   return berries;
 }
 berries = buildFoods(0);
-const companion = new Companion(scene);
+const companion = new Companion(scene, { resolvePlacement: resolveVerdantCompanion });
 const minimap = new Minimap();
 let debugVolumes = null;
 let foxes = [];
@@ -871,7 +927,8 @@ function loadLevel(index, announce = true) {
 
   // 重置伙伴（关卡配置里的点位是设计坐标，GS 版需经 scalePoint 缩放到运行时场地）
   const [friendX, friendZ] = scalePoint(cfg.friend);
-  companion.placeAt(friendX, friendZ);
+  const friendPlacement = resolveVerdantCompanion(friendX, friendZ);
+  companion.placeAt(friendPlacement?.x ?? friendX, friendPlacement?.z ?? friendZ, friendPlacement?.y ?? null);
   game.friend = companion;
 
   game.levelRepels = 0;

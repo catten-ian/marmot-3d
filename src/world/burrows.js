@@ -10,8 +10,16 @@ export function scaledBurrows() {
   });
 }
 
-export function createBurrows(scene) {
-  const defs = scaledBurrows();
+export function createBurrows(scene, { resolveDefinition = null } = {}) {
+  let defs = scaledBurrows();
+  if (typeof resolveDefinition === 'function') {
+    const placed = [];
+    defs = defs.map((def, index) => {
+      const next = resolveDefinition(def, index, placed) || def;
+      placed.push(next);
+      return next;
+    });
+  }
   configureUnderground(defs);
   const objects = defs.map((def) => new Burrow(scene, def));
   return { defs, objects, base: defs[0], baseObject: objects[0] };

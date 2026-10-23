@@ -77,9 +77,9 @@
     "heightBytes": 788347,
     "textureBytes": 91566724,
     "sha256": "2b6d26e229460559e4d7fd5e82aca007a1b4b9b9b986fc35f14a57b00875a291",
-    "packBytes": 187549838,
+    "packBytes": 187549821,
     "packFileCount": 127,
-    "fileSha256": "2b6d26e229460559e4d7fd5e82aca007a1b4b9b9b986fc35f14a57b00875a291",
+    "fileSha256": "9578ba4cb94b23b3d82ec4bc501fb189b5c2a6202c418dea2891289f32eb6608",
     "heightSha256": "b4a3817b4e7c865f59c8abca691976ca36aa9d34ef83aca642015948ee1439d3"
   },
   "packManifest": "pack-manifest.json"
