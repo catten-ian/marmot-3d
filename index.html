@@ -9,7 +9,7 @@
 <link rel="icon" href="./assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="./assets/favicon-192.png">
 <meta name="theme-color" content="#101a15">
-<link rel="stylesheet" href="./styles.css?v=m20261022a">
+<link rel="stylesheet" href="./styles.css?v=m20261022s4">
 <script type="importmap">
 { "imports": {
     "three": "./vendor/three.module.js",
@@ -267,7 +267,7 @@ window.__boot = boot;
 
 // 加载看门狗：模块图链接失败或静默挂起时给出明确提示，
 // 而不是永远停在「正在筑巢…」。曾因 CDN 缓存陈旧子模块导致。
-const WATCHDOG_MS = 15000;
+// dev 首屏需下载场景包，故下方采用「进度推进即续命」的活动看门狗。
 let bootSettled = false;
 const loaderTextEl = document.querySelector('.loader-text');
 const loaderTrackEl = document.querySelector('.loader-track');
@@ -288,18 +288,37 @@ function bootFail(title, detail) {
   }
 }
 
-const watchdog = setTimeout(() => {
-  bootFail('加载超时',
-    `超过 ${WATCHDOG_MS / 1000} 秒仍未进入游戏。可能是 CDN 缓存了不匹配的旧模块，或网络中断。`);
-}, WATCHDOG_MS);
+// 活动看门狗：dev 版首屏需下载 Verdant 场景包（low 档约 50MB，慢网耗时较长），
+// 旧的固定 15s 死看门狗会在下载仍正常进行时就误报「加载超时」。改为：只要加载条还在
+// 推进就持续续命；仅当进度长时间停滞（网络中断/模块挂起）或超过总硬上限时才判失败。
+const STALL_MS = 25000;        // 加载进度 25s 无任何增长 → 判定卡死/断网
+const HARD_LIMIT_MS = 180000;  // 绝对上限 3 分钟，兜底极端慢网
+const bootStartedAt = Date.now();
+const fillEl = document.getElementById('loaderFill');
+let lastFillPct = -1;
+let lastProgressAt = Date.now();
+const watchdog = setInterval(() => {
+  const now = Date.now();
+  const pct = fillEl ? (parseFloat(fillEl.style.width) || 0) : 0;
+  if (pct > lastFillPct) { lastFillPct = pct; lastProgressAt = now; }
+  if (now - bootStartedAt > HARD_LIMIT_MS) {
+    clearInterval(watchdog);
+    bootFail('加载超时',
+      `超过 ${HARD_LIMIT_MS / 1000} 秒仍未进入游戏。网络可能过慢或中断，请重试或切换网络（手机建议在设置里选“低”画质档）。`);
+  } else if (now - lastProgressAt > STALL_MS) {
+    clearInterval(watchdog);
+    bootFail('加载停滞',
+      `加载进度已 ${STALL_MS / 1000} 秒没有变化（当前约 ${Math.max(0, Math.round(lastFillPct))}%）。可能是网络中断，或 CDN 缓存了不匹配的旧模块。`);
+  }
+}, 1000);
 
 try {
-  await import('./src/main.js?v=m20261022a');
+  await import('./src/main.js?v=m20261023dev1');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
-  clearTimeout(watchdog);
+  clearInterval(watchdog);
 } catch (err) {
-  clearTimeout(watchdog);
+  clearInterval(watchdog);
   console.error('[boot] 模块图加载失败', err);
   bootFail('模块加载失败', String((err && err.message) || err));
 }
