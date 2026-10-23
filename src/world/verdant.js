@@ -3,12 +3,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getAssetCandidates } from './local-pack.js';
 import { buildWalkableField } from './verdant-collision.js';
+import { downloadVerdantPack } from './asset-downloader.mjs';
 
 async function fetchJson(path, tier, sourceOnly = false) {
   const errors = [];
   for (const url of getAssetCandidates(path, tier, sourceOnly)) {
     try {
-      const response = await fetch(url, { cache: 'no-store' });
+      const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.json();
     } catch (error) { errors.push(`${url}: ${error.message}`); }
@@ -16,7 +17,7 @@ async function fetchJson(path, tier, sourceOnly = false) {
   throw new Error(`Verdant JSON fallback exhausted for ${path}: ${errors.join(' | ')}`);
 }
 
-function loadGltfCandidate(url, resourceBase, sourceOnly, tier, onProgress) {
+function loadGltfCandidate(url, resourceBase, sourceOnly, tier, packManifest, onProgress) {
   return new Promise(async (resolve, reject) => {
     const manager = new THREE.LoadingManager();
     manager.setURLModifier((resourceUrl) => {
@@ -29,21 +30,42 @@ function loadGltfCandidate(url, resourceBase, sourceOnly, tier, onProgress) {
     manager.onProgress = (_item, loaded, total) => onProgress?.(Math.min(0.98, loaded / Math.max(1, total)), '加载场景外置资源');
     manager.onError = (resourceUrl) => reject(new Error(`外置资源读取失败：${resourceUrl}`));
     const loader = new GLTFLoader(manager);
+    const logicalPackBase = new URL('.', resourceBase).href;
+    const localCandidate = /^blob:/i.test(url);
+    const packBase = localCandidate ? logicalPackBase : new URL('.', url).href;
+    let downloaded = null;
     const logicalUrl = new URL(resourceBase, location.href).href;
     if (!/\.gltf(?:$|[?#])/i.test(logicalUrl)) {
-      loader.load(url, (gltf) => resolve(gltf.scene), undefined, reject);
+      (async () => {
+        try {
+          downloaded = await downloadVerdantPack(packManifest, { scenePath: resourceBase, baseUrl: localCandidate ? logicalPackBase : packBase, resolveLocal: localCandidate ? (logical) => getAssetCandidates(logical, tier, false)[0] : null, onProgress: (stats) => onProgress?.(stats.totalBytes > 0 ? stats.doneBytes / stats.totalBytes : 0, '加载 Verdant 资源', stats) });
+          const mapped = downloaded.urls.get(new URL(url).pathname.split('/').pop()) || url;
+          manager.setURLModifier((resourceUrl) => {
+            if (/^(data:|blob:)/i.test(resourceUrl)) return resourceUrl;
+            const name = decodeURIComponent(new URL(resourceUrl, resourceBase).pathname.split('/').pop() || '');
+            return downloaded.urls.get(name) || resourceUrl;
+          });
+          loader.load(mapped, (gltf) => { downloaded?.revoke(); resolve(gltf.scene); }, undefined, (error) => { downloaded?.revoke(); reject(error); });
+        } catch (error) { downloaded?.revoke(); reject(error); }
+      })();
       return;
     }
     try {
-      const response = await fetch(url, { cache: 'no-store' });
+      downloaded = await downloadVerdantPack(packManifest, { scenePath: resourceBase, baseUrl: localCandidate ? logicalPackBase : packBase, resolveLocal: localCandidate ? (logical) => getAssetCandidates(logical, tier, false)[0] : null, onProgress: (stats) => onProgress?.(stats.totalBytes > 0 ? stats.doneBytes / stats.totalBytes : 0, '加载 Verdant 资源', stats) });
+      manager.setURLModifier((resourceUrl) => {
+        if (/^(data:|blob:)/i.test(resourceUrl)) return resourceUrl;
+        const name = decodeURIComponent(new URL(resourceUrl, resourceBase).pathname.split('/').pop() || '');
+        return downloaded.urls.get(name) || getAssetCandidates(new URL(resourceUrl, resourceBase).href, tier, sourceOnly)[0] || resourceUrl;
+      });
+      const response = await fetch(url);
       if (!response.ok) throw new Error(`glTF HTTP ${response.status}`);
       const json = await response.json();
-      loader.parse(json, new URL('.', logicalUrl).href, (gltf) => resolve(gltf.scene), reject);
-    } catch (error) { reject(error); }
+      loader.parse(json, new URL('.', logicalUrl).href, (gltf) => { downloaded?.revoke(); resolve(gltf.scene); }, (error) => { downloaded?.revoke(); reject(error); });
+    } catch (error) { downloaded?.revoke(); reject(error); }
   });
 }
 
-async function loadGltf(path, tier, onProgress) {
+async function loadGltf(path, tier, packManifest, onProgress) {
   const logicalUrl = new URL(path, location.href).href;
   const resourceBase = logicalUrl;
   const candidates = getAssetCandidates(logicalUrl, tier);
@@ -51,7 +73,7 @@ async function loadGltf(path, tier, onProgress) {
   for (let i = 0; i < candidates.length; i++) {
     try {
       onProgress?.(i / Math.max(1, candidates.length), i === 0 ? '尝试本地资源包' : i === candidates.length - 1 ? '回退到同源资源' : '尝试 TOS 资源');
-      const scene = await loadGltfCandidate(candidates[i], resourceBase, i === candidates.length - 1, tier, onProgress);
+      const scene = await loadGltfCandidate(candidates[i], resourceBase, i === candidates.length - 1, tier, packManifest, onProgress);
       return scene;
     } catch (error) { errors.push(`${candidates[i]}: ${error.message}`); }
   }
@@ -80,7 +102,7 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   }
   const scenePath = `${root}tiers/${activeTier}/${manifest.files.scene}`;
   onProgress?.(0.2, '加载 Verdant 场景');
-  const scene = await loadGltf(scenePath, activeTier, (p, label) => onProgress?.(0.2 + p * 0.78, label || '加载 Verdant 场景'));
+  const scene = await loadGltf(scenePath, activeTier, packManifest, (p, label, stats) => onProgress?.(0.2 + p * 0.78, label || '加载 Verdant 场景', stats));
   scene.name = 'VerdantTrailWorld';
   scene.userData.verdantTier = activeTier;
   scene.traverse((obj) => {

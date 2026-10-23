@@ -233,7 +233,7 @@ function setDownloadUi(message, state = 'working', fraction = 0) {
   try { window.__game?.verdantQuality && (window.__game.verdantQuality.downloadState = { ...downloadState }); } catch (_) {}
 }
 async function fetchOk(url) {
-  const response = await fetch(url, { cache: 'no-store' });
+  const response = await fetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
   return response;
 }

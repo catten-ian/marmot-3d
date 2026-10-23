@@ -36,6 +36,7 @@ export class HUD {
       loaderFill: document.getElementById('loaderFill'),
       loaderText: document.querySelector('.loader-text'),
       loaderPct: document.getElementById('loaderPct'),
+      loaderBytes: document.getElementById('loaderBytes'),
       loaderVideo: document.querySelector('.loader-video'),
     };
     this._loadingMax = -1;
@@ -65,7 +66,7 @@ export class HUD {
    * label 同步显示当前正在执行的步骤（读清单 / 高度场 / 加载场景…）。
    * 任何一次更新都喂狗一次，index.html 的看门狗只在真·静默挂起时报警。
    */
-  setLoading(pct, label) {
+  setLoading(pct, label, byteStats = null) {
     const p = Math.max(0, Math.min(100, Number(pct) || 0));
     if (p > this._loadingMax) {
       this._loadingMax = p;
@@ -73,6 +74,14 @@ export class HUD {
       if (this.el.loaderPct) this.el.loaderPct.textContent = Math.round(p) + '%';
     }
     if (label) this.el.loaderText.textContent = label;
+    if (this.el.loaderBytes) {
+      if (byteStats?.text) { this.el.loaderBytes.textContent = byteStats.text; this.el.loaderBytes.hidden = false; }
+      else if (byteStats && Number.isFinite(byteStats.totalBytes) && byteStats.totalBytes > 0) {
+        const fmt = (n) => { const b = Math.max(0, Number(n) || 0); if (b < 1024) return `${Math.round(b)} B`; const u = ['KiB','MiB','GiB']; let x = b, i = -1; do { x /= 1024; i++; } while (x >= 1024 && i < u.length - 1); return `${x.toFixed(x >= 100 ? 0 : x >= 10 ? 1 : 2)} ${u[i]}`; };
+        this.el.loaderBytes.textContent = byteStats.cached ? `已缓存 ${fmt(byteStats.totalBytes)}` : `${fmt(byteStats.doneBytes)} / ${fmt(byteStats.totalBytes)}（剩 ${fmt(byteStats.remainingBytes)}）${byteStats.speedBytesPerSecond > 0 ? ` · ${fmt(byteStats.speedBytesPerSecond)}/s` : ''}`;
+        this.el.loaderBytes.hidden = false;
+      }
+    }
     try { window.dispatchEvent(new Event('app:boot-progress')); } catch (_) {}
   }
 
