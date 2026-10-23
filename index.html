@@ -165,6 +165,15 @@
 /* 门控：电影感视频加载仅 ?version=dev。stable 不注入视频源（不下载 4MB），保持经典样式。
    必须在样式/资源加载早期执行，与 src/core/version.js 的判定保持一致。 */
 (function () {
+  function pickLoadingQuality(win, nav) {
+    var connection = nav && nav.connection;
+    var slowTypes = ['slow-2g', '2g', '3g'];
+    var narrow = !!(win && win.matchMedia && win.matchMedia('(max-width: 820px)').matches);
+    var coarse = !!(win && win.matchMedia && win.matchMedia('(pointer: coarse)').matches);
+    var constrained = !!(connection && (connection.saveData === true || slowTypes.indexOf(connection.effectiveType) !== -1));
+    return narrow || coarse || constrained ? 'mobile' : 'desktop';
+  }
+
   try {
     var q = new URLSearchParams(location.search).get('version');
     var isDev = !!q && q.replace(/\/+$/, '') === 'dev';
@@ -173,12 +182,16 @@
     if (!isDev) { if (loader) loader.classList.add('classic'); if (video) video.remove(); return; }
     if (loader) loader.classList.add('cinematic');
     if (!video) return;
-    video.setAttribute('poster', './assets/video/dev-loading-poster.jpg');
+    var quality = pickLoadingQuality(window, navigator);
+    var isMobile = quality === 'mobile';
+    video.dataset.quality = quality;
+    video.setAttribute('poster', isMobile ? './assets/video/dev-loading-poster-mobile.jpg' : './assets/video/dev-loading-poster.jpg');
     var src = document.createElement('source');
-    src.src = './assets/video/dev-loading.mp4';
+    src.src = isMobile ? './assets/video/dev-loading-mobile.mp4' : './assets/video/dev-loading.mp4';
     src.type = 'video/mp4';
     video.appendChild(src);
     video.addEventListener('error', function () { video.style.display = 'none'; }, { once: true });
+    video.load();
     var p = video.play();
     if (p && typeof p.catch === 'function') p.catch(function () {});
   } catch (e) { /* 判定失败默认经典样式，不阻塞加载 */ }
