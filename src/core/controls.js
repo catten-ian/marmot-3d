@@ -10,7 +10,8 @@ import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius, getGravityScale } from '../core/config.js';
 import { terrainHeight, terrainGround, groundResolveActive, solidColliderActive, clamp } from '../core/utils.js';
 import { undergroundFloorY } from '../world/underground.js';
-import { findGroundPathBlock, findSegmentLanding, shouldRescueVerdantPosition, VERDANT_SWEEP_STEP } from '../world/verdant-fall-safety.mjs';
+import { findGroundPathBlock, findSegmentLanding, resolveGroundedY, shouldRescueVerdantPosition, VERDANT_SWEEP_STEP } from '../world/verdant-fall-safety.mjs';
+import { resolveObstacleProxies, shouldUseDesignRocks } from '../world/verdant-obstacles.mjs';
 import { resolveMoveIntent, dampAngle, wrapAngle, resolveTouchDrive } from './move-facing.mjs';
 
 export class FirstPersonController {
@@ -42,6 +43,8 @@ export class FirstPersonController {
     this.stepUp = 0.42;
     // Enabled only by the dev Verdant loader; null keeps stable/beta physics unchanged.
     this.verdantSafety = null;
+    // Camera-only terrain smoothing state; physical Y remains independently grounded.
+    this.visualGroundY = 0;
 
     this.onGroundY = 0;
     this.bobPhase = 0;
@@ -120,6 +123,8 @@ export class FirstPersonController {
   setVerdantSafety(config) {
     if (!config || typeof config.nearestWalkable !== 'function' || typeof config.resolveGround !== 'function') {
       this.verdantSafety = null;
+    // Camera-only terrain smoothing state; physical Y remains independently grounded.
+    this.visualGroundY = 0;
       return false;
     }
     this.verdantSafety = { ...config, rescueCount: 0, lastRescueReason: '' };
@@ -141,6 +146,7 @@ export class FirstPersonController {
     const y = Number.isFinite(ground?.y) ? ground.y : point.y;
     if (!Number.isFinite(y)) return false;
     this.position.set(point.x, y, point.z);
+    this.visualGroundY = y;
     this.velocity.set(0, 0, 0);
     this.externalVelocity.set(0, 0, 0);
     this.vy = 0;
@@ -182,6 +188,7 @@ export class FirstPersonController {
     const y = Number.isFinite(ground?.y) ? ground.y : target.y;
     if (!Number.isFinite(y)) return false;
     this.position.set(target.x, y, target.z);
+    this.visualGroundY = y;
     this.velocity.set(0, 0, 0);
     this.externalVelocity.set(0, 0, 0);
     this.vy = 0;
@@ -251,6 +258,7 @@ export class FirstPersonController {
     // 传送后清空上一帧落点缓存，避免实体高度场的台阶/水域阻挡用上一位点误判
     this._lastGround = null;
     if (this.verdantSafety) this.syncVerdantGround(x, z);
+    else this.visualGroundY = this.position.y;
     const baseFov = this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson;
     if (this.camera.fov !== baseFov) {
       this.camera.fov = baseFov;
@@ -403,7 +411,7 @@ export class FirstPersonController {
     // ROCKS 是设计坐标，GS 版必须缩放到运行时位置/半径，
     // 否则视觉上缩小的岩石仍按原位大半径碰撞（隐形墙）。
     // dev Verdant 实体场景自带真实岩石高度碰撞，设计圆柱在这里是隐形墙，跳过。
-    const useDesignRocks = !solidColliderActive();
+    const useDesignRocks = shouldUseDesignRocks(solidColliderActive());
     for (const rp of useDesignRocks ? ROCKS : []) {
       const [rx, rz] = scalePoint(rp);
       const rr = scaleRadius(rp[2]);
@@ -428,11 +436,35 @@ export class FirstPersonController {
       }
     }
 
+    // Optional, conservative imported-mesh proxy circles. Disabled by default because
+    // the Blender GLB has no authored walk-path exclusions; QA can opt in with
+    // ?verdantProxy=1 after checking route connectivity. Design ROCKS are skipped
+    // whenever the Verdant field is active, so these proxies are the only rock push.
+    const obstacleProxies = this.verdantSafety?.useObstacleProxies
+      ? this.verdantSafety.obstacleProxies : null;
+    if (obstacleProxies?.length) {
+      const pushed = resolveObstacleProxies({
+        x: this.position.x, z: this.position.z, proxies: obstacleProxies,
+        playerRadius: PLAYER.radius, feetY: prevY, bodyHeight: PLAYER.eyeHeight,
+      });
+      if (pushed.collisions.length) {
+        this.position.x = pushed.x; this.position.z = pushed.z;
+        for (const hit of pushed.collisions) {
+          const inward = this.velocity.x * hit.nx + this.velocity.z * hit.nz;
+          if (inward < 0) { this.velocity.x -= hit.nx * inward; this.velocity.z -= hit.nz * inward; }
+          const externalInward = this.externalVelocity.x * hit.nx + this.externalVelocity.z * hit.nz;
+          if (externalInward < 0) { this.externalVelocity.x -= hit.nx * externalInward; this.externalVelocity.z -= hit.nz * externalInward; }
+        }
+      }
+    }
+
     const actualMoved = Math.hypot(this.position.x - prevX, this.position.z - prevZ);
     this.movingThisFrame = actualMoved > 0.0015;
 
     // 地形跟随（实体高度场走 terrainGround；程序化/GS 走地下腔室合成）
     let groundInfo;
+    const safety = this.verdantSafety;
+    const wasGrounded = this.grounded;
     if (groundResolveActive()) {
       // 记录移动前落点，用于台阶 / 水域边界阻挡
       groundInfo = terrainGround(this.position.x, this.position.z);
@@ -500,17 +532,20 @@ export class FirstPersonController {
         }
       }
     } else {
-      // 地面状态：跟随地形起伏。
-      // 上坡时留一点滞后（不瞬移，避免视觉抖动），下坡时立即贴地
-      // （否则会出现"悬空"一小段）。
-      const diff = groundY - this.position.y;
-      if (diff < 0) this.position.y = groundY;
-      else this.position.y += diff * (1 - Math.exp(-18 * dt));
+      // DEV Verdant only: physical feet snap to the accepted walkable column.
+      // Step/void sweeps above remain authoritative; visual camera easing is separate.
+      if (safety) {
+        this.position.y = resolveGroundedY(this.position.y, groundY, true);
+      } else {
+        // Preserve the stable/beta procedural terrain response unchanged.
+        const diff = groundY - this.position.y;
+        if (diff < 0) this.position.y = groundY;
+        else this.position.y += diff * (1 - Math.exp(-18 * dt));
+      }
       this.vy = 0;
     }
 
     // 高度场异常边缘兜底：仅 dev Verdant，正常坡面/洞穴不会触发。
-    const safety = this.verdantSafety;
     if (safety) {
       const checkGround = [this.position.x, this.position.z].every(Number.isFinite)
         ? terrainGround(this.position.x, this.position.z) : null;
@@ -543,7 +578,18 @@ export class FirstPersonController {
 
     // 应用到相机。注意用 this.position.y（含跳跃高度）而非地面高度，
     // 否则起跳瞬间相机会"粘"在地面上。
-    this._applyCamera(this.position.y, speedRatio);
+    let cameraGroundY = this.position.y;
+    if (safety) {
+      if (this.grounded) {
+        if (!wasGrounded) this.visualGroundY = this.position.y; // landing: never hover after a jump
+        else this.visualGroundY += (this.position.y - this.visualGroundY) * (1 - Math.exp(-18 * dt));
+        // Camera easing may trail a downhill drop, but can never fall below the surface.
+        cameraGroundY = Math.max(this.visualGroundY, groundY);
+      } else {
+        this.visualGroundY = this.position.y;
+      }
+    }
+    this._applyCamera(cameraGroundY, speedRatio, groundY);
   }
 
   /**
@@ -572,7 +618,7 @@ export class FirstPersonController {
     this.postureSpeed = speedRatio;
   }
 
-  _applyCamera(groundY, speedRatio) {
+  _applyCamera(groundY, speedRatio, floorY = groundY) {
     const P = PLAYER.posture;
     const c = this.crouch;
 
@@ -615,9 +661,11 @@ export class FirstPersonController {
         this.position.z + Math.cos(this.yaw) * horizontalDistance,
       );
     } else {
+      let eyeY = groundY + eyeH + bobY + shakeY;
+      if (this.verdantSafety && this.grounded) eyeY = Math.max(eyeY, floorY + 0.025);
       this.camera.position.set(
         this.position.x + fwdX * kickDist + shakeX,
-        groundY + eyeH + bobY + shakeY,
+        eyeY,
         this.position.z + fwdZ * kickDist,
       );
     }

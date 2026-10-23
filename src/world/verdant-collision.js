@@ -15,6 +15,7 @@
  */
 import * as THREE from 'three';
 import { findNearestWalkableCell } from './verdant-fall-safety.mjs';
+import { selectConnectedObstacleProxies } from './verdant-obstacles.mjs';
 
 const WALK_NORMAL_Y = 0.35;
 // 名字命中即视为可穿过装饰（叶片 / 草 / 灌木 / 水 / 远景背景件）。
@@ -153,6 +154,35 @@ function sampleJsonHeight(height, x, z) {
   return a * (1 - fz) + c * fz;
 }
 
+/** Build conservative, opt-in circle proxies for named cliffs/boulders. */
+export function buildObstacleProxies(sceneRoot, bounds, maxProxies = 24) {
+  if (!sceneRoot || !bounds) return [];
+  sceneRoot.updateMatrixWorld(true);
+  const out = [];
+  const box = new THREE.Box3();
+  const center = new THREE.Vector3();
+  const size = new THREE.Vector3();
+  sceneRoot.traverse((obj) => {
+    if (out.length >= maxProxies || !obj.isMesh || !obj.geometry) return;
+    const name = String(obj.name || '');
+    // Background cliffs are scenery, not blockers. Keep only authored boulders
+    // and near-field cliff meshes; callers must explicitly opt in after QA.
+    if (!/(boulder|cliff)/i.test(name) || /background/i.test(name)) return;
+    obj.geometry.computeBoundingBox?.();
+    if (!obj.geometry.boundingBox) return;
+    box.copy(obj.geometry.boundingBox).applyMatrix4(obj.matrixWorld);
+    if (box.max.x < bounds.minX || box.min.x > bounds.maxX
+      || box.max.z < bounds.minZ || box.min.z > bounds.maxZ) return;
+    box.getCenter(center); box.getSize(size);
+    const radius = Math.max(0.25, Math.min(6, Math.hypot(size.x, size.z) * 0.28));
+    out.push({
+      id: name, x: center.x, z: center.z, radius,
+      minY: box.min.y, maxY: box.max.y,
+    });
+  });
+  return out;
+}
+
 /**
  * 合并 GLB 光栅高度与导出 JSON 高度，并构建：
  *   - 双线性 heightAt（NaN 竖列回退最近实体面，保证永不漏底）
@@ -163,6 +193,7 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
   const __t0 = Date.now();
   const __pt = (m) => console.info('PT ' + m + ' ' + (Date.now() - __t0) + 'ms');
   const { top, nx, nz, rockCliffCells, stats } = rasterizeColumns(scene, bounds, cellSize);
+  const obstacleProxies = buildObstacleProxies(scene, bounds);
   __pt('rasterize');
 
   // 1) 用导出 JSON（ground 对象）填补光栅遗漏：JSON 值 >0 才是有效命中。
@@ -300,9 +331,17 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
     }
   }
 
+  const centerIndex = idxAt((bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2);
+  const obstacleSelection = selectConnectedObstacleProxies({
+    proxies: obstacleProxies, walkable, nx, nz, bounds,
+    start: { i: centerIndex[0], j: centerIndex[1] }, minReachableRatio: 0.995,
+  });
+  const safeObstacleProxies = obstacleSelection.proxies;
+
   return {
-    heightAt, resolveGround, nearestWalkable, bounds, cellSize, nx, nz,
-    stats: { ...stats, jsonFilled, solidCells: solidCount, walkableCells: walkCount, totalCells: nx * nz, walkableRockCliffCells, minWalkableY: Number.isFinite(minWalkableY) ? minWalkableY : null, maxWalkableY: Number.isFinite(maxWalkableY) ? maxWalkableY : null, walkableRatio: walkCount / (nx * nz) },
+    heightAt, resolveGround, nearestWalkable, bounds, cellSize, nx, nz, obstacleProxies: safeObstacleProxies,
+    obstacleMask: obstacleSelection.mask,
+    stats: { ...stats, jsonFilled, solidCells: solidCount, walkableCells: walkCount, totalCells: nx * nz, walkableRockCliffCells, minWalkableY: Number.isFinite(minWalkableY) ? minWalkableY : null, maxWalkableY: Number.isFinite(maxWalkableY) ? maxWalkableY : null, walkableRatio: walkCount / (nx * nz), obstacleCandidates: obstacleProxies.length, obstacleProxies: safeObstacleProxies.length, obstacleRejected: obstacleSelection.rejected, obstacleReachableRatio: obstacleSelection.baselineReachable ? obstacleSelection.reachable / obstacleSelection.baselineReachable : 0 },
     __ms: (() => { __pt('done'); return Date.now()-__t0; })(),
   };
 }

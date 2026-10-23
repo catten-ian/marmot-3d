@@ -31,7 +31,13 @@ function loadGltfCandidate(url, resourceBase, sourceOnly, tier, onProgress) {
     const loader = new GLTFLoader(manager);
     const logicalUrl = new URL(resourceBase, location.href).href;
     if (!/\.gltf(?:$|[?#])/i.test(logicalUrl)) {
-      loader.load(url, (gltf) => resolve(gltf.scene), undefined, reject);
+      loader.load(url, (gltf) => resolve(gltf.scene), (event) => {
+        // FileLoader progress callbacks are emitted per stream chunk, unlike
+        // LoadingManager.onProgress which fires at resource completion only.
+        globalThis.__m3dByteHeartbeat?.({
+          url, loaded: event.loaded, total: event.total, lengthComputable: event.lengthComputable,
+        });
+      }, reject);
       return;
     }
     try {
@@ -109,7 +115,7 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   return {
     group, manifest, packManifest, tier: activeTier, height,
     heightAt: field.heightAt, resolveGround: field.resolveGround,
-    nearestWalkable: field.nearestWalkable, fieldStats: field.stats,
+    nearestWalkable: field.nearestWalkable, obstacleProxies: field.obstacleProxies, fieldStats: field.stats,
     bounds: manifest.mapping.playableBounds, cellSize: field.cellSize,
   };
 }

@@ -236,6 +236,7 @@
 <script type="module">
 import { devOn, FORCE_WEBGL, GS_OVERRIDE } from './src/core/version.js';
 import { probeWebGPU } from './src/core/renderer.js';
+import { createLoadingActivityTracker } from './src/world/verdant-watchdog.mjs';
 
 const boot = {
   gsWorld: false,      // 是否要用 GS 作为全部场景
@@ -288,32 +289,32 @@ function bootFail(title, detail) {
   }
 }
 
-// 活动看门狗：dev 版首屏需下载 Verdant 场景包（low 档约 50MB，慢网耗时较长），
-// 旧的固定 15s 死看门狗会在下载仍正常进行时就误报「加载超时」。改为：只要加载条还在
-// 推进就持续续命；仅当进度长时间停滞（网络中断/模块挂起）或超过总硬上限时才判失败。
-const STALL_MS = 25000;        // 加载进度 25s 无任何增长 → 判定卡死/断网
-const HARD_LIMIT_MS = 180000;  // 绝对上限 3 分钟，兜底极端慢网
-const bootStartedAt = Date.now();
+// 活动看门狗：百分比只是 UI，网络活动以底层字节心跳为准。
+// Verdant GLB 的 GLTFLoader 会把每个收到的字节块注入这个回调；即使百分比
+// 在一整个大文件期间不变，只要字节仍在流入就不会误报。仍保留真停滞与 180s 硬上限。
+const STALL_MS = 25000;
+const HARD_LIMIT_MS = 180000;
+const activity = createLoadingActivityTracker({ stallMs: STALL_MS, hardLimitMs: HARD_LIMIT_MS });
+window.__m3dByteHeartbeat = (payload) => activity.noteBytes(payload);
 const fillEl = document.getElementById('loaderFill');
 let lastFillPct = -1;
-let lastProgressAt = Date.now();
 const watchdog = setInterval(() => {
-  const now = Date.now();
   const pct = fillEl ? (parseFloat(fillEl.style.width) || 0) : 0;
-  if (pct > lastFillPct) { lastFillPct = pct; lastProgressAt = now; }
-  if (now - bootStartedAt > HARD_LIMIT_MS) {
+  if (pct > lastFillPct) lastFillPct = pct;
+  const failure = activity.failure();
+  if (failure === 'hard-timeout') {
     clearInterval(watchdog);
     bootFail('加载超时',
       `超过 ${HARD_LIMIT_MS / 1000} 秒仍未进入游戏。网络可能过慢或中断，请重试或切换网络（手机建议在设置里选“低”画质档）。`);
-  } else if (now - lastProgressAt > STALL_MS) {
+  } else if (failure === 'byte-stall') {
     clearInterval(watchdog);
     bootFail('加载停滞',
-      `加载进度已 ${STALL_MS / 1000} 秒没有变化（当前约 ${Math.max(0, Math.round(lastFillPct))}%）。可能是网络中断，或 CDN 缓存了不匹配的旧模块。`);
+      `连续 ${STALL_MS / 1000} 秒没有收到资源字节（当前约 ${Math.max(0, Math.round(lastFillPct))}%）。可能是网络中断，或 CDN 缓存了不匹配的旧模块。`);
   }
 }, 1000);
 
 try {
-  await import('./src/main.js?v=m20261023fix1');
+  await import('./src/main.js?v=m20261023p2fix1');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
   clearInterval(watchdog);
