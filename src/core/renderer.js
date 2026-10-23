@@ -98,26 +98,32 @@ export async function createRenderer(canvas, {
   // GaussianSplat 需要 WebGPURenderer 家族，即使底层使用 WebGL2。
   // 不能改用经典 WebGLRenderer，否则 GS 场景会静默缺失。
   if (preferWebGPU) {
-    const THREE = await import('three/webgpu');
-    const r = new THREE.WebGPURenderer({
-      canvas,
-      antialias,
-      alpha: false,
-      powerPreference: 'high-performance',
-      forceWebGL: true,
-      preserveDrawingBuffer,
-    });
-    await r.init();
-    status.backend = 'webgl2-fallback';
-    status.degraded = true;
-    status.supportsSplat = true;
-    status.gpuReason = forceWebGL
-      ? '按调试参数强制使用 WebGL2 后端，深度排序改用 CPU'
-      : status.gpuReason || '使用 WebGL2 后备，深度排序改用 CPU';
-    applyCommon(r, THREE, getRenderProfile());
-    if (onStatus) onStatus(status);
-    cached = status;
-    return { renderer: r, THREE, status };
+    try {
+      const THREE = await import('three/webgpu');
+      const r = new THREE.WebGPURenderer({
+        canvas,
+        antialias,
+        alpha: false,
+        powerPreference: 'high-performance',
+        forceWebGL: true,
+        preserveDrawingBuffer,
+      });
+      await r.init();
+      status.backend = 'webgl2-fallback';
+      status.degraded = true;
+      status.supportsSplat = true;
+      status.gpuReason = forceWebGL
+        ? '按调试参数强制使用 WebGL2 后端，深度排序改用 CPU'
+        : status.gpuReason || '使用 WebGL2 后备，深度排序改用 CPU';
+      applyCommon(r, THREE, getRenderProfile());
+      if (onStatus) onStatus(status);
+      cached = status;
+      return { renderer: r, THREE, status };
+    } catch (e) {
+      status.gpuReason = `${status.gpuReason || 'WebGPURenderer WebGL2 兜底失败'}；${e && e.message || e}`;
+      status.degraded = true;
+      console.warn('[renderer] WebGPURenderer WebGL2 兜底失败，改用经典 WebGLRenderer:', e);
+    }
   }
 
   const THREE = await import('three');
