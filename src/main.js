@@ -1482,6 +1482,7 @@ function update(dt) {
 
   p.x = controller.position.x;
   p.z = controller.position.z;
+  p.speed = Math.hypot(controller.velocity?.x || 0, controller.velocity?.z || 0);
 
   // 洞穴判定
   game.currentBurrow = burrowVolumeAt(p.x, controller.position.y, p.z, burrowDefs);
@@ -1526,7 +1527,7 @@ function update(dt) {
     } else if (f.drillCtx) {
       delete f.drillCtx;
     }
-    f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow);
+    f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow, foxes);
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
