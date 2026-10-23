@@ -9,7 +9,7 @@
 <link rel="icon" href="/marmot3d-beta/assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/marmot3d-beta/assets/favicon-192.png">
 <meta name="theme-color" content="#101a15">
-<link rel="stylesheet" href="/marmot3d-beta/styles.css?v=rev17">
+<link rel="stylesheet" href="/marmot3d-beta/styles.css?v=rev18">
 <script type="importmap">
 { "imports": {
     "three": "/marmot3d-beta/vendor/three.module.js",
@@ -235,9 +235,9 @@
   稳定版不需要 WebGPU，引导层会立刻放行，开销可忽略。
 -->
 <script type="module">
-import { devOn, FORCE_WEBGL, GS_OVERRIDE } from '/marmot3d-beta/src/core/version.js?v=rev17';
-import { probeWebGPU } from '/marmot3d-beta/src/core/renderer.js?v=rev17';
-import { readGraphicsPreference } from '/marmot3d-beta/src/core/graphics-preference.js?v=rev17';
+import { devOn, FORCE_WEBGL, GS_OVERRIDE } from '/marmot3d-beta/src/core/version.js?v=rev18';
+import { probeWebGPU } from '/marmot3d-beta/src/core/renderer.js?v=rev18';
+import { readGraphicsPreference } from '/marmot3d-beta/src/core/graphics-preference.js?v=rev18';
 
 const boot = {
   gsWorld: false,      // 是否要用 GS 作为全部场景
@@ -269,7 +269,7 @@ if (boot.gsWorld) {
 }
 
 window.__boot = boot;
-await import('/marmot3d-beta/src/main.js?v=rev17');
+await import('/marmot3d-beta/src/main.js?v=rev18');
 </script>
 </body>
 </html>
