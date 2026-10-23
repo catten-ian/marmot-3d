@@ -8,6 +8,7 @@ import {
   stepSmartMotion,
   separationVector,
   isSegmentReachable,
+  advanceSmartState,
 } from './smart-fox-core.mjs';
 
 /**
@@ -33,7 +34,7 @@ export class SmartFox extends Fox {
     this.pounceCommitted = false;
     this._smartState = {
       x, z, vx: 0, vz: 0, yaw: this.yaw,
-      maxTurnRate: 2.8, acceleration: 18, pounceCooldown: 0, telegraphT: 0,
+      maxTurnRate: 2.8, acceleration: 18, pounceCooldown: 0, telegraphT: 0, phase: 'observe', phaseTime: 0, cooldown: 0, pounceTime: 0,
     };
   }
 
@@ -69,22 +70,19 @@ export class SmartFox extends Fox {
       memory: this.memory,
       suspicion: this.suspicion,
     });
-    let intent = this.pounceCommitted ? 'pounce' : scores.topIntent;
+    const candidatePounce = scores.topIntent === 'pounce' && distance <= 8.5;
+    const phase = advanceSmartState({
+      phase: this._smartState.phase,
+      phaseTime: this._smartState.phaseTime,
+      cooldown: Math.max(this._smartState.cooldown || 0, this._smartState.pounceCooldown || 0),
+      pounceTime: this._smartState.pounceTime,
+    }, {
+      candidatePounce, reachable, safe, motionCommitted: this.pounceCommitted,
+    }, dt);
+    this._smartState = { ...this._smartState, ...phase };
+    let intent = this.pounceCommitted ? 'pounce' : phase.intent;
     if (safe) intent = 'recover';
-    // Telegraph is finite and path-gated: an obstructed target becomes approach/reposition.
-    if (!this.pounceCommitted && this._smartState.telegraphT > 0) {
-      this._smartState.telegraphT = Math.max(0, this._smartState.telegraphT - dt);
-      if (!reachable || this._smartState.telegraphT <= 0 && !reachable) {
-        this._smartState.telegraphT = 0; intent = 'approach';
-      } else if (this._smartState.telegraphT <= 0) {
-        intent = 'pounce';
-      } else {
-        intent = 'observe';
-      }
-    } else if (!this.pounceCommitted && intent === 'pounce') {
-      if (reachable) { this._smartState.telegraphT = 0.55; intent = 'observe'; }
-      else intent = 'approach';
-    }
+    this._smartState.telegraphT = phase.phase === 'wind' ? Math.max(0, 0.55 - phase.phaseTime) : 0;
     this.intent = intent;
     this.topScores = scores.scores;
 
@@ -128,12 +126,15 @@ export class SmartFox extends Fox {
     this.z = next.z;
     this.yaw = next.yaw;
     this.pounceCommitted = !!next.pounceCommitted;
+    this._smartState.phase = next.phase || this._smartState.phase;
+    this._smartState.phaseTime = next.phaseTime || this._smartState.phaseTime;
+    this._smartState.cooldown = Math.max(this._smartState.cooldown || 0, next.pounceCooldown || 0);
 
     // 映射到既有动画状态：扑击=dash（驱动预警/接触），喘息/放弃=rest，其余=roam。
-    this.state = this.pounceCommitted
+    this.state = this.pounceCommitted || phase.phase === 'pounce'
       ? 'dash'
-      : this._smartState.telegraphT > 0 ? 'wind'
-      : (intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam';
+      : phase.phase === 'wind' ? 'wind'
+      : (phase.phase === 'recover' || intent === 'abandon') ? 'rest' : 'roam';
     this.leap = 0;
 
     // 疲劳循环：扑击消耗，喘息快速恢复，其余缓慢恢复，保证下一轮还能再扑。

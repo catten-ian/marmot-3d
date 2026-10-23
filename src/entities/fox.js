@@ -23,6 +23,7 @@ import { createProceduralFox } from './procedural-fox.js';
 import { createTibetanFox } from './tibetan-fox.js';
 import { foxRecoverySeconds, stepFoxTurn, stepFoxRecovery } from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
+import { advanceDrillState, sampleWalkableGround, stepGroundY } from './smart-fox-core.mjs';
 /** 手搓程序化狐狸：config 开关，或 beta 用 ?procfox=1 临时启用对比；默认仍走现有模型 */
 const USE_PROCEDURAL_FOX = FOX.useProcedural
   || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('procfox') === '1');
@@ -219,6 +220,10 @@ export class Fox {
     scene.add(this.hpBar);
 
     this.baseY = 0;
+    this._groundY = null;
+    this._drillFSM = { phase: 'approach', phaseTime: 0, cooldown: 0 };
+    this._stateAge = 0;
+    this.attackCooldown = 0;
     this._bob = Math.random() * 6;
   }
 
@@ -470,6 +475,8 @@ export class Fox {
     }
 
     const allBurrows = Array.isArray(burrows) ? burrows : (burrows ? [burrows] : []);
+    this._stateAge += dt;
+    this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     const previousX = this.x, previousZ = this.z;
     const y = terrainAt(this.x, this.z);
     this.baseY = y;
@@ -544,34 +551,44 @@ export class Fox {
 
     // —— 迎击练习：绕到玩家正前方，直线蓄力冲刺，不绕行/不虚晃 ——
     // dash 状态故意不拦截：交给下方正常 switch 的 dash 分支执行冲刺位移与结束转换。
-    if (this.drillCtx && this.state !== 'dash') {
+    if (this.drillCtx && !['dash', 'rest'].includes(this.state)) {
       const pyaw = this.drillCtx.yaw || 0;
-      // 玩家正前方 7m 处的站位（玩家朝 -sin,-cos）。
       const standDist = 7;
       const tx = this.drillCtx.px + (-Math.sin(pyaw)) * standDist;
       const tz = this.drillCtx.pz + (-Math.cos(pyaw)) * standDist;
       const ddx = tx - this.x, ddz = tz - this.z;
       const dd = Math.hypot(ddx, ddz);
       const facingPlayer = Math.atan2(p.x - this.x, p.z - this.z);
-      if (this.state === 'wind') {
-        this.timer -= dt;
+      const wasPhase = this._drillFSM.phase;
+      this._drillFSM = advanceDrillState(this._drillFSM, {
+        inRange: dd <= 1.15,
+        reachable: true,
+        windDuration: Math.max(0.55, (levelCfg.wind ?? 0.9) * 0.7),
+      }, dt);
+      if (this._drillFSM.phase === 'approach') {
+        this.state = 'roam'; this.warn.visible = false;
+        // 1.15m enter / 1.55m leave band gives stable arrival hysteresis.
+        if (dd > 1.55) this._moveGround(ddx, ddz, Math.min(speed * 1.05, 5.2), dt, allBurrows);
+        // _moveGround never writes yaw; apply one bounded facing update after position.
         const turn = stepFoxTurn(this.yaw, facingPlayer, this.turnVelocity, dt,
           FOX.handling.windTurnRate, FOX.handling.windTurnAccel);
         this.yaw = turn.yaw; this.turnVelocity = turn.turnVelocity;
-        if (this.timer <= 0) this._beginDash();
-      } else if (dd > 1.4) {
-        // 走到正前方站位（roam/circle/其他态都被引导过去）。
-        this.state = 'roam'; this.warn.visible = false;
-        this._moveGround(ddx, ddz, Math.min(speed * 1.05, 5.2), dt, allBurrows);
-        this.yaw = stepFoxTurn(this.yaw, facingPlayer, this.turnVelocity, dt,
-          FOX.handling.windTurnRate, FOX.handling.windTurnAccel).yaw;
-      } else {
-        // 到位：短延迟后直线蓄力。
+      } else if (this._drillFSM.phase === 'wind') {
         this.state = 'wind';
+        if (wasPhase !== 'wind') {
+          this.windTotal = Math.max(0.55, (levelCfg.wind ?? 0.9) * 0.7);
+          this.timer = this.windTotal;
+          this.lureChance = 0;
+        }
+        this.timer = Math.max(0, this.windTotal - this._drillFSM.phaseTime);
         this.warn.visible = true;
-        this.windTotal = Math.max(0.55, (levelCfg.wind ?? 0.9) * 0.7);
-        this.timer = this.windTotal;
-        this.lureChance = 0;
+        const turn = stepFoxTurn(this.yaw, facingPlayer, this.turnVelocity, dt,
+          FOX.handling.windTurnRate, FOX.handling.windTurnAccel);
+        this.yaw = turn.yaw; this.turnVelocity = turn.turnVelocity;
+      } else if (this._drillFSM.phase === 'pounce') {
+        this.state = 'roam';
+        this._beginDash();
+        this._drillFSM.phase = 'pounce'; this._drillFSM.phaseTime = 0;
       }
       // 练习狐不进入 linger/flee/circle；下方 switch 只允许 wind/dash，其余帧已在此处理。
       this.warn.visible = this.state === 'wind';
@@ -703,6 +720,9 @@ export class Fox {
           } else {
             this.comboActive = false;
             this.state = 'rest';
+            this._stateAge = 0;
+            this.attackCooldown = Math.max(this.attackCooldown, 1.2, foxRecoverySeconds(this.type, A.mode));
+            if (this.drillCtx) { this._drillFSM.phase = 'recover'; this._drillFSM.phaseTime = 0; this._drillFSM.cooldown = Math.max(this._drillFSM.cooldown || 0, 1.2); }
             // 跃扑落地有 0.9s 硬直：给玩家一个明确的反击窗口，
             // 否则幼狐会变成"扑完立刻再蓄力"的无解压制。
             this.timer = foxRecoverySeconds(this.type, A.mode);
@@ -847,13 +867,15 @@ export class Fox {
 
     this.x += vx * speed * dt;
     this.z += vz * speed * dt;
-    if (!['dash', 'rest'].includes(this.state)) this.yaw = this._angleLerp(this.yaw, Math.atan2(vx, vz), dt * 3);
+    // Yaw is updated once in Fox.update from the resolved movement heading.
   }
 
   _stopDashAtObstacle() {
     if (this.state !== 'dash') return;
     this.state = 'rest';
     this.timer = Math.max(this.timer, FOX.recovery.blocked);
+    this.attackCooldown = Math.max(this.attackCooldown, 1.2);
+    if (this.drillCtx) { this._drillFSM.phase = 'recover'; this._drillFSM.phaseTime = 0; this._drillFSM.cooldown = Math.max(this._drillFSM.cooldown || 0, 1.2); }
     this.dashVX = 0;
     this.dashVZ = 0;
     this.leap = 0;
@@ -909,17 +931,21 @@ export class Fox {
 
   /** 进入蓄力：记录完整蓄力时长并点亮预警线 */
   _enterWind() {
+    if (this.attackCooldown > 0 || this._stateAge < 0.25) return false;
     this.state = 'wind';
+    this._stateAge = 0;
     this.windFull = this.levelCfgWind * this.attack.windMul * (this.sandboxAlertMul || 1);
     this.windTotal = this.windFull;
     this.timer = this.windFull;
     this.warn.visible = true;
+    return true;
   }
 
   /** 蓄力结束 → 冲刺 */
   _beginDash() {
     const wasCombo = this.comboActive;
     this.state = 'dash';
+    this._stateAge = 0;
     this.turnVelocity = 0;
     this.timer = this.dashTime;
     this.dashDirX = Math.sin(this.yaw);
@@ -1018,18 +1044,31 @@ export class Fox {
     this.mesh.scale.setScalar(this.cfg.scale);
   }
 
+  _sampleGroundY(terrainAt) {
+    const r = 0.34;
+    const samples = [
+      terrainAt(this.x, this.z), terrainAt(this.x + r, this.z), terrainAt(this.x - r, this.z),
+      terrainAt(this.x, this.z + r), terrainAt(this.x, this.z - r),
+    ];
+    return sampleWalkableGround(samples, this._groundY);
+  }
+
   _applyTransform(dt, terrainAt) {
-    this.mesh.position.set(this.x, terrainAt(this.x, this.z), this.z);
+    const targetY = this._sampleGroundY(terrainAt);
+    if (this._groundY == null) this._groundY = targetY;
+    this._groundY = stepGroundY(this._groundY, targetY, dt, 3.2);
+    this.baseY = this._groundY;
+    // Position is written once, after logical movement and ground solve. Animation
+    // only rotates/scales child parts; it never contributes root translation.
+    this.mesh.position.set(this.x, this._groundY, this.z);
     this.mesh.rotation.y = this.yaw;
-    // 奔跑/突进时的身体起伏
     const speedish = this.state === 'dash' ? 12 : this.state === 'roam' ? 2 : 0;
     this.mesh.rotation.x = this.state === 'rest' ? 0.12 : (this.leap ? -0.34 * Math.min(1, this.leap) : 0);
     this._bob += dt * (2 + speedish);
-    this.mesh.position.y += Math.abs(Math.sin(this._bob)) * (speedish > 5 ? 0.16 : 0.05);
     // 跃扑腾空：最高点要明显高于玩家跳跃的 dodgeHeight(0.34)，
     // 否则"跳过幼狐的扑击"这个反制手段无效。
     if (this.leap) {
-      this.mesh.position.y += this.leap;
+      this.mesh.position.y = this._groundY + this.leap;
       // 腾空时前倾，像真的扑出去
       this.mesh.rotation.x = -0.34 * Math.min(1, this.leap);
     }
@@ -1049,12 +1088,12 @@ export class Fox {
       this.cfg.scale * bs,
     );
 
-    this.hpBar.position.set(this.x, terrainAt(this.x, this.z) + 1.55 * this.cfg.scale, this.z);
+    this.hpBar.position.set(this.x, this.baseY + 1.55 * this.cfg.scale, this.z);
   }
 
   _updateWarn(terrainAt = null) {
     if (!this.warn.visible) return;
-    this.warn.position.set(this.x, (terrainAt ? terrainAt(this.x, this.z) : this.baseY) + 0.02, this.z);
+    this.warn.position.set(this.x, this.baseY + 0.02, this.z);
     this.warn.rotation.y = this.yaw;
     // 长度必须等于**真实冲刺距离**：玩家靠预警线判断"往哪躲、躲多远"，
     // 长度一旦失真，"线到头了但狐还在冲"的失信就无从避免。
