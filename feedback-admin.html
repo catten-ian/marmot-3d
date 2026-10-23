@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>土拨鼠 · 反馈管理后台</title>
+<style>
+  :root{
+    --bg:#1c201a; --panel:#242a21; --panel2:#2c3328; --line:rgba(255,255,255,.12);
+    --text:#e8e2d0; --muted:#a79f8b; --accent:#ffe08a; --blue:#8fd0ff; --red:#ff8a7a; --green:#9fe6a0; --orange:#ffb18a;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Microsoft YaHei",system-ui,-apple-system,sans-serif;font-size:14px;}
+  a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+  header{position:sticky;top:0;z-index:20;background:rgba(28,32,26,.96);border-bottom:1px solid var(--line);
+    padding:10px 14px;backdrop-filter:blur(4px);}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .row+.row{margin-top:8px;}
+  h1{font-size:16px;margin:0;}
+  .spacer{flex:1;}
+  button,select,input[type=text],input[type=month],input[type=password]{
+    background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;
+    padding:6px 10px;font-size:13px;font-family:inherit;}
+  button{cursor:pointer;} button:hover{border-color:var(--accent);}
+  button.primary{background:#3a4a2e;border-color:#5a7a44;}
+  button.danger{color:var(--red);}
+  button.small{padding:3px 8px;font-size:12px;}
+  label.chk{display:inline-flex;gap:5px;align-items:center;color:var(--muted);font-size:12px;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 14px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+  .card .n{font-size:22px;font-weight:700;}
+  .card .l{color:var(--muted);font-size:12px;margin-top:2px;}
+  .filters{padding:0 14px;}
+  #list{padding:6px 14px 60px;display:flex;flex-direction:column;gap:10px;}
+  .item{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+  .item.handled{opacity:.55;}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted);font-size:12px;margin-bottom:6px;}
+  .tag{padding:1px 8px;border-radius:20px;font-size:12px;border:1px solid var(--line);}
+  .tag.t-卡顿{color:#ffd27a;border-color:#7a6a34;} .tag.t-显示异常{color:#ff9c8c;border-color:#7a4438;}
+  .tag.t-操作手感{color:#9fd8ff;border-color:#3c5f74;} .tag.t-关卡数值{color:#c8b0ff;border-color:#5a4a78;}
+  .tag.t-其他{color:#cfc8b4;border-color:#5a574c;}
+  .ver{font-family:ui-monospace,Consolas,monospace;background:var(--panel2);padding:0 6px;border-radius:5px;}
+  .desc{white-space:pre-wrap;line-height:1.55;word-break:break-word;}
+  .actions{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;}
+  pre.snap{display:none;background:#161a14;border:1px solid var(--line);border-radius:8px;padding:10px;
+    overflow:auto;max-height:340px;font:12px/1.5 ui-monospace,Consolas,monospace;color:#cdd6c4;margin:8px 0 0;}
+  .item.open pre.snap{display:block;}
+  .empty,.loading{color:var(--muted);text-align:center;padding:50px 20px;}
+  #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .loginbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:min(420px,100%);}
+  .loginbox h2{margin:0 0 4px;} .loginbox p{color:var(--muted);font-size:12px;margin:0 0 14px;line-height:1.6;}
+  .loginbox input{width:100%;margin-bottom:10px;}
+  .err{color:var(--red);font-size:12px;min-height:16px;margin-bottom:6px;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000a;color:#fff;
+    padding:9px 16px;border-radius:9px;font-size:13px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;}
+  .toast.show{opacity:1;}
+  @media (max-width:640px){ .hide-sm{display:none;} header{padding:8px 10px;} .cards{margin:10px;} #list,.filters{padding-left:10px;padding-right:10px;} }
+</style>
+</head>
+<body>
+
+<div id="login" hidden>
+  <form class="loginbox" id="loginForm">
+    <h2>反馈管理后台</h2>
+    <p>请输入访问令牌。令牌仅保存在本浏览器 localStorage，随请求头发送，不会写入网址。</p>
+    <input id="tokenInput" type="password" autocomplete="off" placeholder="访问令牌" />
+    <div class="err" id="loginErr"></div>
+    <button class="primary" type="submit" style="width:100%">进入</button>
+  </form>
+</div>
+
+<header id="app" hidden>
+  <div class="row">
+    <h1>反馈管理</h1>
+    <a href="fox-lab.html">战斗/狐狸实验室 ↗</a>
+    <span class="spacer"></span>
+    <span id="tokenState" class="ver" title="已保存令牌"></span>
+    <button class="small" id="btnApi" title="设置 API 基址">API</button>
+    <button class="small" id="btnLogout">退出令牌</button>
+  </div>
+  <div class="row">
+    <label class="chk"><input type="checkbox" id="autoRefresh" checked /> 自动刷新 15s</label>
+    <button class="small" id="btnRefresh">刷新</button>
+    <span class="spacer"></span>
+    <button class="small" id="btnExportCsv">导出 CSV</button>
+    <button class="small" id="btnExportJson">导出 JSON</button>
+  </div>
+</header>
+
+<div class="cards" id="cards" hidden></div>
+
+<div class="filters" id="filters" hidden>
+  <div class="row">
+    <select id="fType"><option value="">全部类型</option></select>
+    <input type="text" id="fVersion" placeholder="版本，如 dev" style="width:120px" list="verList" />
+    <datalist id="verList"></datalist>
+    <input type="text" id="fQ" placeholder="搜索描述…" style="flex:1;min-width:140px" />
+    <select id="fHandled"><option value="">全部状态</option><option value="false">未处理</option><option value="true">已处理</option></select>
+    <input type="month" id="fMonth" />
+    <button class="small" id="fClear">清除筛选</button>
+  </div>
+</div>
+
+<div id="list"><div class="loading">加载中…</div></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const TYPES = ['卡顿', '显示异常', '操作手感', '关卡数值', '其他'];
+const $ = (s) => document.querySelector(s);
+
+const store = {
+  get token() { return localStorage.getItem('m3d_feedback_token') || ''; },
+  set token(v) { v ? localStorage.setItem('m3d_feedback_token', v) : localStorage.removeItem('m3d_feedback_token'); },
+  get base() { return localStorage.getItem('m3d_feedback_api') || defaultBase(); },
+  set base(v) { localStorage.setItem('m3d_feedback_api', v); },
+};
+function defaultBase() {
+  // 页面可能位于 /marmot3d/feedback-admin.html；接口在同源 /marmot3d/api/feedback
+  return '/marmot3d/api/feedback';
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
+function fmtTime(iso) { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleString('zh-CN', { hour12: false }); }
+
+async function api(path, { method = 'GET', body, raw = false } = {}) {
+  const res = await fetch(store.base.replace(/\/+$/, '') + path, {
+    method,
+    headers: { 'Authorization': 'Bearer ' + store.token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401) { store.token = ''; showLogin('令牌无效或已过期，请重新输入'); throw new Error('unauthorized'); }
+  if (!res.ok) { let m = 'HTTP ' + res.status; try { m = (await res.json()).error || m; } catch {} throw new Error(m); }
+  if (raw) return res;
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : res.text();
+}
+
+// ---------- 登录 ----------
+function showLogin(errMsg = '') {
+  $('#app').hidden = true; $('#cards').hidden = true; $('#filters').hidden = true;
+  $('#login').hidden = false; $('#loginErr').textContent = errMsg;
+  $('#tokenInput').focus();
+}
+$('#loginForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  store.token = $('#tokenInput').value.trim();
+  boot();
+});
+$('#btnLogout').addEventListener('click', () => { store.token = ''; showLogin(); });
+$('#btnApi').addEventListener('click', () => {
+  const v = prompt('API 基址', store.base); if (v != null && v.trim()) { store.base = v.trim(); resetAndLoad(); }
+});
+
+// ---------- 状态 ----------
+const state = { items: [], nextCursor: null, loading: false, hasMore: false, filterVer: new Set() };
+function queryString(cursor) {
+  const p = new URLSearchParams();
+  const type = $('#fType').value, ver = $('#fVersion').value.trim(), q = $('#fQ').value.trim(),
+    handled = $('#fHandled').value, month = $('#fMonth').value;
+  if (type) p.set('type', type);
+  if (ver) p.set('version', ver);
+  if (q) p.set('q', q);
+  if (handled) p.set('handled', handled);
+  if (month) p.set('month', month);
+  p.set('limit', '50');
+  if (cursor) p.set('before', cursor);
+  const s = p.toString();
+  return s ? '?' + s : '';
+}
+
+async function loadStats() {
+  try {
+    const s = await api('/stats');
+    const byType = TYPES.map((t) => `<div class="card"><div class="n">${s.byType?.[t] ?? 0}</div><div class="l">${t}</div></div>`).join('');
+    $('#cards').innerHTML =
+      `<div class="card"><div class="n">${s.total}</div><div class="l">总反馈</div></div>` +
+      `<div class="card"><div class="n" style="color:var(--orange)">${s.open}</div><div class="l">未处理</div></div>` +
+      `<div class="card"><div class="n">${s.last7}</div><div class="l">近 7 天</div></div>` +
+      `<div class="card"><div class="n">${s.last30}</div><div class="l">近 30 天</div></div>` + byType;
+    $('#cards').hidden = false;
+    const dl = $('#verList');
+    Object.keys(s.byVersion || {}).forEach((v) => { if (!state.filterVer.has(v)) { state.filterVer.add(v); dl.insertAdjacentHTML('beforeend', `<option value="${esc(v)}">`); } });
+  } catch (e) { if (e.message !== 'unauthorized') toast('统计加载失败：' + e.message); }
+}
+
+function renderList() {
+  const list = $('#list');
+  list.innerHTML = '';
+  if (!state.items.length) { list.innerHTML = '<div class="empty">没有符合条件的反馈</div>'; return; }
+  for (const r of state.items) {
+    const div = document.createElement('div');
+    div.className = 'item' + (r.handled ? ' handled' : '');
+    div.dataset.id = r.id;
+    div.innerHTML = `
+      <div class="meta">
+        <span class="tag t-${esc(r.type)}">${esc(r.type)}</span>
+        <span>${fmtTime(r.createdAt)}</span>
+        <span class="ver">${esc(r.version || '?')}</span>
+        <span class="hide-sm" title="安装标识">id:${esc((r.installId || '').slice(0, 8))}</span>
+        ${r.handled ? '<span style="color:var(--green)">已处理</span>' : '<span style="color:var(--orange)">未处理</span>'}
+      </div>
+      <div class="desc">${esc(r.description)}</div>
+      <pre class="snack snap"></pre>
+      <div class="actions">
+        <button class="small toggle">展开/收起快照</button>
+        <button class="small mark">${r.handled ? '标为未处理' : '标为已处理'}</button>
+        <button class="small danger del">删除</button>
+        <button class="small copy">复制快照</button>
+      </div>`;
+    const snap = div.querySelector('.snap'); snap.textContent = JSON.stringify(r.snapshot || {}, null, 2);
+    div.querySelector('.toggle').onclick = () => div.classList.toggle('open');
+    div.querySelector('.copy').onclick = () => { navigator.clipboard?.writeText(snap.textContent).then(() => toast('已复制'), () => toast('复制失败')); };
+    div.querySelector('.mark').onclick = async () => {
+      try { await api(`/${encodeURIComponent(r.id)}/handled`, { method: 'POST', body: { handled: !r.handled } });
+        r.handled = !r.handled; renderList(false); await loadFirst(); }
+      catch (e) { if (e.message !== 'unauthorized') toast('操作失败：' + e.message); }
+    };
+    div.querySelector('.del').onclick = async () => {
+      if (!confirm('确定删除这条反馈？此操作不可恢复。')) return;
+      try { await api(`/${encodeURIComponent(r.id)}`, { method: 'DELETE' });
+        state.items = state.items.filter((x) => x.id !== r.id); div.remove(); loadStats(); toast('已删除'); }
+      catch (e) { if (e.message !== 'unauthorized') toast('删除失败：' + e.message); }
+    };
+    list.appendChild(div);
+  }
+  // 加载更早
+  let more = $('#loadMore');
+  if (state.hasMore) {
+    if (!more) { more = document.createElement('button'); more.id = 'loadMore'; more.className = 'small'; more.style.margin = '6px auto';
+      more.textContent = '加载更早'; more.onclick = () => loadMore(); list.appendChild(more); }
+  } else if (more) more.remove();
+}
+
+async function loadFirst() {
+  state.items = []; state.hasMore = false;
+  await loadPage(null);
+}
+async function loadMore() {
+  if (!state.hasMore || state.loading) return;
+  await loadPage(state.nextCursor);
+}
+async function loadPage(cursor) {
+  state.loading = true;
+  if (!cursor) $('#list').innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    const data = await api('/list' + queryString(cursor));
+    state.nextCursor = data.nextCursor; state.hasMore = !!data.nextCursor;
+    state.items = cursor ? state.items.concat(data.items) : data.items;
+    renderList();
+  } catch (e) {
+    if (e.message !== 'unauthorized') { $('#list').innerHTML = '<div class="empty">加载失败：' + esc(e.message) + '<br><br><button class="small" onclick="location.reload()">重试</button></div>'; }
+  } finally { state.loading = false; }
+}
+
+function resetAndLoad() { loadStats(); loadFirst(); }
+
+// 筛选
+let t;
+['fType', 'fVersion', 'fQ', 'fHandled', 'fMonth'].forEach((id) => {
+  $(id).addEventListener('input', () => { clearTimeout(t); t = setTimeout(loadFirst, 300); });
+  $(id).addEventListener('change', () => { clearTimeout(t); loadFirst(); });
+});
+$('#fClear').onclick = () => { ['fType', 'fVersion', 'fQ', 'fHandled', 'fMonth'].forEach((id) => { $('#' + id).value = ''; }); loadFirst(); };
+$('#btnRefresh').onclick = resetAndLoad;
+
+// 导出
+async function exportData(fmt) {
+  try {
+    const q = queryString(null).replace(/([?&])limit=\d+&?/, '$1').replace(/[?&]$/, '');
+    const res = await api('/export' + (q ? q + '&' : '?') + 'format=' + fmt, { raw: true });
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `feedback-${new Date().toISOString().slice(0, 10)}.${fmt}`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  } catch (e) { if (e.message !== 'unauthorized') toast('导出失败：' + e.message); }
+}
+$('#btnExportCsv').onclick = () => exportData('csv');
+$('#btnExportJson').onclick = () => exportData('json');
+
+// 自动刷新（仅第一页，避免打断翻页）
+setInterval(() => { if ($('#autoRefresh').checked && !state.loading) { loadStats(); loadFirst(); } }, 15000);
+
+// ---------- 启动 ----------
+async function boot() {
+  if (!store.token) return showLogin();
+  $('#login').hidden = true; $('#app').hidden = false; $('#filters').hidden = false;
+  $('#tokenState').textContent = '令牌已保存';
+  TYPES.forEach((t) => $('#fType').insertAdjacentHTML('beforeend', `<option>${t}</option>`));
+  resetAndLoad();
+}
+boot();
+</script>
+</body>
+</html>

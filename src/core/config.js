@@ -9,7 +9,9 @@ export const FIELD_W = 130;
 export const FIELD_H = 78;
 
 // 静态站点可在部署时填写反馈接收地址；留空时使用本地离线队列。
-export const FEEDBACK = { endpoint: '' };
+// 玩家反馈接收端：同源相对路径，静态部署时可覆盖为绝对地址（如 https://host/marmot3d/api/feedback）。
+// 留空则只写浏览器本地离线队列；queueFlushIntervalMs 控制上线后自动补传间隔。
+export const FEEDBACK = { endpoint: '/marmot3d/api/feedback', queueFlushIntervalMs: 8000 };
 
 export const BURROW = { x: -52, z: 0, r: 8.2 }; // 兼容旧调用的主洞定义（安全区/回储备/缓压）
 

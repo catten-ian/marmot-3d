@@ -92,7 +92,7 @@ import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
-import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
+import { FeedbackUI, collectGameSnapshot, initFeedbackFlush } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
 import { TouchLayout } from './ui/touch-layout.js';
 import { restoreLocalPack, resolveLocalAsset, getLocalPackAssetInfo, getLocalPackStatus, getDownloadState, getTosBaseUrl, setTosBaseUrl, selectLocalPackDirectory, selectLocalPackFiles, requestStoredPackPermission, downloadVerdantZip, downloadVerdantFolder, installLocalPackUI } from './world/local-pack.js';
@@ -2210,6 +2210,8 @@ const feedbackUI = new FeedbackUI({
     touch: TOUCH_DEVICE, inputMode: inputMode.describe(), performanceProfile: renderProfile,
   }),
 });
+// 上线/定时自动补传本地离线反馈队列；失败静默，不影响游戏。
+initFeedbackFlush({ endpoint: FEEDBACK.endpoint, intervalMs: FEEDBACK.queueFlushIntervalMs });
 // 进入触屏布局调整时自动暂停，退出时恢复；调整前已暂停则保持暂停。
 touchLayout.setPauseHooks({
   pause: () => pause(),
