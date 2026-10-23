@@ -91,7 +91,7 @@ import {
 import { ClawSwing, Shockwave, Particles, DamageText, PlayerAura } from './systems/effects.js';
 import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
-import { HUD } from './ui/hud.js';
+import { HUD } from './ui/hud.js?v=m20261023load';
 import { SettingsUI } from './ui/settings.js';
 import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
