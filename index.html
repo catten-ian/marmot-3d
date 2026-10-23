@@ -182,7 +182,11 @@
     if (!isDev) { if (loader) loader.classList.add('classic'); if (video) video.remove(); return; }
     if (loader) loader.classList.add('cinematic');
     if (!video) return;
-    var quality = pickLoadingQuality(window, navigator);
+    // 手动强制：?loadquality=mobile|desktop（仅 dev；非法值回退自动检测）
+    var forced = new URLSearchParams(location.search).get('loadquality');
+    var quality = (forced === 'mobile' || forced === 'desktop')
+      ? forced
+      : pickLoadingQuality(window, navigator);
     var isMobile = quality === 'mobile';
     video.dataset.quality = quality;
     video.setAttribute('poster', isMobile ? './assets/video/dev-loading-poster-mobile.jpg' : './assets/video/dev-loading-poster.jpg');
