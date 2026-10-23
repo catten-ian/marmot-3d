@@ -14,6 +14,7 @@
  * - 节点自带缩放/旋转，统一用 matrixWorld 换到运行时坐标。
  */
 import * as THREE from 'three';
+import { findNearestWalkableCell } from './verdant-fall-safety.mjs';
 
 const WALK_NORMAL_Y = 0.35;
 // 名字命中即视为可穿过装饰（叶片 / 草 / 灌木 / 水 / 远景背景件）。
@@ -46,6 +47,7 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
   const nx = Math.max(8, Math.ceil(width / cellSize));
   const nz = Math.max(8, Math.ceil(depth / cellSize));
   const top = new Float32Array(nx * nz).fill(NaN);
+  const rockCliffCells = new Uint8Array(nx * nz);
 
   sceneRoot.updateMatrixWorld(true);
   const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3();
@@ -59,6 +61,7 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
     // BLEND 叶片网格与名字显式属于 foliage/背景的节点整体跳过。
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     if (!solidName(obj.name) || !solidName(obj.parent?.name) || !mats.some(isSolidMaterial)) return;
+    const namedRockCliff = /(rock|boulder|cliff)/i.test(obj.name || '');
     const geo = obj.geometry;
     const pos = geo?.attributes?.position;
     if (!pos) return;
@@ -103,6 +106,7 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
               const y = pA.y + ((cx - pA.x) * n.x + (cz - pA.z) * n.z) * invNy;
               if (!pointInTriXZ(cx, cz, pA, pB, pC)) continue;
               const k = j * nx + i;
+              if (namedRockCliff) rockCliffCells[k] = 1;
               if (isNaN(top[k]) || y > top[k]) top[k] = y;
             }
           }
@@ -117,7 +121,9 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
     }
   });
 
-  return { top, nx, nz, cellSize, bounds, stats: { meshCount, triCount, usedCount } };
+  let rockCliffSurfaceCells = 0;
+  for (const hit of rockCliffCells) rockCliffSurfaceCells += hit;
+  return { top, nx, nz, cellSize, bounds, rockCliffCells, stats: { meshCount, triCount, usedCount, rockCliffSurfaceCells } };
 }
 
 function pointInTriXZ(px, pz, a, b, c) {
@@ -156,7 +162,7 @@ function sampleJsonHeight(height, x, z) {
 export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22, edgeMargin = 0.7 }) {
   const __t0 = Date.now();
   const __pt = (m) => console.info('PT ' + m + ' ' + (Date.now() - __t0) + 'ms');
-  const { top, nx, nz, stats } = rasterizeColumns(scene, bounds, cellSize);
+  const { top, nx, nz, rockCliffCells, stats } = rasterizeColumns(scene, bounds, cellSize);
   __pt('rasterize');
 
   // 1) 用导出 JSON（ground 对象）填补光栅遗漏：JSON 值 >0 才是有效命中。
@@ -274,31 +280,29 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
     return { y: heightAt(x, z), walkable: walkable[j * nx + i] === 1 };
   }
 
-  function nearestWalkable(x, z, maxRadius = 12) {
-    const [si0, sj0] = idxAt(x, z);
-    const maxCells = Math.ceil(maxRadius / cellSize);
-    if (walkable[sj0 * nx + si0]) return { x, z, y: heightAt(x, z), moved: 0 };
-    for (let r = 1; r <= maxCells; r++) {
-      for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
-        if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
-        const i = si0 + di, j = sj0 + dj;
-        if (i < 0 || i >= nx || j < 0 || j >= nz) continue;
-        if (walkable[j * nx + i]) {
-          const wx = bounds.minX + (i + 0.5) * cellSize;
-          const wz = bounds.minZ + (j + 0.5) * cellSize;
-          return { x: wx, z: wz, y: top[j * nx + i], moved: r * cellSize };
-        }
-      }
-    }
-    return { x, z, y: heightAt(x, z), moved: -1 };
+  function nearestWalkable(x, z) {
+    // 正常站位是 O(1)；无效竖列、越界或救援时全场精确找最近可行走列，
+    // 不再返回 moved=-1 的无效点让玩家继续掉落。
+    return findNearestWalkableCell({ x, z, nx, nz, cellSize, bounds, walkable, top, heightAt });
   }
 
-  let solidCount = 0, walkCount = 0;
-  for (let k = 0; k < top.length; k++) { if (solid[k]) solidCount++; if (walkable[k]) walkCount++; }
+  let solidCount = 0, walkCount = 0, walkableRockCliffCells = 0;
+  let minWalkableY = Infinity, maxWalkableY = -Infinity;
+  for (let k = 0; k < top.length; k++) {
+    if (solid[k]) solidCount++;
+    if (walkable[k]) {
+      walkCount++;
+      if (rockCliffCells[k]) walkableRockCliffCells++;
+      if (Number.isFinite(top[k])) {
+        minWalkableY = Math.min(minWalkableY, top[k]);
+        maxWalkableY = Math.max(maxWalkableY, top[k]);
+      }
+    }
+  }
 
   return {
     heightAt, resolveGround, nearestWalkable, bounds, cellSize, nx, nz,
-    stats: { ...stats, jsonFilled, solidCells: solidCount, walkableCells: walkCount, totalCells: nx * nz },
+    stats: { ...stats, jsonFilled, solidCells: solidCount, walkableCells: walkCount, totalCells: nx * nz, walkableRockCliffCells, minWalkableY: Number.isFinite(minWalkableY) ? minWalkableY : null, maxWalkableY: Number.isFinite(maxWalkableY) ? maxWalkableY : null, walkableRatio: walkCount / (nx * nz) },
     __ms: (() => { __pt('done'); return Date.now()-__t0; })(),
   };
 }
