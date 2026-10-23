@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius, getGravityScale } from '../core/config.js';
 import { terrainHeight, terrainGround, groundResolveActive, solidColliderActive, clamp } from '../core/utils.js';
 import { undergroundFloorY } from '../world/underground.js';
+import { findGroundPathBlock, findSegmentLanding, shouldRescueVerdantPosition, VERDANT_SWEEP_STEP } from '../world/verdant-fall-safety.mjs';
 import { resolveMoveIntent, dampAngle, wrapAngle, resolveTouchDrive } from './move-facing.mjs';
 
 export class FirstPersonController {
@@ -39,6 +40,8 @@ export class FirstPersonController {
     this.allowAirJump = false;
     // 实体地面台阶最大可步行高度（米）；更高的差必须跳跃越过
     this.stepUp = 0.42;
+    // Enabled only by the dev Verdant loader; null keeps stable/beta physics unchanged.
+    this.verdantSafety = null;
 
     this.onGroundY = 0;
     this.bobPhase = 0;
@@ -113,6 +116,85 @@ export class FirstPersonController {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Install the dev-Verdant-only collision/safety contract and resolve the current pose. */
+  setVerdantSafety(config) {
+    if (!config || typeof config.nearestWalkable !== 'function' || typeof config.resolveGround !== 'function') {
+      this.verdantSafety = null;
+      return false;
+    }
+    this.verdantSafety = { ...config, rescueCount: 0, lastRescueReason: '' };
+    return this.syncVerdantGround();
+  }
+
+  /** Synchronously place the player on a real walkable column after spawn/teleport/tier swap. */
+  syncVerdantGround(x = this.position.x, z = this.position.z) {
+    const safety = this.verdantSafety;
+    if (!safety) return false;
+    const finiteXZ = Number.isFinite(x) && Number.isFinite(z);
+    let point = finiteXZ ? safety.nearestWalkable(x, z) : null;
+    if (!this._validVerdantPoint(point)) {
+      const spawn = safety.spawn;
+      point = spawn ? safety.nearestWalkable(spawn.x, spawn.z) : null;
+    }
+    if (!this._validVerdantPoint(point)) return false;
+    const ground = safety.resolveGround(point.x, point.z);
+    const y = Number.isFinite(ground?.y) ? ground.y : point.y;
+    if (!Number.isFinite(y)) return false;
+    this.position.set(point.x, y, point.z);
+    this.velocity.set(0, 0, 0);
+    this.externalVelocity.set(0, 0, 0);
+    this.vy = 0;
+    this.grounded = true;
+    this.airHeight = 0;
+    this.onGroundY = y;
+    this._lastGround = { y, walkable: true };
+    this.movingThisFrame = false;
+    return true;
+  }
+
+  _validVerdantPoint(point) {
+    return !!point && point.moved !== -1
+      && Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z);
+  }
+
+  /** Run the conservative out-of-world guard; safe to call while paused/title too. */
+  guardVerdantPosition() {
+    const safety = this.verdantSafety;
+    if (!safety) return false;
+    const ground = [this.position.x, this.position.z].every(Number.isFinite)
+      ? terrainGround(this.position.x, this.position.z) : null;
+    const result = shouldRescueVerdantPosition({
+      position: this.position, ground, bounds: safety.bounds,
+      minWalkableY: safety.minWalkableY, killPlane: safety.killPlane,
+    });
+    return result.rescue && this._rescueVerdant(result.reason);
+  }
+
+  _rescueVerdant(reason) {
+    const safety = this.verdantSafety;
+    if (!safety) return false;
+    const found = Number.isFinite(this.position.x) && Number.isFinite(this.position.z)
+      ? safety.nearestWalkable(this.position.x, this.position.z) : null;
+    const point = this._validVerdantPoint(found) ? found : null;
+    const target = point || (safety.spawn && safety.nearestWalkable(safety.spawn.x, safety.spawn.z));
+    if (!this._validVerdantPoint(target)) return false;
+    const ground = safety.resolveGround(target.x, target.z);
+    const y = Number.isFinite(ground?.y) ? ground.y : target.y;
+    if (!Number.isFinite(y)) return false;
+    this.position.set(target.x, y, target.z);
+    this.velocity.set(0, 0, 0);
+    this.externalVelocity.set(0, 0, 0);
+    this.vy = 0;
+    this.grounded = true;
+    this.airHeight = 0;
+    this.onGroundY = y;
+    this._lastGround = { y, walkable: true };
+    this.movingThisFrame = false;
+    safety.rescueCount++;
+    safety.lastRescueReason = reason;
+    return true;
+  }
+
   /** 攻击时的镜头前冲 */
   attackKick(power = 1) {
     this.kickZ = 0.16 * power;
@@ -168,6 +250,7 @@ export class FirstPersonController {
     this.airHeight = 0;
     // 传送后清空上一帧落点缓存，避免实体高度场的台阶/水域阻挡用上一位点误判
     this._lastGround = null;
+    if (this.verdantSafety) this.syncVerdantGround(x, z);
     const baseFov = this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson;
     if (this.camera.fov !== baseFov) {
       this.camera.fov = baseFov;
@@ -215,6 +298,11 @@ export class FirstPersonController {
     windAccelX = 0,
     turnMap = null,
   ) {
+    // Repair invalid/deeply out-of-world poses before arithmetic can spread NaNs.
+    if (this.guardVerdantPosition()) {
+      this._applyCamera(this.position.y, 0);
+      return;
+    }
     const base = PLAYER.speed * speedMul;
     if (turnMap) {
       const turn = Number(keys.has(turnMap.left)) - Number(keys.has(turnMap.right));
@@ -302,7 +390,7 @@ export class FirstPersonController {
       this.velocity.z -= this.velocity.z * decel;
     }
 
-    const prevX = this.position.x, prevZ = this.position.z;
+    const prevX = this.position.x, prevY = this.position.y, prevZ = this.position.z;
     this.position.x += (this.velocity.x + this.externalVelocity.x) * dt;
     this.position.z += (this.velocity.z + this.externalVelocity.z) * dt;
 
@@ -353,7 +441,15 @@ export class FirstPersonController {
       if (!this.allowAirJump) {
         const blockedByVoid = !groundInfo.walkable;
         const blockedByStep = this.grounded && (groundInfo.y - prevGround.y) > this.stepUp;
-        if (blockedByVoid || blockedByStep) {
+        const safety = this.verdantSafety;
+        const blockedOnPath = this.grounded && safety && actualMoved > 0.025
+          ? findGroundPathBlock({
+            from: { x: prevX, z: prevZ }, to: { x: this.position.x, z: this.position.z },
+            groundAt: terrainGround,
+            maxStep: Math.min(0.16, Math.max(0.05, (safety.cellSize || VERDANT_SWEEP_STEP * 2) * 0.45)),
+            maxStepUp: this.stepUp,
+          }) : null;
+        if (blockedByVoid || blockedByStep || blockedOnPath) {
           // 水面/外缘不可进入；过高台阶不允许直接走上去（要跳）。
           // 横向往回推，竖直仍吸附在原可行走面上，任何情况下都不会漏出世界。
           this.position.x = prevX;
@@ -367,20 +463,41 @@ export class FirstPersonController {
     } else {
       groundInfo = { y: undergroundFloorY(this.position.x, this.position.z), walkable: true };
     }
-    const groundY = groundInfo.y;
-    this.onGroundY = groundY;
+    let groundY = groundInfo.y;
 
     // ---- 垂直运动（跳跃 / 重力；重力系数供 dev 沙盒低重力注入）----
     const J = PLAYER.jump;
     this.jumpCD = Math.max(0, this.jumpCD - dt);
     if (!this.grounded) {
       this.vy -= J.gravity * getGravityScale() * dt;
-      this.position.y += this.vy * dt;
-      // 落到地面：钳位并清零竖直速度，避免反复触发落地
-      if (this.position.y <= groundY) {
+      const nextY = this.position.y + this.vy * dt;
+      const safety = this.verdantSafety;
+      // Dev Verdant only: sweep the full descending XZ path at sub-cell intervals,
+      // so high speed / a delayed frame cannot step over a narrow walkable column.
+      const landing = safety && this.vy < 0
+        ? findSegmentLanding({
+          from: { x: prevX, y: prevY, z: prevZ },
+          to: { x: this.position.x, y: nextY, z: this.position.z },
+          groundAt: terrainGround,
+          maxStep: Math.min(0.16, Math.max(0.05, (safety.cellSize || VERDANT_SWEEP_STEP * 2) * 0.45)),
+        }) : null;
+      if (landing) {
+        this.position.x = landing.x;
+        this.position.z = landing.z;
+        groundInfo = terrainGround(landing.x, landing.z);
+        groundY = groundInfo.y;
         this.position.y = groundY;
         this.vy = 0;
         this.grounded = true;
+        this._lastGround = groundInfo;
+      } else {
+        this.position.y = nextY;
+        // Endpoint check remains for the existing stable/beta path and exact-touch frames.
+        if (this.position.y <= groundY) {
+          this.position.y = groundY;
+          this.vy = 0;
+          this.grounded = true;
+        }
       }
     } else {
       // 地面状态：跟随地形起伏。
@@ -391,6 +508,22 @@ export class FirstPersonController {
       else this.position.y += diff * (1 - Math.exp(-18 * dt));
       this.vy = 0;
     }
+
+    // 高度场异常边缘兜底：仅 dev Verdant，正常坡面/洞穴不会触发。
+    const safety = this.verdantSafety;
+    if (safety) {
+      const checkGround = [this.position.x, this.position.z].every(Number.isFinite)
+        ? terrainGround(this.position.x, this.position.z) : null;
+      const result = shouldRescueVerdantPosition({
+        position: this.position, ground: checkGround, bounds: safety.bounds,
+        minWalkableY: safety.minWalkableY, killPlane: safety.killPlane,
+      });
+      if (result.rescue && this._rescueVerdant(result.reason)) {
+        groundInfo = this._lastGround;
+        groundY = this.onGroundY;
+      }
+    }
+    this.onGroundY = groundY;
     // 腾空高度（供玩法判断：能否躲开接触伤害）
     this.airHeight = Math.max(0, this.position.y - groundY);
 

@@ -104,6 +104,7 @@ import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDumm
 import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
+import { VERDANT_KILL_PLANE_MARGIN } from './world/verdant-fall-safety.mjs';
 
 // =====================================================
 // 初始化
@@ -277,6 +278,20 @@ hud.setLoading(45, '生成天空与光照');
 // —— Verdant Trail 全环境（dev-only）——
 // The loader is dynamically imported so stable/beta never fetch or evaluate any Verdant code.
 let verdantWorld = null;
+function publishVerdantField(world) {
+  if (!IS_DEV || !world) return;
+  // Keep the probe object stable so the safety counters installed after controller
+  // construction survive scene-tier swaps while its field data follows the active GLB.
+  const probe = window.__verdantField || {};
+  Object.assign(probe, {
+    heightAt: world.heightAt,
+    resolveGround: world.resolveGround,
+    nearestWalkable: world.nearestWalkable,
+    bounds: world.bounds,
+    stats: world.fieldStats || null,
+  });
+  window.__verdantField = probe;
+}
 if (devOn('verdantWorld')) {
   try {
     hud.setLoading(46, '读取 Verdant 场景模块');
@@ -301,16 +316,8 @@ if (devOn('verdantWorld')) {
     sky.hills.visible = false;
     sky.dome.visible = true;
     sky.setVerdantMood?.();
-    // dev-only 真机验证钩子：暴露可行走场查询（仅 IS_DEV，正式版无此分支）
-    if (IS_DEV) {
-      window.__verdantField = {
-        heightAt: verdantWorld.heightAt,
-        resolveGround: verdantWorld.resolveGround,
-        nearestWalkable: verdantWorld.nearestWalkable,
-        bounds: verdantWorld.bounds,
-        stats: verdantWorld.fieldStats || null,
-      };
-    }
+    // dev-only QA/diagnostic hook; kept current when the active quality tier changes.
+    publishVerdantField(verdantWorld);
     hud.say('DEV · A Verdant Trail 场景已加载', 3.2);
   } catch (e) {
     verdantWorld = null;
@@ -321,6 +328,29 @@ if (devOn('verdantWorld')) {
     console.warn('[verdant] 场景加载失败，退回程序化地形:', e);
     hud.say(`Verdant 场景加载失败，已退回程序化地形：${e?.message || e}`, 5.5);
   }
+}
+
+function createVerdantSafetyProfile(world) {
+  if (!IS_DEV || !world?.nearestWalkable || !world?.resolveGround) return null;
+  const spawnX = BURROW_X + 4 * getPointScale();
+  const spawnZ = BURROW_Z + 2 * getPointScale();
+  let spawn = world.nearestWalkable(spawnX, spawnZ);
+  if (!spawn || spawn.moved === -1 || ![spawn.x, spawn.y, spawn.z].every(Number.isFinite)) {
+    const b = world.bounds;
+    spawn = b ? world.nearestWalkable((b.minX + b.maxX) / 2, (b.minZ + b.maxZ) / 2) : null;
+  }
+  if (!spawn || ![spawn.x, spawn.y, spawn.z].every(Number.isFinite)) return null;
+  const minWalkableY = Number.isFinite(world.fieldStats?.minWalkableY)
+    ? world.fieldStats.minWalkableY : spawn.y;
+  return {
+    resolveGround: world.resolveGround,
+    nearestWalkable: world.nearestWalkable,
+    bounds: world.bounds,
+    cellSize: world.cellSize || 0.22,
+    minWalkableY,
+    killPlane: minWalkableY - VERDANT_KILL_PLANE_MARGIN,
+    spawn: { x: spawn.x, y: spawn.y, z: spawn.z },
+  };
 }
 
 async function switchVerdantTier(preference, forceReload = false) {
@@ -338,13 +368,13 @@ async function switchVerdantTier(preference, forceReload = false) {
   scene.remove(old.group); disposeVerdantGroup(old.group);
   verdantWorld = loaded; verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
   scene.add(loaded.group);
+  publishVerdantField(loaded);
   setHeightField(loaded.heightAt, { resolveGround: loaded.resolveGround, solidCollider: true });
   setPlayableBounds(loaded.bounds);
   setUndergroundCavesEnabled(false);
-  // 切档后若站位恰好在新高度场的无效竖列上，吸附到最近可行走面。
-  const safe = loaded.nearestWalkable ? loaded.nearestWalkable(pose.x, pose.z) : { x: pose.x, z: pose.z, y: loaded.heightAt(pose.x, pose.z) };
-  controller.position.set(safe.x, safe.y, safe.z);
-  controller._lastGround = { y: safe.y, walkable: true };
+  // 新高度场生效后立即吸附并同步 _lastGround，首帧不会从旧高度积分重力。
+  controller.setVerdantSafety(createVerdantSafetyProfile(loaded));
+  controller.syncVerdantGround(pose.x, pose.z);
   controller.yaw = pose.yaw; controller.pitch = pose.pitch; controller.velocity.set(0, 0, 0); controller.externalVelocity.set(0, 0, 0); controller.vy = 0; controller.grounded = true;
   hud.setLoading(100, 'Verdant 场景就绪'); hud.say(`Verdant 画质已切换：${verdantTierActive}`, 2.8);
   setTimeout(() => hud.hideLoader(), 350);
@@ -461,6 +491,15 @@ hud.setLoading(86, '生成实体与模型');
 
 // —— 系统 ——
 const controller = new FirstPersonController(camera, canvas);
+if (IS_DEV && verdantWorld) controller.setVerdantSafety(createVerdantSafetyProfile(verdantWorld));
+if (IS_DEV && window.__verdantField) {
+  window.__verdantField.safety = {
+    get rescueCount() { return controller.verdantSafety?.rescueCount || 0; },
+    get lastRescueReason() { return controller.verdantSafety?.lastRescueReason || ''; },
+    get grounded() { return controller.grounded; },
+    get killPlane() { return controller.verdantSafety?.killPlane; },
+  };
+}
 const claw = new ClawSwing(scene);
 const shockwave = new Shockwave(scene);
 const particles = new Particles(scene);
@@ -795,7 +834,9 @@ function loadLevel(index, announce = true) {
   if (verdantWorld?.nearestWalkable) {
     // 出生点必须落在有效可行走面上：设计出生点可能靠近水域/外缘。
     const safe = verdantWorld.nearestWalkable(spawnX, spawnZ);
-    spawnX = safe.x; spawnZ = safe.z;
+    if (safe && safe.moved !== -1 && [safe.x, safe.y, safe.z].every(Number.isFinite)) {
+      spawnX = safe.x; spawnZ = safe.z;
+    }
   }
   controller.teleport(spawnX, spawnZ, Math.PI * 0.05);
   if (verdantWorld?.resolveGround) controller._lastGround = verdantWorld.resolveGround(spawnX, spawnZ);
@@ -1524,6 +1565,9 @@ function doInteract() {
 const _tmpV = new THREE.Vector3();
 
 function update(dt) {
+  // controller.update owns the per-frame check during play; retain it while the
+  // title/pause path skips controller physics.
+  if (game.mode !== 'play') controller.guardVerdantPosition();
   if (game.mode !== 'play') {
     // 非游戏状态仍更新视觉表现，保持画面"活着"
     burrowSet.objects.forEach((b) => b.update(dt));
