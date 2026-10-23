@@ -791,36 +791,105 @@ button.primary:focus-visible { outline: 3px solid #fff; }
 .level-option.locked { opacity: .72; cursor: not-allowed; border-color: #3a483b; }
 .title-actions { align-items: stretch; }
 
-/* ---------- 加载 ---------- */
+/* ---------- 加载：stable 经典居中；dev(?version=dev) 电影感视频背景 ---------- */
 .loader {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #101a15;
-  z-index: 60;
-  transition: opacity .5s;
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: center; justify-content: center;
+  background: #101a15; overflow: hidden;
+  transition: opacity .6s ease;
 }
 .loader.gone { opacity: 0; pointer-events: none; }
-.loader-inner { text-align: center; }
-.loader-marmot { font-size: 46px; animation: hop 1s ease-in-out infinite; }
-@keyframes hop {
-  0%, 100% { transform: translateY(0) scale(1); }
-  40% { transform: translateY(-12px) scale(1.06); }
+
+/* 视频与压暗层仅 dev cinematic 显示 */
+.loader-video, .loader-scrim { position: absolute; inset: 0; display: none; }
+.loader.cinematic { display: block; background: #0c120f; }
+.loader.cinematic .loader-video {
+  display: block; width: 100%; height: 100%;
+  object-fit: cover; transform: scale(1.02);
+  filter: saturate(.92) contrast(1.02);
 }
+.loader.cinematic .loader-scrim {
+  display: block; pointer-events: none;
+  background:
+    linear-gradient(to top, rgba(8,12,10,.84) 0%, rgba(8,12,10,.42) 22%, rgba(8,12,10,0) 44%),
+    radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 55%, rgba(6,10,8,.38) 100%);
+}
+
+/* 经典土拨鼠：stable 保留；dev cinematic 隐藏（视频已是主角） */
+.loader-marmot { font-size: 46px; animation: hop 1s ease-in-out infinite; }
+@keyframes hop { 0%,100% { transform: translateY(0) scale(1);} 40% { transform: translateY(-12px) scale(1.06);} }
+.loader.cinematic .loader-marmot { display: none; }
+
+/* HUD：stable 为居中纵向；dev cinematic 为底部左对齐 */
+.loader-hud { text-align: center; }
+.loader-brand, .loader-meta, .loader-shine, .loader-pct { display: none; }
 .loader-text { color: var(--soft); font-size: 13px; margin: 12px 0; }
 .loader-track {
-  width: 190px; height: 5px;
-  background: #1d2f24;
-  border-radius: 4px;
-  overflow: hidden;
-  margin: 0 auto;
+  width: 190px; height: 5px; margin: 0 auto;
+  background: #1d2f24; border-radius: 4px; overflow: hidden;
 }
 .loader-fill {
   height: 100%; width: 0%;
   background: var(--gold);
   transition: width .2s;
+}
+
+/* dev cinematic 轻量大厂风 */
+.loader.cinematic .loader-hud {
+  position: absolute; left: 0; right: 0;
+  bottom: clamp(26px, 6vh, 64px);
+  padding: 0 clamp(22px, 8vw, 120px);
+  max-width: 760px; margin: 0 auto; text-align: left;
+  animation: loaderFade .8s ease both;
+}
+@keyframes loaderFade { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
+.loader.cinematic .loader-brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+.loader-logo { display: none; font-size: 20px; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+.loader.cinematic .loader-logo { display: inline-block; }
+.loader-title {
+  font-size: 15px; font-weight: 600; letter-spacing: .14em;
+  color: rgba(238,240,232,.92); text-shadow: 0 1px 8px rgba(0,0,0,.6);
+}
+.loader-title em {
+  font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .18em;
+  color: var(--gold, #e0c46c); border: 1px solid rgba(224,196,108,.4);
+  border-radius: 4px; padding: 2px 6px; margin-left: 2px; vertical-align: 2px;
+}
+.loader.cinematic .loader-track {
+  width: 100%; height: 2px; border-radius: 2px;
+  background: rgba(255,255,255,.16);
+}
+.loader.cinematic .loader-fill {
+  position: relative;
+  background: linear-gradient(90deg, rgba(224,196,108,.85), #f3d98b);
+  box-shadow: 0 0 8px rgba(243,217,139,.55);
+  transition: width .35s cubic-bezier(.22,.61,.36,1);
+}
+.loader.cinematic .loader-shine {
+  display: block; position: absolute; top: 0; right: 0;
+  width: 26px; height: 100%; transform: translateX(50%);
+  background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.85) 50%, rgba(255,255,255,0) 100%);
+  filter: blur(.4px); pointer-events: none;
+}
+.loader.cinematic .loader-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-top: 12px;
+}
+.loader.cinematic .loader-text {
+  margin: 0; color: rgba(228,232,224,.72); font-size: 12px;
+  letter-spacing: .06em; text-shadow: 0 1px 6px rgba(0,0,0,.6);
+}
+.loader.cinematic .loader-pct {
+  display: inline-block; font-variant-numeric: tabular-nums;
+  font-size: 12px; letter-spacing: .08em; color: rgba(238,240,232,.85);
+  text-shadow: 0 1px 6px rgba(0,0,0,.6);
+}
+@media (max-width: 600px) {
+  .loader.cinematic .loader-hud { bottom: 30px; padding: 0 22px; }
+  .loader-title { font-size: 14px; letter-spacing: .1em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loader.cinematic .loader-hud, .loader, .loader-fill { animation: none !important; transition: none !important; }
 }
 
 /* ---------- 开发测试工具 ---------- */

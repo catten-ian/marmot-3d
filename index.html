@@ -9,7 +9,7 @@
 <link rel="icon" href="./assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="./assets/favicon-192.png">
 <meta name="theme-color" content="#101a15">
-<link rel="stylesheet" href="./styles.css?v=m20261022s4">
+<link rel="stylesheet" href="./styles.css?v=m20261023load">
 <script type="importmap">
 { "imports": {
     "three": "./vendor/three.module.js",
@@ -143,14 +143,47 @@
   <button class="touch-layout-entry" id="touchLayoutEntry" type="button" aria-pressed="false" data-touch-adjust="entry">编辑</button>
 </div>
 
-<!-- ========== 加载 ========== -->
+<!-- ========== 加载（dev：电影感视频背景 + 轻量进度条；stable：经典居中样式） ========== -->
 <div id="loader" class="loader">
-  <div class="loader-inner">
-    <div class="loader-marmot">🐹</div>
-    <div class="loader-text">正在筑巢…</div>
-    <div class="loader-track"><div class="loader-fill" id="loaderFill"></div></div>
+  <video class="loader-video" id="loaderVideo" muted loop playsinline preload="none"
+         disablepictureinpicture x-webkit-airplay="deny"></video>
+  <div class="loader-scrim" aria-hidden="true"></div>
+  <div class="loader-marmot" aria-hidden="true">🐹</div>
+  <div class="loader-hud">
+    <div class="loader-brand">
+      <span class="loader-logo" aria-hidden="true">🐹</span>
+      <span class="loader-title">土拨鼠大作战 <em>DEV</em></span>
+    </div>
+    <div class="loader-track"><div class="loader-fill" id="loaderFill"></div><i class="loader-shine"></i></div>
+    <div class="loader-meta">
+      <span class="loader-text">正在筑巢…</span>
+      <span class="loader-pct" id="loaderPct">0%</span>
+    </div>
   </div>
 </div>
+<script>
+/* 门控：电影感视频加载仅 ?version=dev。stable 不注入视频源（不下载 4MB），保持经典样式。
+   必须在样式/资源加载早期执行，与 src/core/version.js 的判定保持一致。 */
+(function () {
+  try {
+    var q = new URLSearchParams(location.search).get('version');
+    var isDev = !!q && q.replace(/\/+$/, '') === 'dev';
+    var loader = document.getElementById('loader');
+    var video = document.getElementById('loaderVideo');
+    if (!isDev) { if (loader) loader.classList.add('classic'); if (video) video.remove(); return; }
+    if (loader) loader.classList.add('cinematic');
+    if (!video) return;
+    video.setAttribute('poster', './assets/video/dev-loading-poster.jpg');
+    var src = document.createElement('source');
+    src.src = './assets/video/dev-loading.mp4';
+    src.type = 'video/mp4';
+    video.appendChild(src);
+    video.addEventListener('error', function () { video.style.display = 'none'; }, { once: true });
+    var p = video.play();
+    if (p && typeof p.catch === 'function') p.catch(function () {});
+  } catch (e) { /* 判定失败默认经典样式，不阻塞加载 */ }
+})();
+</script>
 
 <!-- ========== 开发测试面板（仅 ?test=1 显示） ========== -->
 <button class="test-mode-btn" id="testModeBtn" type="button" hidden aria-expanded="false">测试</button>
@@ -313,7 +346,7 @@ const watchdog = setInterval(() => {
 }, 1000);
 
 try {
-  await import('./src/main.js?v=m20261023fix1');
+  await import('./src/main.js?v=m20261023load');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
   clearInterval(watchdog);

@@ -35,6 +35,8 @@ export class HUD {
       loader: document.getElementById('loader'),
       loaderFill: document.getElementById('loaderFill'),
       loaderText: document.querySelector('.loader-text'),
+      loaderPct: document.getElementById('loaderPct'),
+      loaderVideo: document.querySelector('.loader-video'),
     };
     this._loadingMax = -1;
 
@@ -68,6 +70,7 @@ export class HUD {
     if (p > this._loadingMax) {
       this._loadingMax = p;
       this.el.loaderFill.style.width = p + '%';
+      if (this.el.loaderPct) this.el.loaderPct.textContent = Math.round(p) + '%';
     }
     if (label) this.el.loaderText.textContent = label;
     try { window.dispatchEvent(new Event('app:boot-progress')); } catch (_) {}
@@ -78,12 +81,19 @@ export class HUD {
     this._loadingMax = -1;
     this.el.loader.style.display = '';
     this.el.loader.classList.remove('gone');
+    try {
+      const v = this.el.loaderVideo;
+      if (v) { v.currentTime = 0; void v.play(); }
+    } catch (_) {}
     this.setLoading(0, label || '准备加载…');
   }
 
   hideLoader() {
     this.el.loader.classList.add('gone');
-    setTimeout(() => { this.el.loader.style.display = 'none'; }, 600);
+    setTimeout(() => {
+      this.el.loader.style.display = 'none';
+      try { this.el.loaderVideo && this.el.loaderVideo.pause(); } catch (_) {}
+    }, 620);
   }
 
   /** 短提示气泡 */
