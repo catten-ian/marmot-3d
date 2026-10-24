@@ -7,6 +7,9 @@ import { IS_BETA, IS_DEV, VERSION, BUILD_STAMP, CHANNEL_SHORT } from '../core/ve
 import { INPUT_MODES } from '../core/input-mode.mjs';
 import { versionSwitchModel } from '../core/version-switch.mjs';
 import { readGpuInfo } from '../core/gpu-info.mjs';
+import {
+  buildConfigExport, configExportFilename, parseConfigText,
+} from '../core/config-transfer.mjs';
 
 const GRAPHICS_OPTIONS = [
   { id: 'auto', name: '自动', desc: '保留浏览器默认 GPU 选择。' },
@@ -135,6 +138,86 @@ export class SettingsUI {
     this.render();
   }
 
+  _setConfigIoStatus(message, kind = '') {
+    const status = this.el.body?.querySelector('#configIOStatus');
+    if (!status) return;
+    status.textContent = message || '';
+    status.className = `config-io-status${kind ? ` ${kind}` : ''}`;
+  }
+
+  async _exportConfig({ clipboard = false } = {}) {
+    const payload = buildConfigExport({
+      binds: this.binds,
+      layout: this.touchLayout?.layout || null,
+      audioSettings: this.audio?.getAudioSettings?.() || null,
+      graphicsPreference: this.graphicsPreference?.preference || 'auto',
+      inputModePreference: this.inputMode?.preference || 'auto',
+      inputModeEffective: this.inputMode?.isTouch?.() ? 'touch' : 'keyboard',
+      channel: 'beta',
+    });
+    const text = JSON.stringify(payload, null, 2);
+    if (clipboard) {
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
+        await navigator.clipboard.writeText(text);
+        this._setConfigIoStatus('配置 JSON 已复制到剪贴板。', 'ok');
+      } catch (_) {
+        this._setConfigIoStatus('复制失败：浏览器未授予剪贴板权限，请改用下载文件。', 'error');
+      }
+      return;
+    }
+    try {
+      const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = configExportFilename();
+      link.rel = 'noopener';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this._setConfigIoStatus('配置已导出并开始下载。', 'ok');
+    } catch (_) {
+      this._setConfigIoStatus('下载失败：浏览器不支持文件导出。', 'error');
+    }
+  }
+
+  async _importConfigFile(file) {
+    if (!file) return;
+    try {
+      const text = typeof file.text === 'function'
+        ? await file.text()
+        : await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsText(file);
+        });
+      const result = parseConfigText(text);
+      if (!result.ok) {
+        this._setConfigIoStatus(result.error || '配置校验失败。', 'error');
+        return;
+      }
+      const cfg = result.config;
+      if (cfg.keybinds) this.binds.applyImported(cfg.keybinds);
+      if (cfg.touchLayout && this.touchLayout) this.touchLayout.importLayout(cfg.touchLayout);
+      if (cfg.audio && this.audio) this.audio.setSettings(cfg.audio);
+      if (cfg.graphics && this.graphicsPreference) {
+        this.graphicsPreference.setPreference(cfg.graphics);
+      }
+      if (cfg.inputModePreference && this.inputMode) {
+        this.inputMode.setPreference(cfg.inputModePreference);
+      }
+      // 立即重绘：键位文案、输入模式/音频控件、布局入口均同步更新。
+      this.render();
+      const notes = [];
+      if (result.warnings?.length) notes.push(`已钳制/忽略 ${result.warnings.length} 项非法值`);
+      if (result.ignored?.length) notes.push(`已忽略 ${result.ignored.length} 个未知字段`);
+      this._setConfigIoStatus(notes.length ? `配置导入成功；${notes.join('，')}。` : '配置导入成功，已立即生效。', notes.length ? 'warn' : 'ok');
+    } catch (_) {
+      this._setConfigIoStatus('读取配置文件失败，请确认文件可读且为 JSON。', 'error');
+    }
+  }
+
   render() {
     if (!this.el.body) return;
     const b = this.binds;
@@ -191,6 +274,20 @@ export class SettingsUI {
           <label><input id="audioBgmEnabled" type="checkbox"${audioSettings.bgmEnabled ? ' checked' : ''}> 启用音乐</label>
         </div>
         <p>音量会立即生效并保存在本设备；音频文件缺失时会自动使用内置音效。</p>
+      </section>`;
+    }
+
+    if (IS_BETA) {
+      html += `<section class="config-io-settings" aria-label="配置导入导出">
+        <h4>配置导入 / 导出</h4>
+        <p>导出包含当前键位映射、触控/HUD 布局、音量、画质偏好与输入模式；导出时会标明当前生效的是键鼠还是触控。导入会校验 schema 和字段，非法值会钳制或忽略。</p>
+        <div class="config-io-actions">
+          <button type="button" class="ghost-btn" id="configExportDownload">导出配置（下载文件）</button>
+          <button type="button" class="ghost-btn" id="configExportClipboard">导出配置（复制到剪贴板）</button>
+          <button type="button" class="ghost-btn" id="configImportButton">导入配置</button>
+          <input id="configImportFile" type="file" accept="application/json,.json" hidden>
+        </div>
+        <div id="configIOStatus" class="config-io-status" aria-live="polite"></div>
       </section>`;
     }
 
@@ -306,6 +403,20 @@ export class SettingsUI {
     if (this.feedback) html += '<div class="set-actions"><button class="ghost-btn" id="settingsFeedback">问题反馈 / 反馈建议</button></div>';
 
     this.el.body.innerHTML = html;
+
+    if (IS_BETA) {
+      this.el.body.querySelector('#configExportDownload')?.addEventListener('click', () => this._exportConfig());
+      this.el.body.querySelector('#configExportClipboard')?.addEventListener('click', () => this._exportConfig({ clipboard: true }));
+      const importButton = this.el.body.querySelector('#configImportButton');
+      const importFile = this.el.body.querySelector('#configImportFile');
+      importButton?.addEventListener('click', () => importFile?.click());
+      importFile?.addEventListener('change', () => {
+        const file = importFile.files?.[0];
+        this._importConfigFile(file);
+        // 允许再次选择同一个文件。
+        importFile.value = '';
+      });
+    }
 
     // 绑定事件
     this.el.body.querySelectorAll('[data-scheme]').forEach((el) => {

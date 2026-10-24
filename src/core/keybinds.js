@@ -210,6 +210,33 @@ export class Keybinds {
     this._emit();
   }
 
+  /**
+   * 应用导入的键位配置（beta「导入配置」）。输入须先经 config-transfer 的
+   * sanitizeConfig 白名单/格式清洗；这里再做一层防御，逐字段校验后才写入，
+   * 并统一 _save + _emit，让键位提示/技能条/设置面板一次性刷新。
+   */
+  applyImported({ scheme, custom, controlMode } = {}) {
+    if (custom && typeof custom === 'object') {
+      const ids = new Set(ACTIONS.map((a) => a.id));
+      const merged = { ...COMPAT, ...this.custom };
+      for (const [actionId, value] of Object.entries(custom)) {
+        if (!ids.has(actionId)) continue;
+        if (value == null || typeof value === 'string') merged[actionId] = value;
+        else if (Array.isArray(value)) merged[actionId] = value.filter((c) => typeof c === 'string');
+      }
+      this.custom = merged;
+    }
+    if (['compatible', 'optimized', 'custom'].includes(scheme)) this.scheme = scheme;
+    else if (custom) this.scheme = 'custom';
+    const mode = normalizeControlMode(controlMode, null);
+    if (mode) {
+      this.controlMode = mode;
+      try { localStorage.setItem(CONTROL_MODE_STORAGE_KEY, mode); } catch (e) { /* 忽略写入失败 */ }
+    }
+    this._save();
+    this._emit();
+  }
+
   /** 当前生效的绑定表 */
   get map() {
     return this.scheme === 'custom' ? this.custom

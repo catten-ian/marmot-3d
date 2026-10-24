@@ -46,10 +46,12 @@ const SELECTABLE_IDS = [...ALL_IDS, JOYSTICK];
 // 摇杆整体大小滑块范围（相对 CSS 基准尺寸的倍数）。
 const JOYSTICK_SCALE_MIN = 0.7, JOYSTICK_SCALE_MAX = 1.4;
 // 可调整的常驻 HUD 信息卡：布局 id → 页面元素。
-const CARDS = ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox', 'hudMinimap'];
+// hudViewMode（视角状态卡）仅 beta 由 main.js 创建；stable/dev 上元素缺失，
+// 构造时 cards[id] 为 null，设置面板下拉与编辑选中都按“存在的卡”过滤。
+export const CARDS = ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox', 'hudMinimap', 'hudViewMode'];
 const CARD_SELECTORS = {
   hudVitals: '.vitals', hudMission: '.mission', hudObjective: '.objective',
-  hudSandbox: '.sandbox-status', hudMinimap: '.minimap',
+  hudSandbox: '.sandbox-status', hudMinimap: '.minimap', hudViewMode: '.viewmode-card',
 };
 // 卡片单卡缩放/透明度范围（比按钮更保守，避免卡片被缩到不可读）。
 const CARD_SCALE = [0.75, 1.25];
@@ -76,6 +78,7 @@ const LABELS = {
   hudObjective: '本关目标卡',
   hudSandbox: '沙盒状态卡',
   hudMinimap: '站立观察小地图',
+  hudViewMode: '视角状态卡（第一/第三人称）',
 };
 const SIZE = {
   attack: 76, dodge: 58, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38,
@@ -297,6 +300,12 @@ export class TouchLayout {
       const top = landscape && h <= 520 ? 42 : w <= 860 ? 96 : 64;
       const right = w <= 860 ? 9 : 14;
       return [w - safe.right - right - mapWidth / 2, safe.top + top + mapHeight / 2];
+    }
+    if (id === 'hudViewMode') {
+      // 默认贴右上、小地图正下方；与 view-mode-card.js 的 inline 设计位置一致。
+      const top = landscape && h <= 520 ? 42 + 128 + 26 : w <= 860 ? 96 + 142 + 26 : 64 + 174 + 26;
+      const right = w <= 860 ? 9 : 14;
+      return [w - safe.right - right - 56, safe.top + top + 14];
     }
     if (w <= 860 || landscape) return [w - safe.right - 86, safe.top + (landscape ? 122 : 196)];
     return [w - safe.right - 116, h - safe.bottom - 100];
@@ -580,6 +589,42 @@ export class TouchLayout {
     this.onSprintThreshold?.(this.layout.joystick.sprintThreshold);
   }
 
+  /**
+   * 导入外部布局（beta「导入配置」）：复用 _normalize 做边界钳制与字段补全，
+   * 立即应用并持久化；导入的卡片位置视为用户方案，不再跟随设计默认刷新。
+   */
+  importLayout(raw) {
+    // 合并语义：文件里缺失的分区/控件字段保留当前值；部分字段存在时也仅覆盖
+    // 对应属性。完整导出文件包含所有项目，因此仍可完整复制到另一台设备。
+    const incoming = raw && typeof raw === 'object' ? raw : {};
+    const merged = { ...this.layout, ...incoming };
+    for (const group of ['buttons', 'cards', 'joystick']) {
+      if (!incoming[group] || typeof incoming[group] !== 'object') continue;
+      const currentGroup = this.layout[group] || {};
+      const nextGroup = { ...currentGroup };
+      for (const [id, item] of Object.entries(incoming[group])) {
+        nextGroup[id] = item && typeof item === 'object'
+          ? { ...(currentGroup[id] || {}), ...item }
+          : item;
+      }
+      merged[group] = nextGroup;
+    }
+    this.layout = this._normalize(merged);
+    this._cardPosTouched = {};
+    for (const id of CARDS) {
+      if (merged.cards?.[id] && Number.isFinite(Number(merged.cards[id].x))) this._cardPosTouched[id] = true;
+    }
+    this.apply();
+    this.save();
+    this.onSprintThreshold?.(this.layout.joystick.sprintThreshold);
+    this.onJoystickScale?.(this.layout.joystick.scale);
+  }
+
+  /** 当前页面上真实存在的 HUD 卡（stable/dev 没有视角状态卡，不进入下拉）。 */
+  availableCards() {
+    return CARDS.filter((id) => !!this.cards?.[id]);
+  }
+
   /** 当前选中项的布局记录（动作按钮 / 沙盒入口 / HUD 卡）。摇杆走独立分支，返回 null。 */
   _entry(id) {
     if (id === JOYSTICK) return null;
@@ -616,10 +661,10 @@ export class TouchLayout {
   settingsMarkup() {
     const options = (ids) => ids.map((id) => `<option value="${id}" ${id === this.selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
     return `<section class="touch-layout-settings" aria-label="触屏技能盘设置">
-      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮、移动摇杆、HUD 卡片和站立观察小地图；小地图会在编辑时临时显示。选择单个控件后可单独调尺寸和透明度。「沙盒控制」是唯一可调整的沙盒入口（即打开测试/沙盒面板的那个按钮），不会新增其他浮动按钮。「整体大小 / 整体透明度」只作用于动作按钮；摇杆、HUD 卡片和小地图请选中后用对应单项控制。摇杆内圈决定推多远进入疾跑，档位环会同步显示真实位置。</p>
+      <h4>触屏技能盘</h4><p>进入编辑后可拖动按钮、移动摇杆、HUD 卡片、视角状态卡和站立观察小地图；小地图会在编辑时临时显示。选择单个控件后可单独调尺寸和透明度。「沙盒控制」是唯一可调整的沙盒入口（即打开测试/沙盒面板的那个按钮），不会新增其他浮动按钮。「整体大小 / 整体透明度」只作用于动作按钮；摇杆、HUD 卡片和小地图请选中后用对应单项控制。摇杆内圈决定推多远进入疾跑，档位环会同步显示真实位置。</p>
       <div class="layout-setting-row"><label for="layoutGlobalScale">整体大小</label><input id="layoutGlobalScale" type="range" min="0.75" max="1.3" step="0.05" value="${this.layout.scale}"><output data-layout-value="globalScale"></output></div>
       <div class="layout-setting-row"><label for="layoutGlobalOpacity">整体透明度</label><input id="layoutGlobalOpacity" type="range" min="0.35" max="1" step="0.05" value="${this.layout.opacity}"><output data-layout-value="globalOpacity"></output></div>
-      <div class="layout-setting-row"><label for="layoutSelected">单个控件</label><select id="layoutSelected"><optgroup label="动作按钮">${options(ACTIONS)}</optgroup><optgroup label="沙盒控制">${options([SANDBOX_CONTROL])}</optgroup><optgroup label="移动摇杆">${options([JOYSTICK])}</optgroup><optgroup label="HUD 卡片">${options(CARDS)}</optgroup></select></div>
+      <div class="layout-setting-row"><label for="layoutSelected">单个控件</label><select id="layoutSelected"><optgroup label="动作按钮">${options(ACTIONS)}</optgroup><optgroup label="沙盒控制">${options([SANDBOX_CONTROL])}</optgroup><optgroup label="移动摇杆">${options([JOYSTICK])}</optgroup><optgroup label="HUD 卡片">${options(this.availableCards())}</optgroup></select></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonScale">单项大小</label><input id="layoutButtonScale" type="range" min="0.7" max="1.35" step="0.05"><output data-layout-value="buttonScale"></output></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonOpacity">单项透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
       <div class="layout-setting-row card-pos-row"><label>卡片位置（屏幕宽/高百分比）</label><span class="card-pos-inputs"><label>X <input id="layoutCardX" type="number" min="0" max="100" step="0.5" inputmode="decimal">%</label><label>Y <input id="layoutCardY" type="number" min="0" max="100" step="0.5" inputmode="decimal">%</label></span></div>
@@ -638,10 +683,11 @@ export class TouchLayout {
    * 元素 id 与触屏版相同，复用 bindSettings 的事件绑定与 _syncEditor 刷新。
    */
   keyboardSettingsMarkup() {
-    const selected = CARDS.includes(this.selected) ? this.selected : 'hudVitals';
-    const options = CARDS.map((id) => `<option value="${id}" ${id === selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
+    const cards = this.availableCards();
+    const selected = cards.includes(this.selected) ? this.selected : 'hudVitals';
+    const options = cards.map((id) => `<option value="${id}" ${id === selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
     return `<section class="touch-layout-settings kb-hud-layout" aria-label="HUD 信息卡布局">
-      <h4>HUD 信息卡布局（键鼠）</h4><p>进入拖动编辑会自动暂停游戏，可拖动顶部状态卡、关卡信息卡、本关目标卡、沙盒状态卡与小地图改变位置；小地图仅在编辑期间强制显示，退出后恢复站立观察显隐。在下方选中单张卡片后还能调大小与透明度。键鼠模式不显示虚拟摇杆和触屏动作按钮，因此它们不参与调整。</p>
+      <h4>HUD 信息卡布局（键鼠）</h4><p>进入拖动编辑会自动暂停游戏，可拖动顶部状态卡、关卡信息卡、本关目标卡、沙盒状态卡、视角状态卡与小地图改变位置；小地图仅在编辑期间强制显示，退出后恢复站立观察显隐。在下方选中单张卡片后还能调大小与透明度。键鼠模式不显示虚拟摇杆和触屏动作按钮，因此它们不参与调整。</p>
       <div class="layout-setting-row"><label for="layoutSelected">单个卡片</label><select id="layoutSelected"><optgroup label="HUD 卡片">${options}</optgroup></select></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonScale">卡片大小</label><input id="layoutButtonScale" type="range" min="0.75" max="1.25" step="0.05"><output data-layout-value="buttonScale"></output></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonOpacity">卡片透明度</label><input id="layoutButtonOpacity" type="range" min="0.35" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>

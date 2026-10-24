@@ -194,10 +194,16 @@ export class BgmManager {
       return this.audio._loadBuffer(BGM_ASSETS[next], this.audio._bgmCache);
     }).then((buffer) => {
       if (generation !== this.generation) return;
-      if (!buffer) { this._fadeOut(this.current); return; }
-      this._crossfadeTo(next, buffer);
+      // beta 资源缺失/404/解码失败时仍给出程序化氛围音，避免 BGM 静默无声。
+      // 有文件时优先文件；仅在 buffer 为空才走这一回退。
+      const procedural = buffer || this.audio._createProceduralBgm?.(next);
+      if (!procedural) { this._fadeOut(this.current); return; }
+      this._crossfadeTo(next, procedural);
     }).catch(() => {
-      if (generation === this.generation) this._fadeOut(this.current);
+      if (generation !== this.generation) return;
+      const procedural = this.audio._createProceduralBgm?.(next);
+      if (procedural) this._crossfadeTo(next, procedural);
+      else this._fadeOut(this.current);
     });
   }
 
@@ -225,23 +231,27 @@ export class BgmManager {
     this._fade(track, 0, this.audio.ctx.currentTime, this.crossfadeSeconds);
   }
 
-  _crossfadeTo(slot, buffer) {
+  _crossfadeTo(slot, bufferOrProcedural) {
     const ctx = this.audio.ctx;
     const now = ctx.currentTime;
-    const source = ctx.createBufferSource();
-    const gain = ctx.createGain();
-    source.buffer = buffer;
-    source.loop = true;
+    const procedural = bufferOrProcedural?.__proceduralBgm === true;
+    const source = procedural ? bufferOrProcedural.source : ctx.createBufferSource();
+    const gain = procedural ? bufferOrProcedural.gain : ctx.createGain();
+    if (!procedural) {
+      source.buffer = bufferOrProcedural;
+      source.loop = true;
+    }
     source.connect(gain);
     gain.connect(this.audio.buses.bgm);
     paramValue(gain.gain, 0, now);
     source.start(now);
-    const track = { slot, source, gain, fade: null };
+    const track = { slot, source, gain, fade: null, procedural };
     this._fade(track, 0.42, now, this.crossfadeSeconds);
     const previous = this.current;
     this.current = track;
     this._fade(previous, 0, now, this.crossfadeSeconds);
     source.onended = () => {
+      if (procedural) clearInterval(bufferOrProcedural.loopTimer);
       try { source.disconnect(); gain.disconnect(); } catch (_) { /* cleanup is best-effort */ }
     };
   }
@@ -355,6 +365,17 @@ export class Audio {
     this._applySettings();
   }
 
+  /** 页面切后台/回来时由 main.js 调用；稳定版调用也是安全 no-op。 */
+  handleVisibility(hidden) {
+    if (!this.isBeta || !this.ctx) return;
+    if (hidden) {
+      try { this.ctx.suspend?.().catch?.(() => {}); } catch (_) { /* best-effort */ }
+    } else {
+      this._resumeContext();
+      this._bgmManager?.request(this._desiredBgmSlot, true);
+    }
+  }
+
   updateBgmState(state) {
     if (!this.isBeta) return null;
     const slot = selectBgmSlot(state);
@@ -369,6 +390,51 @@ export class Audio {
       sfx: this.buses.sfx.gain.value,
       bgm: this.buses.bgm.gain.value,
     } : null;
+  }
+
+  /**
+   * BGM 文件缺失时的轻量程序化回退：一条持续的三角波旋律，按 mood 使用
+   * 不同根音/音阶。它不是 SFX 的短促合成音，挂在独立 bgm 总线上并参与同一
+   * crossfade；因此音量、静音、暂停和切场景语义与文件 BGM 完全一致。
+   */
+  _createProceduralBgm(slot) {
+    if (!this.ctx?.createOscillator || !this.ctx?.createGain) return null;
+    try {
+      const roots = { menu: 220, explore: 196, tension: 174, combat: 146, victory: 262, defeat: 110 };
+      const scales = {
+        menu: [0, 4, 7, 11, 7, 4], explore: [0, 3, 7, 10, 7, 3],
+        tension: [0, 1, 6, 5, 1, 0], combat: [0, 3, 5, 7, 10, 7],
+        victory: [0, 4, 7, 12, 16, 12], defeat: [0, 3, 6, 8, 6, 3],
+      };
+      const root = roots[slot] || roots.menu;
+      const notes = scales[slot] || scales.menu;
+      const source = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      source.type = 'triangle';
+      const now = this.ctx.currentTime;
+      const phraseSeconds = notes.length * 3 * 0.75;
+      const phrase = (startAt) => {
+        notes.concat(notes, notes).forEach((step, index) => {
+          const at = startAt + index * 0.75;
+          source.frequency.setValueAtTime(root * 2 ** (step / 12), at);
+        });
+      };
+      source.frequency.setValueAtTime(root, now);
+      phrase(now);
+      gain.gain.setValueAtTime(0.0001, now);
+      // 13.5 秒短句循环：提前 4 秒排入下一句，避免主线程定时器造成音频空档。
+      let phraseStart = now;
+      const loopTimer = setInterval(() => {
+        const phraseEnd = phraseStart + phraseSeconds;
+        if (this.ctx.currentTime >= phraseEnd - 4) {
+          phrase(phraseEnd);
+          phraseStart = phraseEnd;
+        }
+      }, 1000);
+      return { __proceduralBgm: true, source, gain, loopTimer };
+    } catch (_) {
+      return null;
+    }
   }
 
   _readManifest(kind) {

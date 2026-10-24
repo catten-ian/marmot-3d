@@ -23,10 +23,14 @@ class FakeSource extends FakeNode {
   start(time) { this.started.push(time); }
   stop(time) { this.stopped.push(time); }
 }
+class FakeOscillator extends FakeSource {
+  constructor() { super(); this.type = 'sine'; this.frequency = new FakeParam(440); }
+}
 class FakeContext {
   constructor() { this.currentTime = 5; this.sampleRate = 44100; this.state = 'running'; this.destination = new FakeNode(); this.sources = []; }
   createGain() { return new FakeNode(); }
   createBufferSource() { const source = new FakeSource(); this.sources.push(source); return source; }
+  createOscillator() { const source = new FakeOscillator(); this.sources.push(source); return source; }
   decodeAudioData() { return Promise.resolve({ duration: 0.4 }); }
   resume() { this.state = 'running'; return Promise.resolve(); }
 }
@@ -142,6 +146,24 @@ test('BGM slots cover all six moods and switch through a timed crossfade', async
   assert.ok(manager.current.gain.gain.events.some((event) => event[0] === 'linear' && event[2] === 7.5));
   assert.ok(context.sources[0].stopped.some((when) => when === 7.54));
   assert.equal(mod.selectBgmSlot({ mode: 'pause' }), null);
+});
+
+test('BGM manifest 缺失时走程序化回退而不是静默无声', async () => {
+  const mod = await import('../src/systems/audio.js');
+  const fallback = new mod.Audio({
+    isBeta: true,
+    storage: { getItem: () => null, setItem() {} },
+    contextFactory: FakeContext,
+    fetchFn: async () => ({ ok: true, json: async () => ({ assets: {} }) }),
+  });
+  assert.equal(fallback.ensure(), true);
+  fallback.updateBgmState({ mode: 'title' });
+  await sleep(10);
+  assert.equal(fallback._bgmManager.current.slot, 'menu');
+  assert.equal(fallback._bgmManager.current.procedural, true);
+  assert.equal(fallback.ctx.sources.some((source) => source.started.length === 1), true);
+  // FakeSource 不自动触发 onended，手动清理程序化回退的 loop timer。
+  fallback._bgmManager.current.source.onended?.();
 });
 
 test('same-family SFX concurrency and interval limits are enforced', async () => {

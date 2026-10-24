@@ -1,0 +1,20 @@
+/* beta 新增样式（rev22 不升戳期间的追加段；新文件无旧缓存，立即生效）。
+   仅放编辑态/选中态等“非默认观感”规则；默认观感由元素 inline style 提供。 */
+
+/* 视角状态卡（hudViewMode）：布局编辑态下可点选/拖动，与其余 HUD 卡一致。 */
+body.touch-layout-editing .viewmode-card {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  outline: 1px dashed rgba(255, 232, 177, .72);
+  outline-offset: 3px;
+}
+body.touch-layout-editing .viewmode-card.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
+body.touch-layout-editing .viewmode-card.layout-dragging { cursor: grabbing; filter: brightness(1.18); }
+
+/* 配置导入/导出区块的状态提示条（页面内提示，不用 alert）。 */
+.config-io-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.config-io-status { font-size: 12px; color: #b7c7ae; margin: 4px 0; min-height: 1.2em; }
+.config-io-status.ok { color: #9fe8b0; }
+.config-io-status.warn { color: #ffcf6b; }
+.config-io-status.error { color: #ff9d8a; }
