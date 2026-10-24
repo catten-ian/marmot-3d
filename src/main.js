@@ -80,6 +80,7 @@ import { SmartFox } from './entities/smart-fox.js';
 import { createSmartPack } from './entities/smart-fox-core.mjs';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
+import { BETA_TUNE, betaFlowerCompletesImmediately, resolveLungeLockYaw } from './core/beta-tuning.js';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, energyOfFlower, eatLine, HERBIVORE,
@@ -297,10 +298,14 @@ if (gsWorld) {
 // dev 版：草本植物（随关卡季节变化，需在每关开始时按当季物种重建）
 let berries = [];
 const forage = { index: -1, progress: 0, emergency: false };
+let interactHeld = false;
+let grazeProne = 0;
 function buildFoods(levelIndex) {
   if (devOn('seasonalFood')) {
     const plants = plantsForLevel(levelIndex, BERRY_POINTS.length);
-    const flowers = new Set(chooseFlowerIndices(BERRY_POINTS.length, levelIndex));
+    const flowers = new Set(chooseFlowerIndices(
+      BERRY_POINTS.length, levelIndex, IS_BETA ? { count: BETA_TUNE.flowerCount } : {},
+    ));
     return BERRY_POINTS.map((p, i) => {
       const [x, z] = scalePoint(p);
       return new Food(scene, x, z, i, plants[i], flowers.has(i) ? 'flower' : 'grass');
@@ -1372,9 +1377,20 @@ function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul 
   if (move === 'stand' && fromParryGesture) parryWindowT = Math.max(parryWindowT, wheel.parryWindow || 0.3);
 
   // 攻击朝向：第三人称沿角色身体/移动朝向，第一人称沿视线（保持原有正确行为）。
-  const attackYaw = resolveAttackYaw({
-    thirdPerson: controller.thirdPerson, cameraYaw: controller.yaw, bodyYaw: controller.bodyYaw,
-  });
+  let attackYaw = (() => {
+    const attackYaw = resolveAttackYaw({
+      thirdPerson: controller.thirdPerson, cameraYaw: controller.yaw, bodyYaw: controller.bodyYaw,
+    });
+    return attackYaw;
+  })();
+  if (IS_BETA && move === 'lunge') {
+    const locked = resolveLungeLockYaw(controller.position.x, controller.position.z, attackYaw, foxes, {});
+    if (locked !== null) {
+      attackYaw = locked;
+      controller.bodyYaw = locked;
+      if (!controller.thirdPerson) controller.yaw = locked;
+    }
+  }
   _fwd.set(-Math.sin(attackYaw), 0, -Math.cos(attackYaw));
   const right = new THREE.Vector3(-_fwd.z, 0, _fwd.x);
   if (move === 'dodge') {
@@ -1650,6 +1666,7 @@ function update(dt) {
 
   // 移动（含疾行）
   let speedMul = stats.speedMul;
+  if (IS_BETA) speedMul *= BETA_TUNE.moveSpeedMul;
   // 疾行：按方案查表，并额外接受任意一侧 Shift（双手都能用）
   const sprinting = controller.touchSprint || binds.isAction('ShiftLeft', 'sprint')
     || binds.isAction('ShiftRight', 'sprint')
@@ -1658,6 +1675,9 @@ function update(dt) {
   // 阵风走 controller.externalVelocity.x；洞内先清掉上一帧残留的横向风速，
   // 避免只把本帧 gust 设为 0 却让风继续把玩家拖行。
   if (weatherInBurrow) controller.externalVelocity.x = 0;
+  controller.forcedProne = IS_BETA ? grazeProne : 0;
+  controller.grazeEyeExtra = IS_BETA ? BETA_TUNE.grazeEyeDropExtra * grazeProne : 0;
+  controller.grazeThirdDrop = IS_BETA ? BETA_TUNE.thirdPersonGrazeDrop * grazeProne : 0;
   controller.update(
     dt,
     keys,
@@ -1691,7 +1711,8 @@ function update(dt) {
   // dev 版「耐饥渴」：同一动作消耗更低（旱獭能长时间不进食活动）
   const costMul = devOn('famineTolerance') ? HERBIVORE.moveCostMul : 1;
   if (moving) {
-    const moveCost = game.overdrive > 0 ? 4 : game.boost > 0 ? 4.8 : sprinting ? 3.4 : 1.6;
+    const sprintCost = IS_BETA ? BETA_TUNE.sprintMoveCost : 3.4;
+    const moveCost = game.overdrive > 0 ? 4 : game.boost > 0 ? 4.8 : sprinting ? sprintCost : 1.6;
     p.energy -= dt * moveCost * costMul;
     p.energy = Math.max(0, p.energy);
   }
@@ -1823,6 +1844,8 @@ function update(dt) {
   // 攻击在释放时结算：按住期间仅采集方向输入。
 
   // —— 持续采食 ——
+  const holdToEat = IS_BETA;
+  let grazeTarget = 0;
   let nearest = -1, nearestDist = Infinity;
   berries.forEach((b, i) => {
     if (b.taken) return;
@@ -1836,13 +1859,25 @@ function update(dt) {
     const b = berries[nearest];
     if (forage.index !== nearest) forage.progress = 0;
     forage.index = nearest;
-    forage.emergency = isForagingEmergency({
-      inBurrow: game.inBurrow, sprinting, recentlyHit: game.recentlyHit > 0,
-      foxes: foxes.map((f) => ({ x: f.x - p.x, z: f.z - p.z, alive: f.alive, type: f.type, pounceCommitted: f.pounceCommitted, state: f.state })),
-    });
-    forage.progress = stepForageProgress(forage.progress, dt, { inRange: true, emergency: forage.emergency, kind: b.kind });
-    hud.setForage({ active: true, kind: b.kind, progress: forage.progress, emergency: forage.emergency });
-    if (forage.progress >= 1) {
+    if (holdToEat && !interactHeld) {
+      forage.progress = 0;
+      forage.emergency = false;
+      hud.setForage({ active: false });
+    } else {
+      forage.emergency = isForagingEmergency({
+        inBurrow: game.inBurrow, sprinting, recentlyHit: game.recentlyHit > 0,
+        foxes: foxes.map((f) => ({ x: f.x - p.x, z: f.z - p.z, alive: f.alive, type: f.type, pounceCommitted: f.pounceCommitted, state: f.state })),
+      });
+      if (betaFlowerCompletesImmediately(b.kind)) forage.progress = 1;
+      else forage.progress = stepForageProgress(forage.progress, dt, {
+        inRange: true, emergency: forage.emergency, kind: b.kind,
+        // beta 缩短吃草耗时；非 beta 不传 seconds，逐字沿用 FORAGE.grassSeconds=1.4。
+        seconds: IS_BETA && b.kind === 'grass' ? BETA_TUNE.grassSeconds : null,
+      });
+      hud.setForage({ active: true, kind: b.kind, progress: forage.progress, emergency: forage.emergency });
+      if (holdToEat && interactHeld && b.kind === 'grass') grazeTarget = 1;
+    }
+    if (!(holdToEat && !interactHeld) && forage.progress >= 1) {
       b.take(); scenery.setBerryTaken(nearest); game.foodCount++;
       const gain = b.kind === 'flower' ? energyOfFlower() : b.kind === 'grass' ? energyOfPlant(b.plant) : BERRY_ENERGY;
       p.energy = clamp(p.energy + gain, 0, 100);
@@ -1856,8 +1891,17 @@ function update(dt) {
       hud.setForage({ active: false });
     }
   }
+  grazeProne += (grazeTarget - grazeProne) * (1 - Math.exp(-12 * dt));
 
   // —— 伙伴跟随与到家 ——
+  if (IS_BETA && !game.friend.rescued && !game.friend.saved
+    && Math.hypot(companion.x - p.x, companion.z - p.z) < RESCUE_DIST) {
+    game.friend.rescued = true;
+    companion.rescued = true;
+    companion.showEmote('check');
+    audio.rescue();
+    hud.say('伙伴跟上了！带它回左侧洞穴。');
+  }
   companion.update(dt, controller.position, game.inBurrow);
   if (game.friend.rescued && !game.friend.saved) {
     const d = Math.hypot(companion.x - BURROW_X, companion.z - BURROW_Z);
@@ -1903,6 +1947,7 @@ function update(dt) {
   if (game.friend.saved && game.inBaseBurrow && game.socialCD <= 0) {
     prompt = kbd(bindText(binds, 'interact')) + ' 陪伴缓压';
   } else if (!game.friend.rescued && !game.friend.saved
+    && !IS_BETA
     && Math.hypot(companion.x - p.x, companion.z - p.z) < RESCUE_DIST) {
     prompt = kbd(bindText(binds, 'interact')) + ' 救援伙伴';
   }
@@ -2151,8 +2196,12 @@ touchControls = new TouchControls({
       }
     } else if (!pressed && action === 'dodge') doRoll(gesture);
     else if (pressed && action === 'jump') doJump();
-    else if (pressed && action === 'interact') doInteract();
-    else if (pressed && action === 'burst') doBurst();
+    else if (action === 'interact') {
+      if (pressed) {
+        interactHeld = true;
+        doInteract();
+      } else interactHeld = false;
+    } else if (pressed && action === 'burst') doBurst();
     else if (pressed && action === 'ultimate') doUltimate();
     else if (pressed && action === 'pause') pause();
   },
@@ -2182,7 +2231,10 @@ const isBound = (code) => {
 window.addEventListener('keydown', (e) => {
   if (e.repeat) {
     // 长按只记录"按住"状态（攻击/移动需要），不重复触发单次动作
-    if (game.mode === 'play' && isBound(e.code)) keys.add(e.code);
+    if (game.mode === 'play' && isBound(e.code)) {
+      keys.add(e.code);
+      if (binds.isAction(e.code, 'interact')) interactHeld = true;
+    }
     return;
   }
 
@@ -2235,12 +2287,16 @@ window.addEventListener('keydown', (e) => {
   if (binds.isAction(e.code, 'dodge')) doRoll();
   if (binds.isAction(e.code, 'burst')) doBurst();
   if (binds.isAction(e.code, 'ultimate')) doUltimate();
-  if (binds.isAction(e.code, 'interact')) doInteract();
+  if (binds.isAction(e.code, 'interact')) {
+    interactHeld = true;
+    if (!e.repeat) doInteract();
+  }
   if (binds.isAction(e.code, 'jump')) doJump();
 });
 
 window.addEventListener('keyup', (e) => {
   keys.delete(e.code);
+  if (binds.isAction(e.code, 'interact')) interactHeld = false;
   if (binds.isAction(e.code, 'attack')) {
     if (attackCharge.via === 'key') releaseAttack();
   }

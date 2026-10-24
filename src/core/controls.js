@@ -40,6 +40,9 @@ export class FirstPersonController {
     this.bobAmount = 0;
     // 姿态：0 = 站立，1 = 俯伏。始终连续插值，支持中途反向
     this.crouch = 0;
+    this.forcedProne = 0;
+    this.grazeEyeExtra = 0;
+    this.grazeThirdDrop = 0;
     this.postureSpeed = 0;
     this.baseFov = camera.fov;
     // 垂直运动
@@ -383,7 +386,8 @@ export class FirstPersonController {
   _updatePosture(dt, speedRatio) {
     const P = PLAYER.posture;
     // 速度超过阈值即视为在奔跑
-    const target = speedRatio > P.speedThreshold ? 1 : 0;
+    const runTarget = speedRatio > P.speedThreshold ? 1 : 0;
+    const target = Math.max(runTarget, this.forcedProne ? 1 : 0);
 
     // 非对称速率：趴下利落，起身稍缓
     const rate = target > this.crouch ? P.crouchRate : P.standRate;
@@ -402,7 +406,7 @@ export class FirstPersonController {
 
     // 姿态对相机的影响，全部乘以 c —— 保证中途反向时整体线性连续
     // 趴下：视高降低、俯仰下压、视野收窄（冲刺时专注前方）
-    const eyeH = PLAYER.eyeHeight - P.eyeDrop * c;
+    const eyeH = PLAYER.eyeHeight - P.eyeDrop * c - (this.grazeEyeExtra || 0);
     const pitchBias = -P.pitchDrop * c;
     const fovNow = (this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson)
       - (this.thirdPerson ? 0 : P.fovNarrow * c);
@@ -435,7 +439,7 @@ export class FirstPersonController {
       const horizontalDistance = Math.cos(cameraPitch) * this.cameraDistance;
       this.camera.position.set(
         this.position.x + Math.sin(this.yaw) * horizontalDistance + shakeX * 0.3,
-        groundY + this.cameraHeight + shakeY * 0.3,
+        groundY + this.cameraHeight - (this.grazeThirdDrop || 0) + shakeY * 0.3,
         this.position.z + Math.cos(this.yaw) * horizontalDistance,
       );
     } else {

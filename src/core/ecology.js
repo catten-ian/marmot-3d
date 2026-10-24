@@ -119,10 +119,12 @@ export const FORAGE = {
   leaveGrace: 0.18, regrowGrass: 30, regrowFlower: Infinity,
 };
 
-export function stepForageProgress(progress, dt, { inRange, emergency, kind = 'grass' } = {}) {
+export function stepForageProgress(progress, dt, { inRange, emergency, kind = 'grass', seconds = null } = {}) {
   if (!inRange) return 0;
-  const seconds = kind === 'flower' ? FORAGE.flowerSeconds : kind === 'berry' ? FORAGE.berrySeconds : FORAGE.grassSeconds;
-  const rate = (1 / seconds) * (emergency ? FORAGE.emergencyMul : 1);
+  // seconds 为可选覆盖（beta 缩短吃草耗时用）；不传时逐字沿用原按 kind 查表的行为。
+  const baseSeconds = kind === 'flower' ? FORAGE.flowerSeconds : kind === 'berry' ? FORAGE.berrySeconds : FORAGE.grassSeconds;
+  const totalSeconds = (typeof seconds === 'number' && seconds > 0) ? seconds : baseSeconds;
+  const rate = (1 / totalSeconds) * (emergency ? FORAGE.emergencyMul : 1);
   return Math.max(0, Math.min(1, progress + Math.max(0, dt) * rate));
 }
 

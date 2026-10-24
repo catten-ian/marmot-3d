@@ -57,9 +57,15 @@ export const DEV_FEATURES = {
   gsWorld: IS_DEV,
 };
 
-/** 是否启用某 dev 特性（正式版恒为 false） */
+/**
+ * 是否启用某实验特性。
+ * 是否启用完全由 DEV_FEATURES[key] 决定——每个特性自身已编码
+ * 它是 dev 专属（IS_DEV）还是 dev+beta（IS_DEV||IS_BETA），
+ * 因此这里不能再额外 AND 上 IS_DEV，否则 beta 永远读不到 beta 开放的特性。
+ * stable（既非 dev 也非 beta）下所有 DEV_FEATURES 均为 false，恒返回 false。
+ */
 export function devOn(key) {
-  return IS_DEV && DEV_FEATURES[key] === true;
+  return DEV_FEATURES[key] === true;
 }
 
 /**
