@@ -10,7 +10,11 @@ import {
 import { heightFieldActive } from '../core/utils.js';
 import { terrainHeight, terrainNormal, makeRng } from '../core/utils.js';
 import { devOn, IS_BETA } from '../core/version.js';
-import { buildGrazeGrid, queryGrazeRadius, createGrassGrowth, grassDensity } from '../core/graze-grid.mjs';
+import {
+  buildGrazeGrid, queryGrazeRadius, createGrassGrowth, grassDensity,
+  grazeGrass, regrowGrass,
+} from '../core/graze-grid.mjs';
+import { BETA_TUNE } from '../core/beta-tuning.js';
 import { undergroundProfile } from './underground.js';
 
 // 生成始终面向相机的悬浮文字标签（Sprite）。
@@ -385,57 +389,58 @@ export class Scenery {
       this.grassPoints = grassPoints;
       this.grazeGrid = buildGrazeGrid(grassPoints, 2);
       this.growth = createGrassGrowth(grassPoints.length, 1);
-      this.baseDensity = COUNT / (200 * 150 * getPointScale());
       this._grassBaseMatrices = mesh.instanceMatrix.array.slice();
     }
     this.group.add(mesh);
   }
 
-  hasGrazeable(x, z, radius = 3.0) {
+  hasGrazeable(x, z, radius = BETA_TUNE.grazeHaloRadius) {
     if (!IS_BETA) return false;
-    return queryGrazeRadius(this.grazeGrid, x, z, radius, (index) => this.growth.get(index) > 0.5).length > 0;
+    // 连续判定：圈内只要还有 growth>0（没被啃光）的草就能继续啃，
+    // 不再使用 growth>0.5 二值阈值。
+    return queryGrazeRadius(this.grazeGrid, x, z, radius, (index) => this.growth.get(index) > 0).length > 0;
   }
 
-  grazeDensity(x, z, radius = 3.0) {
+  /** 连续密度（0~1）：半径内草株 growth 平均值，详见 graze-grid.mjs。 */
+  grazeDensity(x, z, radius = BETA_TUNE.grazeHaloRadius) {
     if (!IS_BETA) return 0;
-    return grassDensity(this.grazeGrid, this.growth, x, z, radius, this.baseDensity * Math.PI * radius * radius);
+    return grassDensity(this.grazeGrid, this.growth, x, z, radius);
   }
 
   _setGrassVisual(index, growthValue) {
     this._grazeBaseMatrix.fromArray(this._grassBaseMatrices, index * 16);
     this._grazeBaseMatrix.decompose(this._grazePosition, this._grazeQuaternion, this._grazeScale);
-    this._grazeScale.y *= 0.3 + 0.7 * growthValue;
+    // growth 直接映射高度：growth=0 时 scaleY=0，被啃光的草真正消失（秃斑）；
+    // growth∈(0,1) 按比例连续变矮。旧版 0.3+0.7*g 会留下 30% 残高、永不消失。
+    this._grazeScale.y *= growthValue;
     this._grassMatrix.compose(this._grazePosition, this._grazeQuaternion, this._grazeScale);
     this.grass.setMatrixAt(index, this._grassMatrix);
   }
 
-  grazeAt(x, z, { coreRadius = 1.2, haloRadius = 3.0 } = {}) {
-    if (!IS_BETA) return { eaten: 0, core: 0, halo: 0 };
-    let core = 0, halo = 0;
-    const indices = queryGrazeRadius(this.grazeGrid, x, z, haloRadius);
-    for (const index of indices) {
-      const point = this.grassPoints[index];
-      const distance = Math.hypot(point.x - x, point.z - z);
-      if (distance >= haloRadius) continue;
-      const next = distance < coreRadius ? 0 : 0.3;
-      if (this.growth.get(index) > next) {
-        this.growth.set(index, next);
-        distance < coreRadius ? core++ : halo++;
-        this._grazeVisualDirty.delete(index);
-        this._setGrassVisual(index, next);
-      }
-    }
-    if (core || halo) this.grass.instanceMatrix.needsUpdate = true;
-    return { eaten: core + halo, core, halo };
+  /**
+   * 渐进啃食一帧：按 dt 连续扣减圈内草的 growth（见 grazeGrass）。
+   * 返回 { eaten, density }：
+   *   eaten   —— 本帧实际吃掉的 growth 总量（株当量），供文案/量化；
+   *   density —— eaten/capacity，按距离加权的连续密度（0~1），
+   *              能量回量 = grazeRegenPerSec * density * dt，与实际吃到的草严格同源。
+   */
+  grazeAt(x, z, dt) {
+    if (!IS_BETA || !(dt > 0)) return { eaten: 0, density: 0 };
+    const { eaten, capacity, touched } = grazeGrass(this.growth, this.grazeGrid, x, z, dt, {
+      rate: BETA_TUNE.grazeRate,
+      coreRadius: BETA_TUNE.grazeCoreRadius,
+      haloRadius: BETA_TUNE.grazeHaloRadius,
+    });
+    for (const index of touched) this._setGrassVisual(index, this.growth.get(index));
+    if (touched.length) this.grass.instanceMatrix.needsUpdate = true;
+    return { eaten, density: capacity > 0 ? eaten / capacity : 0 };
   }
 
-  growGrass(dt, regrowPerSecond = 0.012) {
+  growGrass(dt, regrowPerSecond = BETA_TUNE.grassRegrowPerSec) {
     if (!IS_BETA || !(dt > 0)) return;
     this._grazeVisualTimer += dt;
-    this.growth.forEachDamaged((index, value) => {
-      const next = this.growth.grow(index, regrowPerSecond * dt);
-      if (next !== value) this._grazeVisualDirty.add(index);
-    });
+    const { touched } = regrowGrass(this.growth, dt, regrowPerSecond);
+    for (const index of touched) this._grazeVisualDirty.add(index);
     if (this._grazeVisualTimer < 0.1 || !this._grazeVisualDirty.size) return;
     for (const index of this._grazeVisualDirty) this._setGrassVisual(index, this.growth.get(index));
     this._grazeVisualDirty.clear();

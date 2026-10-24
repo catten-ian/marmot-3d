@@ -9,8 +9,13 @@ export const BETA_TUNE = {
   sprintMoveCost: 5.0,
   flowerCount: 4,
   flowerInstant: true,
-  grassSeconds: 0.6,        // 啃一棵草所需秒数（正式版 FORAGE.grassSeconds=1.4，beta 明显缩短）
-  grazeRegenPerSec: 8.0,     // 密度满时每秒持续回储备
+  grassSeconds: 0.6,        // 一轮啃食动作（HUD 进度条）所需秒数；只驱动动作节奏/飘字，不直接给能量
+  // —— 啃环境草（growth 语义见 src/core/graze-grid.mjs）——
+  grazeCoreRadius: 1.2,     // 啃食核心圈半径，单位米；圈内草株按满权重 1 被啃
+  grazeHaloRadius: 3.0,     // 啃食外圈半径，单位米；权重从核心边缘线性衰减到 0
+  grazeRate: 0.55,          // 每株草每秒被啃掉的 growth 量（满权重）：约 1.8s 把核心圈一株草从 1 啃到 0
+  grassRegrowPerSec: 0.012, // 环境草自长速度（growth/秒）：啃光后约 83s 长满，约为啃食速度的 1/46，原地持续啃不可能刷出能量
+  grazeRegenPerSec: 8.0,    // 按住啃食、圈内草完好（连续密度=1）时每秒回的储备；实际按「本帧吃到量/满圈产能」连续折算，越稀疏回得越少
   companionFollowSpeed: 9.6,
   companionFollowGap: 1.05,
   grazeEyeDropExtra: 0.12,

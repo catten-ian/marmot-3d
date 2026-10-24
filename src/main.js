@@ -303,6 +303,8 @@ let berries = [];
 const forage = { index: -1, progress: 0, emergency: false };
 let interactHeld = false;
 let grazeProne = 0;
+// beta 啃环境草：当前一轮(grassSeconds)内已按实际吃量逐帧结算的储备累计，供收尾飘字
+let grazeCycleEaten = 0;
 function buildFoods(levelIndex) {
   if (devOn('seasonalFood')) {
     const plants = plantsForLevel(levelIndex, BERRY_POINTS.length);
@@ -896,6 +898,7 @@ function loadLevel(index, announce = true) {
   }
   scenery.resetBerries();
   if (IS_BETA) scenery.resetGraze();
+  grazeCycleEaten = 0;
   game.foodCount = 0;
   forage.index = -1; forage.progress = 0; forage.emergency = false;
   hud.setForage({ active: false });
@@ -2034,15 +2037,15 @@ function update(dt) {
       if (d < BERRY_RADIUS + 0.35 && d < nearestDist) { nearest = i; nearestDist = d; }
     });
     const nearestFood = nearest >= 0 ? berries[nearest] : null;
-    const grassInRange = IS_BETA && !nearestFood && scenery.hasGrazeable(p.x, p.z, 3.0);
+    const grassInRange = IS_BETA && !nearestFood && scenery.hasGrazeable(p.x, p.z, BETA_TUNE.grazeHaloRadius);
     if (!nearestFood && !grassInRange) {
-      forage.index = -1; forage.progress = 0; forage.emergency = false;
+      forage.index = -1; forage.progress = 0; forage.emergency = false; grazeCycleEaten = 0;
       hud.setForage({ active: false });
     } else if (grassInRange) {
-      if (forage.index !== -2) forage.progress = 0;
+      if (forage.index !== -2) { forage.progress = 0; grazeCycleEaten = 0; }
       forage.index = -2;
       if (holdToEat && !interactHeld) {
-        forage.progress = 0; forage.emergency = false;
+        forage.progress = 0; forage.emergency = false; grazeCycleEaten = 0;
         hud.setForage({ active: false });
       } else {
         forage.emergency = isForagingEmergency({
@@ -2050,24 +2053,27 @@ function update(dt) {
           foxes: foxes.map((f) => ({ x: f.x - p.x, z: f.z - p.z, alive: f.alive, type: f.type, pounceCommitted: f.pounceCommitted, state: f.state })),
         });
         forage.progress = stepForageProgress(forage.progress, dt, { inRange: true, emergency: forage.emergency, kind: 'grass', seconds: BETA_TUNE.grassSeconds });
-        const density = scenery.grazeDensity(p.x, p.z, 3.0);
-        if (forage.progress < 1) p.energy = clamp(p.energy + BETA_TUNE.grazeRegenPerSec * density * dt, 0, 100);
+        // 渐进啃环境草：grazeAt 按 dt 连续扣减圈内草的 growth；
+        // bite.density = 本帧实际吃到量 / 满圈产能（按距离加权的连续密度）。
+        // 储备只按实际吃到的草折算（边吃边回、越稀疏每秒回得越少）；
+        // 一轮动作收尾时不再另发能量，避免重复计算。
+        const bite = scenery.grazeAt(p.x, p.z, dt);
+        if (bite.eaten > 0) {
+          p.energy = clamp(p.energy + BETA_TUNE.grazeRegenPerSec * bite.density * dt, 0, 100);
+          grazeCycleEaten += BETA_TUNE.grazeRegenPerSec * bite.density * dt;
+        }
         hud.setForage({ active: true, kind: 'grass', progress: forage.progress, emergency: forage.emergency });
         if (interactHeld) grazeTarget = 1;
       }
       if (interactHeld && forage.progress >= 1) {
-        scenery.grazeAt(p.x, p.z);
-        const plants = plantsForLevel(game.level, BERRY_POINTS.length);
-        const plant = plants[Math.max(0, game.foodCount) % plants.length];
-        const gain = energyOfPlant(plant);
+        // 一轮啃食动作收尾：能量已在按住期间逐帧结算，这里只做计数与不指名物种的飘字反馈。
         game.foodCount++;
-        p.energy = clamp(p.energy + gain, 0, 100);
-        if (game.overdrive <= 0) game.charge = clamp(game.charge + BERRY_CHARGE, 0, 100);
+        const gain = Math.round(grazeCycleEaten);
         const by = terrainHeight(p.x, p.z);
         particles.burst(p.x, by + 0.6, p.z, colHerb, 12, 1);
-        damageText.spawn(p.x, by + 1.1, p.z, eatLine(plant), '#dff0c4');
+        if (gain > 0) damageText.spawn(p.x, by + 1.1, p.z, `啃草 +${gain} 储备`, '#dff0c4');
         audio.berry();
-        forage.index = -1; forage.progress = 0; forage.emergency = false;
+        forage.index = -1; forage.progress = 0; forage.emergency = false; grazeCycleEaten = 0;
         hud.setForage({ active: false });
       }
     } else {
