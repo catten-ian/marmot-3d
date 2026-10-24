@@ -9,7 +9,8 @@ import {
 } from '../core/config.js';
 import { heightFieldActive } from '../core/utils.js';
 import { terrainHeight, terrainNormal, makeRng } from '../core/utils.js';
-import { devOn } from '../core/version.js';
+import { devOn, IS_BETA } from '../core/version.js';
+import { buildGrazeGrid, queryGrazeRadius, createGrassGrowth, grassDensity } from '../core/graze-grid.mjs';
 import { undergroundProfile } from './underground.js';
 
 // 生成始终面向相机的悬浮文字标签（Sprite）。
@@ -251,6 +252,15 @@ export class Scenery {
     this.group = new THREE.Group();
     scene.add(this.group);
     this._buildGrass();
+    if (IS_BETA) {
+      this._grassMatrix = new THREE.Matrix4();
+      this._grazeBaseMatrix = new THREE.Matrix4();
+      this._grazePosition = new THREE.Vector3();
+      this._grazeQuaternion = new THREE.Quaternion();
+      this._grazeScale = new THREE.Vector3();
+      this._grazeVisualTimer = 0;
+      this._grazeVisualDirty = new Set();
+    }
     this._buildRocks();
     this._buildBushes();
     // 风的时间推进：用 rAF 绝对时间而非 dt 累加，暂停/切页也不会失步。
@@ -319,9 +329,10 @@ export class Scenery {
 
     const COUNT = 26000;
     const mesh = new THREE.InstancedMesh(blade, mat, COUNT);
+    const grassPoints = IS_BETA ? [] : null;
     mesh.castShadow = false;
     mesh.receiveShadow = false;
-    mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    mesh.instanceMatrix.setUsage(IS_BETA ? THREE.DynamicDrawUsage : THREE.StaticDrawUsage);
 
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -360,6 +371,7 @@ export class Scenery {
       posV.set(x, y, z);
       m.compose(posV, q, scaleV);
       mesh.setMatrixAt(i, m);
+      if (grassPoints) grassPoints.push({ index: i, x, z });
       color.setHex(greens[(rng() * greens.length) | 0]);
       color.offsetHSL(0, 0, (rng() - 0.5) * 0.08);
       mesh.setColorAt(i, color);
@@ -369,7 +381,75 @@ export class Scenery {
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     this.grass = mesh;
+    if (IS_BETA) {
+      this.grassPoints = grassPoints;
+      this.grazeGrid = buildGrazeGrid(grassPoints, 2);
+      this.growth = createGrassGrowth(grassPoints.length, 1);
+      this.baseDensity = COUNT / (200 * 150 * getPointScale());
+      this._grassBaseMatrices = mesh.instanceMatrix.array.slice();
+    }
     this.group.add(mesh);
+  }
+
+  hasGrazeable(x, z, radius = 3.0) {
+    if (!IS_BETA) return false;
+    return queryGrazeRadius(this.grazeGrid, x, z, radius, (index) => this.growth.get(index) > 0.5).length > 0;
+  }
+
+  grazeDensity(x, z, radius = 3.0) {
+    if (!IS_BETA) return 0;
+    return grassDensity(this.grazeGrid, this.growth, x, z, radius, this.baseDensity * Math.PI * radius * radius);
+  }
+
+  _setGrassVisual(index, growthValue) {
+    this._grazeBaseMatrix.fromArray(this._grassBaseMatrices, index * 16);
+    this._grazeBaseMatrix.decompose(this._grazePosition, this._grazeQuaternion, this._grazeScale);
+    this._grazeScale.y *= 0.3 + 0.7 * growthValue;
+    this._grassMatrix.compose(this._grazePosition, this._grazeQuaternion, this._grazeScale);
+    this.grass.setMatrixAt(index, this._grassMatrix);
+  }
+
+  grazeAt(x, z, { coreRadius = 1.2, haloRadius = 3.0 } = {}) {
+    if (!IS_BETA) return { eaten: 0, core: 0, halo: 0 };
+    let core = 0, halo = 0;
+    const indices = queryGrazeRadius(this.grazeGrid, x, z, haloRadius);
+    for (const index of indices) {
+      const point = this.grassPoints[index];
+      const distance = Math.hypot(point.x - x, point.z - z);
+      if (distance >= haloRadius) continue;
+      const next = distance < coreRadius ? 0 : 0.3;
+      if (this.growth.get(index) > next) {
+        this.growth.set(index, next);
+        distance < coreRadius ? core++ : halo++;
+        this._grazeVisualDirty.delete(index);
+        this._setGrassVisual(index, next);
+      }
+    }
+    if (core || halo) this.grass.instanceMatrix.needsUpdate = true;
+    return { eaten: core + halo, core, halo };
+  }
+
+  growGrass(dt, regrowPerSecond = 0.012) {
+    if (!IS_BETA || !(dt > 0)) return;
+    this._grazeVisualTimer += dt;
+    this.growth.forEachDamaged((index, value) => {
+      const next = this.growth.grow(index, regrowPerSecond * dt);
+      if (next !== value) this._grazeVisualDirty.add(index);
+    });
+    if (this._grazeVisualTimer < 0.1 || !this._grazeVisualDirty.size) return;
+    for (const index of this._grazeVisualDirty) this._setGrassVisual(index, this.growth.get(index));
+    this._grazeVisualDirty.clear();
+    this._grazeVisualTimer = 0;
+    this.grass.instanceMatrix.needsUpdate = true;
+  }
+
+  resetGraze() {
+    if (!IS_BETA) return;
+    this.growth.reset();
+    this._grazeVisualDirty.clear();
+    this._grazeVisualTimer = 0;
+    this.grass.instanceMatrix.array.set(this._grassBaseMatrices);
+    this.grass.instanceMatrix.needsUpdate = true;
   }
 
   _buildRocks() {
