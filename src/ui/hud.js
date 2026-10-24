@@ -168,7 +168,7 @@ export class HUD {
     else if (g.fatigue > 0) detail += `<br><span style="color:#c9c3d7">大招后疲劳 ${Math.ceil(g.fatigue)}s：移速 −20%、攻速下降</span>`;
     else if (stats.weak) detail += '<br><span style="color:#ffb1a4">储备见底：伤害与移速下降，回洞休息或采食</span>';
     this.el.combatInfo.innerHTML = `战斗：<strong>${state}</strong> · 范围 ${stats.range.toFixed(1)}m · `
-      + `移速 ${ (6.6 * stats.speedMul).toFixed(1) }m/s`
+      + `移速 ${ (Number.isFinite(g.player?.speed) ? g.player.speed : 0).toFixed(1) }m/s`
       + `<span class="combat-detail">${detail}</span>`;
 
     const burstKey = bindText(null, 'burst', '');

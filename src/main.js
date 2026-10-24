@@ -109,6 +109,7 @@ import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
+if (IS_BETA) audio.bindUserGesture(window);
 
 hud.setLoading(8);
 
@@ -1203,6 +1204,7 @@ function retryLevel() {
 }
 
 function pause() {
+  const silent = !!arguments[0]?.silent;
   if (game.mode !== 'play') return;
   clearPendingAerialParry();
   cancelAttackCharge();
@@ -1212,6 +1214,11 @@ function pause() {
   keys.clear();
   touchControls?.releaseAll();
   controller.exitLock();
+  if (silent) {
+    // 布局编辑只需要暂停模拟，不需要显示会遮住 HUD 卡片的全屏暂停面板。
+    hud.hidePanel();
+    return;
+  }
   const h = schemeHints(binds, { isDev: IS_DEV });
   hud.showPanel(`
     <div class="eyebrow">PAUSED</div>
@@ -1609,6 +1616,7 @@ function update(dt) {
 
   p.x = controller.position.x;
   p.z = controller.position.z;
+  p.speed = Math.hypot(controller.velocity?.x || 0, controller.velocity?.z || 0);
 
   // 洞穴判定
   game.currentBurrow = burrowVolumeAt(p.x, controller.position.y, p.z, burrowDefs);
@@ -1653,7 +1661,7 @@ function update(dt) {
     } else if (f.drillCtx) {
       delete f.drillCtx;
     }
-    f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow);
+    f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow, foxes);
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
@@ -2274,7 +2282,7 @@ const feedbackUI = new FeedbackUI({
 });
 // 进入触屏布局调整时自动暂停，退出时恢复；调整前已暂停则保持暂停。
 touchLayout.setPauseHooks({
-  pause: () => pause(),
+  pause: ({ silent = false } = {}) => pause({ silent }),
   resume: () => { if (game.mode === 'pause') resume(); },
   isPaused: () => game.mode !== 'play',
 });
@@ -2285,7 +2293,8 @@ touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
 touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
 touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
-const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState);
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState, audio);
+touchLayout.onEditingStart = () => settingsUI.transferPauseToLayoutEditor();
 // 游戏中打开设置自动暂停；关闭时仅在由设置发起暂停时恢复（已暂停/标题态保持）。
 settingsUI.setPauseHooks({
   pause: () => pause(),
@@ -2699,6 +2708,7 @@ function frame(now) {
 
   // —— BETA 扮演藏狐模式：由独立模式接管相机/输入/实体/天空 ——
   if (playAsFox) {
+    if (IS_BETA) audio.updateBgmState({ mode: 'play', hp: game.player.hp, stress: 0, threats: 0, combat: false });
     playAsFox.update(dt);
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
@@ -2706,6 +2716,19 @@ function frame(now) {
   }
 
   update(dt);
+  if (IS_BETA) {
+    const inRangeFoxes = foxes.filter((fox) => fox.alive && !game.inBurrow
+      && Math.hypot(fox.x - game.player.x, fox.z - game.player.z) < 22);
+    audio.updateBgmState({
+      mode: game.mode,
+      hp: game.player.hp,
+      stress: game.player.stress,
+      threats: inRangeFoxes.length,
+      winding: inRangeFoxes.some((fox) => fox.state === 'wind'),
+      combat: game.overdrive > 0 || inRangeFoxes.some((fox) => fox.state === 'dash'),
+      overdrive: game.overdrive,
+    });
+  }
   // 键鼠技能状态条在 play/pause 都要刷新（函数内部按模式与输入方式决定显隐）。
   updateKbSkillBar();
   playerModel.position.set(controller.position.x, controller.position.y, controller.position.z);
@@ -2768,6 +2791,7 @@ const DEBUG_HIDE = (() => {
 
 window.__game = {
   game, controller, scene, renderer, camera, keys, LEVELS,
+  audio: IS_BETA ? audio : null,
   testMode: TEST_MODE, sandboxMode: SANDBOX_MODE, sandboxState, enterSandbox, exitSandbox,
   testState, testLogs, recordTestLog, testSnapshot, exportTestLogs,
   foxes: () => foxes, berries: () => berries, companion,
