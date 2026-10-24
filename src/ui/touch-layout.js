@@ -92,6 +92,8 @@ export class TouchLayout {
     this.touchModeAvailable = true;
     // 由 main.js 注入的游戏暂停/恢复钩子；调整态进出时自动暂停/继续。
     this.pauseHooks = null;
+    // 进入编辑态时由 main.js 注入的回调（用于把设置面板发起的暂停移交给编辑器）。
+    this.onEditingStart = null;
     // 本次调整是否由编辑器发起的暂停（调整前已在暂停态则退出调整时保持暂停）。
     this._pausedByEditor = false;
     // 疾跑触发范围变化时由 main.js 注入 TouchControls 实时生效。
@@ -128,8 +130,13 @@ export class TouchLayout {
     this.apply();
   }
 
-  /** main.js 注入暂停钩子：{ pause(), resume(), isPaused() } */
+  /** main.js 注入暂停钩子：{ pause({silent}), resume(), isPaused(), silence() } */
   setPauseHooks(hooks) { this.pauseHooks = hooks || null; }
+
+  /** 接管外层设置面板已发起的暂停：面板关闭后由编辑器负责退出时恢复。 */
+  adoptExistingPause() {
+    if (this.editing && this.pauseHooks?.isPaused?.()) this._pausedByEditor = true;
+  }
 
   _syncAdjustVisibility() {
     // CSS 据此隐藏/显示所有带 data-touch-adjust 的"调整键"。
@@ -426,11 +433,17 @@ export class TouchLayout {
     this.selected = this.selected || 'attack';
     const alreadyPaused = !!this.pauseHooks?.isPaused?.();
     if (alreadyPaused) {
+      // 游戏可能已被设置面板以“非 silent”暂停（全屏 PAUSED 遮罩已显示）。
+      // 编辑态只继承“模拟已停”，暂停归属由 onEditingStart 移交；此处不重复暂停。
       this._pausedByEditor = false;
     } else {
       this._pausedByEditor = true;
-      this.pauseHooks?.pause?.();
+      // silent：只停模拟，不弹会遮住待拖动 HUD 卡片/挡指针的全屏暂停面板。
+      this.pauseHooks?.pause?.({ silent: true });
     }
+    // 无论暂停由谁发起，编辑态统一收敛为 silent：收起可能已显示的全屏 PAUSED 遮罩，
+    // 但游戏保持 mode=pause（模拟停止）；退出编辑时再由暂停归属方决定是否 resume。
+    this.pauseHooks?.silence?.();
   }
 
   _stopEditing() {
@@ -536,6 +549,8 @@ export class TouchLayout {
     container.querySelector('[data-layout-edit]')?.addEventListener('click', (e) => {
       this.setEditing(!this.editing); e.currentTarget.textContent = this.editing ? '完成拖动编辑' : '进入拖动编辑';
       if (this.editing) {
+        // 先把设置面板的暂停归属移交给编辑器，再隐藏面板（否则面板 close 会提前 resume）。
+        this.onEditingStart?.();
         const sheet = document.getElementById('setSheet');
         if (sheet && !sheet.hidden) { sheet.hidden = true; document.body.classList.remove('settings-open'); }
       }
