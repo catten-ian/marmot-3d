@@ -29,6 +29,7 @@ import { preloadModels } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
 import { getRenderProfile, hasRealTouch, isTouchPrimary } from './core/performance.js';
+import { devQualityProfile } from './core/dev-quality.mjs';
 import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
 import { TouchControls } from './core/touch-controls.js';
 
@@ -166,7 +167,7 @@ if (WANT_GS) {
 }
 
 renderProfile = getRenderProfile(TOUCH_DEVICE);
-renderer.setPixelRatio(renderProfile.pixelRatio);
+renderer.setPixelRatio(IS_DEV ? Math.min(renderProfile.pixelRatio, devQualityProfile('medium').pixelRatio) : renderProfile.pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 if ('shadowMap' in renderer) {
   renderer.shadowMap.enabled = renderProfile.shadows;
@@ -325,6 +326,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   const world = await loadVerdantWorldFn({ tier, signal: attempt?.controller.signal || null, onProgress: (p, label, stats) => { if (attempt) { attempt.lastProgressAt = Date.now(); if (stats?.doneBytes > 0) attempt.receivedBytes = true; } if (!attempt?.cancelled) hud.setLoading(46 + Math.max(0, Math.min(1, p)) * 24, label, stats); }, renderer });
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
   verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
+  if (IS_DEV) renderer.setPixelRatio(Math.min(renderProfile.pixelRatio, devQualityProfile(verdantTierActive).pixelRatio));
   scene.add(world.group); setHeightField(world.heightAt, { resolveGround: world.resolveGround, solidCollider: true });
   setPointScale(0.88, 0, 0); setPlayableBounds(world.bounds); setUndergroundCavesEnabled(false);
   sky.terrain.visible = false; sky.hills.visible = false; sky.dome.visible = true; sky.setVerdantMood?.(); publishVerdantField(world);
@@ -400,6 +402,7 @@ async function switchVerdantTier(preference, forceReload = false) {
   const pose = { x: controller.position.x, z: controller.position.z, yaw: controller.yaw, pitch: controller.pitch };
   scene.remove(old.group); disposeVerdantGroup(old.group);
   verdantWorld = loaded; verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
+  if (IS_DEV) renderer.setPixelRatio(Math.min(renderProfile.pixelRatio, devQualityProfile(verdantTierActive).pixelRatio));
   scene.add(loaded.group);
   publishVerdantField(loaded);
   setHeightField(loaded.heightAt, { resolveGround: loaded.resolveGround, solidCollider: true });

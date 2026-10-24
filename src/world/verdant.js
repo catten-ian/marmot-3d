@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getAssetCandidates } from './local-pack.js';
 import { buildWalkableField } from './verdant-collision.js';
 import { downloadVerdantPack } from './asset-downloader.mjs';
+import { devQualityProfile } from '../core/dev-quality.mjs';
 
 async function fetchJson(path, tier, sourceOnly = false, signal = null) {
   const errors = [];
@@ -109,7 +110,9 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
     obj.castShadow = false; obj.receiveShadow = true;
     const apply = (material) => {
       const m = material.clone(); m.roughness = 0.94; m.metalness = 0;
-      const maxAniso = renderer?.capabilities?.getMaxAnisotropy?.() || 4;
+      const budget = devQualityProfile(activeTier);
+      if (!budget.normalMaps) m.normalMap = null;
+      const maxAniso = Math.min(budget.anisotropy, renderer?.capabilities?.getMaxAnisotropy?.() || 4);
       for (const key of ['map', 'normalMap', 'roughnessMap', 'alphaMap']) {
         const tex = m[key]; if (!tex) continue;
         tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;

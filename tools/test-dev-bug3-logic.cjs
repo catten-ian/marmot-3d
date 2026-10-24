@@ -1,0 +1,13 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const quality = fs.readFileSync('src/core/dev-quality.mjs', 'utf8');
+const direction = fs.readFileSync('src/core/fox-direction.mjs', 'utf8');
+const cfg = fs.readFileSync('src/core/config.js', 'utf8');
+const underground = fs.readFileSync('src/world/underground.js', 'utf8');
+assert.match(quality, /pixelRatio: 0\.75/); assert.match(quality, /pixelRatio: 1\.0/);
+const ratios = [...quality.matchAll(/pixelRatio: ([0-9.]+)/g)].map((m) => Number(m[1]));
+assert.deepEqual(ratios, [...ratios].sort((a,b)=>a-b)); assert(ratios[0] >= 0.5 && ratios[0] < ratios.at(-1));
+assert.match(cfg, /IS_DEV \? \{ openingRadius: 1\.35/); assert.match(cfg, /r: BURROW\.r/);
+assert.match(underground, /!_cavesEnabled && d <= p\.openingRadius \* 0\.94/);
+assert.match(direction, /Math\.atan2\(x, z\)/); assert.match(direction, /warningHeading/);
+console.log('dev-bug3 pure logic checks passed');

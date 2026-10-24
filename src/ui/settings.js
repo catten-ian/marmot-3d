@@ -3,7 +3,7 @@
  * 方案切换即时生效并持久化到 localStorage。
  */
 import { Keybinds, ACTIONS, findConflicts } from '../core/keybinds.js';
-import { IS_DEV, VERSION, USE_REAL_MODELS, USE_REAL_FOX_MODEL, FORCE_WEBGL, GS_OVERRIDE } from '../core/version.js';
+import { IS_DEV, VERSION, VERSION_LABEL, BUILD_STAMP, ASSET_STAMP, USE_REAL_MODELS, USE_REAL_FOX_MODEL, FORCE_WEBGL, GS_OVERRIDE } from '../core/version.js';
 import { versionSwitchModel } from '../core/version-switch.mjs';
 import { INPUT_MODES } from '../core/input-mode.mjs';
 import { getModelStatus, getAssetResolutionStatus, instantiate, clearModelCache } from '../models/loader.js';
@@ -305,6 +305,7 @@ export class SettingsUI {
     return `<section class="version-settings" aria-label="版本切换">
       <h4>版本</h4>
       <div class="scheme-row version-row">${cards}</div>
+      <p class="version-current">当前版本：${VERSION_LABEL} · ${BUILD_STAMP} · 资源 ${ASSET_STAMP}</p>
       <p class="version-note">切换版本会重新加载页面；三档存档与资源相互隔离。DEV 写实素材也可从 <a href="https://www.catten.cyou/marmot3d-assets/" target="_blank" rel="noopener">素材资源桶</a> 下载到本地使用。</p>
     </section>`;
   }

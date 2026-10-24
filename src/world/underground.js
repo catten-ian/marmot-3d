@@ -40,8 +40,11 @@ export function burrowVolumeAt(x, y, z, defs = _defs) {
     const surface = heightFieldActive() ? terrainHeight(b.x, b.z) : baseTerrainHeight(b.x, b.z);
     const d = Math.hypot(x - b.x, z - b.z);
     if (d > p.slopeRadius) continue;
+    // Verdant has no real underground mesh: the small mouth itself is the safe trigger.
+    // Keep this dev path surface-enterable, while the procedural/stable path retains the
+    // original below-surface volume contract.
+    if (!_cavesEnabled && d <= p.openingRadius * 0.94 && y <= surface + 0.85) return b;
     const floor = undergroundFloorY(x, z, [b]);
-    // Only the below-surface part of the ramp/chamber is a burrow. Surface decoration is not.
     if (y < surface - 0.18 && y <= floor + 0.7) return b;
   }
   return null;
