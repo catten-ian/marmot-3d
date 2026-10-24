@@ -232,7 +232,9 @@ export class Particles {
 }
 
 const DAMAGE_TEXT_REFERENCE_FOV = 68;
-const DAMAGE_TEXT_FONT_SIZE = 34;
+// 伤害飘字字号：34 → 26（2026-10 玩家反馈偏大）。
+// 26 在 1280 宽桌面与窄屏下都更克制；canvas 尺寸 / FOV 补偿均引用本常量，随动无需另改。
+const DAMAGE_TEXT_FONT_SIZE = 26;
 const DAMAGE_TEXT_DPR = 2;
 const DAMAGE_TEXT_BASE_WIDTH = 128;
 const DAMAGE_TEXT_BASE_HEIGHT = 64;
