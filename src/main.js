@@ -1274,6 +1274,8 @@ function retryLevel() {
 }
 
 function pause() {
+  // silent：仅暂停模拟（供触屏布局编辑使用），不弹会遮住 HUD 卡片/挡指针的全屏暂停面板。
+  const silent = !!arguments[0]?.silent;
   if (game.mode !== 'play') return;
   clearPendingAerialParry();
   cancelAttackCharge();
@@ -1283,6 +1285,10 @@ function pause() {
   keys.clear();
   touchControls?.releaseAll();
   controller.exitLock();
+  if (silent) {
+    hud.hidePanel();
+    return;
+  }
   hud.showPanel(`
     <div class="eyebrow">PAUSED</div>
     <h2>喘口气。</h2>
@@ -2173,6 +2179,9 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  // Esc 退出布局编辑：必须先于 isBound 判定（兼容方案暂停键是 P，Esc 不在绑定内）。
+  if (e.code === 'Escape' && touchLayout?.editing) { touchLayout.setEditing(false); return; }
+
   if (!isBound(e.code)) return;
   // 空格/方向键会滚动页面，必须拦
   if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
@@ -2182,6 +2191,9 @@ window.addEventListener('keydown', (e) => {
   if (binds.isAction(e.code, 'retry')) { retryLevel(); return; }
   if (binds.isAction(e.code, 'pause')) {
     if (touchLayout.editing) { touchLayout.setEditing(false); return; }
+    // 设置/帮助打开时，暂停键优先关闭它们（关闭逻辑决定是否恢复游戏），不带着面板 resume。
+    if (settingsUI && !settingsUI.el.sheet.hidden) { settingsUI.close(); return; }
+    if (!helpSheet.hidden) { closeHelp(); return; }
     if (game.mode === 'play') pause();
     else if (game.mode === 'pause') resume();
     return;
@@ -2304,11 +2316,20 @@ if (hudDetailsBtn) {
   };
 }
 
-// 帮助面板
+// 帮助面板：游戏中打开自动暂停，关闭时仅在本次发起暂停时恢复。
 const helpBtn = document.getElementById('helpBtn');
 const helpSheet = document.getElementById('helpSheet');
-helpBtn.onclick = () => { helpSheet.hidden = !helpSheet.hidden; };
-document.getElementById('helpClose').onclick = () => { helpSheet.hidden = true; };
+let helpPausedBySheet = false;
+function openHelp() {
+  helpSheet.hidden = false;
+  if (game.mode === 'play') { pause(); helpPausedBySheet = true; } else { helpPausedBySheet = false; }
+}
+function closeHelp() {
+  helpSheet.hidden = true;
+  if (helpPausedBySheet) { helpPausedBySheet = false; if (game.mode === 'pause') resume(); }
+}
+helpBtn.onclick = () => { helpSheet.hidden ? openHelp() : closeHelp(); };
+document.getElementById('helpClose').onclick = closeHelp;
 
 // 设置面板（键位方案）
 const touchLayout = new TouchLayout();
@@ -2321,9 +2342,11 @@ const feedbackUI = new FeedbackUI({
 });
 // 进入触屏布局调整时自动暂停，退出时恢复；调整前已暂停则保持暂停。
 touchLayout.setPauseHooks({
-  pause: () => pause(),
+  pause: ({ silent = false } = {}) => pause({ silent }),
   resume: () => { if (game.mode === 'pause') resume(); },
   isPaused: () => game.mode !== 'play',
+  // 从设置面板进入布局编辑时，把已显示的非 silent 暂停遮罩收起（模拟仍停在 mode=pause）。
+  silence: () => hud.hidePanel(),
 });
 // 疾跑触发范围（摇杆内圈）：布局数据是唯一持久化来源，触控层实时消费；滑块变化经回调即时生效。
 touchControls.setSprintThreshold(touchLayout.layout.joystick.sprintThreshold);
@@ -2344,6 +2367,15 @@ if (verdantQualityState) {
   };
 }
 const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, verdantQualityState);
+// 游戏中打开设置面板会暂停，关闭时仅在本次发起暂停时恢复；标题/已暂停态不受影响。
+settingsUI.setPauseHooks({
+  pause: () => pause(),
+  resume: () => { if (game.mode === 'pause') resume(); },
+  isPaused: () => game.mode !== 'play',
+  isPlaying: () => game.mode === 'play',
+});
+// 设置面板内进入布局编辑时，把“本次由面板发起的暂停”移交给编辑器，避免提前恢复。
+touchLayout.onEditingStart = () => settingsUI.transferPauseToLayoutEditor();
 // 设置面板切换输入模式 → 即时生效；启动时也同步一次（html 属性 / 鼠标兜底 / 布局入口可用性）。
 inputMode.onChange(() => applyInputMode());
 applyInputMode();
@@ -2637,7 +2669,7 @@ function syncHelpKeys() {
     <button class="primary" id="helpClose2">知道了</button>`;
   helpSheet.innerHTML = html;
   const c2 = document.getElementById('helpClose2');
-  if (c2) c2.onclick = () => { helpSheet.hidden = true; };
+  if (c2) c2.onclick = closeHelp;
 }
 syncHelpKeys();
 binds.onChange(syncHelpKeys);
@@ -2734,6 +2766,8 @@ function frame(now) {
     // 触控实玩类切换会改变 HUD 卡片的 CSS 默认位置，未拖动过的卡跟随新设计位置。
     touchLayout.refreshCardDefaults();
   }
+  // 暂停态：供设置/帮助/布局编辑器在暂停层之上显示并保持游戏暂停。
+  document.body.classList.toggle('paused', game.mode === 'pause');
   update(dt);
   playerModel.position.set(controller.position.x, controller.position.y, controller.position.z);
   playerBodyYaw = dampAngle(playerBodyYaw, controller.moveFacingYaw, dt, PLAYER.bodyTurnRate);
