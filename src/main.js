@@ -1047,6 +1047,7 @@ function levelClearHTML() {
 
 function finish(won, reason = '被藏狐逮住了。') {
   // 结算只应触发一次
+  hidePauseMini();
   if (game.mode === 'won' || game.mode === 'lost') return;
   clearPendingAerialParry();
   cancelAttackCharge();
@@ -1121,6 +1122,7 @@ function showLevelSelect() {
 }
 
 function title() {
+  hidePauseMini();
   destroySandboxDebugGUI();
   if (game.sandbox && sandboxResumeLevel != null) game.level = sandboxResumeLevel;
   sandboxResumeLevel = null;
@@ -1253,6 +1255,7 @@ function showTeacherNote() {
 
 function startPlay() {
   audio.ensure();
+  hidePauseMini();
   hud.hidePanel();
   game.mode = 'play';
   loadLevel(game.level, true);
@@ -1270,10 +1273,37 @@ function resetAll() {
 }
 
 function retryLevel() {
+  hidePauseMini();
   loadLevel(game.level, false);
   game.mode = 'play';
   hud.hidePanel();
   if (!controller.touchEnabled) controller.requestLock();
+}
+
+// —— 收起暂停面板后的小悬浮恢复控件 ——
+// 只在"玩家主动收起 PAUSED 大窗但游戏仍处于 pause 态"时存在；
+// resume / 重试 / 回标题 / 结算等任何离开 pause 的路径都必须移除它。
+let pauseMiniEl = null;
+function showPauseMini() {
+  hidePauseMini();
+  const el = document.createElement('button');
+  el.id = 'pauseMini';
+  el.type = 'button';
+  el.textContent = `已暂停 · 点击继续 (${bindText(binds, 'pause')} / Enter)`;
+  el.setAttribute('aria-label', '已暂停，点击继续游戏');
+  // 用 inline 样式而非 styles.css 新类：public shell 的 CSS 带 ?v= 缓存戳，
+  // 本批修复不升戳，inline 样式可确保线上立即生效。
+  el.style.cssText = 'position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));left:50%;'
+    + 'transform:translateX(-50%);z-index:60;padding:8px 18px;border-radius:999px;'
+    + 'border:1px solid rgba(255,255,255,.35);background:rgba(20,30,38,.82);color:#eaf4ff;'
+    + 'font-size:14px;letter-spacing:.04em;cursor:pointer;backdrop-filter:blur(4px);'
+    + 'box-shadow:0 4px 14px rgba(0,0,0,.35);';
+  el.onclick = () => resume();
+  document.body.appendChild(el);
+  pauseMiniEl = el;
+}
+function hidePauseMini() {
+  if (pauseMiniEl) { pauseMiniEl.remove(); pauseMiniEl = null; }
 }
 
 function pause() {
@@ -1284,6 +1314,7 @@ function pause() {
   attackFullFlashT = 0;
   hideAttackHint();
   game.mode = 'pause';
+  hidePauseMini();
   keys.clear();
   touchControls?.releaseAll();
   controller.exitLock();
@@ -1302,9 +1333,16 @@ function pause() {
       <button class="ghost" id="pRetryBtn">重试本关 · ${bindText(binds, 'retry')}</button>
       <button class="ghost" id="pTitleBtn">返回标题</button>
       <button class="ghost" id="pFeedbackBtn">问题反馈 / 反馈建议</button>
+      <button class="ghost" id="pCollapseBtn">收起面板（保持暂停）</button>
     </div>
   `);
   document.getElementById('resumeBtn').onclick = resume;
+  // 只收起面板：游戏保持 pause 态（模拟冻结），由小悬浮控件/暂停键/Enter 恢复。
+  document.getElementById('pCollapseBtn').onclick = () => {
+    if (game.mode !== 'pause') return;
+    hud.hidePanel();
+    showPauseMini();
+  };
   document.getElementById('pRetryBtn').onclick = retryLevel;
   document.getElementById('pTitleBtn').onclick = () => { hud.hidePanel(); title(); };
   document.getElementById('pFeedbackBtn').onclick = () => feedbackUI.open();
@@ -1312,6 +1350,7 @@ function pause() {
 
 function resume() {
   game.mode = 'play';
+  hidePauseMini();
   hud.hidePanel();
   keys.clear();
   // Esc 退出锁定后浏览器有短暂冷却，可能拒绝立即重锁；
