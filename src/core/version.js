@@ -32,6 +32,9 @@ export const IS_BETA = false;
 
 /** 供 UI、分析和测试记录使用的当前版本标识。页面底部的产品描述保留在 index.html。 */
 export const VERSION_LABEL = versionBadgeLabel(VERSION);
+// 只读取仓库已有戳，dev 设置展示不会修改或生成新戳。
+export const BUILD_STAMP = 'm20261023load';
+export const ASSET_STAMP = '20261022';
 export { DEV_VERSION_LABEL, STABLE_VERSION_LABEL, versionBadgeLabel };
 
 /**

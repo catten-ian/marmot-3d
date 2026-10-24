@@ -1,3 +1,4 @@
+import { IS_DEV } from './version.js';
 /**
  * 全局配置与关卡表
  * 数值内核移植自 2D 原版《土拨鼠大作战·闯关爆发版》，单位换算为米。
@@ -17,8 +18,9 @@ export const BURROW = { x: -52, z: 0, r: 8.2 }; // 兼容旧调用的主洞定�
 // openingRadius 洞口/井壁上口；slopeRadius 洞口外挖掘坡的外缘（贴近 opening，形成陡壁而非缓土碗）；
 // chamberRadius 底部腔室半径（略大于开口，井壁向下微微扩开）；chamberDepth 腔室深度。
 export const UNDERGROUND = {
-  base: { openingRadius: 2.2, slopeRadius: 3.6, chamberRadius: 3.0, chamberDepth: 3.8, warmLight: true, lightColor: 0xffc978, lightIntensity: 6.2 },
-  shelter: { openingRadius: 1.05, slopeRadius: 1.9, chamberRadius: 1.5, chamberDepth: 2.0, warmLight: false, lightColor: 0x8bb8c4, lightIntensity: 0.28 },
+  // Dev Verdant 的实体入口只保留一只旱獭可进入的开口，避免旧的大型井筒吞掉玩家。
+  base: IS_DEV ? { openingRadius: 1.35, slopeRadius: 1.9, chamberRadius: 1.65, chamberDepth: 1.25, warmLight: true, lightColor: 0xffc978, lightIntensity: 6.2 } : { openingRadius: 2.2, slopeRadius: 3.6, chamberRadius: 3.0, chamberDepth: 3.8, warmLight: true, lightColor: 0xffc978, lightIntensity: 6.2 },
+  shelter: IS_DEV ? { openingRadius: 0.72, slopeRadius: 1.08, chamberRadius: 0.92, chamberDepth: 0.82, warmLight: false, lightColor: 0x8bb8c4, lightIntensity: 0.28 } : { openingRadius: 1.05, slopeRadius: 1.9, chamberRadius: 1.5, chamberDepth: 2.0, warmLight: false, lightColor: 0x8bb8c4, lightIntensity: 0.28 },
 };
 
 // 洞穴布局：BURROW 保留为主洞兼容别名；其余为临时避难洞。

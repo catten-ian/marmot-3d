@@ -23,6 +23,7 @@ import { createProceduralFox } from './procedural-fox.js';
 import { createTibetanFox } from './tibetan-fox.js';
 import { foxRecoverySeconds, stepFoxTurn, stepFoxRecovery } from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
+import { headingFromVelocity, warningHeading } from '../core/fox-direction.mjs';
 /** 手搓程序化狐狸：config 开关，或 beta 用 ?procfox=1 临时启用对比；默认仍走现有模型 */
 const USE_PROCEDURAL_FOX = FOX.useProcedural
   || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('procfox') === '1');
@@ -752,6 +753,9 @@ export class Fox {
         this.dashVZ = this.dashDirZ * v;
         this.x += this.dashVX * dt;
         this.z += this.dashVZ * dt;
+        // 预警线、实体朝向和实际位移共用最终速度；狼的 root-motion 动画
+        // 也不能让 mesh 朝向停留在旧 yaw。
+        this.yaw = headingFromVelocity(this.dashVX, this.dashVZ, this.yaw);
 
         // 跃扑：冲刺中腾空，扑击范围更大但落地后有硬直
         if (A.mode === 'leap') {
@@ -1131,7 +1135,8 @@ export class Fox {
   _updateWarn(terrainAt = null) {
     if (!this.warn.visible) return;
     this.warn.position.set(this.x, (terrainAt ? terrainAt(this.x, this.z) : this.baseY) + 0.02, this.z);
-    this.warn.rotation.y = this.yaw;
+    const heading = warningHeading({ velocityX: this.state === 'dash' ? this.dashVX : this.dashDirX, velocityZ: this.state === 'dash' ? this.dashVZ : this.dashDirZ, yaw: this.yaw });
+    this.warn.rotation.y = heading;
     // 长度必须等于**真实冲刺距离**：玩家靠预警线判断"往哪躲、躲多远"，
     // 长度一旦失真，"线到头了但狐还在冲"的失信就无从避免。
     // 注意要乘类型自己的 dashSpeedMul —— 首领单段比普通狐短，

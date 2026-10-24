@@ -1,3 +1,4 @@
+import { IS_DEV } from '../core/version.js';
 import { BURROWS, scalePoint, scaleRadius, fieldHalf, ROCKS, BERRY_POINTS, SPAWN_POINTS } from '../core/config.js';
 import { Burrow } from './props.js';
 import { configureUnderground } from './underground.js';
@@ -6,7 +7,7 @@ import { configureUnderground } from './underground.js';
 export function scaledBurrows() {
   return BURROWS.map((b) => {
     const [x, z] = scalePoint([b.x, b.z]);
-    return { ...b, x, z, r: scaleRadius(b.r) };
+    return { ...b, x, z, r: scaleRadius(IS_DEV ? (b.type === 'base' ? 4.2 : (b.id === 'shelter-a' || b.id === 'shelter-b' ? 2.05 : 1.9)) : b.r) };
   });
 }
 
