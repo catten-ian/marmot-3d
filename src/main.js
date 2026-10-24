@@ -95,6 +95,7 @@ import { cooldownState, cooldownOverlayData } from './ui/cooldown-overlay.js';
 import { ClawSwing, Shockwave, Particles, DamageText, PlayerAura } from './systems/effects.js';
 import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
+import { ensureViewModeCard, updateViewModeCard } from './ui/view-mode-card.js';
 import { ALARM_INTERVALS, alarmSchedule, companionAlarmLevel, stereoPanFromWorld } from './systems/audio-pan.mjs';
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
@@ -364,6 +365,8 @@ function setViewMode(enabled, announce = false) {
   thirdPerson = !!enabled;
   controller.setThirdPerson(thirdPerson);
   playerModel.visible = thirdPerson;
+  // beta 视角状态卡（hudViewMode）实时跟随；stable/dev 不创建该元素。
+  if (IS_BETA) updateViewModeCard(thirdPerson);
   if (viewBtn) {
     viewBtn.textContent = thirdPerson ? '第三人称' : '第一人称';
     viewBtn.setAttribute('aria-pressed', String(thirdPerson));
@@ -374,6 +377,9 @@ function setViewMode(enabled, announce = false) {
   if (announce) hud.say(thirdPerson ? '已切换到第三人称视角' : '已切换到第一人称视角', 1.8);
 }
 
+// beta：创建常驻「视角状态」HUD 卡（hudViewMode），须在 TouchLayout 构造前完成，
+// 这样布局系统能测到它的设计位置并纳入可编辑卡片列表。
+if (IS_BETA) ensureViewModeCard();
 const viewBtn = document.getElementById('viewBtn');
 if (viewBtn) viewBtn.onclick = () => setViewMode(!thirdPerson, true);
 setViewMode(thirdPerson);
@@ -1321,6 +1327,7 @@ function pause() {
   attackFullFlashT = 0;
   hideAttackHint();
   game.mode = 'pause';
+  if (IS_BETA) audio.updateBgmState({ mode: 'pause' });
   hidePauseMini();
   keys.clear();
   touchControls?.releaseAll();
@@ -1357,6 +1364,7 @@ function pause() {
 
 function resume() {
   game.mode = 'play';
+  if (IS_BETA) audio.handleVisibility(false);
   hidePauseMini();
   hud.hidePanel();
   keys.clear();
@@ -2429,8 +2437,10 @@ window.addEventListener('blur', () => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     touchControls?.releaseAll();
+    if (IS_BETA) audio.handleVisibility(true);
     if (game.mode === 'play') pause();
   } else {
+    if (IS_BETA) audio.handleVisibility(false);
     last = performance.now();
     resizeRenderer();
   }
