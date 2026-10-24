@@ -2210,7 +2210,10 @@ touchControls = new TouchControls({
     else if (pressed && action === 'interact') doInteract();
     else if (pressed && action === 'burst') doBurst();
     else if (pressed && action === 'ultimate') doUltimate();
-    else if (pressed && action === 'pause') pause();
+    else if (pressed && action === 'pause') {
+      // 触屏暂停入口做成切换：暂停面板被收起（保持暂停）时也能从这里恢复。
+      if (game.mode === 'pause') resume(); else pause();
+    }
   },
 });
 
