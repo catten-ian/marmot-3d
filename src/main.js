@@ -79,7 +79,8 @@ import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { createSmartPack } from './entities/smart-fox-core.mjs';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION, VERSION_LABEL } from './core/version.js';
+import { documentTitleFor } from './core/version-mode.mjs';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, energyOfFlower, eatLine, HERBIVORE,
@@ -433,6 +434,12 @@ hud.setLoading(96);
   }
   document.body.classList.toggle('dev-version', IS_DEV);
   document.body.classList.toggle('beta-version', IS_BETA);
+}
+
+// —— 标签页标题：beta/dev 附加通道后缀，stable 保持静态 <title> 不动 ——
+{
+  const docTitle = documentTitleFor(VERSION);
+  if (docTitle) document.title = docTitle;
 }
 
 // ============================================================
