@@ -2144,3 +2144,74 @@ body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; fi
 .forage-track i { display: block; height: 100%; width: 0; background: #b8d77d; transition: width .08s linear; }
 .forage-feedback.emergency .forage-track i { background: #ef9b70; }
 .forage-feedback.emergency .forage-label { color: #ffc0a5; }
+
+
+/* ---------- BETA 账号 / 排行榜 ---------- */
+.accounts-title-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 8px; margin-top: 13px; padding: 10px 12px;
+  background: #16261d; border: 1px solid #3d5940; border-radius: 10px;
+}
+.account-name { color: #d5e1c8; font-size: 13px; margin-right: auto; }
+.accounts-title-row .ghost { font: inherit; font-size: 12px; color: var(--ink); background: #2b4235; border: 1px solid #5d7a58; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+.accounts-overlay {
+  position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+  padding: max(12px, calc(12px + var(--safe-top))) max(12px, calc(12px + var(--safe-right)))
+    max(12px, calc(12px + var(--safe-bottom))) max(12px, calc(12px + var(--safe-left)));
+  background: #07100bd9; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.accounts-panel {
+  position: relative; width: min(560px, 100%); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 24px);
+  overflow: auto; padding: 24px; color: var(--ink); background: #1e3328f7; border: 1px solid #7f9c6c;
+  border-radius: 15px; box-shadow: 0 18px 50px #000b;
+}
+.accounts-panel h2 { margin: 8px 38px 15px 0; font-size: 23px; }
+.accounts-close {
+  position: absolute; right: 13px; top: 10px; width: 36px; height: 36px; border: 1px solid #5d7a58;
+  border-radius: 8px; color: var(--ink); background: #2b4235; font: inherit; font-size: 24px; line-height: 1; cursor: pointer;
+}
+.accounts-tabs { display: flex; gap: 7px; margin: 10px 0 14px; }
+.accounts-tab { flex: 1; min-height: 39px; border: 1px solid #5d7a58; border-radius: 8px; color: var(--ink); background: #16261d; font: inherit; cursor: pointer; }
+.accounts-tab.active { color: #1a2419; background: linear-gradient(180deg, #ffd97e, #e8b54c); border-color: #e8b54c; font-weight: 700; }
+.accounts-label { display: block; margin: 11px 0 5px; color: var(--soft); font-size: 12px; }
+.accounts-form input, .leaderboard-toolbar select {
+  width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid #5d7a58; border-radius: 7px;
+  color: var(--ink); background: #142218; font: inherit; font-size: 14px; user-select: text; -webkit-user-select: text;
+}
+.accounts-hint, .accounts-status, .leaderboard-status, .leaderboard-auth-hint { min-height: 20px; color: var(--soft); font-size: 12px; line-height: 1.6; }
+.accounts-status { color: var(--gold); }
+.accounts-submit { width: 100%; }
+.leaderboard-panel { width: min(760px, 100%); }
+.leaderboard-toolbar { display: grid; grid-template-columns: 1fr auto minmax(125px, 190px); gap: 9px; align-items: center; }
+.leaderboard-toolbar .accounts-tabs { grid-column: 1 / -1; margin-bottom: 0; }
+.leaderboard-level-label { color: var(--soft); font-size: 12px; }
+.leaderboard-toolbar select { min-height: 38px; }
+.leaderboard-status { margin: 12px 0 4px; color: var(--gold); }
+.leaderboard-table-wrap { max-height: min(48vh, 390px); overflow: auto; border: 1px solid #3d5940; border-radius: 9px; }
+.leaderboard-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.leaderboard-table th, .leaderboard-table td { padding: 9px 11px; border-bottom: 1px solid #304939; text-align: left; }
+.leaderboard-table th { position: sticky; top: 0; color: var(--soft); background: #16261d; font-size: 11px; }
+.leaderboard-table tr:last-child td { border-bottom: 0; }
+.leaderboard-table tr.is-self td { color: #ffe39d; background: #745b263d; font-weight: 700; }
+.leaderboard-empty { padding: 24px 12px !important; color: var(--soft); text-align: center !important; }
+.leaderboard-retry { margin-top: 8px; }
+.leaderboard-mine { display: flex; justify-content: space-between; gap: 12px; margin-top: 13px; padding: 11px 12px; border-radius: 8px; background: #16261d; font-size: 13px; }
+.leaderboard-mine-value { color: var(--gold); font-weight: 700; }
+.leaderboard-auth-hint { min-height: 18px; margin: 8px 0 0; }
+.leaderboard-login { padding: 0; border: 0; color: var(--gold); background: none; font: inherit; text-decoration: underline; cursor: pointer; }
+.score-feedback { margin: 12px 0 14px; padding: 10px 12px; color: #ffe39d; background: #16261d; border: 1px solid #596b42; border-radius: 8px; font-size: 13px; }
+.score-feedback .ghost { font: inherit; font-size: 12px; margin-left: 7px; padding: 7px 10px; }
+@media (max-width: 520px) {
+  .accounts-panel { padding: 19px 16px; border-radius: 12px; }
+  .accounts-title-row { justify-content: flex-start; }
+  .account-name { flex-basis: 100%; }
+  .leaderboard-toolbar { grid-template-columns: auto minmax(120px, 1fr); }
+  .leaderboard-toolbar .accounts-tabs { grid-column: 1 / -1; }
+  .leaderboard-table th, .leaderboard-table td { padding: 8px 7px; }
+}
+.accounts-panel .ghost {
+  font: inherit; font-size: 12px; color: var(--ink); background: #2b4235; border: 1px solid #5d7a58;
+  border-radius: 8px; padding: 8px 12px; cursor: pointer;
+}
+.accounts-panel .ghost:hover { background: #3a5544; }
+.accounts-panel button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }

@@ -11,7 +11,7 @@ import {
   LEVELS, BERRY_POINTS, SPAWN_POINTS, BURROW, PLAYER, FOX,
   BERRY_RADIUS, BERRY_ENERGY, BERRY_CHARGE, RESCUE_DIST,
   setPointScale, scalePoint, scaleCoord, scaleRadius,
-  getPointScale, fieldHalf, FIELD_W, FIELD_H,
+  getPointScale, fieldHalf, FIELD_W, FIELD_H, ACCOUNTS,
 } from './core/config.js';
 import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/utils.js';
 import { FirstPersonController } from './core/controls.js';
@@ -99,6 +99,10 @@ import { SettingsUI } from './ui/settings.js';
 import { adapterPowerPreference, readGraphicsPreference, writeGraphicsPreference } from './core/graphics-preference.js';
 import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
+import { AccountsApi, buildScorePayload, escapeHtml } from './core/accounts-api.mjs';
+import { clearSession, isUnauthorized, readSession, writeSession, restoreSession } from './core/accounts-session.mjs';
+import { AuthModal } from './ui/auth-modal.mjs';
+import { LeaderboardUI } from './ui/leaderboard.mjs';
 import { TouchLayout } from './ui/touch-layout.js';
 import { Minimap } from './ui/minimap.js';
 import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDummy, setSandboxDummyDefeatable } from './sandbox/state.js';
@@ -807,6 +811,9 @@ async function enterPlayAsFox() {
 function exitPlayAsFox() { playAsFox?.exit(); }
 window.__enterPlayAsFox = enterPlayAsFox;
 
+// 每关开始时的累计统计快照：game.boosts/ultimates/hits 为整轮累计，单关榜用差值。
+const levelStartStats = { hits: 0, boosts: 0, ultimates: 0 };
+
 function loadLevel(index, announce = true) {
   clearPendingAerialParry();
   cancelAttackCharge();
@@ -852,6 +859,10 @@ function loadLevel(index, announce = true) {
   game.bossDown = true; // No level contains a special boss after normal-only conversion.
   game.time = game.sandbox ? Infinity : cfg.time;
   game.elapsed = 0;
+  // 单关统计快照：game.boosts/ultimates/hits 为整轮累计，上报单关榜时用起止差值。
+  levelStartStats.hits = game.hits;
+  levelStartStats.boosts = game.boosts;
+  levelStartStats.ultimates = game.ultimates;
   for (const k of ['boost', 'boostCD', 'attackCD', 'social', 'socialCD',
     'overdrive', 'overCD', 'fatigue', 'cortisol', 'drive']) {
     game[k] = 0;
@@ -975,6 +986,13 @@ function completeLevel() {
   progress.completedLevels.add(game.level);
   progress.maxUnlocked = Math.max(progress.maxUnlocked, Math.min(game.level + 1, LEVELS.length - 1));
   saveProgress();
+  if (IS_BETA && !game.sandbox) {
+    submitLevelScore(game.level, game.elapsed, {
+      hits: Math.max(0, game.hits - levelStartStats.hits),
+      boosts: Math.max(0, game.boosts - levelStartStats.boosts),
+      ultimates: Math.max(0, game.ultimates - levelStartStats.ultimates),
+    });
+  }
   if (game.level === LEVELS.length - 1) { finish(true); return; }
   audio.levelUp();
   controller.exitLock();
@@ -1143,6 +1161,15 @@ function title() {
     <p style="font-size:12.5px"><b>奔跑时你会自动俯下身子冲刺，停下则撑起身来</b> ——
     起身比趴下慢一点，就像土拨鼠真的要用四肢撑起身体。</p>
     <p style="font-size:12px;color:#9db392">不适手？点右上角 <b>⚙</b> 可切换<b>兼容 / 优化 / 自定义</b>键位方案。</p>
+    ${IS_BETA ? (() => {
+      const s = accountStore();
+      const right = s
+        ? (s.user.guest
+          ? `<span class="account-name">游客：${escapeHtml(s.user.name)} · 成绩可上榜</span><button class="ghost" id="accountUpgradeBtn" type="button">升级账号（保留成绩）</button><button class="ghost" id="accountLogoutBtn" type="button">换个身份</button>`
+          : `<span class="account-name">玩家：${escapeHtml(s.user.name)}</span><button class="ghost" id="accountLogoutBtn" type="button">退出</button>`)
+        : '<span class="account-name">正在进入游客模式…</span>';
+      return `<div class="accounts-title-row">${right}<button class="ghost" id="leaderboardBtn" type="button">排行榜</button></div>`;
+    })() : ''}
     <div class="row title-actions">
       <button class="primary" id="startBtn">从第 ${game.level + 1} 关继续 · Enter</button>
       <button class="ghost" id="levelSelectBtn">选择关卡 · 已解锁 ${progress.maxUnlocked + 1}/${LEVELS.length}</button>
@@ -1157,6 +1184,20 @@ function title() {
   if (pafBtn) pafBtn.onclick = enterPlayAsFox;
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
+  if (IS_BETA) {
+    document.getElementById('leaderboardBtn')?.addEventListener('click', () => leaderboardUI?.open());
+    document.getElementById('accountUpgradeBtn')?.addEventListener('click', () => authModal?.open('upgrade'));
+    document.getElementById('accountLogoutBtn')?.addEventListener('click', () => {
+      clearSession(undefined, ACCOUNTS.storageKey);
+      setAccountSession(null);
+      title();
+      // 退出/换身份后立即签发新游客，保证下一局仍可上榜。
+      void accountsApi.guest().then((res) => {
+        const s = writeSession(res?.token, res?.user, undefined, ACCOUNTS.storageKey);
+        if (s) { setAccountSession(s); title(); }
+      }).catch((e) => console.debug('[accounts] 重新签发游客略过', e?.status || e?.code || e));
+    });
+  }
 }
 
 function showTeacherNote() {
@@ -2806,6 +2847,67 @@ function frame(now) {
   }
 
   requestAnimationFrame(frame);
+}
+
+// ============================================================
+// BETA 账号 / 排行榜（仅 IS_BETA；失败静默，不影响游戏主循环）
+// ============================================================
+const accountsApi = IS_BETA ? new AccountsApi(ACCOUNTS) : null;
+let authModal = null;
+let leaderboardUI = null;
+let accountSession = IS_BETA ? readSession(undefined, ACCOUNTS.storageKey) : null;
+function accountStore() { return accountSession; }
+function setAccountSession(next) { accountSession = next; }
+function safeScorePayload(input) {
+  try { return buildScorePayload(input, LEVELS.length); }
+  catch (error) { console.debug('[accounts] 成绩数据无效，已跳过上报', error?.message || error); return null; }
+}
+function handleUnauthorizedAccount(error) {
+  if (!isUnauthorized(error)) return;
+  clearSession(undefined, ACCOUNTS.storageKey);
+  setAccountSession(null);
+  if (game.mode === 'title') title();
+}
+function submitLevelScore(level, time, stats) {
+  const session = accountStore();
+  if (!session || !accountsApi) return; // 尚无身份时静默跳过
+  const payload = safeScorePayload({ kind: 'level', level, time, ...stats, version: VERSION_LABEL });
+  if (!payload) return;
+  void accountsApi.submitScore(payload, session.token).catch((error) => {
+    handleUnauthorizedAccount(error);
+    console.debug('[accounts] 单关成绩上报失败', error?.status || error?.code || error);
+  });
+}
+if (IS_BETA) {
+  authModal = new AuthModal({
+    api: accountsApi,
+    storageKey: ACCOUNTS.storageKey,
+    getToken: () => accountStore()?.token || '',
+    onAuthenticated: (session) => {
+      setAccountSession(session);
+      if (game.mode === 'title') title();
+      leaderboardUI?.refresh();
+    },
+  });
+  leaderboardUI = new LeaderboardUI({
+    api: accountsApi,
+    levels: LEVELS,
+    getSession: () => accountStore(),
+    onAuthRequest: () => authModal?.open('login'),
+  });
+  // 打开即游客：无本地会话时静默签发一个游客身份，成绩可直接上榜。
+  if (!accountSession) {
+    void accountsApi.guest().then((res) => {
+      const session = writeSession(res?.token, res?.user, undefined, ACCOUNTS.storageKey);
+      if (session) { setAccountSession(session); if (game.mode === 'title') title(); }
+    }).catch((error) => console.debug('[accounts] 游客身份签发略过', error?.status || error?.code || error));
+  } else {
+    // 校验本地会话是否仍有效；401 则清除并转游客。
+    void restoreSession(accountsApi, undefined, ACCOUNTS.storageKey).then(({ session, invalid }) => {
+      if (invalid) { setAccountSession(null); title(); void accountsApi.guest().then((res) => { const s = writeSession(res?.token, res?.user, undefined, ACCOUNTS.storageKey); if (s) { setAccountSession(s); title(); } }).catch(() => {}); }
+      else if (session) { setAccountSession(session); if (game.mode === 'title') title(); }
+    }).catch(() => {});
+  }
 }
 
 // ============================================================

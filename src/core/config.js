@@ -11,6 +11,13 @@ export const FIELD_H = 78;
 // 静态站点可在部署时填写反馈接收地址；留空时使用本地离线队列。
 export const FEEDBACK = { endpoint: '' };
 
+// BETA 账号接口：token 只写入 localStorage，并通过 Authorization 请求头发送。
+export const ACCOUNTS = {
+  basePath: '/marmot3d-beta/api',
+  storageKey: 'm3d.beta.session.v1',
+  requestTimeoutMs: 8000,
+};
+
 export const BURROW = { x: -52, z: 0, r: 8.2 }; // 兼容旧调用的主洞定义（安全区/回储备/缓压）
 
 // 地下空间（两段式：小开口竖井 + 底部略宽腔室）。
