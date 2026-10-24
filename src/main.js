@@ -2379,7 +2379,9 @@ touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
 touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
 touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
-const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState, audio);
+// 设置面板"图形/渲染"只读信息：惰性读取当前渲染器（beta 为经典 WebGLRenderer，
+// dev GS 为 WebGPURenderer 家族；读取失败由 readGpuInfo fail-soft 为"不可用"）。
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState, audio, () => renderer);
 touchLayout.onEditingStart = () => settingsUI.transferPauseToLayoutEditor();
 // 游戏中打开设置自动暂停；关闭时仅在由设置发起暂停时恢复（已暂停/标题态保持）。
 settingsUI.setPauseHooks({

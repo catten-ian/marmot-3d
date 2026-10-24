@@ -27,6 +27,16 @@ export const VERSION = (() => {
 export const IS_DEV = VERSION === 'dev';
 export const IS_BETA = VERSION === 'beta';
 
+/**
+ * 构建戳：与 public shell（index.html / index-public.html）里资源 URL 的
+ * ?v= 参数保持一致，供设置面板"当前版本"一行展示。
+ * 发布新版本时由主代理统一升级 shell 戳与本常量，日常修复不动它。
+ */
+export const BUILD_STAMP = 'rev20';
+
+/** 通道短名（Stable/Beta/Dev），供设置面板等只读展示。 */
+export const CHANNEL_SHORT = IS_DEV ? 'Dev' : IS_BETA ? 'Beta' : 'Stable';
+
 /** 供 UI 显示当前版本角标 */
 export const VERSION_LABEL = IS_DEV
   ? 'DEV · 旱獭生态 + GS 全场景'

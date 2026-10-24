@@ -3,9 +3,10 @@
  * 方案切换即时生效并持久化到 localStorage。
  */
 import { Keybinds, ACTIONS, CONTROL_MODE_OPTIONS, findConflicts } from '../core/keybinds.js';
-import { IS_BETA, IS_DEV, VERSION } from '../core/version.js';
+import { IS_BETA, IS_DEV, VERSION, BUILD_STAMP, CHANNEL_SHORT } from '../core/version.js';
 import { INPUT_MODES } from '../core/input-mode.mjs';
 import { versionSwitchModel } from '../core/version-switch.mjs';
+import { readGpuInfo } from '../core/gpu-info.mjs';
 
 const GRAPHICS_OPTIONS = [
   { id: 'auto', name: '自动', desc: '保留浏览器默认 GPU 选择。' },
@@ -20,8 +21,11 @@ const INPUT_MODE_OPTIONS = [
 ];
 
 export class SettingsUI {
-  constructor(binds, touchLayout = null, feedback = null, inputMode = null, graphicsPreference = null, audio = null) {
+  constructor(binds, touchLayout = null, feedback = null, inputMode = null, graphicsPreference = null, audio = null, gpuInfoProvider = null) {
     this.binds = binds;
+    // 只读 GPU 信息来源（main.js 注入，返回 renderer 或 readGpuInfo 结果）；
+    // 为 null 时"图形/渲染"区块整体不渲染，三通道都不会报错。
+    this.gpuInfoProvider = gpuInfoProvider;
     this.touchLayout = touchLayout;
     this.feedback = feedback;
     this.inputMode = inputMode;
@@ -203,6 +207,26 @@ export class SettingsUI {
     </section>`;
     }
 
+    if (this.gpuInfoProvider) {
+      let info = { backend: '不可用', gpu: '不可用', acceleration: '不可用' };
+      try {
+        const provided = this.gpuInfoProvider();
+        // 提供方既可以返回渲染器（此处惰性读取），也可以直接返回信息对象。
+        info = provided && typeof provided === 'object' && 'backend' in provided && 'gpu' in provided
+          ? provided
+          : readGpuInfo(provided);
+      } catch (_) { /* fail-soft：GPU 信息永远不应阻断设置面板 */ }
+      html += `<section class="gpu-info-settings" aria-label="图形/渲染信息">
+      <h4>图形 / 渲染</h4>
+      <div class="gpu-info-grid">
+        <span class="gpu-info-label">后端</span><span class="gpu-info-value">${info.backend}</span>
+        <span class="gpu-info-label">GPU</span><span class="gpu-info-value">${info.gpu}</span>
+        <span class="gpu-info-label">加速</span><span class="gpu-info-value">${info.acceleration}</span>
+      </div>
+      <p>只读信息：GPU 名称取自 WebGL 调试扩展，读取失败时显示"不可用"，不影响游戏。</p>
+    </section>`;
+    }
+
     if (this.inputMode) {
       const pref = INPUT_MODES.includes(this.inputMode.preference) ? this.inputMode.preference : 'auto';
       const effTouch = this.inputMode.isTouch();
@@ -343,6 +367,7 @@ export class SettingsUI {
         </a>`).join('');
     return `<section class="version-settings" aria-label="版本切换">
       <h4>版本</h4>
+      <p class="version-current">当前版本：<b>${CHANNEL_SHORT}</b>${IS_BETA ? ` · ${BUILD_STAMP}` : ''}</p>
       <div class="scheme-row version-row">${cards}</div>
       <p class="version-note">切换版本会重新加载页面；三档存档与资源相互隔离。DEV 写实素材也可从 <a href="https://www.catten.cyou/marmot3d-assets/" target="_blank" rel="noopener">素材资源桶</a> 下载到本地使用。</p>
     </section>`;
