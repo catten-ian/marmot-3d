@@ -1171,9 +1171,9 @@ export class Fox {
   }
 
   _updateHpBar() {
-    // 只在受伤时显示血条，避免画面 clutter。
+    // 受伤或已被玩家察觉时显示血条（阶段 4：发现狐狸后才能看到它的状态），避免画面 clutter。
     const damaged = this.hp < this.maxHp;
-    if (!damaged) { this.hpBar.visible = false; return; }
+    if (!damaged && !this.detected) { this.hpBar.visible = false; return; }
 
     this.hpBar.visible = true;
     // 血条结构：group(不缩放) → bg 底框 + fill 填充条(userData.fill)。
@@ -1188,10 +1188,10 @@ export class Fox {
     this.hpBar.lookAt(this.hpBar.position.x, this.hpBar.position.y + 20, this.hpBar.position.z + 0.01);
   }
 
-  /** 体力条：与血条同款 billboard，只在不满时显示，避免画面 clutter */
+  /** 体力条：与血条同款 billboard，不满且已被察觉时显示，避免画面 clutter */
   _updateStaminaBar() {
     const low = this.stamina < this.maxStamina - 0.5;
-    if (!low) { this.staminaBar.visible = false; return; }
+    if (!low || !this.detected) { this.staminaBar.visible = false; return; }
 
     this.staminaBar.visible = true;
     const ratio = Math.max(0.001, this.stamina / this.maxStamina);

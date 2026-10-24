@@ -241,3 +241,70 @@ hpRatio 与倍率（低血阈值 0.5，线性插值）：
 - `node tools/run-node-tests.cjs`：39/39 PASS
 - `grep flankSlots|assignFlankSlot|assignRoles|forcedRetreat src/entities/smart-fox-core.mjs`：四个导出均在
 - observe/approach 权重与 `SMART_WEIGHTS`、普通狐 `Fox` 追击逻辑均未改
+
+---
+
+# 阶段 4：感知层（可发现性）+ 冲刺扑咬两阶段 + 动作集对齐
+
+## 1. 三个动作的能力表（FOX.ACTIONS / FOX.detection）
+
+| 动作 | 速度 | 体力 | 被察觉半径 | 预警线 |
+|---|---|---|---|---|
+| 慢行 stalk | 2.5 m/s | 0/s（不耗） | 6.2 m（难被发现） | 无 |
+| 冲刺 sprint | 6.4 m/s | 18/s 持续 | 11.5 m（易被发现） | 无（智能狐逼近） |
+| 扑咬 pounce | 冲刺段 10.6×1.18≈12.5 → 扑击 13.5 m/s | 冲刺段 26/s 持续 + 扑咬一次性 26 | 17.0 m（最易被发现） | 冲刺阶段显示，长度=真实冲刺位移 |
+
+数值全部与 `src/play/play-as-fox.js` 的 `PAF_DEFAULTS` 对齐（见下表），两边代码独立、互不 import。
+
+## 2. 两阶段扑咬时序（智能狐专属，普通狐不动）
+
+```
+[慢行/冲刺接近]（3~7m、角度≤20°、体力够、striker 才提交）
+  → 冲刺阶段 dashStage  0.42s（固定时长，不因距离变化）
+      速度 = 扑击基准 × 1.18（略快于普通冲刺）
+      预警线显示，长度 = 剩余冲刺的真实欧拉积分位移（smartPounceDashDistance）
+      体力按 26/s 持续扣
+      玩家能做：横向跑开 / 准备迎击 / 趁预警期先下手
+  → 扑咬前摇 windup  0.10s（极短，原地不动）
+  → 扑咬 strike  0.22s（真实位移，不是瞬移；13.5 m/s ≈ 2.97m，只扑近地）
+      激活帧内水平重叠 → 命中，结算路径与现有 fox 完全一致（接触伤害/迎击/击退全部沿用）
+      一次性扣体力 26
+  → 后摇 recover  0.45s（硬直：不能移动/攻击/再扑）
+      玩家能做：反击窗口（白打 0.45s）
+```
+
+- 撞障（岩石/场地边界）→ 当帧 `cancelSmartPounce`：扑击取消、`pounceStriking=false`（本帧起无伤害）、进后摇。589d31b 语义保留。
+- 主循环伤害门控：智能狐仅 `pounceCommitted && pounceStriking`（strike 激活帧）才结算接触伤害。
+- 提交门槛：`stamina ≥ staminaCost(26) + pounceStaminaPerSec × dashDuration`，体力不足不允许进入冲刺阶段。
+
+## 3. 察觉机制（可发现性）
+
+- `src/main.js` 每帧检查：玩家在视距 30m 内、视野锥（全角 100°）内，狐狸当前动作决定察觉半径（慢行 6.2 / 冲刺 11.5 / 扑咬·蓄力 17.0）。
+- 一旦察觉 → `f.detected = true`（锁定），HUD 提示一次「你发现了一只藏狐！」；该狐血条/体力条改为「被察觉或受伤才显示」（`fox.js` `_updateHpBar`/`_updateStaminaBar`）。
+- 智能狐侧利用：`detected` 计入 utility 的 suspicion 输入（+0.6 封顶），已被发现的狐狸更倾向 observe/feint（更谨慎），未被发现的才敢冲刺硬扑；未改 `SMART_WEIGHTS` 已有系数。
+
+## 4. 与 play-as-fox 数值对齐对照表
+
+| PAF_DEFAULTS | 值 | 本阶段落点 | 值 |
+|---|---|---|---|
+| stalkSpeed | 2.5 | FOX.ACTIONS.stalk.speed | 2.5 |
+| runSpeed | 6.4 | FOX.ACTIONS.sprint.speed | 6.4 |
+| lungeSpeed | 13.5 | SMART_POUNCE_STAGE.strikeSpeed | 13.5 |
+| lungeTime | 0.42 | SMART_POUNCE_STAGE.strikeTime(0.22)+windup(0.10)+… | 0.22 |
+| recoverTime | 0.5 | SMART_POUNCE_STAGE.recoverTime | 0.45 |
+| detectStalk / Sprint / Lunge | 6.2 / 11.5 / 17.0 | FOX.detection.stalk / sprint / pounce | 6.2 / 11.5 / 17.0 |
+
+## 5. 测试项与结果
+
+`tools/test-fox-pounce.cjs`（8 项，被 `run-node-tests.cjs` 自动发现）：
+
+- 冲刺阶段位移 = `smartPounceDashDistance`（预警线长度与真实逐帧位移严格一致，误差 <1e-6）
+- 冲刺时长固定：初始距离 3.2m / 6.8m 的 dash 帧数完全相同
+- 冲刺速度：`dashSpeedMul=1.18 ∈ (1, 1.25]`，且 dash 速度 > ACTIONS.sprint.speed、< strikeSpeed
+- 前摇 <0.15s、后摇 >0.3s、strike 逐帧位移（非瞬移）且只扑近地、后摇硬直不可移动
+- 体力：`staminaCost=26` 一次性消耗、体力不足不进冲刺阶段（commitAllowed 同口径）
+- 撞障取消：纯函数 `cancelSmartPounce` → 取消帧起 `pounceStriking=false`（无伤害）、进后摇、不改原对象
+- 察觉半径/动作表与 PAF 对齐且单调（stalk < sprint < pounce）
+- 完整时序：dash → windup → strike → recover 顺序正确
+
+`node tools/run-node-tests.cjs`：OK 40/40（22 个浏览器/CDP 测试按惯例跳过）。

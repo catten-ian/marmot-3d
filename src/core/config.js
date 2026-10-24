@@ -260,6 +260,30 @@ export const FOX = {
     /** 血量归零时的伤害倍率（最低） */
     damageMulAtZeroHp: 0.6,
   },
+  /**
+   * 三种移动动作的能力表（阶段 4）。
+   * 数值与 src/play/play-as-fox.js 的 PAF_DEFAULTS 对齐（同一套手感），
+   * 但两边代码各自独立、互不 import —— play-as-fox 是独立玩法，改它有风险。
+   *  - stalk ：慢行/潜行，不耗体力，难被发现
+   *  - sprint：冲刺，持续耗体力，易被发现
+   *  - pounce：扑咬，一次性大量耗体力，最易被发现
+   */
+  ACTIONS: {
+    stalk:  { speed: 2.5,  staminaPerSec: 0,  detection: 'stalk'  },
+    sprint: { speed: 6.4,  staminaPerSec: 18, detection: 'sprint' },
+    pounce: { staminaCost: 26, detection: 'pounce' },
+  },
+  /**
+   * 玩家察觉机制（阶段 4"可发现性"）：狐狸当前动作决定被察觉半径。
+   * 数值与 play-as-fox 的 detectStalk/detectSprint/detectLunge 对齐。
+   */
+  detection: {
+    stalk: 6.2,     // 慢行时被察觉半径（与 PAF_DEFAULTS.detectStalk 对齐）
+    sprint: 11.5,   // 冲刺时被察觉半径（detectSprint）
+    pounce: 17.0,   // 扑咬时被察觉半径（detectLunge）
+    viewRange: 30,  // 玩家视距上限
+    viewConeDeg: 100, // 视野锥全角（半角 50°）
+  },
   groundAttackHeight: 0.4,
   /**
    * 被驱退后的逃跑。

@@ -11,6 +11,51 @@ export const SMART_WEIGHTS = Object.freeze({
   abandonBase: .02, abandonHealth: .62, abandonFatigue: .3, abandonClose: .04,
 });
 export const SMART_POUNCE = Object.freeze({ minDistance: 3, maxDistance: 7, maxAngle: 20 * Math.PI / 180, windup: .22, speed: 10.6, lockTime: .72 });
+/**
+ * 阶段 4：冲刺扑咬两阶段常量（新常量块，不破坏 SMART_POUNCE 既有字段名）。
+ * 时序：冲刺阶段 dashStage（时长固定、速度略快于普通冲刺、显示预警线）
+ *   → 扑咬前摇 windup（极短）→ 扑咬 strike（真实位移，很短，只扑近地）
+ *   → 后摇 recover（硬直，给玩家反击窗口）。
+ * strikeSpeed / recoverTime 与 play-as-fox 的 PAF_DEFAULTS（lungeSpeed/lungeTime/recoverTime）对齐。
+ */
+export const SMART_POUNCE_STAGE = Object.freeze({
+  dashDuration: 0.42,   // 冲刺阶段：固定时长（不因距离变化）
+  dashSpeedMul: 1.18,   // 冲刺阶段速度 = 扑击基准速度 × 该系数（略快于普通冲刺）
+  windupTime: 0.10,     // 扑咬前摇：极短
+  strikeTime: 0.22,     // 扑咬真实位移时长：很短（与 PAF windTime 同量级）
+  strikeSpeed: 13.5,    // 与 play-as-fox lungeSpeed 对齐
+  recoverTime: 0.45,    // 扑咬后摇（硬直）
+  minStrikeDistance: 0, // 扑咬能覆盖的距离（近地）
+  maxStrikeDistance: 1.9,
+  staminaCost: 26,      // 扑咬一次性大量体力消耗（区别于冲刺阶段的持续消耗）
+});
+/**
+ * 冲刺阶段实际位移距离（= 预警线长度）：按 stepSmartMotion 的欧拉积分逐帧模拟，
+ * 与真实冲刺位移严格一致（连续积分公式与逐帧 clamp 加速有 ~10% 偏差，不能写死也不能混用）。
+ */
+export function smartPounceDashDistance(initialSpeed = 0, dashSpeed, acceleration = 18, remaining = SMART_POUNCE_STAGE.dashDuration, dt = 1 / 60) {
+  let speed = initialSpeed, dist = 0, t = Math.max(0, remaining);
+  // stepSmartMotion 每帧"先移动一个完整 dt、再扣剩余时长"（末帧过冲也走满 dt），
+  // 这里用同样的整帧步进，保证预警线长度 = 实际位移。
+  while (t > 1e-9) {
+    speed += Math.max(-acceleration * dt, Math.min(acceleration * dt, dashSpeed - speed));
+    dist += speed * dt;
+    t -= dt;
+  }
+  return dist;
+}
+/** 撞障/受击取消扑击：当帧取消且（调用方保证）无伤害；进后摇硬直。纯函数。 */
+export function cancelSmartPounce(state) {
+  const s = { ...state };
+  s.pounceCommitted = false;
+  s.pounceStriking = false;
+  s.pounceTime = 0;
+  s.vx = 0; s.vz = 0;
+  s.pounceStage = 'recover';
+  s.pounceStageTime = SMART_POUNCE_STAGE.recoverTime;
+  s.intent = 'recover';
+  return s;
+}
 export const RECOVER_LOCK = .6;
 export function smartPounceDistance(initialSpeed = 0, speed = SMART_POUNCE.speed, acceleration = 18, duration = SMART_POUNCE.lockTime) {
   const tRamp = Math.min(duration, Math.max(0, (speed - initialSpeed) / acceleration));
@@ -137,33 +182,88 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
     && angle <= (s.pounceMaxAngle ?? SMART_POUNCE.maxAngle);
   if (intent === 'pounce' && pounceReady && !s.pounceCommitted && (s.pounceCooldown ?? 0) <= 0
     && (s.windupRemaining ?? 0) <= 0 && options.commitAllowed !== false) {
+    // 阶段 4：进入两阶段扑咬的"冲刺阶段"（dashStage）——时长固定、速度略快、预警线由调用方显示。
     s.pounceCommitted = true;
-    s.pounceTime = s.pounceLockTime ?? SMART_POUNCE.lockTime;
+    s.pounceStage = 'dash';
+    s.pounceStageTime = s.pounceDashDuration ?? SMART_POUNCE_STAGE.dashDuration;
+    s.pounceDashSpeed = (s.pounceSpeed ?? SMART_POUNCE.speed) * (s.pounceDashSpeedMul ?? SMART_POUNCE_STAGE.dashSpeedMul);
+    // pounceTime 保留为"整个扑咬（冲刺+前摇+扑击）"的总倒计时，供旧调用方/冷却参考。
+    s.pounceTime = s.pounceStageTime + SMART_POUNCE_STAGE.windupTime + SMART_POUNCE_STAGE.strikeTime;
     s.pounceYaw = s.yaw;
     s.pounceStartSpeed = Math.hypot(s.vx || 0, s.vz || 0);
+    s.pounceStriking = false;
   }
   if (intent === 'pounce' && pounceReady && !s.pounceCommitted && (s.pounceCooldown ?? 0) <= 0) {
     s.windupRemaining = Math.max(0, (s.windupRemaining ?? s.pounceWindup ?? SMART_POUNCE.windup) - dt);
   } else if (!s.pounceCommitted) s.windupRemaining = s.pounceWindup ?? SMART_POUNCE.windup;
   const committed = s.pounceCommitted === true;
   const aim = committed ? s.pounceYaw : desired;
-  const speedTarget = committed ? (s.pounceSpeed ?? SMART_POUNCE.speed) : intent === 'observe' ? 2.4 : intent === 'recover' ? 4.8 : 6.5;
+  // 动作集对齐（阶段 4）：慢行=stalk、冲刺=sprint 的速度语义可由调用方按 FOX.ACTIONS 传入。
+  const stalkSpeed = options.stalkSpeed ?? 2.4;
+  const sprintSpeed = options.sprintSpeed ?? 6.5;
+  const recoverSpeed = options.recoverSpeed ?? 4.8;
   const accel = s.acceleration ?? 18;
   const speed = Math.hypot(s.vx ?? 0, s.vz ?? 0);
+  const strikeSpeed = s.pounceStrikeSpeed ?? SMART_POUNCE_STAGE.strikeSpeed;
+  const endPounce = () => {
+    // 扑击段结束 → 后摇硬直（recover）：不可移动/攻击/再扑，给玩家反击窗口。
+    s.pounceCommitted = false;
+    s.pounceStriking = false;
+    s.pounceStage = 'recover';
+    s.pounceStageTime = SMART_POUNCE_STAGE.recoverTime;
+    s.pounceCooldown = s.pounceCooldownDuration ?? .8;
+    s.intent = 'recover';
+    s.pounceJustEnded = true;
+    s.vx = 0; s.vz = 0; s.speed = 0;
+  };
   if (committed) {
-    s.yaw = aim; const nextSpeed = speed + Math.max(-accel * dt, Math.min(accel * dt, speedTarget - speed));
-    s.vx = Math.sin(s.yaw) * nextSpeed; s.vz = Math.cos(s.yaw) * nextSpeed;
-    s.x += s.vx * dt; s.z += s.vz * dt; s.speed = nextSpeed;
+    s.yaw = aim; // 全程锁定提交时的朝向（不可取消语义不变）
+    if (s.pounceStage === 'dash') {
+      // 冲刺阶段：固定时长，速度 = 扑击基准 × dashSpeedMul（略快于普通冲刺）
+      const nextSpeed = speed + Math.max(-accel * dt, Math.min(accel * dt, (s.pounceDashSpeed ?? SMART_POUNCE.speed) - speed));
+      s.vx = Math.sin(s.yaw) * nextSpeed; s.vz = Math.cos(s.yaw) * nextSpeed;
+      s.x += s.vx * dt; s.z += s.vz * dt; s.speed = nextSpeed;
+      s.pounceStageTime -= dt;
+      if (s.pounceStageTime <= 0) {
+        // 冲刺阶段固定时长结束 → 极短前摇。扑咬一旦提交不可取消（语义同 589d31b），
+        // 冲刺阶段本就朝玩家冲刺（提交距离 3~7m、冲刺位移 ~5m），结束时必然够近。
+        s.pounceStage = 'windup';
+        s.pounceStageTime = SMART_POUNCE_STAGE.windupTime;
+        s.vx = 0; s.vz = 0; s.speed = 0;
+      }
+    } else if (s.pounceStage === 'windup') {
+      // 扑咬前摇：极短，原地不动
+      s.pounceStageTime -= dt;
+      if (s.pounceStageTime <= 0) {
+        s.pounceStage = 'strike';
+        s.pounceStageTime = SMART_POUNCE_STAGE.strikeTime;
+        s.pounceStriking = true;
+        s.pounceStrikeStarted = true; // 供调用方扣一次性体力
+      }
+    } else {
+      // 扑咬 strike：真实位移（不是瞬移），只扑近地，激活帧内由调用方做水平命中判定
+      s.pounceStage = 'strike';
+      s.pounceStriking = true;
+      s.vx = Math.sin(s.yaw) * strikeSpeed; s.vz = Math.cos(s.yaw) * strikeSpeed;
+      s.x += s.vx * dt; s.z += s.vz * dt; s.speed = strikeSpeed;
+      s.pounceStageTime -= dt;
+      if (s.pounceStageTime <= 0) endPounce();
+    }
+    if (s.pounceCommitted) s.pounceTime -= dt;
+  } else if (s.pounceStage === 'recover' && (s.pounceStageTime ?? 0) > 0) {
+    // 后摇硬直：不能移动/攻击/再扑
+    s.vx = 0; s.vz = 0; s.speed = 0;
+    s.pounceStageTime -= dt;
+    if (s.pounceStageTime <= 0) s.pounceStage = null;
+    s.intent = 'recover';
   } else {
+    const speedTarget = intent === 'observe' ? stalkSpeed : intent === 'recover' ? recoverSpeed : sprintSpeed;
     const moved = stepFoxLocomotion({ ...s, turnVelocity: s.turnVelocity || 0 }, { x: s.x + Math.sin(aim) * 100, z: s.z + Math.cos(aim) * 100 }, dt,
       { speed: speedTarget, acceleration: accel, maxTurnSlow: s.maxTurnRate ?? 2.8 });
     Object.assign(s, moved);
   }
-  if (committed) {
-    s.pounceTime -= dt;
-    if (s.pounceTime <= 0) { s.pounceCommitted = false; s.pounceCooldown = s.pounceCooldownDuration ?? .8; s.intent = 'recover'; s.pounceJustEnded = true; }
-  }
   if (s.pounceCommitted) s.intent = 'pounce'; else if (s.intent !== 'recover') s.intent = intent;
+  if (s.pounceStage !== 'strike') s.pounceStriking = false;
   return s;
 }
 

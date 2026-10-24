@@ -8,7 +8,8 @@ import {
   updatePerception,
   applyInterruption,
   stepSmartMotion,
-  smartPounceDistance, updateSmartMemory, habituateDecayRate, stepInterruptionTimes,
+  smartPounceDistance, smartPounceDashDistance, cancelSmartPounce, SMART_POUNCE_STAGE,
+  updateSmartMemory, habituateDecayRate, stepInterruptionTimes,
   debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK,
   flankSlots, assignFlankSlot, assignRoles, forcedRetreat,
 } from './smart-fox-core.mjs';
@@ -34,6 +35,8 @@ export class SmartFox extends Fox {
     this.interruptions = 0;
     this.fatigue = 0;
     this.pounceCommitted = false;
+    this.pounceStage = null;    // 阶段 4：'dash' | 'windup' | 'strike' | 'recover' | null
+    this.pounceStriking = false; // 仅 strike 激活帧 true —— 主循环据此做接触伤害
     this._smartState = {
       x, z, vx: 0, vz: 0, yaw: this.yaw,
       maxTurnRate: 2.8, acceleration: 18, pounceCooldown: 0,
@@ -174,7 +177,8 @@ export class SmartFox extends Fox {
       health: this.hp / this.maxHp,
       interruptions: this.interruptions,
       memory: this.memory,
-      suspicion: this.suspicion,
+      // 阶段 4：已被玩家察觉 → suspicion 抬高 → 更谨慎（feint/observe 偏多，不硬扑）
+      suspicion: clamp(this.suspicion + (this.detected ? 0.6 : 0), 0, 1),
       feintScale: this._smartState.feintScale ?? 1,
     });
     let intent = this._recoverLock > 0 ? 'recover' : (this.pounceCommitted ? 'pounce' : scores.topIntent);
@@ -263,15 +267,21 @@ export class SmartFox extends Fox {
       dt,
       this.intent,
       { commitAllowed: this._recoverLock <= 0
-        // 体力守卫：体力不足时不提交扑击（体力耗尽 ≠ 被驱退，只是扑不出来）
+        // 体力守卫：体力不足时不允许进入冲刺阶段（体力耗尽 ≠ 被驱退，只是扑不出来）；
+        // 需覆盖冲刺阶段持续消耗 + 扑咬的一次性大量消耗（阶段 4）。
         && this.staminaLocked <= 0
-        && canSprint(this.stamina, FOX.vitals.pounceStaminaPerSec, this._smartState.pounceLockTime)
+        && canSprint(this.stamina, FOX.vitals.pounceStaminaPerSec, SMART_POUNCE_STAGE.dashDuration)
+        && this.stamina >= SMART_POUNCE_STAGE.staminaCost + FOX.vitals.pounceStaminaPerSec * SMART_POUNCE_STAGE.dashDuration
         // 阶段 3：striker 独占扑咬提交权（其余角色保持施压不扑）；
         // 谨慎期（回血归队后 8s）内不主动扑咬。
         && (!packContext || this._role === 'striker')
         && this._age >= this._cautiousUntil
         && this._evadeUntil <= 0
-        && (!packContext?.coordinator || packContext.coordinator.canCommit(this.slot, this._age, this._smartState.coordination)) },
+        && (!packContext?.coordinator || packContext.coordinator.canCommit(this.slot, this._age, this._smartState.coordination)),
+        // 阶段 4 动作集对齐：慢行=stalk（慢/省体力/难被发现），冲刺=sprint
+        stalkSpeed: FOX.ACTIONS.stalk.speed,
+        sprintSpeed: FOX.ACTIONS.sprint.speed,
+      },
     );
     if (!this.pounceCommitted && next.pounceCommitted) {
       packContext?.coordinator?.recordCommit(this.slot, this._age);
@@ -279,16 +289,24 @@ export class SmartFox extends Fox {
       this._feintRepeats = reset.repeats; this._feintSide = reset.side; this._feintPrevIntent = reset.prevIntent;
     }
     if (next.pounceJustEnded) this._recoverLock = Math.max(this._recoverLock, RECOVER_LOCK);
+    // 阶段 4：进入扑咬 strike 的当帧，一次性扣除大量体力（区别于冲刺阶段的持续扣）。
+    if (next.pounceStrikeStarted) {
+      next.pounceStrikeStarted = false;
+      this.stamina = Math.max(0, this.stamina - SMART_POUNCE_STAGE.staminaCost);
+    }
     this._smartState = next;
     this.x = next.x;
     this.z = next.z;
     this.yaw = next.yaw;
     this.pounceCommitted = !!next.pounceCommitted;
+    this.pounceStage = next.pounceStage ?? null;
+    this.pounceStriking = !!next.pounceStriking;
 
-    // 映射到既有动画状态：扑击=dash（驱动预警/接触），喘息/放弃=rest，其余=roam。
+    // 映射到既有动画状态：冲刺阶段/扑击=dash（驱动预警/位移），极短前摇=wind（下蹲），
+    // 后摇/喘息/放弃=rest（硬直），其余=roam。
     this.state = this.pounceCommitted
-      ? 'dash'
-      : (intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam';
+      ? (this.pounceStage === 'windup' ? 'wind' : 'dash')
+      : (this.pounceStage === 'recover' || intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam';
     this.leap = 0;
 
     // 疲劳循环：扑击消耗，喘息快速恢复，其余缓慢恢复，保证下一轮还能再扑。
@@ -302,14 +320,19 @@ export class SmartFox extends Fox {
 
     this._resolveObstacleOverlaps(burrows);
     if (this.pounceCommitted && (this.x !== next.x || this.z !== next.z || Math.abs(this.x) >= bounds.hw || Math.abs(this.z) >= bounds.hh)) {
-      this.pounceCommitted = false; this._smartState.pounceCommitted = false; this._smartState.pounceTime = 0;
-      this._smartState.pounceCooldown = this._smartState.pounceCooldownDuration; this._smartState.vx = this._smartState.vz = 0;
+      // 撞障取消（589d31b 语义）：当帧取消扑击且本帧之后无伤害（pounceStriking 一并清零），进后摇。
+      const cancelled = cancelSmartPounce(this._smartState);
+      cancelled.pounceCooldown = this._smartState.pounceCooldownDuration;
+      this._smartState = cancelled;
+      this.pounceCommitted = false; this.pounceStriking = false; this.pounceStage = 'recover';
       this.intent = 'recover'; this.state = 'rest';
     }
     this._applyTransform(dt, terrainAt);
     this._updateHpBar();
     this._updateStaminaBar();
-    this.warn.visible = this.pounceCommitted || (this._smartState.windupRemaining > 0 && intent === 'pounce');
+    // 阶段 4：预警线在"扑咬前的冲刺阶段"显示；保留提交前可读前摇的淡预警。
+    this.warn.visible = (this.pounceCommitted && this.pounceStage === 'dash')
+      || (this._smartState.windupRemaining > 0 && intent === 'pounce');
     this._updateWarn(terrainAt);
     this.telemetry.push({ intent, distance, guard, fatigue: this.fatigue, health: this.hp / this.maxHp,
       memory: this.memory, suspicion: this.suspicion, scores: { ...this.topScores } });
@@ -321,8 +344,9 @@ export class SmartFox extends Fox {
     this.warn.position.set(this.x, terrainAt(this.x, this.z) + .02, this.z);
     this.warn.rotation.y = this.pounceCommitted ? this._smartState.pounceYaw : this.yaw;
     const speed = Math.hypot(this._smartState.vx, this._smartState.vz);
+    // 冲刺阶段预警线长度 = 剩余冲刺的真实位移距离（真实速度积分，与 smartPounceDashDistance 一致）
     this.warn.scale.z = this.pounceCommitted
-      ? smartPounceDistance(speed, this._smartState.pounceSpeed, this._smartState.acceleration, this._smartState.pounceTime)
+      ? smartPounceDashDistance(speed, this._smartState.pounceDashSpeed ?? this._smartState.pounceSpeed, this._smartState.acceleration, this._smartState.pounceStageTime)
       : smartPounceDistance(speed, this._smartState.pounceSpeed, this._smartState.acceleration, .72);
     this.warn.material.opacity = this.pounceCommitted ? .76 : .3;
   }

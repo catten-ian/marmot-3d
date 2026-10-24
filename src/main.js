@@ -1565,7 +1565,8 @@ function update(dt) {
     // 接触伤害
     // 智能藏狐在 approach/feint 阶段也会高速贴身，但只有不可取消的扑击(pounce)
     // 才应造成伤害，故对 type==='smart' 额外要求 pounceCommitted。
-    const smartCanHit = f.type !== 'smart' || f.pounceCommitted;
+    // 阶段 4：智能狐只有"扑咬 strike 激活帧"才结算接触伤害（冲刺逼近/前摇/后摇不造成伤害）。
+    const smartCanHit = f.type !== 'smart' || (f.pounceCommitted && f.pounceStriking);
     if (f.alive && !game.inBurrow && p.invuln <= 0 && smartCanHit) {
       const d = Math.hypot(f.x - p.x, f.z - p.z);
       const reach = (PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal));
@@ -1633,6 +1634,34 @@ function update(dt) {
         const dx = p.x - f.x, dz = p.z - f.z;
         const dd = Math.hypot(dx, dz) || 1;
         controller.hitShake(1.05, (dx / dd) * 4.8, (dz / dd) * 4.8);
+      }
+    }
+  }
+
+  // —— 阶段 4：玩家察觉机制（可发现性）——
+  // 狐狸当前动作决定被察觉半径：慢行难发现、冲刺易发现、扑咬最易发现
+  // （半径与 play-as-fox 的 detectStalk/detectSprint/detectLunge 对齐，见 FOX.detection）。
+  // 一旦察觉即锁定（f.detected）：HUD 提示一次 + 该狐的血条/体力条开始显示；
+  // 智能狐侧会把 detected 计入 suspicion，被发现的狐狸打得更谨慎。
+  {
+    const DET = FOX.detection;
+    const camYaw = controller.yaw ?? controller.bodyYaw ?? 0;
+    const cosHalf = Math.cos((DET.viewConeDeg / 2) * Math.PI / 180);
+    for (const f of foxes) {
+      if (!f.alive || f.detected || game.inBurrow) continue;
+      const dx = f.x - p.x, dz = f.z - p.z;
+      const d = Math.hypot(dx, dz);
+      if (d > DET.viewRange) continue;
+      // 相机前向 = (-sin(yaw), -cos(yaw))（与 resolveAttackYaw 同约定）
+      const inv = 1 / (d || 1);
+      const viewDot = (-Math.sin(camYaw)) * dx * inv + (-Math.cos(camYaw)) * dz * inv;
+      if (viewDot < cosHalf) continue;
+      const radius = (f.pounceCommitted || f.state === 'wind') ? DET.pounce
+        : (f.state === 'dash' || f.intent === 'approach' || f.intent === 'feint') ? DET.sprint
+        : DET.stalk;
+      if (d < radius) {
+        f.detected = true;
+        hud.say('你发现了一只藏狐！', 2.2);
       }
     }
   }
