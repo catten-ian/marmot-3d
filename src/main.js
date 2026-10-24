@@ -78,6 +78,7 @@ import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { createSmartPack } from './entities/smart-fox-core.mjs';
+import { hpDamageMultiplier } from './core/fox-motion.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
@@ -1595,7 +1596,8 @@ function update(dt) {
         }
         // 注意括号：`??` 优先级低于 `+`，必须先按类型取基础伤害再叠加关卡加成，
         // 否则 `+ game.level` 只会并进 default 分支、而该分支永远不会被用到。
-        const damage = (FOX.damage[f.type] ?? FOX.damage.default) + game.level;
+        const damage = Math.round(((FOX.damage[f.type] ?? FOX.damage.default) + game.level)
+          * hpDamageMultiplier(f.hp / f.maxHp, FOX.vitals) * 10) / 10;
         const hpBefore = p.hp;
         interruptHeldAttackCharge();
         clearPendingAerialParry();

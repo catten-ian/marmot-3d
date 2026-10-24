@@ -230,6 +230,36 @@ export const FOX = {
     brakeLerp: 2.8, recoverySpeedMax: 2.8,
   },
   recovery: { normal: 1.15, fast: 0.9, leap: 1.05, combo: 1.2, blocked: 0.9 },
+  /**
+   * 藏狐生理参数：体力与血量对机动/输出的影响。
+   *
+   * 关键口径：**体力耗尽 ≠ 被驱退**。
+   * 体力只是"能不能冲刺/扑咬"的开关；见底后藏狐只能慢行或休息，
+   * 但不会被系统判定为已驱退（驱退口径见阶段 2）。
+   */
+  vitals: {
+    maxStamina: 100,
+    /** 慢行（潜行接近）：不消耗体力 —— 用户明确要求 */
+    stalkStaminaPerSec: 0,
+    /** 冲刺（直线突进）：持续消耗 */
+    sprintStaminaPerSec: 18,
+    /** 扑咬的冲刺阶段：比普通冲刺更费 */
+    pounceStaminaPerSec: 26,
+    /** 静止休息：每秒恢复体力 */
+    restStaminaPerSec: 14,
+    /** 静止休息：每秒恢复血量，占 maxHp 的比例（**要慢**） */
+    restHpRegenRatio: 0.035,
+    /** 受击时额外扣体力（与伤害同时发生） */
+    hitStaminaCost: 7,
+    /** 体力见底后，多久不允许再冲刺（防止抖动） */
+    staminaLockSeconds: 1.2,
+    /** 血量比例低于此值开始影响速度与伤害 */
+    lowHpThreshold: 0.5,
+    /** 血量归零时的速度倍率（最低） */
+    speedMulAtZeroHp: 0.72,
+    /** 血量归零时的伤害倍率（最低） */
+    damageMulAtZeroHp: 0.6,
+  },
   groundAttackHeight: 0.4,
   /**
    * 被驱退后的逃跑。

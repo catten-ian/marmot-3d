@@ -2,6 +2,7 @@ import { Fox } from './fox.js';
 import { FOX, ROCKS, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { SANDBOX_DIFFICULTIES } from '../sandbox/state.js';
 import { clamp, terrainHeight } from '../core/utils.js';
+import { canSprint, stepStamina } from '../core/fox-motion.js';
 import {
   utilityScores,
   updatePerception,
@@ -59,6 +60,24 @@ export class SmartFox extends Fox {
       return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
     }
     this._recoverLock = Math.max(0, this._recoverLock - Math.max(0, dt));
+
+    // —— 体力收支（与普通狐同口径）：扑击消耗体力，喘息/脱离缓慢回血回体力 ——
+    {
+      const V = FOX.vitals;
+      const resting = this.state === 'rest';
+      const stepped = stepStamina({ stamina: this.stamina, locked: this.staminaLocked, hp: this.hp }, dt, {
+        maxStamina: this.maxStamina,
+        drainPerSec: this.pounceCommitted ? V.pounceStaminaPerSec : V.stalkStaminaPerSec,
+        regenPerSec: V.restStaminaPerSec,
+        resting,
+        hpRegenRatio: V.restHpRegenRatio,
+        hp: this.hp, maxHp: this.maxHp,
+        staminaLockSeconds: V.staminaLockSeconds,
+      });
+      this.stamina = stepped.stamina;
+      this.staminaLocked = stepped.locked;
+      this.hp = stepped.hp;
+    }
 
     const dx = p.x - this.x;
     const dz = p.z - this.z;
@@ -146,7 +165,11 @@ export class SmartFox extends Fox {
       { x: aimX, z: aimZ },
       dt,
       this.intent,
-      { commitAllowed: this._recoverLock <= 0 && (!packContext?.coordinator || packContext.coordinator.canCommit(this.slot, this._age, this._smartState.coordination)) },
+      { commitAllowed: this._recoverLock <= 0
+        // 体力守卫：体力不足时不提交扑击（体力耗尽 ≠ 被驱退，只是扑不出来）
+        && this.staminaLocked <= 0
+        && canSprint(this.stamina, FOX.vitals.pounceStaminaPerSec, this._smartState.pounceLockTime)
+        && (!packContext?.coordinator || packContext.coordinator.canCommit(this.slot, this._age, this._smartState.coordination)) },
     );
     if (!this.pounceCommitted && next.pounceCommitted) {
       packContext?.coordinator?.recordCommit(this.slot, this._age);
@@ -183,6 +206,7 @@ export class SmartFox extends Fox {
     }
     this._applyTransform(dt, terrainAt);
     this._updateHpBar();
+    this._updateStaminaBar();
     this.warn.visible = this.pounceCommitted || (this._smartState.windupRemaining > 0 && intent === 'pounce');
     this._updateWarn(terrainAt);
     this.telemetry.push({ intent, distance, guard, fatigue: this.fatigue, health: this.hp / this.maxHp,

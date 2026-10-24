@@ -1,0 +1,95 @@
+# 藏狐 v2 改造报告
+
+## 阶段 1：藏狐生理层 —— 体力条 / 血量影响 / 休息回血
+
+### 设计口径（用户拍板）
+- **体力耗尽 ≠ 被驱退**：体力只是"能不能冲刺/扑咬"的开关，见底后只能慢行/休息，不会被判定为已驱退。
+- 静止休息缓慢回血 + 回体力（回血慢，玩家节奏上仍打得动狐狸）。
+- 被土拨鼠攻击同时扣血和扣一部分体力。
+- 血条低 → 速度与伤害下降。
+- 慢行不耗体力；冲刺/扑咬耗体力。
+- 本阶段不允许玩家打死狐狸，但机制上保留 hp 归零分支（死亡/平衡是阶段 2）。
+
+### 新增 `FOX.vitals` 字段与取值（src/core/config.js）
+| 字段 | 值 | 说明 |
+|---|---|---|
+| maxStamina | 100 | 体力上限 |
+| stalkStaminaPerSec | 0 | 慢行/潜行接近：不耗体力 |
+| sprintStaminaPerSec | 18 | 冲刺持续消耗/秒 |
+| pounceStaminaPerSec | 26 | 扑咬冲刺阶段消耗/秒（阶段 1 冲刺统一按此值） |
+| restStaminaPerSec | 14 | 休息回体力/秒 |
+| restHpRegenRatio | 0.035 | 休息回血/秒（占 maxHp 比例） |
+| hitStaminaCost | 7 | 每次受击额外扣体力 |
+| staminaLockSeconds | 1.2 | 体力见底后禁止冲刺的锁定时长 |
+| lowHpThreshold | 0.5 | 低于此血量比例开始影响速度/伤害 |
+| speedMulAtZeroHp | 0.72 | 零血时的速度倍率下限 |
+| damageMulAtZeroHp | 0.6 | 零血时的伤害倍率下限 |
+
+### 体力收支表（哪个状态扣多少 / 回多少）
+| 状态 | 体力/秒 | 血量/秒 |
+|---|---|---|
+| dash（普通狐冲刺 / 智能狐 pounceCommitted） | −26（pounceStaminaPerSec） | 0 |
+| rest（冲刺后喘息 / recover / abandon） | +14 | +3.5% maxHp |
+| roam / wind / circle / linger / abandon 移动 | 0（stalk=0） | 0 |
+| 受击（一次性） | −7 | −damage |
+
+唯一收支入口是纯函数 `stepStamina(state, dt, options)`（src/core/fox-motion.js），
+返回 `{stamina, locked, exhausted, hp}` 新值，不改传入对象。
+
+### 低血速度/伤害倍率曲线
+hpRatio 与倍率（低血阈值 0.5，线性插值）：
+| hpRatio | 速度倍率 | 伤害倍率 |
+|---|---|---|
+| 1.0 | 1.00 | 1.00 |
+| 0.75 | 1.00 | 1.00 |
+| 0.5 | 1.00 | 1.00 |
+| 0.25 | 0.86 | 0.80 |
+| 0.0 | 0.72 | 0.60 |
+
+速度倍率作用于普通狐地面移动（`update()` 里 `speed`）与冲刺速度（`FOX.dashSpeed × dashSpeedMul` 处）；
+伤害倍率作用于狐狸打玩家的结算点（src/main.js 接触伤害 `damage` 处）。
+
+### 体力不足时的行为
+- **普通狐**：`_beginDash()` 入口处守卫 —— `staminaLocked > 0` 或 `!canSprint(stamina, sprintStaminaPerSec, dashTime)` 时不冲刺，落到 `state='rest'`（timer ≥ 0.6s），清掉 combo 账本与预警线。覆盖 wind→dash、drill、combo 各路径。
+- **智能狐**：`stepSmartMotion` 的 `options.commitAllowed` 追加 `staminaLocked <= 0 && canSprint(stamina, pounceStaminaPerSec, pounceLockTime)`，体力不足时永不提交扑击，狐狸继续走 observe/approach/feint 等非扑击意图。
+- 体力见底（drain 到 0）置 `exhausted` 且 `locked = 1.2s`，locked 期间即使休息回了点体力也不允许冲刺（防抖动）。
+
+### 体力条显示
+- 独立 `buildStaminaBar()`（结构与血条一致：group → bg + userData.fill，左锚收缩，不缩放 group）。
+- 颜色暖金 `0xe0b34a`（血条 `0xd8735a`），位置在血条下方：`baseY + 1.38 × scale`（血条 1.55 × scale）。
+- 只在 `stamina < maxStamina − 0.5` 时显示，避免画面 clutter；flee/死亡/sandbox dummy 时隐藏。
+- `_updateStaminaBar()` 与 `_updateHpBar()` 同款 lookAt billboard。
+
+### 其它接入点
+- `hit()`：普通狐与 sandbox dummy 两个分支都在扣血的同时扣 `hitStaminaCost` 体力（dummy 分支其余逻辑未动）。
+- `respawnAt()`：复位时体力回满、`staminaLocked = 0`。
+- `dispose()`：释放 staminaBar。
+- `SmartFox.update()`：接入同一 `stepStamina`（`this.state==='rest'` 为 resting，pounceCommitted 为 drain）。
+
+### 新增/修改文件
+- `src/core/config.js`：新增 `FOX.vitals`
+- `src/core/fox-motion.js`：新增 `canSprint` / `hpSpeedMultiplier` / `hpDamageMultiplier` / `stepStamina`
+- `src/entities/fox.js`：体力字段、体力条、stepStamina 接入、_beginDash 守卫、低血速度倍率、hit/respawnAt/dispose
+- `src/entities/smart-fox.js`：stepStamina 接入、commitAllowed 体力守卫、体力条更新
+- `src/entities/smart-fox-core.mjs`：未改（体力纯函数放 fox-motion.js，决策权重本阶段不动）
+- `src/main.js`：狐狸打玩家伤害乘 `hpDamageMultiplier`
+- `tools/test-fox-vitals.cjs`：新增（run-node-tests.cjs 为自动发现 tools/test-* 文件，无需注册条目）
+- `tools/run-node-tests.cjs`：未改（自动发现机制）
+
+### 测试项与结果（tools/test-fox-vitals.cjs，9 项全过）
+1. FOX.vitals 存在且方向正确
+2. canSprint 足够/不足/保底 0.1s
+3. hpSpeedMultiplier 阈值=1、零血=0.72、单调递减
+4. hpDamageMultiplier 阈值=1、零血=0.6、单调递减
+5. stepStamina 冲刺 1s 按 18/s 消耗
+6. stepStamina 休息 1s 回 14 体力 + 3.5% maxHp 血量（封顶 100%）
+7. 体力到 0 → exhausted=true、locked=1.2
+8. locked 期间即使回了体力也不允许冲刺
+9. 纯函数：不修改传入对象
+
+`node tools/run-node-tests.cjs`：OK 37/37（22 个浏览器/CDP 测试按惯例跳过）。
+
+### 验证清单
+- node --check：config.js / fox-motion.js / fox.js / smart-fox.js / smart-fox-core.mjs / main.js 全过
+- node tools/run-node-tests.cjs：37/37 PASS
+- grep stepStamina / stamina：接入点齐全

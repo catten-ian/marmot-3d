@@ -23,7 +23,7 @@ import { createProceduralFox } from './procedural-fox.js';
 import { createTibetanFox } from './tibetan-fox.js';
 import {
   foxRecoverySeconds, stepFoxTurn, stepFoxRecovery, stepFoxLocomotion, foxMaxTurnRate, steerGroundDirection,
-  estimatePlayerVelocity, straightWindAimYaw,
+  estimatePlayerVelocity, straightWindAimYaw, canSprint, stepStamina, hpSpeedMultiplier,
 } from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
 /** 手搓程序化狐狸：config 开关，或 beta 用 ?procfox=1 临时启用对比；默认仍走现有模型 */
@@ -118,6 +118,10 @@ export class Fox {
 
     this.maxHp = cfg.hp;
     this.hp = cfg.hp;
+    // 体力（见 config.FOX.vitals）：体力耗尽 ≠ 被驱退，只是不能再冲刺/扑咬
+    this.maxStamina = FOX.vitals.maxStamina;
+    this.stamina = this.maxStamina;
+    this.staminaLocked = 0;
     this.x = x; this.z = z;
     this.vx = 0; this.vz = 0;
     this.knockbackVX = 0; this.knockbackVZ = 0;
@@ -220,6 +224,11 @@ export class Fox {
     this.hpBar = buildHpBar();
     this.hpBar.visible = false;
     scene.add(this.hpBar);
+
+    // 体力条 billboard（血条下方，只在不满时显示）
+    this.staminaBar = buildStaminaBar();
+    this.staminaBar.visible = false;
+    scene.add(this.staminaBar);
 
     this.baseY = 0;
     this._bob = Math.random() * 6;
@@ -469,6 +478,7 @@ export class Fox {
       this.hpBar.position.set(this.x, this.baseY + 1.55 * this.cfg.scale, this.z);
       this._updateHpBar();
       this.hpBar.visible = this.hp > 0 && this.hp < this.maxHp;
+      this.staminaBar.visible = false;
       return;
     }
 
@@ -504,6 +514,7 @@ export class Fox {
       this.mesh.visible = false;
       this.warn.visible = false;
       this.hpBar.visible = false;
+      this.staminaBar.visible = false;
       // 首领一去不返；普通狐被驱退后过一段时间会重新出现（增援）
       if (this.type !== 'boss') {
         this.respawn -= dt;
@@ -522,9 +533,30 @@ export class Fox {
       this._applyTransform(dt, terrainAt);
       this.warn.visible = false;
       this._updateHpBar();
+      this._updateStaminaBar();
       return;
     }
     this.mesh.rotation.z = 0;
+
+    // —— 体力收支（每帧唯一入口，纯函数在 fox-motion.js）——
+    // 体力耗尽只是"不能再冲刺"，不是被驱退；休息态缓慢回血回体力。
+    {
+      const V = FOX.vitals;
+      const dashing = this.state === 'dash';
+      const resting = this.state === 'rest';
+      const stepped = stepStamina({ stamina: this.stamina, locked: this.staminaLocked, hp: this.hp }, dt, {
+        maxStamina: this.maxStamina,
+        drainPerSec: dashing ? V.pounceStaminaPerSec : V.stalkStaminaPerSec,
+        regenPerSec: V.restStaminaPerSec,
+        resting,
+        hpRegenRatio: V.restHpRegenRatio,
+        hp: this.hp, maxHp: this.maxHp,
+        staminaLockSeconds: V.staminaLockSeconds,
+      });
+      this.stamina = stepped.stamina;
+      this.staminaLocked = stepped.locked;
+      this.hp = stepped.hp;
+    }
 
     this.alertCooldown = Math.max(0, this.alertCooldown - dt);
     if (safe && !this._lastSafe) {
@@ -541,7 +573,7 @@ export class Fox {
     // Wind 仅保留近期玩家位移估计；用有界低通避免坐标噪声/瞬时跳位变成预瞄。
     this._attackPlayerMotion = estimatePlayerVelocity(this._attackPlayerMotion, p, dt);
     const playerMotion = this._attackPlayerMotion;
-    const speed = levelCfg.speed * this.cfg.speed * (this.sandboxSpeedMul || 1);
+    const speed = levelCfg.speed * this.cfg.speed * (this.sandboxSpeedMul || 1) * hpSpeedMultiplier(this.hp / this.maxHp, FOX.vitals);
     // 关卡的蓄力基准时长（实际蓄力 = 该值 × 档案 windMul）
     this.levelCfgWind = levelCfg.wind;
     // 跃扑的腾空时间也算进冲刺时长，预警线长度才准
@@ -585,6 +617,7 @@ export class Fox {
       this._updateSegmentedFox(dt, this.state === 'dash' ? 1 : 0);
       this._applyTransform(dt, terrainAt);
       this._updateHpBar();
+      this._updateStaminaBar();
       return;
     }
 
@@ -678,7 +711,7 @@ export class Fox {
           this.dashDirX = Math.sin(this.yaw);
           this.dashDirZ = Math.cos(this.yaw);
         }
-        const v = FOX.dashSpeed * (A.dashSpeedMul || 1);
+        const v = FOX.dashSpeed * (A.dashSpeedMul || 1) * hpSpeedMultiplier(this.hp / this.maxHp, FOX.vitals);
         this.dashVX = this.dashDirX * v;
         this.dashVZ = this.dashDirZ * v;
         this.x += this.dashVX * dt;
@@ -797,6 +830,7 @@ export class Fox {
     this._applyTransform(dt, terrainAt);
     this._updateWarn(terrainAt);
     this._updateHpBar();
+    this._updateStaminaBar();
   }
 
   /**
@@ -891,6 +925,16 @@ export class Fox {
 
   /** 蓄力结束 → 冲刺 */
   _beginDash() {
+    // 体力守卫：体力不足不允许发起冲刺 —— 退回喘息（不是被驱退！）。
+    if (this.staminaLocked > 0 || !canSprint(this.stamina, FOX.vitals.sprintStaminaPerSec, this.dashTime)) {
+      this.state = 'rest';
+      this.timer = Math.max(this.timer, 0.6);
+      this.warn.visible = false;
+      this.comboActive = false;
+      this.comboLeft = 0;
+      this.leap = 0;
+      return;
+    }
     const wasCombo = this.comboActive;
     this.state = 'dash';
     this.turnVelocity = 0;
@@ -924,6 +968,7 @@ export class Fox {
     this.mesh.visible = true;   // 逃跑中必须可见
     this.warn.visible = false;
     this.hpBar.visible = false;
+    this.staminaBar.visible = false;
 
     // 若玩家追上来，临时改变逃跑方向（避免一路直线跑到底显得假）
     if (p) {
@@ -978,6 +1023,7 @@ export class Fox {
     this.state = 'flee';
     this.warn.visible = false;
     this.hpBar.visible = false;
+    this.staminaBar.visible = false;
     // 沿"远离玩家 + 推向最近边界"的方向跑，避免在原地来回
     const dx = this.x - awayFromX, dz = this.z - awayFromZ;
     const len = Math.hypot(dx, dz) || 1;
@@ -1023,6 +1069,7 @@ export class Fox {
     );
 
     this.hpBar.position.set(this.x, terrainAt(this.x, this.z) + 1.55 * this.cfg.scale, this.z);
+    this.staminaBar.position.set(this.x, terrainAt(this.x, this.z) + 1.38 * this.cfg.scale, this.z);
   }
 
   _updateWarn(terrainAt = null) {
@@ -1065,6 +1112,20 @@ export class Fox {
     this.hpBar.lookAt(this.hpBar.position.x, this.hpBar.position.y + 20, this.hpBar.position.z + 0.01);
   }
 
+  /** 体力条：与血条同款 billboard，只在不满时显示，避免画面 clutter */
+  _updateStaminaBar() {
+    const low = this.stamina < this.maxStamina - 0.5;
+    if (!low) { this.staminaBar.visible = false; return; }
+
+    this.staminaBar.visible = true;
+    const ratio = Math.max(0.001, this.stamina / this.maxStamina);
+    const fill = this.staminaBar.userData.fill;
+    fill.scale.x = ratio;
+    fill.position.x = -(1 - ratio) * 0.48; // 与血条一致：左锚收缩
+    fill.position.z = 0.001;
+    this.staminaBar.lookAt(this.staminaBar.position.x, this.staminaBar.position.y + 20, this.staminaBar.position.z + 0.01);
+  }
+
   /** 受击：扣血 + 击退 + 硬直 */
   /**
    * 命中。返回 true 表示"这只藏狐已被驱退（体力耗尽）"。
@@ -1080,11 +1141,13 @@ export class Fox {
       this.stun = 0;
       this.leap = 0;
       this.fleeing = false;
+      this.stamina = Math.max(0, this.stamina - FOX.vitals.hitStaminaCost);
       this.state = this.hp > 0 ? 'dummy' : 'defeated';
       this.warn.visible = false;
       return this.hp <= 0;
     }
     this.hp = Math.max(0, this.hp - damage);
+    this.stamina = Math.max(0, this.stamina - FOX.vitals.hitStaminaCost);
     const dx = this.x - fromX, dz = this.z - fromZ;
     const d = Math.hypot(dx, dz) || 1;
     const impulse = knockback * (FOX.types[this.type]?.knockbackMul ?? 1);
@@ -1107,6 +1170,8 @@ export class Fox {
     this.x = x; this.z = z;
     this.mesh.visible = true;
     this.hp = this.maxHp;
+    this.stamina = this.maxStamina;
+    this.staminaLocked = 0;
     this.state = 'roam';
     this.stun = 0;
     this.timer = 0;
@@ -1140,11 +1205,13 @@ export class Fox {
     scene.remove(this.mesh);
     scene.remove(this.warn);
     scene.remove(this.hpBar);
+    scene.remove(this.staminaBar);
     disposeTree(this.proceduralMesh);
     disposeTree(this.hiFiMesh);
     disposeTree(this.realModel, { geometry: false, textures: false });
     disposeTree(this.warn);
     disposeTree(this.hpBar);
+    disposeTree(this.staminaBar);
   }
 }
 
@@ -1308,6 +1375,25 @@ function buildHpBar() {
 
   const fillGeo = new THREE.PlaneGeometry(0.96, 0.09);
   const fillMat = new THREE.MeshBasicMaterial({ color: 0xd8735a, depthTest: false });
+  const fill = new THREE.Mesh(fillGeo, fillMat);
+  fill.position.z = 0.001;
+  fill.renderOrder = 11;
+  g.add(fill);
+  g.userData.fill = fill;
+  return g;
+}
+
+/** 体力条 billboard：与血条同结构，暖金色，位于血条下方 */
+function buildStaminaBar() {
+  const g = new THREE.Group();
+  const bgGeo = new THREE.PlaneGeometry(1, 0.13);
+  const bgMat = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.75, depthTest: false });
+  const bg = new THREE.Mesh(bgGeo, bgMat);
+  bg.renderOrder = 10;
+  g.add(bg);
+
+  const fillGeo = new THREE.PlaneGeometry(0.96, 0.09);
+  const fillMat = new THREE.MeshBasicMaterial({ color: 0xe0b34a, depthTest: false });
   const fill = new THREE.Mesh(fillGeo, fillMat);
   fill.position.z = 0.001;
   fill.renderOrder = 11;

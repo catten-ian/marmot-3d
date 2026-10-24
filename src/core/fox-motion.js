@@ -113,3 +113,51 @@ export function stepFoxRecovery(timer, vx, vz, dt) {
     vz: nextTimer > 0 ? velocity.vz : 0,
   };
 }
+
+// ---------- 体力（stamina）纯函数：唯一收支入口 ----------
+
+/** 体力是否足以发起一次冲刺/扑咬。 */
+export function canSprint(stamina, staminaPerSec, dt = 0) {
+  // 需要至少留够这一段时间的消耗
+  return stamina > staminaPerSec * Math.max(dt, 0.1);
+}
+
+/** 低血量对速度的倍率：血量 ≥ 阈值 → 1；血量 → 0 → speedMulAtZeroHp。 */
+export function hpSpeedMultiplier(hpRatio, vitals) {
+  const t = Math.max(0, Math.min(1, hpRatio / vitals.lowHpThreshold));
+  return vitals.speedMulAtZeroHp + (1 - vitals.speedMulAtZeroHp) * t;
+}
+
+/** 低血量对伤害的倍率（与速度同理，但地板更低）。 */
+export function hpDamageMultiplier(hpRatio, vitals) {
+  const t = Math.max(0, Math.min(1, hpRatio / vitals.lowHpThreshold));
+  return vitals.damageMulAtZeroHp + (1 - vitals.damageMulAtZeroHp) * t;
+}
+
+/**
+ * 每帧的体力收支（纯函数：不修改传入对象，返回新值）。
+ * 静止休息时 resting=true → regenPerSec 生效，同时按 hpRegenRatio 缓慢回血；
+ * 否则按 drainPerSec 消耗（可为 0，例如慢行不耗体力）。
+ * 体力见底 → exhausted=true 且 locked=staminaLockSeconds（locked>0 期间不可冲刺）。
+ * @returns {{stamina:number, locked:number, exhausted:boolean, hp:number}}
+ */
+export function stepStamina(state, dt, options = {}) {
+  const maxStamina = options.maxStamina ?? FOX.vitals.maxStamina;
+  const lockSeconds = options.staminaLockSeconds ?? FOX.vitals.staminaLockSeconds;
+  let stamina = state.stamina ?? maxStamina;
+  let hp = state.hp ?? options.maxHp ?? 0;
+  let locked = Math.max(0, (state.locked ?? 0) - Math.max(0, dt));
+  let exhausted = false;
+  if (options.resting) {
+    stamina = Math.min(maxStamina, stamina + (options.regenPerSec ?? 0) * dt);
+    const maxHp = options.maxHp ?? hp;
+    hp = Math.min(maxHp, hp + maxHp * (options.hpRegenRatio ?? 0) * dt);
+  } else {
+    stamina = Math.max(0, stamina - (options.drainPerSec ?? 0) * dt);
+    if (stamina <= 0 && (options.drainPerSec ?? 0) > 0) {
+      exhausted = true;
+      locked = lockSeconds;
+    }
+  }
+  return { stamina, locked, exhausted, hp };
+}
