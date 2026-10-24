@@ -1,5 +1,6 @@
 import { Fox } from './fox.js';
 import { FOX, ROCKS, BURROWS, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
+import { SANDBOX_DIFFICULTIES } from '../sandbox/state.js';
 import { clamp, terrainHeight } from '../core/utils.js';
 import {
   utilityScores,
@@ -8,7 +9,8 @@ import {
   stepSmartMotion,
   separationVector,
   isSegmentReachable,
-  advanceSmartState,
+  smartPounceDistance, updateSmartMemory, habituateDecayRate, stepInterruptionTimes,
+  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK,
 } from './smart-fox-core.mjs';
 
 /**
@@ -36,13 +38,29 @@ export class SmartFox extends Fox {
       x, z, vx: 0, vz: 0, yaw: this.yaw,
       maxTurnRate: 2.8, acceleration: 18, pounceCooldown: 0, telegraphT: 0, phase: 'observe', phaseTime: 0, cooldown: 0, pounceTime: 0,
     };
+    this.smartDifficulty = 'standard';
+    this.applySmartDifficulty(opts.difficulty || 'standard');
+    this.telemetry = [];
+    this._age = 0; this.lastInterruptionAt = 0; this._interruptionTimes = [];
+    this._intentHeld = 0; this._intentCandidate = 'observe'; this._approachBand = false;
+    this._feintSide = 1; this._feintRepeats = 0;
+    this._feintPrevIntent = 'observe';
+    this._recoverLock = 0;
   }
 
-  update(dt, p, safe, levelCfg, burrows, terrainAt = terrainHeight, _currentBurrow = null, allFoxes = []) {
+  applySmartDifficulty(key) {
+    this.smartDifficulty = SANDBOX_DIFFICULTIES[key] ? key : 'standard';
+    const d = SANDBOX_DIFFICULTIES[this.smartDifficulty].smart;
+    Object.assign(this._smartState, { pounceSpeed: d.speed, approachSpeed: d.approach || ({calm:5.2,standard:6.8,intense:8.2}[this.smartDifficulty]), maxTurnRate: d.turn,
+      pounceWindup: d.windup, pounceCooldownDuration: d.cooldown, memoryDecay: d.memoryDecay, feintScale: d.feint, coordination: d.coordination });
+  }
+
+  update(dt, p, safe, levelCfg, burrows, terrainAt = terrainHeight, currentBurrow = null, packContext = null) {
     // 被驱退/死亡/眩晕时退回普通狐狸逻辑（逃跑、击退位移等）。
     if (this.fleeing || this.hp <= 0 || this.stun > 0) {
       return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
     }
+    this._recoverLock = Math.max(0, this._recoverLock - Math.max(0, dt));
 
     const dx = p.x - this.x;
     const dz = p.z - this.z;
@@ -51,12 +69,18 @@ export class SmartFox extends Fox {
     const obstacles = ROCKS.map((rock) => { const [ox, oz] = scalePoint(rock); return { x: ox, z: oz, r: scaleRadius(rock[2]) + 0.72 * this.cfg.scale }; });
     for (const b of (Array.isArray(burrows) ? burrows : burrows ? [burrows] : BURROWS)) obstacles.push({ x: b.x, z: b.z, r: (b.r || 0) + 2.5 });
     const reachable = isSegmentReachable(this, p, obstacles, 0.82);
-    const separation = separationVector(this, (allFoxes || []).filter((f) => f !== this && f.alive !== false), 1.85, 2.2);
+    const separation = separationVector(this, (packContext?.smartFoxes || []).filter((f) => f !== this && f.alive !== false), 1.85, 2.2);
     const viewDot = Math.cos(facingYaw - Math.atan2(this.x - p.x, this.z - p.z));
     const guard = !!(p.guard || p.guarding);
 
+    this._age += dt;
+    const aged = updateSmartMemory({ memory: this.memory, lastInterruptionAt: this.lastInterruptionAt }, dt, this._age, { memoryDecay: this._smartState.memoryDecay });
+    this.memory = aged.memory;
+    this._interruptionTimes = stepInterruptionTimes(this._interruptionTimes, this._age);
+    this.interruptions = this._interruptionTimes.length;
     const perceived = updatePerception({ suspicion: this.suspicion }, {
       distance, viewDot, guard, running: !!p.running,
+      decayRate: habituateDecayRate(.48, this._feintRepeats),
     }, dt);
     this.suspicion = perceived.suspicion;
 
@@ -69,20 +93,21 @@ export class SmartFox extends Fox {
       interruptions: this.interruptions,
       memory: this.memory,
       suspicion: this.suspicion,
+      feintScale: this._smartState.feintScale ?? 1,
     });
-    const candidatePounce = scores.topIntent === 'pounce' && distance <= 8.5;
-    const phase = advanceSmartState({
-      phase: this._smartState.phase,
-      phaseTime: this._smartState.phaseTime,
-      cooldown: Math.max(this._smartState.cooldown || 0, this._smartState.pounceCooldown || 0),
-      pounceTime: this._smartState.pounceTime,
-    }, {
-      candidatePounce, reachable, safe, motionCommitted: this.pounceCommitted,
-    }, dt);
-    this._smartState = { ...this._smartState, ...phase };
-    let intent = this.pounceCommitted ? 'pounce' : phase.intent;
+    let intent = this._recoverLock > 0 ? 'recover' : (this.pounceCommitted ? 'pounce' : scores.topIntent);
+    const nearBand = this._approachBand ? 3.9 : 3.4;
+    if (intent === 'approach' || intent === 'observe') {
+      if (distance < nearBand) intent = 'observe'; else if (distance > 7.7) intent = 'approach'; else intent = this._approachBand ? 'approach' : 'observe';
+      this._approachBand = intent === 'approach';
+    }
+    const debounced = debounceIntent(this._intentCandidate, intent, this._intentHeld, dt);
+    this._intentCandidate = debounced.intent; this._intentHeld = debounced.held;
+    intent = debounced.intent;
     if (safe) intent = 'recover';
-    this._smartState.telegraphT = phase.phase === 'wind' ? Math.max(0, 0.55 - phase.phaseTime) : 0;
+    const tracked = trackFeint({ repeats: this._feintRepeats, side: this._feintSide, prevIntent: this._feintPrevIntent }, intent,
+      { side: (this.slot % 2 === 0 ? 1 : -1) });
+    this._feintRepeats = tracked.repeats; this._feintSide = tracked.side; this._feintPrevIntent = tracked.prevIntent;
     this.intent = intent;
     this.topScores = scores.scores;
 
@@ -99,7 +124,7 @@ export class SmartFox extends Fox {
         const R = STAND[intent];
         aimX = p.x + ux * R; aimZ = p.z + uz * R;
       } else if (intent === 'feint') {
-        const side = (this.interruptions % 2 === 0 ? 1 : -1);
+        const side = this._feintSide;
         const a = toP + side * 1.05;
         aimX = p.x - Math.sin(a) * STAND.feint;
         aimZ = p.z - Math.cos(a) * STAND.feint;
@@ -109,6 +134,13 @@ export class SmartFox extends Fox {
       }
     }
     // committed pounce：直扑玩家本体，冲穿后由 recover 拉开。
+    const peers = packContext?.smartFoxes || [];
+    const sep = foxSeparation(this, peers);
+    const bias = flankBias(this, peers, p, this._smartState.coordination);
+    aimX += sep.x + Math.cos(toP) * bias * 2;
+    aimZ += sep.z - Math.sin(toP) * bias * 2;
+    const ground = !this.pounceCommitted ? this._groundSteer(aimX - this.x, aimZ - this.z, this._smartState.approachSpeed, burrows) : null;
+    if (ground) { aimX = this.x + ground.x * 100; aimZ = this.z + ground.z * 100; }
     const next = stepSmartMotion(
       {
         ...this._smartState,
@@ -119,22 +151,28 @@ export class SmartFox extends Fox {
       },
       { x: aimX, z: aimZ },
       dt,
-      intent,
+      this.intent,
+      { commitAllowed: reachable && this._recoverLock <= 0 && (!packContext?.coordinator || packContext.coordinator.canCommit(this.slot, this._age, this._smartState.coordination)) },
     );
+    if (!this.pounceCommitted && next.pounceCommitted) {
+      packContext?.coordinator?.recordCommit(this.slot, this._age);
+      const reset = trackFeint({ repeats: this._feintRepeats, side: this._feintSide, prevIntent: this._feintPrevIntent }, 'pounce', { reset: 'pounce' });
+      this._feintRepeats = reset.repeats; this._feintSide = reset.side; this._feintPrevIntent = reset.prevIntent;
+    }
+    if (next.pounceJustEnded) this._recoverLock = Math.max(this._recoverLock, RECOVER_LOCK);
     this._smartState = next;
     this.x = next.x;
     this.z = next.z;
     this.yaw = next.yaw;
     this.pounceCommitted = !!next.pounceCommitted;
-    this._smartState.phase = next.phase || this._smartState.phase;
-    this._smartState.phaseTime = next.phaseTime || this._smartState.phaseTime;
     this._smartState.cooldown = Math.max(this._smartState.cooldown || 0, next.pounceCooldown || 0);
 
-    // 映射到既有动画状态：扑击=dash（驱动预警/接触），喘息/放弃=rest，其余=roam。
-    this.state = this.pounceCommitted || phase.phase === 'pounce'
+    // 映射到既有动画状态：扑击=dash（驱动预警/接触），前摇=wind，喘息/放弃=rest，其余=roam。
+    const winding = !this.pounceCommitted && intent === 'pounce' && (this._smartState.windupRemaining ?? 0) > 0;
+    this.state = this.pounceCommitted
       ? 'dash'
-      : phase.phase === 'wind' ? 'wind'
-      : (phase.phase === 'recover' || intent === 'abandon') ? 'rest' : 'roam';
+      : winding ? 'wind'
+      : (intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam';
     this.leap = 0;
 
     // 疲劳循环：扑击消耗，喘息快速恢复，其余缓慢恢复，保证下一轮还能再扑。
@@ -147,15 +185,35 @@ export class SmartFox extends Fox {
     this.z = clamp(this.z, -bounds.hh, bounds.hh);
 
     this._resolveObstacleOverlaps(burrows);
+    if (this.pounceCommitted && (this.x !== next.x || this.z !== next.z || Math.abs(this.x) >= bounds.hw || Math.abs(this.z) >= bounds.hh)) {
+      this.pounceCommitted = false; this._smartState.pounceCommitted = false; this._smartState.pounceTime = 0;
+      this._smartState.pounceCooldown = this._smartState.pounceCooldownDuration; this._smartState.vx = this._smartState.vz = 0;
+      this.intent = 'recover'; this.state = 'rest';
+    }
     this._applyTransform(dt, terrainAt);
     this._updateHpBar();
-    this.warn.visible = this.pounceCommitted || this._smartState.telegraphT > 0;
-    this._updateWarn?.(terrainAt);
+    this.warn.visible = this.pounceCommitted || (this._smartState.windupRemaining > 0 && intent === 'pounce');
+    this._updateWarn(terrainAt);
+    this.telemetry.push({ intent, distance, guard, fatigue: this.fatigue, health: this.hp / this.maxHp,
+      memory: this.memory, suspicion: this.suspicion, scores: { ...this.topScores } });
+    if (this.telemetry.length > 192) this.telemetry.shift();
+  }
+
+  _updateWarn(terrainAt = terrainHeight) {
+    if (!this.warn?.visible) return;
+    this.warn.position.set(this.x, terrainAt(this.x, this.z) + .02, this.z);
+    this.warn.rotation.y = this.pounceCommitted ? this._smartState.pounceYaw : this.yaw;
+    const speed = Math.hypot(this._smartState.vx, this._smartState.vz);
+    this.warn.scale.z = this.pounceCommitted
+      ? smartPounceDistance(speed, this._smartState.pounceSpeed, this._smartState.acceleration, this._smartState.pounceTime)
+      : smartPounceDistance(speed, this._smartState.pounceSpeed, this._smartState.acceleration, .72);
+    this.warn.material.opacity = this.pounceCommitted ? .76 : .3;
   }
 
   hit(damage, knockback, stun, fromX, fromZ) {
     const result = super.hit(damage, knockback, stun, fromX, fromZ);
     this.interruptions += 1;
+    this._age += 0; this.lastInterruptionAt = this._age; this._interruptionTimes.push(this._age);
     const m = applyInterruption(
       { memory: this.memory, interruptions: this.interruptions, health: this.hp / this.maxHp },
       'damage',
@@ -163,6 +221,9 @@ export class SmartFox extends Fox {
     this.memory = m.memory ?? this.memory;
     this.fatigue = clamp(this.fatigue + 0.18, 0, 1);
     this.pounceCommitted = false;
+    const reset = trackFeint({ repeats: this._feintRepeats, side: this._feintSide, prevIntent: this._feintPrevIntent }, 'recover', { reset: 'hit' });
+    this._feintRepeats = reset.repeats; this._feintSide = reset.side; this._feintPrevIntent = reset.prevIntent;
+    this._recoverLock = 0;
     return result;
   }
 }

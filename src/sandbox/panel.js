@@ -59,12 +59,13 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
       if (!debug) return;
       const enemies = foxes.filter((f) => !f.isSandboxDummy);
       const smart = enemies.filter((f) => f.type === 'smart');
-      const statuses = enemies.slice(0, 5).map((f) => (f.type === 'smart' ? `智能:${f.intent}` : f.state)).join(' · ') || '无';
+      const statuses = enemies.slice(0, 5).map((f) => (f.type === 'smart' ? `智能(${SANDBOX_DIFFICULTIES[f.smartDifficulty]?.label || f.smartDifficulty}):${f.intent}` : f.state)).join(' · ') || '无';
       const dummy = state.dummy && !state.dummy._disposed ? state.dummy : null;
       const dummyStatus = dummy ? `木桩 <b>${Math.max(0, dummy.hp).toFixed(1)}/${dummy.maxHp}</b> · ${dummy.dummyDefeatable ? '可击败' : '不可击败'}` : '木桩 无';
       debug.innerHTML = `FPS <b>${Math.round(fps || 0)}</b>　坐标 <b>${controller.position.x.toFixed(1)}, ${controller.position.z.toFixed(1)}</b><br>`
         + `yaw <b>${controller.yaw.toFixed(2)}</b>　敌狐 <b>${enemies.length}</b>（智能 ${smart.length}）　${dummyStatus}<br>`
         + `<span>${statuses}${enemies.length > 5 ? ' …' : ''}</span>`
+        + (smart.length ? (() => { const f=smart[smart.length-1],s=f.telemetry?.at(-1); if (!s) return ''; const mode = f.pounceCommitted ? 'COMMITTED' : (f._smartState?.windupRemaining > 0 && f.intent === 'pounce' ? 'WINDUP' : f.intent); return `<br><code>ob ${s.scores.observe.toFixed(2)} AP ${s.scores.approach.toFixed(2)} FE ${s.scores.feint.toFixed(2)} PO ${s.scores.pounce.toFixed(2)} RE ${s.scores.recover.toFixed(2)} AB ${s.scores.abandon.toFixed(2)} · ${mode}</code>`; })() : '')
         + (state.lastCommand ? `<br><em>${state.lastCommand}</em>` : '');
     },
   };

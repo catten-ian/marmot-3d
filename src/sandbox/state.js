@@ -39,9 +39,9 @@ export function createSandboxState() {
 }
 
 export const SANDBOX_DIFFICULTIES = {
-  calm: { label: '低压', speedMultiplier: 0.72, alertMultiplier: 1.35 },
-  standard: { label: '标准', speedMultiplier: 1, alertMultiplier: 1 },
-  intense: { label: '高压', speedMultiplier: 1.35, alertMultiplier: 0.72 },
+  calm: { label: '低压', speedMultiplier: 0.72, alertMultiplier: 1.35, smart: { speed: 8.4, turn: 2.2, windup: .3, cooldown: 2.2, memoryDecay: .08, feint: .65, coordination: 0 } },
+  standard: { label: '标准', speedMultiplier: 1, alertMultiplier: 1, smart: { speed: 10.6, turn: 2.8, windup: .22, cooldown: 1.5, memoryDecay: .05, feint: 1, coordination: .5 } },
+  intense: { label: '高压', speedMultiplier: 1.35, alertMultiplier: 0.72, smart: { speed: 12.2, turn: 3.2, windup: .15, cooldown: 1, memoryDecay: .03, feint: 1.3, coordination: 1 } },
 };
 
 /** Place at most one sandbox dummy, disposing the previous instance if needed. */

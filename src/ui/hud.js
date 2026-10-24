@@ -30,6 +30,7 @@ export class HUD {
       overlay: document.getElementById('overlay'),
       panel: document.getElementById('panel'),
       interactPrompt: document.getElementById('interactPrompt'),
+      forageFeedback: document.getElementById('forageFeedback'),
       chCharge: document.getElementById('chCharge'),
       threat: document.getElementById('threatIndicator'),
       perfHint: document.getElementById('perfHint'),
@@ -55,6 +56,17 @@ export class HUD {
     this.ultFlash.id = 'ultFlashLayer';
     document.body.appendChild(this.ultFlash);
     this._ultFlashTimer = null;
+  }
+
+  setForage({ active = false, kind = 'grass', progress = 0, emergency = false } = {}) {
+    const el = this.el.forageFeedback;
+    if (!el) return;
+    el.hidden = !active;
+    if (!active) return;
+    const labels = { grass: '啃食中…', flower: '采花中…', berry: '采食中…' };
+    el.classList.toggle('emergency', !!emergency);
+    el.querySelector('.forage-label').textContent = emergency ? '危险！进食变慢' : labels[kind] || labels.grass;
+    el.querySelector('.forage-track i').style.width = `${Math.max(0, Math.min(1, progress)) * 100}%`;
   }
 
   setLoading(pct) {

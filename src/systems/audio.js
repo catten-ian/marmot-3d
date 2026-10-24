@@ -429,10 +429,10 @@ export class Audio {
     }
   }
 
-  _dispatchSfx(name, fallback, { attenuation = 0 } = {}) {
+  _dispatchSfx(name, fallback, { attenuation = 0, pan = 0 } = {}) {
     if (!this.enabled || (this.isBeta && !this.settings.sfxEnabled)) return false;
     // Stable/dev retain the exact legacy synthesis timing and are not rate-limited.
-    if (!this.isBeta) { try { fallback(); } catch (_) { /* preserve gameplay safety */ } return true; }
+    if (!this.isBeta) { try { fallback(pan); } catch (_) { /* preserve gameplay safety */ } return true; }
     if (!reserveSfxPlayback(name, Date.now(), this._reservations)) return false;
     let released = false;
     const release = () => {
@@ -441,7 +441,7 @@ export class Audio {
       releaseSfxPlayback(name, this._reservations);
     };
     if (!this.ensure()) {
-      try { fallback(); } catch (_) { /* sound must never break gameplay */ }
+      try { fallback(pan); } catch (_) { /* sound must never break gameplay */ }
       setTimeout(release, FALLBACK_HOLD_MS[name] || 300);
       return true;
     }
@@ -454,10 +454,10 @@ export class Audio {
       if (selected === 'file' && this._playBuffer(buffer, this.sfxBus, {
         volume: Math.max(0, 1 - Math.min(0.85, clamp01(attenuation))), onended: release,
       })) return;
-      try { fallback(); } catch (_) { /* procedural fallback is isolated */ }
+      try { fallback(pan); } catch (_) { /* procedural fallback is isolated */ }
       setTimeout(release, FALLBACK_HOLD_MS[name] || 300);
     }).catch(() => {
-      try { fallback(); } catch (_) { /* missing/offline file is normal */ }
+      try { fallback(pan); } catch (_) { /* missing/offline file is normal */ }
       setTimeout(release, FALLBACK_HOLD_MS[name] || 300);
     });
     return true;
@@ -476,7 +476,7 @@ export class Audio {
     return src;
   }
 
-  _tone(freq, dur, type = 'sine', gain = 0.3, freqEnd = null) {
+  _tone(freq, dur, type = 'sine', gain = 0.3, freqEnd = null, pan = 0) {
     if (!this.enabled || (this.isBeta && !this.settings.sfxEnabled) || !this.ensure()) return;
     const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -487,11 +487,15 @@ export class Audio {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(gain, t + Math.min(0.015, dur * 0.2));
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(g); g.connect(this.sfxBus || this.master);
+    osc.connect(g);
+    if (pan !== 0 && this.ctx.createStereoPanner) {
+      const panner = this.ctx.createStereoPanner(); panner.pan.value = Math.max(-1, Math.min(1, pan));
+      g.connect(panner); panner.connect(this.sfxBus || this.master);
+    } else g.connect(this.sfxBus || this.master);
     osc.start(t); osc.stop(t + dur + 0.02);
   }
 
-  _burstNoise(dur, gain = 0.25, filterFreq = 1200, type = 'lowpass') {
+  _burstNoise(dur, gain = 0.25, filterFreq = 1200, type = 'lowpass', pan = 0) {
     if (!this.enabled || (this.isBeta && !this.settings.sfxEnabled) || !this.ensure()) return;
     const t = this.ctx.currentTime;
     const src = this._noise();
@@ -509,7 +513,11 @@ export class Audio {
       g.gain.setValueAtTime(gain, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     }
-    src.connect(f); f.connect(g); g.connect(this.sfxBus || this.master);
+    src.connect(f); f.connect(g);
+    if (pan !== 0 && this.ctx.createStereoPanner) {
+      const panner = this.ctx.createStereoPanner(); panner.pan.value = Math.max(-1, Math.min(1, pan));
+      g.connect(panner); panner.connect(this.sfxBus || this.master);
+    } else g.connect(this.sfxBus || this.master);
     src.start(t); src.stop(t + dur + 0.02);
   }
 
@@ -547,7 +555,14 @@ export class Audio {
     this._burstNoise(0.06, 0.05, 800);
   }
   _foxDash() { this._burstNoise(0.22, 0.16, 1400, 'bandpass'); }
+  /** Caution 1.0-1.2k pure tones; urgent 1.4-1.9k triple tones, distinct from foxDash noise. Purely procedural (no manifest MP3). */
+  _companionAlarm(level, pan = 0) {
+    const notes = level === 'urgent' ? [1397, 1661, 1865] : level === 'caution' ? [1046, 1175] : [];
+    const duration = level === 'urgent' ? 0.07 : 0.09, gain = level === 'urgent' ? 0.15 : 0.12, gap = level === 'urgent' ? 0.14 : 0.18;
+    notes.forEach((freq, i) => setTimeout(() => this._tone(freq, duration, level === 'urgent' ? 'sine' : 'triangle', gain, null, pan), i * gap * 1000));
+  }
   _rescue() { [523, 659, 784].forEach((f, i) => setTimeout(() => this._tone(f, 0.16, 'sine', 0.18), i * 90)); }
+  /** 伙伴呼救：两声上扬的短促叫声。attenuation 越大（距离越远）音量越低 */
   _helpCry(attenuation = 0.5) {
     if (!this.enabled || !this.ensure()) return;
     const vol = 0.16 * (1 - Math.min(0.85, attenuation));
@@ -579,4 +594,8 @@ export class Audio {
   win() { return this._dispatchSfx('win', () => this._win()); }
   lose() { return this._dispatchSfx('lose', () => this._lose()); }
   lowHealth() { return this._dispatchSfx('lowHealth', () => this._lowHealth()); }
+  /** Two-level companion escort alarm; pan positions it in the stereo field via sfxBus. */
+  companionAlarm(level, pan = 0) {
+    return this._dispatchSfx('companionAlarm', (p) => this._companionAlarm(level, p ?? pan), { pan });
+  }
 }

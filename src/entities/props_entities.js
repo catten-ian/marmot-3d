@@ -16,25 +16,49 @@ import { USE_REAL_MODELS } from '../core/version.js';
 /** 真实土拨鼠模型（与藏狐同一套分级回退，见 models/loader.js） */
 const instantiateMarmot = () => instantiate('./assets/models/marmot.glb', 'marmot');
 import { devOn } from '../core/version.js';
+import { FORAGE } from '../core/ecology.js';
 
 export class Food {
   /**
    * @param plant dev 版传入植物定义 {name,color,leaf,moisture,linoleic}
    */
-  constructor(scene, x, z, index, plant = null) {
+  constructor(scene, x, z, index, plant = null, kind = null) {
     this.x = x; this.z = z; this.index = index;
     this.taken = false;
     this.plant = plant;
     this.herbivore = devOn('herbivoreFood') && !!plant;
+    this.kind = kind || (this.herbivore ? 'grass' : 'berry');
+    this.respawnIn = 0;
     this.group = new THREE.Group();
     this.group.position.set(x, terrainHeight(x, z) + 0.52, z);
 
-    if (this.herbivore) this._buildHerb();
+    if (this.kind === 'flower') this._buildFlower();
+    else if (this.herbivore) this._buildHerb();
     else this._buildBerry();
 
     scene.add(this.group);
     this._t = Math.random() * 6;
     this.scene = scene;
+  }
+
+  _buildFlower() {
+    const color = this.plant?.color ?? 0xf2c45c;
+    const petalMat = new THREE.MeshStandardMaterial({ color, roughness: 0.7, emissive: color, emissiveIntensity: 0.16 });
+    const centerMat = new THREE.MeshStandardMaterial({ color: 0xf4d77a, roughness: 0.8, emissive: 0x4a3210, emissiveIntensity: 0.2 });
+    const petal = new THREE.SphereGeometry(0.075, 8, 6);
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3;
+      const m = new THREE.Mesh(petal, petalMat);
+      m.position.set(Math.cos(a) * 0.12, 0.2, Math.sin(a) * 0.12);
+      m.scale.set(1, 0.55, 1);
+      this.group.add(m);
+    }
+    const c = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 6), centerMat);
+    c.position.y = 0.2; this.group.add(c);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.018, 0.25, 6), new THREE.MeshStandardMaterial({ color: 0x6c8a45, roughness: 0.9 }));
+    stem.position.y = 0.03; this.group.add(stem);
+    const halo = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.13, depthWrite: false }));
+    halo.rotation.x = -Math.PI / 2; halo.position.y = -0.5; this.group.add(halo); this.halo = halo;
   }
 
   /** 浆果造型（正式版） */
@@ -190,7 +214,13 @@ export class Food {
   }
 
   update(dt) {
-    if (this.taken) return;
+    if (this.taken) {
+      if (Number.isFinite(this.respawnIn)) {
+        this.respawnIn -= Math.max(0, dt);
+        if (this.respawnIn <= 0) this.reset();
+      }
+      return;
+    }
     this._t += dt;
     const bob = Math.sin(this._t * 2.2) * (this.herbivore ? 0.035 : 0.06);
     this.group.position.y = terrainHeight(this.x, this.z) + 0.52 + bob;
@@ -203,11 +233,13 @@ export class Food {
 
   take() {
     this.taken = true;
+    this.respawnIn = this.kind === 'grass' ? FORAGE.regrowGrass : Infinity;
     this.group.visible = false;
   }
 
   reset() {
     this.taken = false;
+    this.respawnIn = 0;
     this.group.visible = true;
   }
 

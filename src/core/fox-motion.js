@@ -20,6 +20,56 @@ export function stepFoxTurn(yaw, targetYaw, turnVelocity, dt, maxRate, accelerat
   return { yaw: yaw + step, turnVelocity: reached ? 0 : nextVelocity };
 }
 
+/** Shared non-attack locomotion: bounded acceleration and speed-dependent arc steering. */
+export function foxMaxTurnRate(speed, options = {}) {
+  return Math.max(options.minTurnRate ?? FOX.handling.minTurnRate,
+    (options.maxTurnSlow ?? FOX.handling.maxTurnSlow) /
+      (1 + (options.turnSpeedK ?? FOX.handling.turnSpeedK) * Math.max(0, speed)));
+}
+export function stepFoxLocomotion(state, target, dt, options = {}) {
+  const speedTarget = Math.max(0, options.speed ?? 0);
+  const accel = options.acceleration ?? 14;
+  const speed = Math.hypot(state.vx || 0, state.vz || 0);
+  const nextSpeed = speed + Math.max(-accel * dt, Math.min(accel * dt, speedTarget - speed));
+  const targetYaw = Math.atan2(target.x - state.x, target.z - state.z);
+  const maxRate = foxMaxTurnRate(speed, options);
+  const turn = stepFoxTurn(state.yaw, targetYaw, state.turnVelocity || 0, dt,
+    maxRate,
+    options.turnAcceleration ?? FOX.handling.locomotionTurnAccel);
+  return { x: state.x + Math.sin(turn.yaw) * nextSpeed * dt,
+    z: state.z + Math.cos(turn.yaw) * nextSpeed * dt,
+    yaw: turn.yaw, turnVelocity: turn.turnVelocity,
+    vx: Math.sin(turn.yaw) * nextSpeed, vz: Math.cos(turn.yaw) * nextSpeed, speed: nextSpeed };
+}
+
+/** Pure local-navigation direction used by normal and smart foxes. */
+export function steerGroundDirection(wantX, wantZ, speed, position, obstacles = [], bounds = { hw: Infinity, hh: Infinity }, slot = 0, yaw = 0) {
+  const wantedLen = Math.hypot(wantX, wantZ);
+  if (wantedLen < 1e-5 || speed <= 0) return null;
+  let vx = wantX / wantedLen, vz = wantZ / wantedLen;
+  const margin = Math.min(7, bounds.hw * .16, bounds.hh * .16);
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  if (position.x < -bounds.hw + margin) vx += (1 - clamp01((position.x + bounds.hw) / margin)) * 1.5;
+  if (position.x > bounds.hw - margin) vx -= (1 - clamp01((bounds.hw - position.x) / margin)) * 1.5;
+  if (position.z < -bounds.hh + margin) vz += (1 - clamp01((position.z + bounds.hh) / margin)) * 1.5;
+  if (position.z > bounds.hh - margin) vz -= (1 - clamp01((bounds.hh - position.z) / margin)) * 1.5;
+  const clearance = Math.max(1.2, speed * .45);
+  obstacles.forEach((o, i) => {
+    const ox = position.x - o.x, oz = position.z - o.z, d = Math.hypot(ox, oz), avoid = o.r + clearance;
+    if (d >= avoid) return;
+    const nx = d > 1e-4 ? ox / d : Math.sin(yaw), nz = d > 1e-4 ? oz / d : Math.cos(yaw), inward = vx * nx + vz * nz;
+    if (inward >= 0) return;
+    vx -= nx * inward; vz -= nz * inward;
+    const side = ((slot + i) & 1) ? 1 : -1;
+    if (Math.hypot(vx, vz) < 1e-4) { vx = -nz * side; vz = nx * side; }
+    const urgency = clamp01((avoid - d) / Math.max(clearance, .01));
+    vx -= nz * side * urgency * .28; vz += nx * side * urgency * .28;
+    const len = Math.hypot(vx, vz) || 1; vx /= len; vz /= len;
+  });
+  const len = Math.hypot(vx, vz) || 1;
+  return { x: vx / len, z: vz / len };
+}
+
 export function estimatePlayerVelocity(motion, p, dt, maxSpeed = 6.8, blendRate = 8) {
   const state = motion || { x: p.x, z: p.z, vx: 0, vz: 0 };
   if (dt > 0) {
