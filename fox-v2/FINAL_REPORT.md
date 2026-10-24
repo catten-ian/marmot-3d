@@ -308,3 +308,42 @@ hpRatio 与倍率（低血阈值 0.5，线性插值）：
 - 完整时序：dash → windup → strike → recover 顺序正确
 
 `node tools/run-node-tests.cjs`：OK 40/40（22 个浏览器/CDP 测试按惯例跳过）。
+
+---
+
+# 阶段 5：藏狐调参台（lil-gui 实时调参）
+
+## 新增/修改文件
+
+- 新增 `src/systems/fox-tuning.js`：`FoxTuning` 类，lil-gui 面板（CSS 用 `link[data-lil-gui]` 去重注入，与 debug-volumes 共存不重复）。
+- 修改 `src/entities/smart-fox-core.mjs`：新增**可变覆盖层** `SMART_POUNCE_TUNE`（初始值复制自冻结常量 `SMART_POUNCE_STAGE`）与 `resetSmartPounceTune()`；core 内所有扑咬时序读取改走覆盖层。
+- 修改 `src/entities/smart-fox.js`：扑咬体力门槛/扣体力读 `SMART_POUNCE_TUNE`。
+- 修改 `src/main.js`：`?foxtune=1` 懒加载调参台（独立参数，不影响 `?debugvolumes=1`）；新增 `respawnFoxesForTuning()` 供"重生当前狐狸"按钮使用。
+- 新增 `tools/test-fox-tuning.cjs`（7 项测试）。
+
+## 怎么用
+
+URL 加 `?foxtune=1` 打开游戏，右上角出现"藏狐调参台"浮层；普通玩家（无参数）完全不加载 lil-gui、零运行时开销。面板工具夹提供：复位默认 / 重生当前狐狸 / 导出JSON / 导入JSON（导入按字段校验数值类型后才写回）。
+
+## 可调参数清单
+
+- **体力 / Stamina**（`FOX.vitals`）：maxStamina（体力上限）、sprintStaminaPerSec、pounceStaminaPerSec、restStaminaPerSec、restHpRegenRatio、hitStaminaCost、staminaLockSeconds。
+- **血量影响 / HP**（`FOX.vitals`）：lowHpThreshold（低血阈值）、speedMulAtZeroHp（零血速度倍率下限）、damageMulAtZeroHp（零血伤害倍率下限）。
+- **扑咬时序 / Pounce**（`SMART_POUNCE_TUNE`）：dashDuration、dashSpeedMul、windupTime、strikeTime、strikeSpeed、recoverTime、maxStrikeDistance、staminaCost。
+- **可发现性 / Detection**（`FOX.detection`）：stalk/sprint/pounce 被察觉半径、viewRange、viewConeDeg。
+- **动作 / Actions**（`FOX.ACTIONS`）：stalk.speed、sprint.speed。
+- **撤退阈值 / Retreat**（`FOX.retreat`）：hpRatio、staminaRatio、hitStreak、hitStreakDecay、speed。
+
+## 覆盖层的设计原因
+
+`SMART_POUNCE_STAGE` / `SMART_POUNCE` 是 `Object.freeze` 的，lil-gui 无法改写；直接去掉 freeze 又会让默认值失去"永远安全"的兜底。所以引入不冻结的 `SMART_POUNCE_TUNE` 作为运行时驱动值：逻辑代码全部读覆盖层，冻结常量只当出厂默认；`resetSmartPounceTune()` 一键还原。预警线长度约束不变：`smartPounceDashDistance()` 的 `remaining` 缺省改从覆盖层取，仍用与 `stepSmartMotion` 相同的整帧欧拉积分，预警线长度 = 实际冲刺位移（测试断言误差 <1e-9）。
+
+## 快照刷新边界（哪些立即生效、哪些要点"重生"）
+
+- **立即生效（下一帧）**：vitals 全部字段（`stepStamina` / `hpSpeedMultiplier` 等运行时读取）、detection、ACTIONS 速度、retreat 阈值、`SMART_POUNCE_TUNE` 全部字段。
+- **maxStamina 特例**：`fox.maxStamina` 是构造时快照（fox.js:123），面板改动时会**同步刷新所有现存狐狸**并把 `stamina` clamp 到新上限，无需重生。
+- **需要点"重生当前狐狸"**：`fox.maxHp`（fox.js:120，随关卡递增减）等构造时快照字段；重生按原槽位/原位置/原朝向重建，智能狐仍生成智能狐。
+
+## 测试
+
+`tools/test-fox-tuning.cjs`（7 项，被 `run-node-tests.cjs` 自动发现）：覆盖层默认值 == 冻结常量、`resetSmartPounceTune()` 完全复位、改 strikeTime/windupTime 后 `stepSmartMotion` 真实时序跟着变（证明读的是覆盖层而非冻结常量）、`smartPounceDashDistance()` 随 dashDuration 变化且与逐帧积分严格一致、`cancelSmartPounce` 后摇读覆盖层、`FOX.vitals` 改动后 `stepStamina` 收支随之变化。原四组测试（vitals 9 / repel 13 / tactics 10 / pounce 8）全部保持全绿。

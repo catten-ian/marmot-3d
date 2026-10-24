@@ -334,6 +334,13 @@ if (new URLSearchParams(location.search).get('debugvolumes') === '1') {
   }).catch((error) => console.warn('[debugvolumes] disabled:', error));
 }
 
+// 藏狐调参台：独立 URL 参数 ?foxtune=1，同样懒加载，普通玩家零开销。
+if (new URLSearchParams(location.search).get('foxtune') === '1') {
+  import('./systems/fox-tuning.js').then(({ FoxTuning }) => {
+    new FoxTuning({ scene, controller, foxes: () => foxes, respawnFoxes: respawnFoxesForTuning });
+  }).catch((error) => console.warn('[foxtune] disabled:', error));
+}
+
 const playerModel = new THREE.Group();
 const playerBody = buildMarmotMesh();
 playerModel.add(playerBody);
@@ -614,6 +621,18 @@ function disposeAllFoxes() {
     foxes = [];
     sandboxState.dummy = null;
     sandboxState.smartPack = createSmartPack();
+  }
+}
+
+/** 调参台"重生当前狐狸"：按原槽位/原位置重建，让 maxHp/maxStamina 等构造时快照立即生效。 */
+function respawnFoxesForTuning() {
+  const snapshot = foxes.filter((f) => !f.isSandboxDummy).map((f) => ({
+    smart: f instanceof SmartFox, x: f.x, z: f.z, yaw: f.yaw, slot: f.slot ?? 0,
+  }));
+  disposeAllFoxes();
+  for (const s of snapshot) {
+    const fox = s.smart ? spawnSandboxSmartFox(s.slot) : spawnSandboxFox('normal', s.slot);
+    fox.x = s.x; fox.z = s.z; fox.yaw = s.yaw;
   }
 }
 

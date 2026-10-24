@@ -8,7 +8,7 @@ import {
   updatePerception,
   applyInterruption,
   stepSmartMotion,
-  smartPounceDistance, smartPounceDashDistance, cancelSmartPounce, SMART_POUNCE_STAGE,
+  smartPounceDistance, smartPounceDashDistance, cancelSmartPounce, SMART_POUNCE_TUNE,
   updateSmartMemory, habituateDecayRate, stepInterruptionTimes,
   debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK,
   flankSlots, assignFlankSlot, assignRoles, forcedRetreat,
@@ -270,8 +270,8 @@ export class SmartFox extends Fox {
         // 体力守卫：体力不足时不允许进入冲刺阶段（体力耗尽 ≠ 被驱退，只是扑不出来）；
         // 需覆盖冲刺阶段持续消耗 + 扑咬的一次性大量消耗（阶段 4）。
         && this.staminaLocked <= 0
-        && canSprint(this.stamina, FOX.vitals.pounceStaminaPerSec, SMART_POUNCE_STAGE.dashDuration)
-        && this.stamina >= SMART_POUNCE_STAGE.staminaCost + FOX.vitals.pounceStaminaPerSec * SMART_POUNCE_STAGE.dashDuration
+        && canSprint(this.stamina, FOX.vitals.pounceStaminaPerSec, SMART_POUNCE_TUNE.dashDuration)
+        && this.stamina >= SMART_POUNCE_TUNE.staminaCost + FOX.vitals.pounceStaminaPerSec * SMART_POUNCE_TUNE.dashDuration
         // 阶段 3：striker 独占扑咬提交权（其余角色保持施压不扑）；
         // 谨慎期（回血归队后 8s）内不主动扑咬。
         && (!packContext || this._role === 'striker')
@@ -292,7 +292,7 @@ export class SmartFox extends Fox {
     // 阶段 4：进入扑咬 strike 的当帧，一次性扣除大量体力（区别于冲刺阶段的持续扣）。
     if (next.pounceStrikeStarted) {
       next.pounceStrikeStarted = false;
-      this.stamina = Math.max(0, this.stamina - SMART_POUNCE_STAGE.staminaCost);
+      this.stamina = Math.max(0, this.stamina - SMART_POUNCE_TUNE.staminaCost);
     }
     this._smartState = next;
     this.x = next.x;
