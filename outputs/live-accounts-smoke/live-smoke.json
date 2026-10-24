@@ -1,0 +1,35 @@
+{
+  "url": "https://www.catten.cyou/marmot3d-beta/?models=off&tos=0&livesmoke=1&t=1792819305611",
+  "R": [
+    {
+      "n": "线上 __game 就绪",
+      "c": true,
+      "x": ""
+    },
+    {
+      "n": "生产 API 自动游客 guest=true",
+      "c": true,
+      "x": "游客-7e5cef"
+    },
+    {
+      "n": "账号条含游客/升级/排行榜",
+      "c": true,
+      "x": "游客：游客-7e5cef · 成绩可上榜升级账号（保留成绩）换个身份排行榜"
+    },
+    {
+      "n": "生产榜单加载成功(只读)",
+      "c": true,
+      "x": "status= hint=游客：游客-7e5cef（可在设置中升级为正式账号并保留成绩）"
+    },
+    {
+      "n": "阻断 console error=0",
+      "c": false,
+      "x": "Failed to load resource: the server responded with a status of 404 () | Failed to load resource: the server responded with a status of 404 ("
+    }
+  ],
+  "errs": [
+    "Failed to load resource: the server responded with a status of 404 ()",
+    "Failed to load resource: the server responded with a status of 404 ()",
+    "Failed to load resource: the server responded with a status of 404 ()"
+  ]
+}

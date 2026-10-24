@@ -1,0 +1,68 @@
+{
+  "ts": "2026-10-24T05:12:10.388Z",
+  "url": "http://127.0.0.1:8440/marmot3d-beta/?models=off&tos=0&e2e=1&t=1792818704763",
+  "results": [
+    {
+      "name": "window.__game 就绪",
+      "pass": true,
+      "extra": ""
+    },
+    {
+      "name": "打开即自动游客(guest=true)",
+      "pass": true,
+      "extra": "游客-a73332"
+    },
+    {
+      "name": "标题账号条含游客/升级/排行榜",
+      "pass": true,
+      "extra": "游客：游客-a73332 · 成绩可上榜升级账号（保留成绩）换个身份排行榜"
+    },
+    {
+      "name": "排行榜请求成功(无失败文案)",
+      "pass": true,
+      "extra": "rows=1 "
+    },
+    {
+      "name": "排行榜显示游客身份提示",
+      "pass": true,
+      "extra": "游客：游客-a73332（可在设置中升级为正式账号并保留成绩）"
+    },
+    {
+      "name": "升级弹窗标题",
+      "pass": true,
+      "extra": "升级为正式账号"
+    },
+    {
+      "name": "升级成功 guest=false 且为新用户名",
+      "pass": true,
+      "extra": "QA土拨鼠40702"
+    },
+    {
+      "name": "升级后 uid 不变（成绩继承）",
+      "pass": true,
+      "extra": "a73332d3-1994-4e39-b6d3-c11026ecd4d9 == a73332d3-1994-4e39-b6d3-c11026ecd4d9"
+    },
+    {
+      "name": "标题条变为“玩家：新名”",
+      "pass": true,
+      "extra": "玩家：QA土拨鼠40702退出排行榜"
+    },
+    {
+      "name": "同源上报单关成绩 accepted",
+      "pass": true,
+      "extra": "{\"ok\":true,\"accepted\":true,\"best\":12.34}"
+    },
+    {
+      "name": "上榜且高亮为自己",
+      "pass": true,
+      "extra": "1QA土拨鼠4070212.34s1"
+    },
+    {
+      "name": "阻断性 console error = 0",
+      "pass": true,
+      "extra": ""
+    }
+  ],
+  "consoleErrors": [],
+  "netFail": []
+}

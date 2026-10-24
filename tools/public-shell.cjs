@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_BASE = '/marmot3d-beta';
-const VERSION_STAMP = 'rev23';
+const VERSION_STAMP = 'rev24';
 
 function replaceOnce(source, pattern, replacement, label) {
   const next = source.replace(pattern, replacement);
@@ -16,6 +16,8 @@ function generatePublicShell(source) {
   let html = source;
   html = html.replace(/((?:href|src)=")\.\/assets\//g, `$1${PUBLIC_BASE}/assets/`);
   html = replaceOnce(html, /href="\.\/styles\.css"/, `href="${PUBLIC_BASE}/styles.css?v=${VERSION_STAMP}"`, 'stylesheet URL');
+  // 追加样式表：新文件本批首次出现、无旧缓存，同样挂当前戳保持口径一致。
+  html = replaceOnce(html, /href="\.\/styles-beta-addon\.css"/, `href="${PUBLIC_BASE}/styles-beta-addon.css?v=${VERSION_STAMP}"`, 'beta addon stylesheet URL');
   html = html.replace(/"\.\/vendor\//g, `"${PUBLIC_BASE}/vendor/`);
   html = html.replace(/(['"])\.\/src\/([^'"]+)\1/g,
     (_match, quote, resource) => `${quote}${PUBLIC_BASE}/src/${resource}?v=${VERSION_STAMP}${quote}`);
