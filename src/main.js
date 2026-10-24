@@ -357,7 +357,7 @@ function setViewMode(enabled, announce = false) {
   if (viewBtn) {
     viewBtn.textContent = thirdPerson ? '第三人称' : '第一人称';
     viewBtn.setAttribute('aria-pressed', String(thirdPerson));
-    viewBtn.title = thirdPerson ? '切换第一人称视角 (V)' : '切换第三人称视角 (V)';
+    refreshViewKeyHint();
   }
   document.body.classList.toggle('third-person', thirdPerson);
   try { localStorage.setItem(VIEW_MODE_KEY, thirdPerson ? 'third-person' : 'first-person'); } catch (_) { /* storage may be unavailable */ }
@@ -367,6 +367,16 @@ function setViewMode(enabled, announce = false) {
 const viewBtn = document.getElementById('viewBtn');
 if (viewBtn) viewBtn.onclick = () => setViewMode(!thirdPerson, true);
 setViewMode(thirdPerson);
+
+// 视角切换键可重绑（keybinds 的 cameraView 动作）。binds 实例在模块后段创建，
+// setViewMode 首次执行时 binds 尚不可用，故用可变标签 + 创建后统一刷新。
+let viewKeyLabel = 'V';
+function refreshViewKeyHint() {
+  if (!viewBtn) return;
+  viewBtn.title = thirdPerson
+    ? `切换第一人称视角 (${viewKeyLabel})`
+    : `切换第三人称视角 (${viewKeyLabel})`;
+}
 
 // —— 真实模型预加载（含分级回退）——
 // 异步进行，不阻塞游戏启动。返回每一档的加载级别：
@@ -1126,7 +1136,7 @@ function title() {
     <h2>从两只藏狐，到草原守望者。</h2>
     <button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>
     ${IS_BETA ? `<button class="sandbox-entry" id="playAsFoxBtn" type="button" style="border-color:#b98a4a">扮演藏狐（BETA） <span>潜行 · 蓄力 · 扑击捕猎土拨鼠</span></button>` : ''}
-    <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>V</b> 切换为第三人称跟随视角，随时按需选择。</p>
+    <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>${bindText(binds, 'cameraView', 'V')}</b> 切换为第三人称跟随视角，随时按需选择。</p>
     <p>每关完成 <b>采食、救援与陪伴</b>，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
     <p style="font-size:12px">采食需要按住停留；附近有狐狸、疾行或刚受击时会明显变慢。${IS_BETA ? ' BETA 关卡会少量出现稀有花：采得更快、回复更多，但不会刷新。' : ''}</p>
@@ -2199,7 +2209,7 @@ window.addEventListener('keydown', (e) => {
     toggleFullscreen();
     return;
   }
-  if (e.code === 'KeyV' && game.mode === 'play') {
+  if (binds.isAction(e.code, 'cameraView') && game.mode === 'play') {
     e.preventDefault();
     setViewMode(!thirdPerson, true);
     return;
@@ -2608,6 +2618,9 @@ binds.onChange(() => updateKbSkillBar());
 
 // 键位变化时同步帮助面板上的按键提示，避免文档与实际绑定不一致
 function syncHelpKeys() {
+  // 视角切换按钮的 title/快捷键提示跟随 cameraView 绑定实时刷新
+  viewKeyLabel = bindText(binds, 'cameraView', 'V');
+  refreshViewKeyHint();
   const rows = binds.describe();
   const row = (id) => rows.find((x) => x.id === id);
   const parts = (id, includeAlt = true) => {
@@ -2659,7 +2672,7 @@ function syncHelpKeys() {
       <span>${keys('dodge')} 翻滚 / 闪避（触屏右侧翻滚键）</span>
       <span>${keys('burst')} 应急爆发　${keys('ultimate')} 协同大招</span>
       <span>${keys('interact')} 救援 / 陪伴　${keys('sprint')} 疾行（更快但更耗储备）</span>
-      <span><kbd>V</kbd> 第一/第三人称视角切换</span>
+      <span>${keys('cameraView', 'V')} 第一/第三人称视角切换</span>
       <span>${keys('pause')} 暂停　${keys('retry')} 重试本关　${keys('restart')} 从第一关重开　${keys('fullscreen')} 全屏</span>
       <span><kbd>${escLine}</kbd> · <kbd>Enter</kbd> 标题/暂停/通关确认</span>
     </div>

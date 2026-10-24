@@ -280,8 +280,10 @@ export class SettingsUI {
     html += '<div class="bind-list">';
     const rows = b.describe();
     for (const r of rows) {
+      // 只有 attack 的"空绑定"含义是鼠标左键；其他动作未绑定时显示占位符，
+      // 避免旧自定义存档缺 cameraView 等新动作时被误标成鼠标键。
       const keyText = r.empty
-        ? '<span class="key mouse">鼠标左键</span>'
+        ? (r.id === 'attack' ? '<span class="key mouse">鼠标左键</span>' : '<span class="key">—</span>')
         : r.keys.map((k) => `<span class="key">${k}</span>`).join('')
           + (r.alt ? `<span class="key alt">${r.alt}</span>` : '');
       const editable = b.scheme === 'custom';
