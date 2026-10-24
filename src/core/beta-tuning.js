@@ -10,6 +10,7 @@ export const BETA_TUNE = {
   flowerCount: 4,
   flowerInstant: true,
   grassSeconds: 0.6,        // 啃一棵草所需秒数（正式版 FORAGE.grassSeconds=1.4，beta 明显缩短）
+  grazeRegenPerSec: 8.0,     // 密度满时每秒持续回储备
   companionFollowSpeed: 9.6,
   companionFollowGap: 1.05,
   grazeEyeDropExtra: 0.12,

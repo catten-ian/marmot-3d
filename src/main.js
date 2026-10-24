@@ -307,9 +307,10 @@ function buildFoods(levelIndex) {
     const flowers = new Set(chooseFlowerIndices(
       BERRY_POINTS.length, levelIndex, IS_BETA ? { count: BETA_TUNE.flowerCount } : {},
     ));
-    return BERRY_POINTS.map((p, i) => {
+    return BERRY_POINTS.flatMap((p, i) => {
+      if (IS_BETA && !flowers.has(i)) return [];
       const [x, z] = scalePoint(p);
-      return new Food(scene, x, z, i, plants[i], flowers.has(i) ? 'flower' : 'grass');
+      return [new Food(scene, x, z, i, plants[i], IS_BETA ? 'flower' : (flowers.has(i) ? 'flower' : 'grass'))];
     });
   }
   if (!berries.length || berries[0].herbivore) {
@@ -870,6 +871,7 @@ function loadLevel(index, announce = true) {
     game.season = null;
   }
   scenery.resetBerries();
+  if (IS_BETA) scenery.resetGraze();
   game.foodCount = 0;
   forage.index = -1; forage.progress = 0; forage.emergency = false;
   hud.setForage({ active: false });
@@ -1676,6 +1678,7 @@ function update(dt) {
   }
 
   const cfg = LEVELS[game.level];
+  if (IS_BETA) scenery.growGrass(dt);
   const p = game.player;
   game.elapsed += dt;
   game.totalTime += dt;
@@ -1902,51 +1905,128 @@ function update(dt) {
   // 攻击在释放时结算：按住期间仅采集方向输入。
 
   // —— 持续采食 ——
-  const holdToEat = IS_BETA;
   let grazeTarget = 0;
-  let nearest = -1, nearestDist = Infinity;
-  berries.forEach((b, i) => {
-    if (b.taken) return;
-    const d = Math.hypot(b.x - p.x, b.z - p.z);
-    if (d < BERRY_RADIUS + 0.35 && d < nearestDist) { nearest = i; nearestDist = d; }
-  });
-  if (nearest < 0) {
-    forage.index = -1; forage.progress = 0; forage.emergency = false;
-    hud.setForage({ active: false });
-  } else {
-    const b = berries[nearest];
-    if (forage.index !== nearest) forage.progress = 0;
-    forage.index = nearest;
-    if (holdToEat && !interactHeld) {
-      forage.progress = 0;
-      forage.emergency = false;
-      hud.setForage({ active: false });
-    } else {
-      forage.emergency = isForagingEmergency({
-        inBurrow: game.inBurrow, sprinting, recentlyHit: game.recentlyHit > 0,
-        foxes: foxes.map((f) => ({ x: f.x - p.x, z: f.z - p.z, alive: f.alive, type: f.type, pounceCommitted: f.pounceCommitted, state: f.state })),
-      });
-      if (betaFlowerCompletesImmediately(b.kind)) forage.progress = 1;
-      else forage.progress = stepForageProgress(forage.progress, dt, {
-        inRange: true, emergency: forage.emergency, kind: b.kind,
-        // beta 缩短吃草耗时；非 beta 不传 seconds，逐字沿用 FORAGE.grassSeconds=1.4。
-        seconds: IS_BETA && b.kind === 'grass' ? BETA_TUNE.grassSeconds : null,
-      });
-      hud.setForage({ active: true, kind: b.kind, progress: forage.progress, emergency: forage.emergency });
-      if (holdToEat && interactHeld && b.kind === 'grass') grazeTarget = 1;
-    }
-    if (!(holdToEat && !interactHeld) && forage.progress >= 1) {
-      b.take(); scenery.setBerryTaken(nearest); game.foodCount++;
-      const gain = b.kind === 'flower' ? energyOfFlower() : b.kind === 'grass' ? energyOfPlant(b.plant) : BERRY_ENERGY;
-      p.energy = clamp(p.energy + gain, 0, 100);
-      if (game.overdrive <= 0) game.charge = clamp(game.charge + (b.kind === 'flower' ? BERRY_CHARGE * 1.5 : BERRY_CHARGE), 0, 100);
-      const by = terrainHeight(b.x, b.z);
-      const c = b.kind === 'flower' ? 0xf2c45c : b.herbivore ? colHerb : colBerry;
-      particles.burst(b.x, by + 0.6, b.z, c, 12, 1);
-      damageText.spawn(b.x, by + 1.1, b.z, b.kind === 'flower' ? `采花 +${gain} 储备` : b.herbivore ? eatLine(b.plant) : `+${gain} 储备`, b.kind === 'flower' ? '#ffe49b' : b.herbivore ? '#dff0c4' : '#ffd9e2');
-      audio.berry();
+  if (!IS_BETA) {
+    const holdToEat = IS_BETA;
+    let nearest = -1, nearestDist = Infinity;
+    berries.forEach((b, i) => {
+      if (b.taken) return;
+      const d = Math.hypot(b.x - p.x, b.z - p.z);
+      if (d < BERRY_RADIUS + 0.35 && d < nearestDist) { nearest = i; nearestDist = d; }
+    });
+    if (nearest < 0) {
       forage.index = -1; forage.progress = 0; forage.emergency = false;
       hud.setForage({ active: false });
+    } else {
+      const b = berries[nearest];
+      if (forage.index !== nearest) forage.progress = 0;
+      forage.index = nearest;
+      if (holdToEat && !interactHeld) {
+        forage.progress = 0;
+        forage.emergency = false;
+        hud.setForage({ active: false });
+      } else {
+        forage.emergency = isForagingEmergency({
+          inBurrow: game.inBurrow, sprinting, recentlyHit: game.recentlyHit > 0,
+          foxes: foxes.map((f) => ({ x: f.x - p.x, z: f.z - p.z, alive: f.alive, type: f.type, pounceCommitted: f.pounceCommitted, state: f.state })),
+        });
+        if (betaFlowerCompletesImmediately(b.kind)) forage.progress = 1;
+        else forage.progress = stepForageProgress(forage.progress, dt, {
+          inRange: true, emergency: forage.emergency, kind: b.kind,
+          // beta 缩短吃草耗时；非 beta 不传 seconds，逐字沿用 FORAGE.grassSeconds=1.4。
+          seconds: IS_BETA && b.kind === 'grass' ? BETA_TUNE.grassSeconds : null,
+        });
+        hud.setForage({ active: true, kind: b.kind, progress: forage.progress, emergency: forage.emergency });
+        if (holdToEat && interactHeld && b.kind === 'grass') grazeTarget = 1;
+      }
+      if (!(holdToEat && !interactHeld) && forage.progress >= 1) {
+        b.take(); scenery.setBerryTaken(nearest); game.foodCount++;
+        const gain = b.kind === 'flower' ? energyOfFlower() : b.kind === 'grass' ? energyOfPlant(b.plant) : BERRY_ENERGY;
+        p.energy = clamp(p.energy + gain, 0, 100);
+        if (game.overdrive <= 0) game.charge = clamp(game.charge + (b.kind === 'flower' ? BERRY_CHARGE * 1.5 : BERRY_CHARGE), 0, 100);
+        const by = terrainHeight(b.x, b.z);
+        const c = b.kind === 'flower' ? 0xf2c45c : b.herbivore ? colHerb : colBerry;
+        particles.burst(b.x, by + 0.6, b.z, c, 12, 1);
+        damageText.spawn(b.x, by + 1.1, b.z, b.kind === 'flower' ? `采花 +${gain} 储备` : b.herbivore ? eatLine(b.plant) : `+${gain} 储备`, b.kind === 'flower' ? '#ffe49b' : b.herbivore ? '#dff0c4' : '#ffd9e2');
+        audio.berry();
+        forage.index = -1; forage.progress = 0; forage.emergency = false;
+        hud.setForage({ active: false });
+      }
+    }
+  } else {
+    const holdToEat = IS_BETA;
+    let nearest = -1, nearestDist = Infinity;
+    berries.forEach((b, i) => {
+      if (b.taken) return;
+      const d = Math.hypot(b.x - p.x, b.z - p.z);
+      if (d < BERRY_RADIUS + 0.35 && d < nearestDist) { nearest = i; nearestDist = d; }
+    });
+    const nearestFood = nearest >= 0 ? berries[nearest] : null;
+    const grassInRange = IS_BETA && !nearestFood && scenery.hasGrazeable(p.x, p.z, 3.0);
+    if (!nearestFood && !grassInRange) {
+      forage.index = -1; forage.progress = 0; forage.emergency = false;
+      hud.setForage({ active: false });
+    } else if (grassInRange) {
+      if (forage.index !== -2) forage.progress = 0;
+      forage.index = -2;
+      if (holdToEat && !interactHeld) {
+        forage.progress = 0; forage.emergency = false;
+        hud.setForage({ active: false });
+      } else {
+        forage.emergency = isForagingEmergency({
+          inBurrow: game.inBurrow, sprinting, recentlyHit: game.recentlyHit > 0,
+          foxes: foxes.map((f) => ({ x: f.x - p.x, z: f.z - p.z, alive: f.alive, type: f.type, pounceCommitted: f.pounceCommitted, state: f.state })),
+        });
+        forage.progress = stepForageProgress(forage.progress, dt, { inRange: true, emergency: forage.emergency, kind: 'grass', seconds: BETA_TUNE.grassSeconds });
+        const density = scenery.grazeDensity(p.x, p.z, 3.0);
+        if (forage.progress < 1) p.energy = clamp(p.energy + BETA_TUNE.grazeRegenPerSec * density * dt, 0, 100);
+        hud.setForage({ active: true, kind: 'grass', progress: forage.progress, emergency: forage.emergency });
+        if (interactHeld) grazeTarget = 1;
+      }
+      if (interactHeld && forage.progress >= 1) {
+        scenery.grazeAt(p.x, p.z);
+        const plants = plantsForLevel(game.level, BERRY_POINTS.length);
+        const plant = plants[Math.max(0, game.foodCount) % plants.length];
+        const gain = energyOfPlant(plant);
+        game.foodCount++;
+        p.energy = clamp(p.energy + gain, 0, 100);
+        if (game.overdrive <= 0) game.charge = clamp(game.charge + BERRY_CHARGE, 0, 100);
+        const by = terrainHeight(p.x, p.z);
+        particles.burst(p.x, by + 0.6, p.z, colHerb, 12, 1);
+        damageText.spawn(p.x, by + 1.1, p.z, eatLine(plant), '#dff0c4');
+        audio.berry();
+        forage.index = -1; forage.progress = 0; forage.emergency = false;
+        hud.setForage({ active: false });
+      }
+    } else {
+      const b = nearestFood;
+      if (forage.index !== nearest) forage.progress = 0;
+      forage.index = nearest;
+      if (holdToEat && !interactHeld) {
+        forage.progress = 0; forage.emergency = false;
+        hud.setForage({ active: false });
+      } else {
+        forage.emergency = isForagingEmergency({
+          inBurrow: game.inBurrow, sprinting, recentlyHit: game.recentlyHit > 0,
+          foxes: foxes.map((f) => ({ x: f.x - p.x, z: f.z - p.z, alive: f.alive, type: f.type, pounceCommitted: f.pounceCommitted, state: f.state })),
+        });
+        if (betaFlowerCompletesImmediately(b.kind)) forage.progress = 1;
+        else forage.progress = stepForageProgress(forage.progress, dt, { inRange: true, emergency: forage.emergency, kind: b.kind });
+        hud.setForage({ active: true, kind: b.kind, progress: forage.progress, emergency: forage.emergency });
+      }
+      if (!(holdToEat && !interactHeld) && forage.progress >= 1) {
+        b.take(); scenery.setBerryTaken(b.index); game.foodCount++;
+        const gain = b.kind === 'flower' ? energyOfFlower() : b.kind === 'grass' ? energyOfPlant(b.plant) : BERRY_ENERGY;
+        p.energy = clamp(p.energy + gain, 0, 100);
+        if (game.overdrive <= 0) game.charge = clamp(game.charge + (b.kind === 'flower' ? BERRY_CHARGE * 1.5 : BERRY_CHARGE), 0, 100);
+        const by = terrainHeight(b.x, b.z);
+        const c = b.kind === 'flower' ? 0xf2c45c : b.herbivore ? colHerb : colBerry;
+        particles.burst(b.x, by + 0.6, b.z, c, 12, 1);
+        damageText.spawn(b.x, by + 1.1, b.z, b.kind === 'flower' ? `采花 +${gain} 储备` : b.herbivore ? eatLine(b.plant) : `+${gain} 储备`, b.kind === 'flower' ? '#ffe49b' : b.herbivore ? '#dff0c4' : '#ffd9e2');
+        audio.berry();
+        forage.index = -1; forage.progress = 0; forage.emergency = false;
+        hud.setForage({ active: false });
+      }
     }
   }
   grazeProne += (grazeTarget - grazeProne) * (1 - Math.exp(-12 * dt));
