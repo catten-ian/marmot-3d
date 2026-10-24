@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beta 数值/可视化后台 · 土拨鼠大作战 3D</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #23271f; color: #e8e2d0;
+         font-family: "Microsoft YaHei", "PingFang SC", sans-serif; }
+  header.top { padding: 10px 16px; background: #1b1e18; border-bottom: 1px solid #3a4034;
+               display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+  header.top h1 { font-size: 16px; margin: 0; }
+  .badge { padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; }
+  .badge.beta { background: #3d5a2e; color: #d8f0b8; }
+  .badge.not-beta { background: #6b4a2a; color: #ffd9a8; }
+  #mode { font-size: 12px; color: #b8b0a0; }
+  #path { font-size: 12px; color: #9fb3c8; font-family: ui-monospace, monospace; }
+  #beta-warning { width: 100%; margin: 4px 0 0; padding: 6px 10px; background: #5a3a2e;
+                  border: 1px solid #8a5a3a; border-radius: 6px; font-size: 12px; color: #ffd9a8; }
+  main { display: grid; grid-template-columns: minmax(380px, 46%) 1fr; gap: 0; height: calc(100vh - 96px); }
+  #panel { overflow-y: auto; padding: 10px 12px 60px; border-right: 1px solid #3a4034; }
+  .panel-toolbar { position: sticky; top: -10px; z-index: 5; background: #23271f; padding: 8px 0;
+                   display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid #3a4034; }
+  .panel-toolbar .search { flex: 1 1 160px; min-width: 120px; background: #171a14; color: #e8e2d0;
+                           border: 1px solid #4a5240; border-radius: 6px; padding: 6px 8px; }
+  button, .import-label { background: #31402a; color: #dfe8cf; border: 1px solid #4a5a3c;
+                          border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  button:hover, .import-label:hover { background: #3d5034; }
+  button.danger { background: #4a3226; border-color: #6a4a34; }
+  button.danger:hover { background: #5a3e2e; }
+  .panel-group { margin-top: 12px; }
+  .panel-group > header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .panel-group h3 { font-size: 13px; margin: 0; color: #cfe0ae; }
+  .panel-group .count { font-size: 11px; color: #8a8474; }
+  .panel-group .reset-group { margin-left: auto; padding: 3px 8px; font-size: 11px; }
+  .tune-row { display: grid; grid-template-columns: minmax(150px, 42%) 1fr; gap: 8px;
+              padding: 5px 6px; border-radius: 6px; align-items: center; }
+  .tune-row:nth-child(even) { background: rgba(255,255,255,.025); }
+  .tune-row.dirty { background: rgba(216, 240, 184, .07); outline: 1px solid rgba(216,240,184,.18); }
+  .tune-label .cn { display: block; font-size: 12.5px; }
+  .tune-label code { display: block; font-size: 10px; color: #8a9474; word-break: break-all; }
+  .tune-ctrl { display: flex; align-items: center; gap: 6px; }
+  .tune-ctrl input[type=range] { flex: 1; min-width: 60px; accent-color: #9fc06a; }
+  .tune-ctrl input[type=number] { width: 74px; background: #171a14; color: #e8e2d0;
+                                  border: 1px solid #4a5240; border-radius: 4px; padding: 3px 5px; font-size: 12px; }
+  .tune-ctrl select { background: #171a14; color: #e8e2d0; border: 1px solid #4a5240;
+                      border-radius: 4px; padding: 4px 6px; font-size: 12px; }
+  .tune-ctrl .unit { font-size: 11px; color: #8a8474; }
+  .empty { color: #8a8474; font-size: 13px; }
+  #stage { position: relative; display: flex; flex-direction: column; min-width: 0; }
+  #view { flex: 1; width: 100%; height: 100%; display: block; touch-action: none; }
+  .stage-bar { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,.62);
+               border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 10px 12px;
+               font-size: 12px; display: flex; flex-direction: column; gap: 8px; max-width: 320px; }
+  .stage-bar .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .stage-bar .row > span { color: #b8b0a0; }
+  .stage-bar button.active { background: #5a7a3c; border-color: #7a9a54; }
+  .stage-bar select, .stage-bar input[type=number] { background: #171a14; color: #e8e2d0;
+      border: 1px solid #4a5240; border-radius: 4px; padding: 3px 6px; font-size: 12px; width: 64px; }
+  .stage-bar input[type=range] { accent-color: #9fc06a; width: 110px; }
+  .stage-bar label { display: flex; gap: 4px; align-items: center; color: #cfc8b8; }
+  #model-status { color: #9fb3c8; }
+  #window-summary { color: #d8cfb3; line-height: 1.5; }
+  .window-line { display: grid; grid-template-columns: 66px 1fr; gap: 6px; align-items: center; }
+  .window-bar { display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: #151812; min-width: 120px; }
+  .window-bar i { display: block; height: 100%; }
+  .window-bar .wind { background: #e7c06a; } .window-bar .dash { background: #e86f57; } .window-bar .recover { background: #879b8c; }
+  .window-text { font-size: 11px; color: #b8b0a0; }
+  .preview-error { padding: 16px; color: #ffd9a8; font-size: 13px; }
+  #toasts { position: fixed; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 50; }
+  .toast { padding: 8px 12px; border-radius: 6px; font-size: 12px; max-width: 380px;
+           background: #31402a; border: 1px solid #4a5a3c; transition: opacity .4s; }
+  .toast.warn { background: #4a3a26; border-color: #6a5634; }
+  .toast.error { background: #4a2626; border-color: #6a3434; }
+  .toast.out { opacity: 0; }
+  footer { padding: 4px 16px; font-size: 11px; color: #77705f; background: #1b1e18;
+           border-top: 1px solid #3a4034; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; height: auto; } #panel { border-right: 0; } #stage { height: 60vh; } }
+</style>
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/addons/"
+} }
+</script>
+</head>
+<body>
+<header class="top">
+  <h1>Beta 数值 / 可视化后台</h1>
+  <span id="channel" class="badge">…</span>
+  <span id="tune-count"></span>
+  <span id="mode"></span>
+  <span id="path"></span>
+  <p id="beta-warning" hidden>当前不在 beta 部署路径（/marmot3d-beta/）下，页面仍可预览，但版本通道显示为非 Beta；部署到 beta 后此提示自动消失。</p>
+</header>
+<main>
+  <div id="panel"></div>
+  <div id="stage">
+    <canvas id="view"></canvas>
+    <div class="stage-bar">
+      <div class="row"><span>姿态：</span>
+        <button data-pose="idle" class="active" type="button">站立</button>
+        <button data-pose="walk" type="button">行走</button>
+        <button data-pose="dash" type="button">奔跑</button>
+        <button data-pose="pounce" type="button">扑击</button>
+      </div>
+      <div class="row"><span>狐狸类型：</span>
+        <select id="fox-type">
+          <option value="normal">普通狐</option>
+          <option value="pup">幼狐</option>
+          <option value="fast">疾行狐</option>
+          <option value="heavy">厚皮狐</option>
+          <option value="boss">狐首领</option>
+        </select>
+      </div>
+      <div class="row"><span>朝向(度)：</span><input id="fox-yaw" type="range" min="-180" max="180" step="1" value="0">
+        <span>X</span><input id="fox-x" type="number" step="0.5" value="0">
+        <span>Z</span><input id="fox-z" type="number" step="0.5" value="0">
+      </div>
+      <div class="row"><span>可视化：</span>
+        <label><input type="checkbox" data-vol="pounceSector" checked>扑击扇形</label>
+        <label><input type="checkbox" data-vol="dashTrack" checked>冲刺轨迹</label>
+        <label><input type="checkbox" data-vol="collision" checked>碰撞体积</label>
+        <label><input type="checkbox" data-vol="windRange" checked>蓄力距离环</label>
+        <label><input type="checkbox" data-vol="lungeLock" checked>锁敌扇形</label>
+        <label><input type="checkbox" data-vol="strikeFan" checked>扑击攻击体积</label>
+      </div>
+      <div class="row"><span id="model-status">模型加载中…</span></div>
+      <div id="window-summary"></div>
+      <div class="row"><span>拖动左键旋转 · 右键平移 · 滚轮缩放</span></div>
+    </div>
+  </div>
+</main>
+<div id="toasts"></div>
+<footer>土拨鼠大作战 3D · Beta 后台（独立页面，不在游戏内嵌）· <span id="year"></span></footer>
+<script type="module" src="./src/admin/main.mjs"></script>
+</body>
+</html>
