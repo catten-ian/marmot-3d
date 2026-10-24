@@ -562,8 +562,8 @@ function makeFox(i) {
   const cfg = LEVELS[game.level];
   const [sx, sz] = scalePoint(SPAWN_POINTS[i % SPAWN_POINTS.length]);
   // Campaigns retain their configured counts and spawn points, but every slot is a normal Tibetan fox.
-  return new Fox(scene, sx + (Math.random() - 0.5) * 4, sz + (Math.random() - 0.5) * 4,
-    'normal', game.level, i, { lureBias: cfg.lureBias || 1 });
+  return wireRepelCallback(new Fox(scene, sx + (Math.random() - 0.5) * 4, sz + (Math.random() - 0.5) * 4,
+    'normal', game.level, i, { lureBias: cfg.lureBias || 1 }));
 }
 
 function spawnSandboxFox(_type = 'normal', slot = foxes.filter((f) => !f.isSandboxDummy).length, opts = {}) {
@@ -579,8 +579,8 @@ function spawnSandboxFox(_type = 'normal', slot = foxes.filter((f) => !f.isSandb
     x = controller.position.x + Math.sin(angle) * distance;
     z = controller.position.z + Math.cos(angle) * distance;
   }
-  const fox = new Fox(scene, x, z, 'normal', 0, slot,
-    { lureBias: 1.15, dummyDefeatable: sandboxState.dummyDefeatable, ...opts });
+  const fox = wireRepelCallback(new Fox(scene, x, z, 'normal', 0, slot,
+    { lureBias: 1.15, dummyDefeatable: sandboxState.dummyDefeatable, ...opts }));
   if (opts.sandboxDummy) {
     fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
   }
@@ -597,7 +597,7 @@ function spawnSandboxSmartFox(slot = foxes.filter((f) => !f.isSandboxDummy).leng
   const angle = controller.yaw;
   const x = controller.position.x + Math.sin(angle) * distance;
   const z = controller.position.z + Math.cos(angle) * distance;
-  const fox = new SmartFox(scene, x, z, 0, slot, { lureBias: 1.15 });
+  const fox = wireRepelCallback(new SmartFox(scene, x, z, 0, slot, { lureBias: 1.15 }));
   fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
   fox.sandboxSpeedMul = sandboxState.speedMultiplier;
   fox.sandboxAlertMul = sandboxState.alertMultiplier;
@@ -971,9 +971,8 @@ function title() {
     <p>每关完成 <b>采食、救援与陪伴</b>，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
     <p style="font-size:12px">采食需要按住停留；附近有狐狸、疾行或刚受击时会明显变慢。${IS_BETA ? ' BETA 关卡会少量出现稀有花：采得更快、回复更多，但不会刷新。' : ''}</p>
-    <p style="font-size:12.5px"><b>你不会真的杀死藏狐。</b>把它们打到体力耗尽后，它们会
-    <b>夹着尾巴转身逃跑</b>，逃出草地才会消失 —— 一段时间后可能有同类再次出现。
-    你要做的是在采食和救援时自卫，随后回洞。</p>
+    <p style="font-size:12.5px"><b>你几乎打不死藏狐</b> —— 它会自己判断形势，血量体力见底就撤到远处躲起来回血。
+    <b>逼退</b>它才算解决威胁。你要做的是在采食和救援时自卫，随后回洞。</p>
     ${IS_DEV || IS_BETA ? `
     <div class="dev-intro">
       <div class="dev-badge">DEV 版 · 旱獭生态学改写</div>
@@ -1250,35 +1249,50 @@ function hitFox(f, damage, s) {
   if (f.hp <= 0) return;
   const fy = terrainHeight(f.x, f.z);
   f.hit(damage, s.knockback, s.stun, controller.position.x, controller.position.z);
-  const cfg = LEVELS[game.level];
 
   damageText.spawn(f.x, fy + 1.1, f.z,
     Number.isInteger(damage) ? `-${damage}` : `-${damage.toFixed(1)}`, '#ffedb7');
   particles.burst(f.x, fy + 0.5, f.z, colHit, 9, 1);
 
-  // 体力耗尽 = 被驱退。它不会死，而是转身逃跑。
+  // 新口径（阶段 2）：驱退不再由"打空血"触发 —— 狐狸血量/体力见底时会
+  // 自主撤退，进入安全休息（rest_safe）那一刻才由 onRepelled 回调计入驱退数。
+  // 这里 hp≤0 是真死：只做死亡表现，不计驱退、不叫它逃跑。
   if (f.hp <= 0 && !f.isSandboxDummy) {
-    // 迎击练习：不驱退、不计数，立刻复位到玩家正前方重来。
+    // 迎击练习：不计数、不让它死透，立刻复位到玩家正前方重来。
     if (sandboxState.parryDrill) {
       audio.hit();
       controller.hitShake(0.2);
       scheduleDrillReset(f);
       return;
     }
-    game.levelRepels = (game.levelRepels || 0) + 1;
-    game.totalRepels = (game.totalRepels || 0) + 1;
-    f.startFleeing(controller.position.x, controller.position.z, cfg);
-    if (game.overdrive <= 0) game.charge = clamp(game.charge + 18, 0, 100);
-    game.player.energy = clamp(game.player.energy + 8, 0, 100);
-    damageText.spawn(f.x, fy + 1.6, f.z, '威胁已解除', '#ceebbc');
-    particles.burst(f.x, fy + 0.5, f.z, colRepel, 18, 1.4);
-    audio.repel();
-    recordTestLog('fox-repelled', { foxType: f.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
+    damageText.spawn(f.x, fy + 1.6, f.z, '它倒下了', '#e8b9a0');
+    particles.burst(f.x, fy + 0.5, f.z, colHurt, 22, 1.4);
+    audio.hit();
     controller.hitShake(0.3);
+    recordTestLog('fox-died', { foxType: f.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
   } else {
     audio.hit();
     controller.hitShake(0.18);
   }
+}
+
+/**
+ * 驱退计数回调（方式 A）：狐狸进入 rest_safe 时由 Fox 调用。
+ * "去休息 = 被驱退"：威胁已解除，在这里统一计数与反馈。
+ */
+function wireRepelCallback(f) {
+  f.onRepelled = (fox) => {
+    game.levelRepels = (game.levelRepels || 0) + 1;
+    game.totalRepels = (game.totalRepels || 0) + 1;
+    if (game.overdrive <= 0) game.charge = clamp(game.charge + 18, 0, 100);
+    game.player.energy = clamp(game.player.energy + 8, 0, 100);
+    const fy = terrainHeight(fox.x, fox.z);
+    damageText.spawn(fox.x, fy + 1.6, fox.z, '威胁已解除', '#ceebbc');
+    particles.burst(fox.x, fy + 0.5, fox.z, colRepel, 18, 1.4);
+    audio.repel();
+    recordTestLog('fox-repelled', { foxType: fox.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
+  };
+  return f;
 }
 
 function doBurst() {
@@ -2473,7 +2487,7 @@ function syncHelpKeys() {
       <span><kbd>${escLine}</kbd> · <kbd>Enter</kbd> 标题/暂停/通关确认</span>
     </div>
     <p class="note">洞穴内不能攻击。完成<b>采食 + 伙伴到家</b>后回洞，自动进入下一关。采食需按住停留，受惊会变慢；花稀有但高效。<br>
-    <b>驱退不等于杀死</b>：藏狐体力耗尽后会转身逃向草地边缘，逃掉才消失，过一阵还可能再来。<br>
+    <b>逼退不等于杀死</b>：藏狐察觉形势不利会主动撤到安全处休息回血，休息够了再回来。你要做的不是把它打死，是把它<b>逼退</b>。<br>
     <b>奔跑时会自动俯身冲刺，停下则起身</b> —— 起身比趴下稍慢，就像真的在用四肢撑起身体。<br>
     被困伙伴会周期性<b>呼救</b>，屏幕边缘的<b>绿色箭头</b>指向它；红色箭头则是正在逼近的藏狐。<br>
     <b>跳跃可以跳过扑击</b>：腾空够高时不会被藏狐碰到。</p>

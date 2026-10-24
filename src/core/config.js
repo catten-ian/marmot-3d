@@ -273,6 +273,30 @@ export const FOX = {
    */
   fleeSpeed: 5.8,
   fleeMaxTime: 4.0,
+  /**
+   * 自主撤退（阶段 2 驱退口径）：何时撤是狐狸自己的判断，不由受击逻辑强塞。
+   * 触发条件（满足其一，且不在 wind/dash 攻击流程中）：
+   *   血量比例 ≤ hpRatio / 体力比例 ≤ staminaRatio / 连续被打 ≥ hitStreak 次。
+   * 撤到休息点进入 rest_safe 的那一刻计入驱退数（撤退即驱退）；
+   * 休息结束（计时到或血回满）后重新参战，可再次被驱退计数。
+   * hp ≤ 0 是真死：不逃、不重生 —— 但正常路径打不到那一步，因为它早就撤了。
+   */
+  retreat: {
+    /** 血量比例低于此值 → 主动撤退（明显高于 vitals.lowHpThreshold 的致死区） */
+    hpRatio: 0.45,
+    /** 体力比例低于此值 → 主动撤退 */
+    staminaRatio: 0.25,
+    /** 短时间内连续被打这么多次 → 判断形势不利，撤退 */
+    hitStreak: 4,
+    /** 超过这么久没再挨打 → hitStreak 清零（脱战衰减） */
+    hitStreakDecay: 6,
+    /** 距休息点多近算到达 */
+    arriveRadius: 1.5,
+    /** 撤退移动速度：比慢行快（有逃跑感），但不冲刺、不耗体力 */
+    speed: 6.0,
+    /** 休息时长（秒）：首领明显更长（不该频繁撤退），普通狐短一些 */
+    restSeconds: { normal: 6, pup: 4.5, fast: 5, heavy: 7, boss: 12, smart: 7 },
+  },
   // 接触判定：土拨鼠体型小，接触距离相应放大到体型的一半以上才合理
   contact: { boss: 2.2, heavy: 1.95, pup: 1.45, default: 1.7 },
   // 水平接触按双方半径相加，与旧 contact 触发距离完全等价；可在调试面板中独立调节。

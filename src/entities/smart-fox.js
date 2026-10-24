@@ -2,7 +2,7 @@ import { Fox } from './fox.js';
 import { FOX, ROCKS, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { SANDBOX_DIFFICULTIES } from '../sandbox/state.js';
 import { clamp, terrainHeight } from '../core/utils.js';
-import { canSprint, stepStamina } from '../core/fox-motion.js';
+import { canSprint, stepStamina, shouldRetreat } from '../core/fox-motion.js';
 import {
   utilityScores,
   updatePerception,
@@ -55,11 +55,25 @@ export class SmartFox extends Fox {
   }
 
   update(dt, p, safe, levelCfg, burrows, terrainAt = terrainHeight, currentBurrow = null, packContext = null) {
-    // 被驱退/死亡/眩晕时退回普通狐狸逻辑（逃跑、击退位移等）。
-    if (this.fleeing || this.hp <= 0 || this.stun > 0) {
+    // 被驱退/撤退/休息/死亡/眩晕时退回普通狐狸逻辑（撤退移动、rest_safe、击退位移等）。
+    if (this.fleeing || this.hp <= 0 || this.stun > 0
+      || this.retreating || this.state === 'rest_safe' || this.state === 'dead') {
       return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
     }
     this._recoverLock = Math.max(0, this._recoverLock - Math.max(0, dt));
+
+    // —— 智能狐更早撤退（阶段 2）：效用层本就让低血/疲劳个体偏向 recover/abandon，
+    // 达到硬阈值（血量/体力/连被打）时直接转入自主撤退 —— 进 rest_safe 计入驱退，
+    // 而不是等 hp≤0 才被动逃跑（它根本不该被打死）。
+    if (!this.drillCtx && shouldRetreat({
+      hpRatio: this.hp / this.maxHp,
+      staminaRatio: this.stamina / this.maxStamina,
+      hitStreak: this.hitStreak,
+      state: this.state,
+    }, FOX.retreat)) {
+      this._enterRetreat(p, Array.isArray(burrows) ? burrows : (burrows ? [burrows] : []));
+      return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
+    }
 
     // —— 体力收支（与普通狐同口径）：扑击消耗体力，喘息/脱离缓慢回血回体力 ——
     {

@@ -23,5 +23,12 @@ export function resetDrillFox(f) {
   f.knockbackVX = 0;
   f.knockbackVZ = 0;
   f.leap = 0;
+  // 自主撤退相关残留也要清掉，否则复位后立刻又撤走/重复计驱退
+  f.stamina = f.maxStamina;
+  f.retreating = false;
+  f.restPoint = null;
+  f.repelCounted = false;
+  f.hitStreak = 0;
+  f._sinceHit = Infinity;
   return f;
 }

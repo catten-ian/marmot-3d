@@ -93,3 +93,91 @@ hpRatio 与倍率（低血阈值 0.5，线性插值）：
 - node --check：config.js / fox-motion.js / fox.js / smart-fox.js / smart-fox-core.mjs / main.js 全过
 - node tools/run-node-tests.cjs：37/37 PASS
 - grep stepStamina / stamina：接入点齐全
+
+## 阶段 2：驱退口径改造 —— 狐狸自主撤退 / 撤退即驱退 / 允许打死但玩家打不死
+
+### 新的驱退语义（与旧语义对照）
+
+| 维度 | 旧口径（阶段 1 及之前） | 新口径（本阶段） |
+|---|---|---|
+| 驱退触发 | `hp <= 0` 由 `hitFox()` 强塞：打空血 → 强制 `startFleeing()` | 狐狸**自主**判断（血量/体力/连被打），`_enterRetreat()` 主动撤 |
+| 驱退计数时点 | 打空血的那一帧 | 狐狸撤到休息点、**进入 `rest_safe` 的那一刻**（去休息 = 被驱退） |
+| `hp <= 0` 的含义 | 不会死，转身逃跑后重生（增援） | **真死**：`state='dead'`，不 flee、不 respawn、不再参与更新 |
+| 玩家胜利路径 | 打空血 | **逼退**（设计上玩家几乎打不死：它剩一截血就自己撤了） |
+| 撤退还击 | 逃跑中不可互动 | 撤退/休息中可被命中但**不退出撤退**、不重置计数 |
+
+### 撤退触发条件与优先级
+
+纯函数 `shouldRetreat({hpRatio, staminaRatio, hitStreak, state}, FOX.retreat)`（`src/core/fox-motion.js`），
+在 `Fox.update()` 每帧由狐狸自身状态求值，**不经外部受击逻辑**：
+
+1. `state` 为 `wind` / `dash`（攻击流程中）→ 永不撤退（最高优先级，否决项）
+2. `state` 为 `retreat` / `rest_safe` / `dead` → 不重复触发
+3. `hpRatio ≤ 0.45`（`FOX.retreat.hpRatio`）→ 撤退
+4. `staminaRatio ≤ 0.25`（`FOX.retreat.staminaRatio`）→ 撤退
+5. `hitStreak ≥ 4`（连续被打，脱战 6s 后衰减清零）→ 撤退
+6. 迎击练习狐（`drillCtx`）不撤退，由复位机制接管
+
+休息点选择（`chooseRestPoint` 纯函数）：优先"离玩家 ≥16m 的洞穴口背玩家一侧"，
+否则沿背离玩家方向推 26m，均夹在活动场边界内。
+
+### `rest_safe` 流程与时长
+
+- `retreat`：以 `FOX.retreat.speed = 6.0`（快于慢行、慢于冲刺、不耗体力）跑向休息点，距 `< 1.5m` 到达
+- 到达 → `enterRestSafe()`：`state='rest_safe'`、`repelCounted=true`，**仅当本回合首次进入时**调用
+  `this.onRepelled(this)`（方式 A 回调，`main.js` 的 `wireRepelCallback` 注入：
+  `levelRepels++` / `totalRepels++` / `charge +18` / `energy +8` / `audio.repel()` /
+  `'威胁已解除'` 飘字 / `colRepel` 粒子 / `recordTestLog('fox-repelled')`）
+- `rest_safe` 中静止休息：复用阶段 1 `stepStamina` 的 `resting=true` 分支回血回体力
+- 休息时长（`FOX.retreat.restSeconds`）：normal 6s / pup 4.5s / fast 5s / heavy 7s / **boss 12s** / smart 7s；
+  计时到**或血回满**→ `exitRestSafe()` 回 `roam`，`repelCounted` 复位（下次撤退可再计数）
+
+### 死亡路径（为什么玩家打不死）
+
+`hp <= 0` → `resolveHitState` 返回 `'dead'`：隐藏 mesh/warn/双条，不 flee、不 respawn。
+正常路径打不死的原因：撤退阈值 `hpRatio 0.45` 远高于致死区，狐狸在血量还剩近一半时就已撤离战斗，
+玩家没有持续输出的窗口；打死只发生在"撤退前被爆发伤害瞬间清空"的理论路径。
+`hitFox()` 中 `hp<=0` 只做死亡表现（飘字/粒子/音效/`recordTestLog('fox-died')`），**不计驱退**。
+关卡通关目标本就为"采食 + 伙伴到家 + 回洞"，不依赖驱退数，故狐狸真死不会卡关。
+
+### 智能狐对齐
+
+- `SmartFox.update()` 顶部新增 `shouldRetreat` 硬阈值检查：满足即 `_enterRetreat()` 并交回普通狐狸逻辑
+- `retreating` / `rest_safe` / `dead` 状态整体回落到 `Fox.update()`（撤退移动、休息回血、死亡表现复用）
+- 效用层的 `recover` / `abandon` 意图本就偏向低血/疲劳撤离（权重未动，阶段 4 的活）；
+  硬阈值兜底保证低血智能狐**更早**转入真正的撤退并入 `rest_safe` 计数，而不是等 `hp≤0`
+- 休息结束一并清零 `fatigue`
+
+### 文案改动前后对照
+
+| 位置 | 改前 | 改后 |
+|---|---|---|
+| 标题面板 | "你不会真的杀死藏狐。把它们打到体力耗尽后，它们会夹着尾巴转身逃跑……" | "你几乎打不死藏狐 —— 它会自己判断形势，血量体力见底就撤到远处躲起来回血。**逼退**它才算解决威胁。" |
+| 帮助页 | "**驱退不等于杀死**：藏狐体力耗尽后会转身逃向草地边缘……" | "**逼退不等于杀死**：藏狐察觉形势不利会主动撤到安全处休息回血，休息够了再回来。你要做的不是把它打死，是把它**逼退**。" |
+| `hitFox` 注释 | "体力耗尽 = 被驱退。它不会死，而是转身逃跑。" | 新口径注释：驱退由 rest_safe 回调计数，hp≤0 是真死、不计驱退 |
+
+全仓 `grep 体力耗尽` 仅剩两处"体力耗尽 ≠ 被驱退"的否定式注释（符合口径）。
+
+### 测试项与结果（tools/test-fox-repel.cjs，12 项全过）
+
+1. `FOX.retreat` 配置存在且方向正确（首领休息 > 普通狐）
+2. 血量健康+体力充足+蓄力/冲刺中 → 不撤退
+3. 血量低 + 空闲 → 撤退
+4. 体力低 + 空闲 → 撤退
+5. 连被打 ≥ 阈值 → 撤退；血量健康 → 不撤退
+6. 撤退/休息/死亡中不重复触发
+7. `chooseRestPoint` 优先选远离玩家的洞穴
+8. 无洞穴 → 背离玩家方向且夹在边界内
+9. `enterRestSafe` 计数恰好一次（连续进入不重复）
+10. `stepRestSafe` 计时到/血回满 → done
+11. `exitRestSafe` 回 `roam` 且 `repelCounted` 复位（可再计数）
+12. `resolveHitState`：`hp≤0 → 'dead'`（非 flee）；完整撤退循环串联
+
+`node tools/run-node-tests.cjs`：OK 38/38（22 个浏览器/CDP 测试按惯例跳过）。
+
+### 验证清单
+
+- `node --check`：fox.js / main.js / smart-fox.js / config.js / fox-motion.js / drill.js 全过
+- `node tools/run-node-tests.cjs`：38/38 PASS
+- `grep levelRepels src/main.js`：自增仅出现在 `wireRepelCallback` 一处
+- `grep startFleeing`：main.js 已无调用；fox.js 保留为 legacy 兜底（不再有触发方）
