@@ -2,6 +2,7 @@ import { Fox } from './fox.js';
 import { FOX, ROCKS, BURROWS, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { SANDBOX_DIFFICULTIES } from '../sandbox/state.js';
 import { clamp, terrainHeight } from '../core/utils.js';
+import { canSprint, stepStamina, shouldRetreat } from '../core/fox-motion.js';
 import {
   utilityScores,
   updatePerception,
@@ -9,8 +10,9 @@ import {
   stepSmartMotion,
   separationVector,
   isSegmentReachable,
-  smartPounceDistance, updateSmartMemory, habituateDecayRate, stepInterruptionTimes,
-  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK,
+  smartPounceDistance, smartPounceDashDistance, cancelSmartPounce, SMART_POUNCE_TUNE,
+  updateSmartMemory, habituateDecayRate, stepInterruptionTimes,  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK,
+  flankSlots, assignFlankSlot, assignRoles, forcedRetreat,
 } from './smart-fox-core.mjs';
 
 /**
@@ -34,6 +36,8 @@ export class SmartFox extends Fox {
     this.interruptions = 0;
     this.fatigue = 0;
     this.pounceCommitted = false;
+    this.pounceStage = null;    // 阶段 4：'dash' | 'windup' | 'strike' | 'recover' | null
+    this.pounceStriking = false; // 仅 strike 激活帧 true —— 主循环据此做接触伤害
     this._smartState = {
       x, z, vx: 0, vz: 0, yaw: this.yaw,
       maxTurnRate: 2.8, acceleration: 18, pounceCooldown: 0, telegraphT: 0, phase: 'observe', phaseTime: 0, cooldown: 0, pounceTime: 0,
@@ -46,6 +50,17 @@ export class SmartFox extends Fox {
     this._feintSide = 1; this._feintRepeats = 0;
     this._feintPrevIntent = 'observe';
     this._recoverLock = 0;
+    // —— 阶段 3 战术层状态 ——
+    this._role = 'flanker';          // striker / flanker / distractor / retreat
+    this._flankSlotIndex = null;     // 本帧占用的包抄槽位（供同伴避让）
+    this.flankSlotIndex = null;
+    this._lastHitAt = -Infinity;     // 最近一次被玩家打中的时刻（_age 时钟）
+    this._evadeUntil = 0;            // >0 表示正处于"被打后侧向甩开"窗口
+    this._evadeSide = 1;
+    this._cautiousUntil = 0;         // 回血归队后的谨慎期：此时间前不提交扑咬
+    this._restSafeSeen = false;
+    this._escVel = { x: 0, z: 0 };   // 玩家速度低通估计（逃跑轴）
+    this._lastPlayerPos = null;
   }
 
   applySmartDifficulty(key) {
@@ -56,11 +71,63 @@ export class SmartFox extends Fox {
   }
 
   update(dt, p, safe, levelCfg, burrows, terrainAt = terrainHeight, currentBurrow = null, packContext = null) {
-    // 被驱退/死亡/眩晕时退回普通狐狸逻辑（逃跑、击退位移等）。
-    if (this.fleeing || this.hp <= 0 || this.stun > 0) {
+    // 阶段 3：从 rest_safe 归队 → 进入谨慎期（8s 内不主动扑咬）。
+    if (this.state === 'rest_safe') this._restSafeSeen = true;
+    else if (this._restSafeSeen) { this._restSafeSeen = false; this._cautiousUntil = this._age + 8; }
+    // 被驱退/撤退/休息/死亡/眩晕时退回普通狐狸逻辑（撤退移动、rest_safe、击退位移等）。
+    if (this.fleeing || this.hp <= 0 || this.stun > 0
+      || this.retreating || this.state === 'rest_safe' || this.state === 'dead') {
       return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
     }
     this._recoverLock = Math.max(0, this._recoverLock - Math.max(0, dt));
+
+    // —— 智能狐更早撤退（阶段 2）：效用层本就让低血/疲劳个体偏向 recover/abandon，
+    // 达到硬阈值（血量/体力/连被打）时直接转入自主撤退 —— 进 rest_safe 计入驱退，
+    // 而不是等 hp≤0 才被动逃跑（它根本不该被打死）。
+    if (!this.drillCtx && shouldRetreat({
+      hpRatio: this.hp / this.maxHp,
+      staminaRatio: this.stamina / this.maxStamina,
+      hitStreak: this.hitStreak,
+      state: this.state,
+    }, FOX.retreat)) {
+      this._enterRetreat(p, Array.isArray(burrows) ? burrows : (burrows ? [burrows] : []));
+      return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
+    }
+
+    // —— 阶段 3：被打中 → 硬规则强制撤退（先侧向甩开，再正式撤退回血）——
+    if (!this.drillCtx && this._evadeUntil <= 0
+      && forcedRetreat({ lastHitAt: this._lastHitAt }, { now: this._age, window: 0.05 })) {
+      this._lastHitAt = -Infinity;                    // 消费掉这次受击，避免重复触发
+      this._evadeUntil = this._age + 0.45;            // 先横移躲开的窗口
+      this._evadeSide = this.slot % 2 ? 1 : -1;
+      this.pounceCommitted = false;
+      this._smartState.pounceCommitted = false;
+      this._smartState.pounceTime = 0;
+    }
+    // 甩开窗口结束 → 正式转入自主撤退（走阶段 2 的 retreat → rest_safe 回血链路）
+    if (this._evadeUntil > 0 && this._age >= this._evadeUntil && !this.drillCtx) {
+      this._evadeUntil = 0;
+      this._enterRetreat(p, Array.isArray(burrows) ? burrows : (burrows ? [burrows] : []));
+      return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
+    }
+
+    // —— 体力收支（与普通狐同口径）：扑击消耗体力，喘息/脱离缓慢回血回体力 ——
+    {
+      const V = FOX.vitals;
+      const resting = this.state === 'rest';
+      const stepped = stepStamina({ stamina: this.stamina, locked: this.staminaLocked, hp: this.hp }, dt, {
+        maxStamina: this.maxStamina,
+        drainPerSec: this.pounceCommitted ? V.pounceStaminaPerSec : V.stalkStaminaPerSec,
+        regenPerSec: V.restStaminaPerSec,
+        resting,
+        hpRegenRatio: V.restHpRegenRatio,
+        hp: this.hp, maxHp: this.maxHp,
+        staminaLockSeconds: V.staminaLockSeconds,
+      });
+      this.stamina = stepped.stamina;
+      this.staminaLocked = stepped.locked;
+      this.hp = stepped.hp;
+    }
 
     const dx = p.x - this.x;
     const dz = p.z - this.z;
@@ -72,6 +139,29 @@ export class SmartFox extends Fox {
     const separation = separationVector(this, (packContext?.smartFoxes || []).filter((f) => f !== this && f.alive !== false), 1.85, 2.2);
     const viewDot = Math.cos(facingYaw - Math.atan2(this.x - p.x, this.z - p.z));
     const guard = !!(p.guard || p.guarding);
+
+    // —— 阶段 3：玩家逃跑轴估计（低通平滑玩家速度，避免抖动）——
+    if (this._lastPlayerPos && dt > 0) {
+      const ivx = (p.x - this._lastPlayerPos.x) / dt;
+      const ivz = (p.z - this._lastPlayerPos.z) / dt;
+      const k = Math.min(1, dt * 3);
+      this._escVel.x += (ivx - this._escVel.x) * k;
+      this._escVel.z += (ivz - this._escVel.z) * k;
+    }
+    this._lastPlayerPos = { x: p.x, z: p.z };
+    const escSpeed = Math.hypot(this._escVel.x, this._escVel.z);
+    // 玩家基本不动时，以"远离本狐"为逃跑轴（即仍绕到狐-人连线的侧后）
+    const escapeAxis = escSpeed > 0.5 ? Math.atan2(this._escVel.x, this._escVel.z)
+      : Math.atan2(this.x - p.x, this.z - p.z);
+
+    // —— 阶段 3：角色分工（复用 packContext.tactics 作帧内共享存储，带粘性）——
+    const peers0 = packContext?.smartFoxes || [];
+    if (packContext && peers0.length) {
+      const store = packContext.tactics || packContext.coordinator || packContext;
+      const roles = assignRoles(peers0, p, store.roles || {}, this._age, { holdTime: 1.5 });
+      store.roles = roles;
+      this._role = roles[this.slot]?.role || 'flanker';
+    }
 
     this._age += dt;
     const aged = updateSmartMemory({ memory: this.memory, lastInterruptionAt: this.lastInterruptionAt }, dt, this._age, { memoryDecay: this._smartState.memoryDecay });
@@ -92,7 +182,8 @@ export class SmartFox extends Fox {
       health: this.hp / this.maxHp,
       interruptions: this.interruptions,
       memory: this.memory,
-      suspicion: this.suspicion,
+      // 阶段 4：已被玩家察觉 → suspicion 抬高 → 更谨慎（feint/observe 偏多，不硬扑）
+      suspicion: clamp(this.suspicion + (this.detected ? 0.6 : 0), 0, 1),
       feintScale: this._smartState.feintScale ?? 1,
     });
     let intent = this._recoverLock > 0 ? 'recover' : (this.pounceCommitted ? 'pounce' : scores.topIntent);
@@ -128,10 +219,38 @@ export class SmartFox extends Fox {
         const a = toP + side * 1.05;
         aimX = p.x - Math.sin(a) * STAND.feint;
         aimZ = p.z - Math.cos(a) * STAND.feint;
+      } else if (intent === 'approach' && peers0.length > 1) {
+        // 阶段 3 包抄：approach 不直冲玩家当前位置，先绕到自己分到的逃跑轴侧后槽位；
+        // 到槽位附近后降级为 observe（等时机），而不是贴脸直接扑。
+        const attackers = peers0.filter((f) => f !== this && !f.retreating && f.state !== 'rest_safe' && f.hp > 0).length + 1;
+        const slots = flankSlots(Math.min(Math.max(attackers, 1), 4), escapeAxis, p, 6.5);
+        const idx = assignFlankSlot(this, peers0, slots);
+        this.flankSlotIndex = idx;
+        this._flankSlotIndex = idx;
+        if (idx != null) {
+          const s = slots[idx];
+          if (Math.hypot(s.x - this.x, s.z - this.z) < 1.3) {
+            intent = 'observe';
+            this.intent = intent;
+            aimX = p.x + ux * STAND.observe; aimZ = p.z + uz * STAND.observe;
+          } else { aimX = s.x; aimZ = s.z; }
+        } else {
+          const R = STAND.approach;                 // 无可用槽位 → 退回直追，不崩
+          aimX = p.x + ux * R; aimZ = p.z + uz * R;
+        }
       } else {
         const R = STAND[intent] ?? STAND.approach;   // observe / approach 保持半径
         aimX = p.x + ux * R; aimZ = p.z + uz * R;
       }
+    }
+    // 阶段 3：被打后的侧向甩开 —— 不直线背对玩家跑，边撤边横移一段。
+    if (this._evadeUntil > 0 && this._age < this._evadeUntil && !this.pounceCommitted) {
+      intent = 'recover';
+      this.intent = intent;
+      const away = Math.atan2(-dx, -dz);
+      const a = away + this._evadeSide * (Math.PI / 2.4);
+      aimX = this.x + Math.sin(a) * 6;
+      aimZ = this.z + Math.cos(a) * 6;
     }
     // committed pounce：直扑玩家本体，冲穿后由 recover 拉开。
     const peers = packContext?.smartFoxes || [];
@@ -152,28 +271,50 @@ export class SmartFox extends Fox {
       { x: aimX, z: aimZ },
       dt,
       this.intent,
-      { commitAllowed: reachable && this._recoverLock <= 0 && (!packContext?.coordinator || packContext.coordinator.canCommit(this.slot, this._age, this._smartState.coordination)) },
-    );
+      {
+        // 提交扑咬的总闸门（rev22 线 reachable 门 + fox-v2 体力/角色/谨慎期门）：
+        // - reachable：目标点必须可达（避免隔墙扑击）
+        // - 体力：不足时不允许进入冲刺阶段（体力耗尽 ≠ 被驱退，只是扑不出来）
+        // - 角色：striker 独占扑咬提交权，其余角色保持施压不扑
+        // - 谨慎期：回血归队后 8s 内不主动扑咬
+        commitAllowed: reachable
+          && this._recoverLock <= 0
+          && this.staminaLocked <= 0
+          && canSprint(this.stamina, FOX.vitals.pounceStaminaPerSec, SMART_POUNCE_TUNE.dashDuration)
+          && this.stamina >= SMART_POUNCE_TUNE.staminaCost + FOX.vitals.pounceStaminaPerSec * SMART_POUNCE_TUNE.dashDuration
+          && (!packContext || this._role === 'striker')
+          && this._age >= this._cautiousUntil
+          && this._evadeUntil <= 0
+          && (!packContext?.coordinator || packContext.coordinator.canCommit(this.slot, this._age, this._smartState.coordination)),
+        // 阶段 4 动作集对齐：慢行=stalk（慢/省体力/难被发现），冲刺=sprint
+        stalkSpeed: FOX.ACTIONS.stalk.speed,
+        sprintSpeed: FOX.ACTIONS.sprint.speed,
+      },    );
     if (!this.pounceCommitted && next.pounceCommitted) {
       packContext?.coordinator?.recordCommit(this.slot, this._age);
       const reset = trackFeint({ repeats: this._feintRepeats, side: this._feintSide, prevIntent: this._feintPrevIntent }, 'pounce', { reset: 'pounce' });
       this._feintRepeats = reset.repeats; this._feintSide = reset.side; this._feintPrevIntent = reset.prevIntent;
     }
     if (next.pounceJustEnded) this._recoverLock = Math.max(this._recoverLock, RECOVER_LOCK);
+    // 阶段 4：进入扑咬 strike 的当帧，一次性扣除大量体力（区别于冲刺阶段的持续扣）。
+    if (next.pounceStrikeStarted) {
+      next.pounceStrikeStarted = false;
+      this.stamina = Math.max(0, this.stamina - SMART_POUNCE_TUNE.staminaCost);
+    }
     this._smartState = next;
     this.x = next.x;
     this.z = next.z;
     this.yaw = next.yaw;
     this.pounceCommitted = !!next.pounceCommitted;
     this._smartState.cooldown = Math.max(this._smartState.cooldown || 0, next.pounceCooldown || 0);
+    this.pounceStage = next.pounceStage ?? null;
+    this.pounceStriking = !!next.pounceStriking;
 
-    // 映射到既有动画状态：扑击=dash（驱动预警/接触），前摇=wind，喘息/放弃=rest，其余=roam。
-    const winding = !this.pounceCommitted && intent === 'pounce' && (this._smartState.windupRemaining ?? 0) > 0;
+    // 映射到既有动画状态：冲刺阶段/扑击=dash（驱动预警/位移），极短前摇=wind（下蹲），
+    // 后摇/喘息/放弃=rest（硬直），其余=roam。
     this.state = this.pounceCommitted
-      ? 'dash'
-      : winding ? 'wind'
-      : (intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam';
-    this.leap = 0;
+      ? (this.pounceStage === 'windup' ? 'wind' : 'dash')
+      : (this.pounceStage === 'recover' || intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam';    this.leap = 0;
 
     // 疲劳循环：扑击消耗，喘息快速恢复，其余缓慢恢复，保证下一轮还能再扑。
     const fatRate = this.pounceCommitted ? 0.22
@@ -186,13 +327,19 @@ export class SmartFox extends Fox {
 
     this._resolveObstacleOverlaps(burrows);
     if (this.pounceCommitted && (this.x !== next.x || this.z !== next.z || Math.abs(this.x) >= bounds.hw || Math.abs(this.z) >= bounds.hh)) {
-      this.pounceCommitted = false; this._smartState.pounceCommitted = false; this._smartState.pounceTime = 0;
-      this._smartState.pounceCooldown = this._smartState.pounceCooldownDuration; this._smartState.vx = this._smartState.vz = 0;
+      // 撞障取消（589d31b 语义）：当帧取消扑击且本帧之后无伤害（pounceStriking 一并清零），进后摇。
+      const cancelled = cancelSmartPounce(this._smartState);
+      cancelled.pounceCooldown = this._smartState.pounceCooldownDuration;
+      this._smartState = cancelled;
+      this.pounceCommitted = false; this.pounceStriking = false; this.pounceStage = 'recover';
       this.intent = 'recover'; this.state = 'rest';
     }
     this._applyTransform(dt, terrainAt);
     this._updateHpBar();
-    this.warn.visible = this.pounceCommitted || (this._smartState.windupRemaining > 0 && intent === 'pounce');
+    this._updateStaminaBar();
+    // 阶段 4：预警线在"扑咬前的冲刺阶段"显示；保留提交前可读前摇的淡预警。
+    this.warn.visible = (this.pounceCommitted && this.pounceStage === 'dash')
+      || (this._smartState.windupRemaining > 0 && intent === 'pounce');
     this._updateWarn(terrainAt);
     this.telemetry.push({ intent, distance, guard, fatigue: this.fatigue, health: this.hp / this.maxHp,
       memory: this.memory, suspicion: this.suspicion, scores: { ...this.topScores } });
@@ -204,8 +351,9 @@ export class SmartFox extends Fox {
     this.warn.position.set(this.x, terrainAt(this.x, this.z) + .02, this.z);
     this.warn.rotation.y = this.pounceCommitted ? this._smartState.pounceYaw : this.yaw;
     const speed = Math.hypot(this._smartState.vx, this._smartState.vz);
+    // 冲刺阶段预警线长度 = 剩余冲刺的真实位移距离（真实速度积分，与 smartPounceDashDistance 一致）
     this.warn.scale.z = this.pounceCommitted
-      ? smartPounceDistance(speed, this._smartState.pounceSpeed, this._smartState.acceleration, this._smartState.pounceTime)
+      ? smartPounceDashDistance(speed, this._smartState.pounceDashSpeed ?? this._smartState.pounceSpeed, this._smartState.acceleration, this._smartState.pounceStageTime)
       : smartPounceDistance(speed, this._smartState.pounceSpeed, this._smartState.acceleration, .72);
     this.warn.material.opacity = this.pounceCommitted ? .76 : .3;
   }
@@ -214,6 +362,7 @@ export class SmartFox extends Fox {
     const result = super.hit(damage, knockback, stun, fromX, fromZ);
     this.interruptions += 1;
     this._age += 0; this.lastInterruptionAt = this._age; this._interruptionTimes.push(this._age);
+    this._lastHitAt = this._age;   // 阶段 3：供 forcedRetreat 硬规则消费
     const m = applyInterruption(
       { memory: this.memory, interruptions: this.interruptions, health: this.hp / this.maxHp },
       'damage',

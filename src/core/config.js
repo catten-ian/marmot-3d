@@ -237,6 +237,60 @@ export const FOX = {
     brakeLerp: 2.8, recoverySpeedMax: 2.8,
   },
   recovery: { normal: 1.15, fast: 0.9, leap: 1.05, combo: 1.2, blocked: 0.9 },
+  /**
+   * 藏狐生理参数：体力与血量对机动/输出的影响。
+   *
+   * 关键口径：**体力耗尽 ≠ 被驱退**。
+   * 体力只是"能不能冲刺/扑咬"的开关；见底后藏狐只能慢行或休息，
+   * 但不会被系统判定为已驱退（驱退口径见阶段 2）。
+   */
+  vitals: {
+    maxStamina: 100,
+    /** 慢行（潜行接近）：不消耗体力 —— 用户明确要求 */
+    stalkStaminaPerSec: 0,
+    /** 冲刺（直线突进）：持续消耗 */
+    sprintStaminaPerSec: 18,
+    /** 扑咬的冲刺阶段：比普通冲刺更费 */
+    pounceStaminaPerSec: 26,
+    /** 静止休息：每秒恢复体力 */
+    restStaminaPerSec: 14,
+    /** 静止休息：每秒恢复血量，占 maxHp 的比例（**要慢**） */
+    restHpRegenRatio: 0.035,
+    /** 受击时额外扣体力（与伤害同时发生） */
+    hitStaminaCost: 7,
+    /** 体力见底后，多久不允许再冲刺（防止抖动） */
+    staminaLockSeconds: 1.2,
+    /** 血量比例低于此值开始影响速度与伤害 */
+    lowHpThreshold: 0.5,
+    /** 血量归零时的速度倍率（最低） */
+    speedMulAtZeroHp: 0.72,
+    /** 血量归零时的伤害倍率（最低） */
+    damageMulAtZeroHp: 0.6,
+  },
+  /**
+   * 三种移动动作的能力表（阶段 4）。
+   * 数值与 src/play/play-as-fox.js 的 PAF_DEFAULTS 对齐（同一套手感），
+   * 但两边代码各自独立、互不 import —— play-as-fox 是独立玩法，改它有风险。
+   *  - stalk ：慢行/潜行，不耗体力，难被发现
+   *  - sprint：冲刺，持续耗体力，易被发现
+   *  - pounce：扑咬，一次性大量耗体力，最易被发现
+   */
+  ACTIONS: {
+    stalk:  { speed: 2.5,  staminaPerSec: 0,  detection: 'stalk'  },
+    sprint: { speed: 6.4,  staminaPerSec: 18, detection: 'sprint' },
+    pounce: { staminaCost: 26, detection: 'pounce' },
+  },
+  /**
+   * 玩家察觉机制（阶段 4"可发现性"）：狐狸当前动作决定被察觉半径。
+   * 数值与 play-as-fox 的 detectStalk/detectSprint/detectLunge 对齐。
+   */
+  detection: {
+    stalk: 6.2,     // 慢行时被察觉半径（与 PAF_DEFAULTS.detectStalk 对齐）
+    sprint: 11.5,   // 冲刺时被察觉半径（detectSprint）
+    pounce: 17.0,   // 扑咬时被察觉半径（detectLunge）
+    viewRange: 30,  // 玩家视距上限
+    viewConeDeg: 100, // 视野锥全角（半角 50°）
+  },
   groundAttackHeight: 0.4,
   /**
    * 被驱退后的逃跑。
@@ -250,6 +304,30 @@ export const FOX = {
    */
   fleeSpeed: 5.8,
   fleeMaxTime: 4.0,
+  /**
+   * 自主撤退（阶段 2 驱退口径）：何时撤是狐狸自己的判断，不由受击逻辑强塞。
+   * 触发条件（满足其一，且不在 wind/dash 攻击流程中）：
+   *   血量比例 ≤ hpRatio / 体力比例 ≤ staminaRatio / 连续被打 ≥ hitStreak 次。
+   * 撤到休息点进入 rest_safe 的那一刻计入驱退数（撤退即驱退）；
+   * 休息结束（计时到或血回满）后重新参战，可再次被驱退计数。
+   * hp ≤ 0 是真死：不逃、不重生 —— 但正常路径打不到那一步，因为它早就撤了。
+   */
+  retreat: {
+    /** 血量比例低于此值 → 主动撤退（明显高于 vitals.lowHpThreshold 的致死区） */
+    hpRatio: 0.45,
+    /** 体力比例低于此值 → 主动撤退 */
+    staminaRatio: 0.25,
+    /** 短时间内连续被打这么多次 → 判断形势不利，撤退 */
+    hitStreak: 4,
+    /** 超过这么久没再挨打 → hitStreak 清零（脱战衰减） */
+    hitStreakDecay: 6,
+    /** 距休息点多近算到达 */
+    arriveRadius: 1.5,
+    /** 撤退移动速度：比慢行快（有逃跑感），但不冲刺、不耗体力 */
+    speed: 6.0,
+    /** 休息时长（秒）：首领明显更长（不该频繁撤退），普通狐短一些 */
+    restSeconds: { normal: 6, pup: 4.5, fast: 5, heavy: 7, boss: 12, smart: 7 },
+  },
   // 接触判定：土拨鼠体型小，接触距离相应放大到体型的一半以上才合理
   contact: { boss: 2.2, heavy: 1.95, pup: 1.45, default: 1.7 },
   // 水平接触按双方半径相加，与旧 contact 触发距离完全等价；可在调试面板中独立调节。

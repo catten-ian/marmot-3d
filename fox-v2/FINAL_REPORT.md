@@ -1,0 +1,349 @@
+# 藏狐 v2 改造报告
+
+## 阶段 1：藏狐生理层 —— 体力条 / 血量影响 / 休息回血
+
+### 设计口径（用户拍板）
+- **体力耗尽 ≠ 被驱退**：体力只是"能不能冲刺/扑咬"的开关，见底后只能慢行/休息，不会被判定为已驱退。
+- 静止休息缓慢回血 + 回体力（回血慢，玩家节奏上仍打得动狐狸）。
+- 被土拨鼠攻击同时扣血和扣一部分体力。
+- 血条低 → 速度与伤害下降。
+- 慢行不耗体力；冲刺/扑咬耗体力。
+- 本阶段不允许玩家打死狐狸，但机制上保留 hp 归零分支（死亡/平衡是阶段 2）。
+
+### 新增 `FOX.vitals` 字段与取值（src/core/config.js）
+| 字段 | 值 | 说明 |
+|---|---|---|
+| maxStamina | 100 | 体力上限 |
+| stalkStaminaPerSec | 0 | 慢行/潜行接近：不耗体力 |
+| sprintStaminaPerSec | 18 | 冲刺持续消耗/秒 |
+| pounceStaminaPerSec | 26 | 扑咬冲刺阶段消耗/秒（阶段 1 冲刺统一按此值） |
+| restStaminaPerSec | 14 | 休息回体力/秒 |
+| restHpRegenRatio | 0.035 | 休息回血/秒（占 maxHp 比例） |
+| hitStaminaCost | 7 | 每次受击额外扣体力 |
+| staminaLockSeconds | 1.2 | 体力见底后禁止冲刺的锁定时长 |
+| lowHpThreshold | 0.5 | 低于此血量比例开始影响速度/伤害 |
+| speedMulAtZeroHp | 0.72 | 零血时的速度倍率下限 |
+| damageMulAtZeroHp | 0.6 | 零血时的伤害倍率下限 |
+
+### 体力收支表（哪个状态扣多少 / 回多少）
+| 状态 | 体力/秒 | 血量/秒 |
+|---|---|---|
+| dash（普通狐冲刺 / 智能狐 pounceCommitted） | −26（pounceStaminaPerSec） | 0 |
+| rest（冲刺后喘息 / recover / abandon） | +14 | +3.5% maxHp |
+| roam / wind / circle / linger / abandon 移动 | 0（stalk=0） | 0 |
+| 受击（一次性） | −7 | −damage |
+
+唯一收支入口是纯函数 `stepStamina(state, dt, options)`（src/core/fox-motion.js），
+返回 `{stamina, locked, exhausted, hp}` 新值，不改传入对象。
+
+### 低血速度/伤害倍率曲线
+hpRatio 与倍率（低血阈值 0.5，线性插值）：
+| hpRatio | 速度倍率 | 伤害倍率 |
+|---|---|---|
+| 1.0 | 1.00 | 1.00 |
+| 0.75 | 1.00 | 1.00 |
+| 0.5 | 1.00 | 1.00 |
+| 0.25 | 0.86 | 0.80 |
+| 0.0 | 0.72 | 0.60 |
+
+速度倍率作用于普通狐地面移动（`update()` 里 `speed`）与冲刺速度（`FOX.dashSpeed × dashSpeedMul` 处）；
+伤害倍率作用于狐狸打玩家的结算点（src/main.js 接触伤害 `damage` 处）。
+
+### 体力不足时的行为
+- **普通狐**：`_beginDash()` 入口处守卫 —— `staminaLocked > 0` 或 `!canSprint(stamina, sprintStaminaPerSec, dashTime)` 时不冲刺，落到 `state='rest'`（timer ≥ 0.6s），清掉 combo 账本与预警线。覆盖 wind→dash、drill、combo 各路径。
+- **智能狐**：`stepSmartMotion` 的 `options.commitAllowed` 追加 `staminaLocked <= 0 && canSprint(stamina, pounceStaminaPerSec, pounceLockTime)`，体力不足时永不提交扑击，狐狸继续走 observe/approach/feint 等非扑击意图。
+- 体力见底（drain 到 0）置 `exhausted` 且 `locked = 1.2s`，locked 期间即使休息回了点体力也不允许冲刺（防抖动）。
+
+### 体力条显示
+- 独立 `buildStaminaBar()`（结构与血条一致：group → bg + userData.fill，左锚收缩，不缩放 group）。
+- 颜色暖金 `0xe0b34a`（血条 `0xd8735a`），位置在血条下方：`baseY + 1.38 × scale`（血条 1.55 × scale）。
+- 只在 `stamina < maxStamina − 0.5` 时显示，避免画面 clutter；flee/死亡/sandbox dummy 时隐藏。
+- `_updateStaminaBar()` 与 `_updateHpBar()` 同款 lookAt billboard。
+
+### 其它接入点
+- `hit()`：普通狐与 sandbox dummy 两个分支都在扣血的同时扣 `hitStaminaCost` 体力（dummy 分支其余逻辑未动）。
+- `respawnAt()`：复位时体力回满、`staminaLocked = 0`。
+- `dispose()`：释放 staminaBar。
+- `SmartFox.update()`：接入同一 `stepStamina`（`this.state==='rest'` 为 resting，pounceCommitted 为 drain）。
+
+### 新增/修改文件
+- `src/core/config.js`：新增 `FOX.vitals`
+- `src/core/fox-motion.js`：新增 `canSprint` / `hpSpeedMultiplier` / `hpDamageMultiplier` / `stepStamina`
+- `src/entities/fox.js`：体力字段、体力条、stepStamina 接入、_beginDash 守卫、低血速度倍率、hit/respawnAt/dispose
+- `src/entities/smart-fox.js`：stepStamina 接入、commitAllowed 体力守卫、体力条更新
+- `src/entities/smart-fox-core.mjs`：未改（体力纯函数放 fox-motion.js，决策权重本阶段不动）
+- `src/main.js`：狐狸打玩家伤害乘 `hpDamageMultiplier`
+- `tools/test-fox-vitals.cjs`：新增（run-node-tests.cjs 为自动发现 tools/test-* 文件，无需注册条目）
+- `tools/run-node-tests.cjs`：未改（自动发现机制）
+
+### 测试项与结果（tools/test-fox-vitals.cjs，9 项全过）
+1. FOX.vitals 存在且方向正确
+2. canSprint 足够/不足/保底 0.1s
+3. hpSpeedMultiplier 阈值=1、零血=0.72、单调递减
+4. hpDamageMultiplier 阈值=1、零血=0.6、单调递减
+5. stepStamina 冲刺 1s 按 18/s 消耗
+6. stepStamina 休息 1s 回 14 体力 + 3.5% maxHp 血量（封顶 100%）
+7. 体力到 0 → exhausted=true、locked=1.2
+8. locked 期间即使回了体力也不允许冲刺
+9. 纯函数：不修改传入对象
+
+`node tools/run-node-tests.cjs`：OK 37/37（22 个浏览器/CDP 测试按惯例跳过）。
+
+### 验证清单
+- node --check：config.js / fox-motion.js / fox.js / smart-fox.js / smart-fox-core.mjs / main.js 全过
+- node tools/run-node-tests.cjs：37/37 PASS
+- grep stepStamina / stamina：接入点齐全
+
+## 阶段 2：驱退口径改造 —— 狐狸自主撤退 / 撤退即驱退 / 允许打死但玩家打不死
+
+### 新的驱退语义（与旧语义对照）
+
+| 维度 | 旧口径（阶段 1 及之前） | 新口径（本阶段） |
+|---|---|---|
+| 驱退触发 | `hp <= 0` 由 `hitFox()` 强塞：打空血 → 强制 `startFleeing()` | 狐狸**自主**判断（血量/体力/连被打），`_enterRetreat()` 主动撤 |
+| 驱退计数时点 | 打空血的那一帧 | 狐狸撤到休息点、**进入 `rest_safe` 的那一刻**（去休息 = 被驱退） |
+| `hp <= 0` 的含义 | 不会死，转身逃跑后重生（增援） | **真死**：`state='dead'`，不 flee、不 respawn、不再参与更新 |
+| 玩家胜利路径 | 打空血 | **逼退**（设计上玩家几乎打不死：它剩一截血就自己撤了） |
+| 撤退还击 | 逃跑中不可互动 | 撤退/休息中可被命中但**不退出撤退**、不重置计数 |
+
+### 撤退触发条件与优先级
+
+纯函数 `shouldRetreat({hpRatio, staminaRatio, hitStreak, state}, FOX.retreat)`（`src/core/fox-motion.js`），
+在 `Fox.update()` 每帧由狐狸自身状态求值，**不经外部受击逻辑**：
+
+1. `state` 为 `wind` / `dash`（攻击流程中）→ 永不撤退（最高优先级，否决项）
+2. `state` 为 `retreat` / `rest_safe` / `dead` → 不重复触发
+3. `hpRatio ≤ 0.45`（`FOX.retreat.hpRatio`）→ 撤退
+4. `staminaRatio ≤ 0.25`（`FOX.retreat.staminaRatio`）→ 撤退
+5. `hitStreak ≥ 4`（连续被打，脱战 6s 后衰减清零）→ 撤退
+6. 迎击练习狐（`drillCtx`）不撤退，由复位机制接管
+
+休息点选择（`chooseRestPoint` 纯函数）：优先"离玩家 ≥16m 的洞穴口背玩家一侧"，
+否则沿背离玩家方向推 26m，均夹在活动场边界内。
+
+### `rest_safe` 流程与时长
+
+- `retreat`：以 `FOX.retreat.speed = 6.0`（快于慢行、慢于冲刺、不耗体力）跑向休息点，距 `< 1.5m` 到达
+- 到达 → `enterRestSafe()`：`state='rest_safe'`、`repelCounted=true`，**仅当本回合首次进入时**调用
+  `this.onRepelled(this)`（方式 A 回调，`main.js` 的 `wireRepelCallback` 注入：
+  `levelRepels++` / `totalRepels++` / `charge +18` / `energy +8` / `audio.repel()` /
+  `'威胁已解除'` 飘字 / `colRepel` 粒子 / `recordTestLog('fox-repelled')`）
+- `rest_safe` 中静止休息：复用阶段 1 `stepStamina` 的 `resting=true` 分支回血回体力
+- 休息时长（`FOX.retreat.restSeconds`）：normal 6s / pup 4.5s / fast 5s / heavy 7s / **boss 12s** / smart 7s；
+  计时到**或血回满**→ `exitRestSafe()` 回 `roam`，`repelCounted` 复位（下次撤退可再计数）
+
+### 死亡路径（为什么玩家打不死）
+
+`hp <= 0` → `resolveHitState` 返回 `'dead'`：隐藏 mesh/warn/双条，不 flee、不 respawn。
+正常路径打不死的原因：撤退阈值 `hpRatio 0.45` 远高于致死区，狐狸在血量还剩近一半时就已撤离战斗，
+玩家没有持续输出的窗口；打死只发生在"撤退前被爆发伤害瞬间清空"的理论路径。
+`hitFox()` 中 `hp<=0` 只做死亡表现（飘字/粒子/音效/`recordTestLog('fox-died')`），**不计驱退**。
+关卡通关目标本就为"采食 + 伙伴到家 + 回洞"，不依赖驱退数，故狐狸真死不会卡关。
+
+### 智能狐对齐
+
+- `SmartFox.update()` 顶部新增 `shouldRetreat` 硬阈值检查：满足即 `_enterRetreat()` 并交回普通狐狸逻辑
+- `retreating` / `rest_safe` / `dead` 状态整体回落到 `Fox.update()`（撤退移动、休息回血、死亡表现复用）
+- 效用层的 `recover` / `abandon` 意图本就偏向低血/疲劳撤离（权重未动，阶段 4 的活）；
+  硬阈值兜底保证低血智能狐**更早**转入真正的撤退并入 `rest_safe` 计数，而不是等 `hp≤0`
+- 休息结束一并清零 `fatigue`
+
+### 文案改动前后对照
+
+| 位置 | 改前 | 改后 |
+|---|---|---|
+| 标题面板 | "你不会真的杀死藏狐。把它们打到体力耗尽后，它们会夹着尾巴转身逃跑……" | "你几乎打不死藏狐 —— 它会自己判断形势，血量体力见底就撤到远处躲起来回血。**逼退**它才算解决威胁。" |
+| 帮助页 | "**驱退不等于杀死**：藏狐体力耗尽后会转身逃向草地边缘……" | "**逼退不等于杀死**：藏狐察觉形势不利会主动撤到安全处休息回血，休息够了再回来。你要做的不是把它打死，是把它**逼退**。" |
+| `hitFox` 注释 | "体力耗尽 = 被驱退。它不会死，而是转身逃跑。" | 新口径注释：驱退由 rest_safe 回调计数，hp≤0 是真死、不计驱退 |
+
+全仓 `grep 体力耗尽` 仅剩两处"体力耗尽 ≠ 被驱退"的否定式注释（符合口径）。
+
+### 测试项与结果（tools/test-fox-repel.cjs，12 项全过）
+
+1. `FOX.retreat` 配置存在且方向正确（首领休息 > 普通狐）
+2. 血量健康+体力充足+蓄力/冲刺中 → 不撤退
+3. 血量低 + 空闲 → 撤退
+4. 体力低 + 空闲 → 撤退
+5. 连被打 ≥ 阈值 → 撤退；血量健康 → 不撤退
+6. 撤退/休息/死亡中不重复触发
+7. `chooseRestPoint` 优先选远离玩家的洞穴
+8. 无洞穴 → 背离玩家方向且夹在边界内
+9. `enterRestSafe` 计数恰好一次（连续进入不重复）
+10. `stepRestSafe` 计时到/血回满 → done
+11. `exitRestSafe` 回 `roam` 且 `repelCounted` 复位（可再计数）
+12. `resolveHitState`：`hp≤0 → 'dead'`（非 flee）；完整撤退循环串联
+
+`node tools/run-node-tests.cjs`：OK 38/38（22 个浏览器/CDP 测试按惯例跳过）。
+
+### 验证清单
+
+- `node --check`：fox.js / main.js / smart-fox.js / config.js / fox-motion.js / drill.js 全过
+- `node tools/run-node-tests.cjs`：38/38 PASS
+- `grep levelRepels src/main.js`：自增仅出现在 `wireRepelCallback` 一处
+- `grep startFleeing`：main.js 已无调用；fox.js 保留为 legacy 兜底（不再有触发方）
+
+---
+
+## 阶段 3：战术层 —— 包抄 / 协作 / 受伤就撤
+
+### 1. 包抄槽位分配规则
+
+- **逃跑轴估计**：每只智能狐对玩家位移速度做一阶低通（`dt*3` 增益）得到 `_escVel`，速度 >0.5 m/s 时取 `atan2(vx,vz)` 为 `escapeAxis`；玩家基本不动时退化为"远离本狐"方向。
+- **槽位生成** `flankSlots(count, escapeAxis, player, radius=6)`：以逃跑轴正后方（180°）为基准，按 60° 步长向两侧对称展开 —— 3 只狐 → 180° / 120° / 240°，全部落在逃跑轴后半球，绝不挤在玩家前进正面。
+  ```
+              玩家 → 逃跑方向
+        槽2(240°)  槽0(180°)  槽1(120°)
+              ← 狐从侧后方收拢
+  ```
+- **槽位认领** `assignFlankSlot(self, peers, slots)`：未被同伴 `flankSlotIndex` 占用的槽位中挑最近的，自己上一轮占过的槽位有 1.5m 粘性偏置（不来回跳）；无可用槽位返回 `null` → 退回原直追半径，不崩。
+- `approach` 意图下目标点改为分到的槽位；到槽位 1.3m 内降级为 `observe` 等时机。`observe`/`approach` 的权重与既有半径行为未动。
+
+### 2. 角色派发表（`assignRoles`，复用 `createSmartPack` 之上）
+
+| 角色 | 职责 | 切换条件 | 粘性 |
+|---|---|---|---|
+| striker | 主攻，独占扑咬提交权（`commitAllowed` 只有它为 true） | 距玩家近 + 血量体力最足者 | 1.5s 内不换人 |
+| flanker | 绕逃跑轴侧后槽位 | 非主攻者按 slot 交替 | 1.5s |
+| distractor | 正面施压，不提交扑咬 | 非主攻者按 slot 交替 | 1.5s |
+| retreat | 撤退回血 | 血量<45% / retreating / rest_safe / dead | 即时 |
+
+效果：玩家同一时刻只面对一次有威胁的扑咬（`canCommit` 错峰仍在，角色门控在其之上叠加，不重写）。
+
+### 3. 受伤撤退触发与恢复流程
+
+1. `hit()` 记录 `_lastHitAt = _age`；
+2. 下一帧 `forcedRetreat({lastHitAt}, {now, window:0.05})` 硬规则触发（覆盖 utility 打分，未改 `SMART_WEIGHTS`）→ 进入 0.45s **侧向甩开**窗口：意图强制 `recover`，目标点 = 背离玩家方向 ± 75° 侧移，不直线背逃；
+3. 甩开结束 → `_enterRetreat()` 走阶段 2 的 retreat → `rest_safe` 回血链路（驱退计数不变）；
+4. 从 `rest_safe` 归队 → 8s **谨慎期**（`_cautiousUntil`），期间不提交扑咬。
+
+### 4. 复用的既有机制
+
+- `createSmartPack` 错峰提交（未重写，仅叠加 striker 门控）
+- `flankBias` / `foxSeparation`：侧向偏置与防挤分离原样保留
+- `memory` / `hitStreak` / `interruptions` / `trackFeint`：惯性与记忆照旧
+- 阶段 2 `shouldRetreat` / `_enterRetreat` / `rest_safe` 链路
+- `Fox.slot`：角色派发与槽位占用的稳定身份
+
+### 5. 测试项与结果
+
+`tools/test-fox-tactics.cjs`（12 项，已注册进 `run-node-tests.cjs` 的自动发现）：
+
+- `flankSlots`：数量正确 / 角度互不重叠 / 全在逃跑轴后半球（3 只=120°/180°/240°）/ 单只=正后方 / count=0 返回空
+- `assignFlankSlot`：两狐不同槽、占位避让、粘性保持、无槽返回 null
+- `assignRoles`：唯一 striker、伤员与撤退中=retreat、同输入两次结果相同、holdTime 内不换主攻 / 超时允许换、单只=striker、空数组不崩
+- `forcedRetreat`：刚被打 true / 未被打 false / 旧受击 false
+
+`node tools/run-node-tests.cjs`：OK 39/39（22 个浏览器/CDP 测试按惯例跳过）。
+
+### 验证清单
+
+- `node --check`：smart-fox-core.mjs / smart-fox.js / main.js 全过
+- `node tools/run-node-tests.cjs`：39/39 PASS
+- `grep flankSlots|assignFlankSlot|assignRoles|forcedRetreat src/entities/smart-fox-core.mjs`：四个导出均在
+- observe/approach 权重与 `SMART_WEIGHTS`、普通狐 `Fox` 追击逻辑均未改
+
+---
+
+# 阶段 4：感知层（可发现性）+ 冲刺扑咬两阶段 + 动作集对齐
+
+## 1. 三个动作的能力表（FOX.ACTIONS / FOX.detection）
+
+| 动作 | 速度 | 体力 | 被察觉半径 | 预警线 |
+|---|---|---|---|---|
+| 慢行 stalk | 2.5 m/s | 0/s（不耗） | 6.2 m（难被发现） | 无 |
+| 冲刺 sprint | 6.4 m/s | 18/s 持续 | 11.5 m（易被发现） | 无（智能狐逼近） |
+| 扑咬 pounce | 冲刺段 10.6×1.18≈12.5 → 扑击 13.5 m/s | 冲刺段 26/s 持续 + 扑咬一次性 26 | 17.0 m（最易被发现） | 冲刺阶段显示，长度=真实冲刺位移 |
+
+数值全部与 `src/play/play-as-fox.js` 的 `PAF_DEFAULTS` 对齐（见下表），两边代码独立、互不 import。
+
+## 2. 两阶段扑咬时序（智能狐专属，普通狐不动）
+
+```
+[慢行/冲刺接近]（3~7m、角度≤20°、体力够、striker 才提交）
+  → 冲刺阶段 dashStage  0.42s（固定时长，不因距离变化）
+      速度 = 扑击基准 × 1.18（略快于普通冲刺）
+      预警线显示，长度 = 剩余冲刺的真实欧拉积分位移（smartPounceDashDistance）
+      体力按 26/s 持续扣
+      玩家能做：横向跑开 / 准备迎击 / 趁预警期先下手
+  → 扑咬前摇 windup  0.10s（极短，原地不动）
+  → 扑咬 strike  0.22s（真实位移，不是瞬移；13.5 m/s ≈ 2.97m，只扑近地）
+      激活帧内水平重叠 → 命中，结算路径与现有 fox 完全一致（接触伤害/迎击/击退全部沿用）
+      一次性扣体力 26
+  → 后摇 recover  0.45s（硬直：不能移动/攻击/再扑）
+      玩家能做：反击窗口（白打 0.45s）
+```
+
+- 撞障（岩石/场地边界）→ 当帧 `cancelSmartPounce`：扑击取消、`pounceStriking=false`（本帧起无伤害）、进后摇。589d31b 语义保留。
+- 主循环伤害门控：智能狐仅 `pounceCommitted && pounceStriking`（strike 激活帧）才结算接触伤害。
+- 提交门槛：`stamina ≥ staminaCost(26) + pounceStaminaPerSec × dashDuration`，体力不足不允许进入冲刺阶段。
+
+## 3. 察觉机制（可发现性）
+
+- `src/main.js` 每帧检查：玩家在视距 30m 内、视野锥（全角 100°）内，狐狸当前动作决定察觉半径（慢行 6.2 / 冲刺 11.5 / 扑咬·蓄力 17.0）。
+- 一旦察觉 → `f.detected = true`（锁定），HUD 提示一次「你发现了一只藏狐！」；该狐血条/体力条改为「被察觉或受伤才显示」（`fox.js` `_updateHpBar`/`_updateStaminaBar`）。
+- 智能狐侧利用：`detected` 计入 utility 的 suspicion 输入（+0.6 封顶），已被发现的狐狸更倾向 observe/feint（更谨慎），未被发现的才敢冲刺硬扑；未改 `SMART_WEIGHTS` 已有系数。
+
+## 4. 与 play-as-fox 数值对齐对照表
+
+| PAF_DEFAULTS | 值 | 本阶段落点 | 值 |
+|---|---|---|---|
+| stalkSpeed | 2.5 | FOX.ACTIONS.stalk.speed | 2.5 |
+| runSpeed | 6.4 | FOX.ACTIONS.sprint.speed | 6.4 |
+| lungeSpeed | 13.5 | SMART_POUNCE_STAGE.strikeSpeed | 13.5 |
+| lungeTime | 0.42 | SMART_POUNCE_STAGE.strikeTime(0.22)+windup(0.10)+… | 0.22 |
+| recoverTime | 0.5 | SMART_POUNCE_STAGE.recoverTime | 0.45 |
+| detectStalk / Sprint / Lunge | 6.2 / 11.5 / 17.0 | FOX.detection.stalk / sprint / pounce | 6.2 / 11.5 / 17.0 |
+
+## 5. 测试项与结果
+
+`tools/test-fox-pounce.cjs`（8 项，被 `run-node-tests.cjs` 自动发现）：
+
+- 冲刺阶段位移 = `smartPounceDashDistance`（预警线长度与真实逐帧位移严格一致，误差 <1e-6）
+- 冲刺时长固定：初始距离 3.2m / 6.8m 的 dash 帧数完全相同
+- 冲刺速度：`dashSpeedMul=1.18 ∈ (1, 1.25]`，且 dash 速度 > ACTIONS.sprint.speed、< strikeSpeed
+- 前摇 <0.15s、后摇 >0.3s、strike 逐帧位移（非瞬移）且只扑近地、后摇硬直不可移动
+- 体力：`staminaCost=26` 一次性消耗、体力不足不进冲刺阶段（commitAllowed 同口径）
+- 撞障取消：纯函数 `cancelSmartPounce` → 取消帧起 `pounceStriking=false`（无伤害）、进后摇、不改原对象
+- 察觉半径/动作表与 PAF 对齐且单调（stalk < sprint < pounce）
+- 完整时序：dash → windup → strike → recover 顺序正确
+
+`node tools/run-node-tests.cjs`：OK 40/40（22 个浏览器/CDP 测试按惯例跳过）。
+
+---
+
+# 阶段 5：藏狐调参台（lil-gui 实时调参）
+
+## 新增/修改文件
+
+- 新增 `src/systems/fox-tuning.js`：`FoxTuning` 类，lil-gui 面板（CSS 用 `link[data-lil-gui]` 去重注入，与 debug-volumes 共存不重复）。
+- 修改 `src/entities/smart-fox-core.mjs`：新增**可变覆盖层** `SMART_POUNCE_TUNE`（初始值复制自冻结常量 `SMART_POUNCE_STAGE`）与 `resetSmartPounceTune()`；core 内所有扑咬时序读取改走覆盖层。
+- 修改 `src/entities/smart-fox.js`：扑咬体力门槛/扣体力读 `SMART_POUNCE_TUNE`。
+- 修改 `src/main.js`：`?foxtune=1` 懒加载调参台（独立参数，不影响 `?debugvolumes=1`）；新增 `respawnFoxesForTuning()` 供"重生当前狐狸"按钮使用。
+- 新增 `tools/test-fox-tuning.cjs`（7 项测试）。
+
+## 怎么用
+
+URL 加 `?foxtune=1` 打开游戏，右上角出现"藏狐调参台"浮层；普通玩家（无参数）完全不加载 lil-gui、零运行时开销。面板工具夹提供：复位默认 / 重生当前狐狸 / 导出JSON / 导入JSON（导入按字段校验数值类型后才写回）。
+
+## 可调参数清单
+
+- **体力 / Stamina**（`FOX.vitals`）：maxStamina（体力上限）、sprintStaminaPerSec、pounceStaminaPerSec、restStaminaPerSec、restHpRegenRatio、hitStaminaCost、staminaLockSeconds。
+- **血量影响 / HP**（`FOX.vitals`）：lowHpThreshold（低血阈值）、speedMulAtZeroHp（零血速度倍率下限）、damageMulAtZeroHp（零血伤害倍率下限）。
+- **扑咬时序 / Pounce**（`SMART_POUNCE_TUNE`）：dashDuration、dashSpeedMul、windupTime、strikeTime、strikeSpeed、recoverTime、maxStrikeDistance、staminaCost。
+- **可发现性 / Detection**（`FOX.detection`）：stalk/sprint/pounce 被察觉半径、viewRange、viewConeDeg。
+- **动作 / Actions**（`FOX.ACTIONS`）：stalk.speed、sprint.speed。
+- **撤退阈值 / Retreat**（`FOX.retreat`）：hpRatio、staminaRatio、hitStreak、hitStreakDecay、speed。
+
+## 覆盖层的设计原因
+
+`SMART_POUNCE_STAGE` / `SMART_POUNCE` 是 `Object.freeze` 的，lil-gui 无法改写；直接去掉 freeze 又会让默认值失去"永远安全"的兜底。所以引入不冻结的 `SMART_POUNCE_TUNE` 作为运行时驱动值：逻辑代码全部读覆盖层，冻结常量只当出厂默认；`resetSmartPounceTune()` 一键还原。预警线长度约束不变：`smartPounceDashDistance()` 的 `remaining` 缺省改从覆盖层取，仍用与 `stepSmartMotion` 相同的整帧欧拉积分，预警线长度 = 实际冲刺位移（测试断言误差 <1e-9）。
+
+## 快照刷新边界（哪些立即生效、哪些要点"重生"）
+
+- **立即生效（下一帧）**：vitals 全部字段（`stepStamina` / `hpSpeedMultiplier` 等运行时读取）、detection、ACTIONS 速度、retreat 阈值、`SMART_POUNCE_TUNE` 全部字段。
+- **maxStamina 特例**：`fox.maxStamina` 是构造时快照（fox.js:123），面板改动时会**同步刷新所有现存狐狸**并把 `stamina` clamp 到新上限，无需重生。
+- **需要点"重生当前狐狸"**：`fox.maxHp`（fox.js:120，随关卡递增减）等构造时快照字段；重生按原槽位/原位置/原朝向重建，智能狐仍生成智能狐。
+
+## 测试
+
+`tools/test-fox-tuning.cjs`（7 项，被 `run-node-tests.cjs` 自动发现）：覆盖层默认值 == 冻结常量、`resetSmartPounceTune()` 完全复位、改 strikeTime/windupTime 后 `stepSmartMotion` 真实时序跟着变（证明读的是覆盖层而非冻结常量）、`smartPounceDashDistance()` 随 dashDuration 变化且与逐帧积分严格一致、`cancelSmartPounce` 后摇读覆盖层、`FOX.vitals` 改动后 `stepStamina` 收支随之变化。原四组测试（vitals 9 / repel 13 / tactics 10 / pounce 8）全部保持全绿。

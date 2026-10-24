@@ -113,3 +113,121 @@ export function stepFoxRecovery(timer, vx, vz, dt) {
     vz: nextTimer > 0 ? velocity.vz : 0,
   };
 }
+
+// ---------- 体力（stamina）纯函数：唯一收支入口 ----------
+
+/** 体力是否足以发起一次冲刺/扑咬。 */
+export function canSprint(stamina, staminaPerSec, dt = 0) {
+  // 需要至少留够这一段时间的消耗
+  return stamina > staminaPerSec * Math.max(dt, 0.1);
+}
+
+/** 低血量对速度的倍率：血量 ≥ 阈值 → 1；血量 → 0 → speedMulAtZeroHp。 */
+export function hpSpeedMultiplier(hpRatio, vitals) {
+  const t = Math.max(0, Math.min(1, hpRatio / vitals.lowHpThreshold));
+  return vitals.speedMulAtZeroHp + (1 - vitals.speedMulAtZeroHp) * t;
+}
+
+/** 低血量对伤害的倍率（与速度同理，但地板更低）。 */
+export function hpDamageMultiplier(hpRatio, vitals) {
+  const t = Math.max(0, Math.min(1, hpRatio / vitals.lowHpThreshold));
+  return vitals.damageMulAtZeroHp + (1 - vitals.damageMulAtZeroHp) * t;
+}
+
+/**
+ * 每帧的体力收支（纯函数：不修改传入对象，返回新值）。
+ * 静止休息时 resting=true → regenPerSec 生效，同时按 hpRegenRatio 缓慢回血；
+ * 否则按 drainPerSec 消耗（可为 0，例如慢行不耗体力）。
+ * 体力见底 → exhausted=true 且 locked=staminaLockSeconds（locked>0 期间不可冲刺）。
+ * @returns {{stamina:number, locked:number, exhausted:boolean, hp:number}}
+ */
+export function stepStamina(state, dt, options = {}) {
+  const maxStamina = options.maxStamina ?? FOX.vitals.maxStamina;
+  const lockSeconds = options.staminaLockSeconds ?? FOX.vitals.staminaLockSeconds;
+  let stamina = state.stamina ?? maxStamina;
+  let hp = state.hp ?? options.maxHp ?? 0;
+  let locked = Math.max(0, (state.locked ?? 0) - Math.max(0, dt));
+  let exhausted = false;
+  if (options.resting) {
+    stamina = Math.min(maxStamina, stamina + (options.regenPerSec ?? 0) * dt);
+    const maxHp = options.maxHp ?? hp;
+    hp = Math.min(maxHp, hp + maxHp * (options.hpRegenRatio ?? 0) * dt);
+  } else {
+    stamina = Math.max(0, stamina - (options.drainPerSec ?? 0) * dt);
+    if (stamina <= 0 && (options.drainPerSec ?? 0) > 0) {
+      exhausted = true;
+      locked = lockSeconds;
+    }
+  }
+  return { stamina, locked, exhausted, hp };
+}
+
+// ---------- 自主撤退（阶段 2 驱退口径）纯函数 ----------
+
+/**
+ * 狐狸自己是否该撤退（纯函数）。撤退是狐狸自己的判断，不是受击逻辑强塞。
+ * 触发：血量低 / 体力低 / 短时间连续被打；攻击流程（wind/dash）中不撤退，
+ * 已在撤退/休息/死亡状态下也不重复触发。
+ */
+export function shouldRetreat({ hpRatio = 1, staminaRatio = 1, hitStreak = 0, state = 'roam' } = {}, cfg = FOX.retreat) {
+  if (state === 'wind' || state === 'dash') return false;           // 攻击流程中不撤退
+  if (state === 'retreat' || state === 'rest_safe' || state === 'dead') return false;
+  if (hpRatio <= cfg.hpRatio) return true;
+  if (staminaRatio <= cfg.staminaRatio) return true;
+  if ((hitStreak ?? 0) >= cfg.hitStreak) return true;
+  return false;
+}
+
+/**
+ * 选休息点（纯函数）：优先"玩家不在附近"的洞穴口旁，否则沿背离玩家方向推到安全距离。
+ * 返回 {x, z}，已夹进活动场边界。
+ */
+export function chooseRestPoint({ foxX, foxZ, playerX, playerZ, burrows = [], bounds }, cfg = FOX.retreat) {
+  const margin = 4;
+  const hw = (bounds?.hw ?? 74) - margin;
+  const hh = (bounds?.hh ?? 44) - margin;
+  const clampX = (v) => Math.max(-hw, Math.min(hw, v));
+  const clampZ = (v) => Math.max(-hh, Math.min(hh, v));
+  let best = null, bestD = Infinity;
+  for (const b of burrows || []) {
+    const dp = Math.hypot(b.x - playerX, b.z - playerZ);
+    if (dp < 16) continue;                       // 玩家就在洞口，那里不安全
+    const df = Math.hypot(b.x - foxX, b.z - foxZ);
+    if (df < bestD) { bestD = df; best = b; }
+  }
+  if (best) {
+    // 洞口背玩家一侧；+3.5 保证在 _groundSteer 的洞穴避让半径之外，走得到
+    const a = Math.atan2(best.x - playerX, best.z - playerZ);
+    return { x: clampX(best.x + Math.sin(a) * (best.r + 3.5)),
+      z: clampZ(best.z + Math.cos(a) * (best.r + 3.5)) };
+  }
+  const ax = foxX - playerX, az = foxZ - playerZ;
+  const d = Math.hypot(ax, az) || 1;
+  const dist = 26;
+  return { x: clampX(playerX + (ax / d) * dist), z: clampZ(playerZ + (az / d) * dist) };
+}
+
+/**
+ * 进入 rest_safe 的纯状态迁移。justCounted 只在"本回合首次进入"时为 true ——
+ * 调用方据此恰好触发一次驱退计数，连续多帧停留不会重复计数。
+ */
+export function enterRestSafe(state = {}, restSeconds = 6) {
+  const justCounted = !state.repelCounted;
+  return { state: 'rest_safe', timer: restSeconds, repelCounted: true, justCounted };
+}
+
+/** 休息计时推进（纯函数）：计时到或血回满 → done=true，调用方退出 rest_safe。 */
+export function stepRestSafe({ timer = 0, hp = 0, maxHp = 1 } = {}, dt = 0) {
+  const next = Math.max(0, timer - Math.max(0, dt));
+  return { timer: next, done: next <= 0 || hp >= maxHp };
+}
+
+/** 休息结束、重新参战的纯状态迁移：repelCounted 复位，允许下次撤退再计数。 */
+export function exitRestSafe() {
+  return { state: 'roam', retreating: false, restPoint: null, repelCounted: false, hitStreak: 0 };
+}
+
+/** 受击后的状态裁决（纯函数）：hp ≤ 0 → 真死（'dead'），不是 flee、不重生。 */
+export function resolveHitState(hp) {
+  return hp <= 0 ? 'dead' : null;
+}
