@@ -218,10 +218,11 @@ export class SettingsUI {
       } catch (_) { /* fail-soft：GPU 信息永远不应阻断设置面板 */ }
       html += `<section class="gpu-info-settings" aria-label="图形/渲染信息">
       <h4>图形 / 渲染</h4>
-      <div class="gpu-info-grid">
-        <span class="gpu-info-label">后端</span><span class="gpu-info-value">${info.backend}</span>
-        <span class="gpu-info-label">GPU</span><span class="gpu-info-value">${info.gpu}</span>
-        <span class="gpu-info-label">加速</span><span class="gpu-info-value">${info.acceleration}</span>
+      <!-- inline 样式：styles.css 带 ?v= 缓存戳，本批修复不升戳，inline 保证线上立即生效 -->
+      <div class="gpu-info-grid" style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px;margin:6px 0">
+        <span style="opacity:.7">后端</span><span>${info.backend}</span>
+        <span style="opacity:.7">GPU</span><span>${info.gpu}</span>
+        <span style="opacity:.7">加速</span><span>${info.acceleration === '软件渲染' ? `${info.acceleration}（未硬件加速）` : info.acceleration}</span>
       </div>
       <p>只读信息：GPU 名称取自 WebGL 调试扩展，读取失败时显示"不可用"，不影响游戏。</p>
     </section>`;
