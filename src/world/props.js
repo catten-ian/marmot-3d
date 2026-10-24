@@ -25,10 +25,12 @@ function buildBurrowLabel(text) {
   ctx.fillText(text, 128, 42);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false });
+  // depthTest:true：标签参与深度测试，被前方岩石/地形正确遮挡（此前 depthTest:false
+  // 导致文字穿透岩石常显）。保留 depthWrite:false 以免写入深度干扰后续透明物。
+  // renderOrder 也无需再强行置顶，交给正常深度排序。
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: true });
   const sprite = new THREE.Sprite(mat);
   sprite.scale.set(2.4, 0.75, 1);
-  sprite.renderOrder = 20;
   return sprite;
 }
 
