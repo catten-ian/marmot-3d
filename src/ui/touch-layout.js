@@ -113,6 +113,26 @@ export function clampCardCenter(x, y, scale, safe, w, h, rect, currentScale = 1,
     y: axis(y, h, safe.top, safe.bottom, hy),
   };
 }
+/** 归一化 0..1 → 展示用百分比（0-100，保留 1 位小数）。 */
+export function normalizedToPercent(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(clamp(n, 0, 1) * 1000) / 10;
+}
+
+/**
+ * 百分比输入（数字或带 % 的字符串）→ 归一化 0..1。
+ * 非法输入返回 null（调用方保持原值），越界输入 clamp 到边界，绝不产生 NaN。
+ */
+export function percentToNormalized(input) {
+  const text = String(input).trim().replace(/%\s*$/, '');
+  if (text === '') return null; // 空输入（清空输入框过程态）保持原值
+  const n = Number(text);
+  if (!Number.isFinite(n)) return null;
+  // 5 位小数取整：消除 87.6/100=0.8759999… 这类浮点尾巴，保证百分比↔归一化往返一致。
+  return Math.round(clamp(n / 100, 0, 1) * 100000) / 100000;
+}
+
 // 攻击键内圈（装饰触发核心）默认占外圈 55%、不透明度 92%，滑块范围 40-100% / 30-100%。
 const ATTACK_CORE_DEFAULTS = { size: 0.55, opacity: 0.92 };
 
@@ -570,6 +590,29 @@ export class TouchLayout {
     if (SELECTABLE_IDS.includes(id) || CARDS.includes(id)) { this.selected = id; this._syncEditor(); }
   }
 
+  /**
+   * 数字输入设定 HUD 卡位置（百分比 0-100，内部仍存归一化 0..1）。
+   * 走与拖动一致的 _safeCardCenter 边界/安全区夹紧；非法输入的轴保持原值。
+   * 返回是否实际应用（非卡片 id / 卡片缺失时返回 false）。
+   */
+  setCardPositionPercent(id, xPercent, yPercent) {
+    if (!CARDS.includes(id)) return false;
+    const item = this.layout.cards?.[id];
+    if (!item) return false;
+    const nx = percentToNormalized(xPercent);
+    const ny = percentToNormalized(yPercent);
+    if (nx == null && ny == null) return false;
+    const w = Math.max(320, innerWidth || 390), h = Math.max(320, innerHeight || 844);
+    const safe = readInsets();
+    const scale = clamp(item.scale, CARD_SCALE[0], CARD_SCALE[1]);
+    const p = this._safeCardCenter(id, (nx ?? item.x) * w, (ny ?? item.y) * h, scale, safe, w, h);
+    item.x = clamp(p.x / w, 0, 1);
+    item.y = clamp(p.y / h, 0, 1);
+    this._cardPosTouched[id] = true;
+    this.apply();
+    return true;
+  }
+
   settingsMarkup() {
     const options = (ids) => ids.map((id) => `<option value="${id}" ${id === this.selected ? 'selected' : ''}>${LABELS[id]}</option>`).join('');
     return `<section class="touch-layout-settings" aria-label="触屏技能盘设置">
@@ -579,6 +622,7 @@ export class TouchLayout {
       <div class="layout-setting-row"><label for="layoutSelected">单个控件</label><select id="layoutSelected"><optgroup label="动作按钮">${options(ACTIONS)}</optgroup><optgroup label="沙盒控制">${options([SANDBOX_CONTROL])}</optgroup><optgroup label="移动摇杆">${options([JOYSTICK])}</optgroup><optgroup label="HUD 卡片">${options(CARDS)}</optgroup></select></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonScale">单项大小</label><input id="layoutButtonScale" type="range" min="0.7" max="1.35" step="0.05"><output data-layout-value="buttonScale"></output></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonOpacity">单项透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
+      <div class="layout-setting-row card-pos-row"><label>卡片位置（屏幕宽/高百分比）</label><span class="card-pos-inputs"><label>X <input id="layoutCardX" type="number" min="0" max="100" step="0.5" inputmode="decimal">%</label><label>Y <input id="layoutCardY" type="number" min="0" max="100" step="0.5" inputmode="decimal">%</label></span></div>
       <div class="layout-setting-row joystick-row"><label for="layoutJoystickScale">摇杆整体大小 (70-140%)</label><input id="layoutJoystickScale" type="range" min="${JOYSTICK_SCALE_MIN}" max="${JOYSTICK_SCALE_MAX}" step="0.05" value="${this.layout.joystick.scale}"><output data-layout-value="joystickScale"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreSize">攻击键内圈大小 (40-100%)</label><input id="layoutAttackCoreSize" type="range" min="0.4" max="1" step="0.01"><output data-layout-value="attackCoreSize"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreOpacity">攻击键内圈透明度 (30-100%)</label><input id="layoutAttackCoreOpacity" type="range" min="0.3" max="1" step="0.01"><output data-layout-value="attackCoreOpacity"></output></div>
@@ -601,6 +645,7 @@ export class TouchLayout {
       <div class="layout-setting-row"><label for="layoutSelected">单个卡片</label><select id="layoutSelected"><optgroup label="HUD 卡片">${options}</optgroup></select></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonScale">卡片大小</label><input id="layoutButtonScale" type="range" min="0.75" max="1.25" step="0.05"><output data-layout-value="buttonScale"></output></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonOpacity">卡片透明度</label><input id="layoutButtonOpacity" type="range" min="0.35" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
+      <div class="layout-setting-row card-pos-row"><label>卡片位置（屏幕宽/高百分比）</label><span class="card-pos-inputs"><label>X <input id="layoutCardX" type="number" min="0" max="100" step="0.5" inputmode="decimal">%</label><label>Y <input id="layoutCardY" type="number" min="0" max="100" step="0.5" inputmode="decimal">%</label></span></div>
       <div class="layout-actions"><button type="button" class="ghost-btn" data-layout-edit>进入拖动编辑</button><button type="button" class="ghost-btn" data-layout-save>保存方案 / 设为默认</button><button type="button" class="ghost-btn" data-layout-reset>恢复设计默认</button></div>
       <p class="layout-save-status" aria-live="polite">进入编辑后拖动卡片调整位置，完成后点画面上方“完成编辑”按钮（也可按暂停键）。保存后刷新/重进仍保留。</p>
     </section>`;
@@ -628,6 +673,21 @@ export class TouchLayout {
       item.opacity = clamp(Number(btnOpacity.value), isCard ? CARD_OPACITY[0] : 0.3, 1);
       this.apply();
     });
+    // HUD 卡 X/Y 数字输入：轻防抖即时移动，走与拖动相同的安全区夹紧；非法输入保持原值。
+    const cardX = byId('layoutCardX'), cardY = byId('layoutCardY');
+    let cardPosTimer = 0;
+    const applyCardPosInput = () => {
+      if (!CARDS.includes(this.selected)) return;
+      this.setCardPositionPercent(this.selected, cardX?.value, cardY?.value);
+    };
+    const onCardPosInput = () => {
+      clearTimeout(cardPosTimer);
+      cardPosTimer = setTimeout(applyCardPosInput, 120);
+    };
+    cardX?.addEventListener('input', onCardPosInput);
+    cardY?.addEventListener('input', onCardPosInput);
+    cardX?.addEventListener('change', applyCardPosInput);
+    cardY?.addEventListener('change', applyCardPosInput);
     // 摇杆整体大小：滑块即时缩放（apply 内经 onJoystickScale 同步 TouchControls），并立即持久化。
     const jsScale = byId('layoutJoystickScale');
     jsScale?.addEventListener('input', () => {
@@ -704,6 +764,16 @@ export class TouchLayout {
     if (isAttack) {
       if (coreSize && Number(coreSize.value) !== item.coreSize) coreSize.value = item.coreSize;
       if (coreOpacity && Number(coreOpacity.value) !== item.coreOpacity) coreOpacity.value = item.coreOpacity;
+    }
+    // HUD 卡 X/Y 数字输入：仅选中卡片时显示；拖动/恢复默认后由 apply→_syncEditor 同步数值。
+    const isCard = CARDS.includes(this.selected);
+    const cardItem = isCard ? item : null;
+    layout.querySelectorAll('.card-pos-row').forEach((row) => { row.style.display = isCard ? '' : 'none'; });
+    const cardX = layout.querySelector('#layoutCardX'), cardY = layout.querySelector('#layoutCardY');
+    if (cardItem) {
+      const xPct = String(normalizedToPercent(cardItem.x)), yPct = String(normalizedToPercent(cardItem.y));
+      if (cardX && cardX.value !== xPct && document.activeElement !== cardX) cardX.value = xPct;
+      if (cardY && cardY.value !== yPct && document.activeElement !== cardY) cardY.value = yPct;
     }
     // 疾跑触发范围滑块始终显示（即便选中卡片也可调摇杆内圈）。
     const sprint = layout.querySelector('#layoutSprintThreshold');
