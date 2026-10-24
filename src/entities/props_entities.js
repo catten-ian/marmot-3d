@@ -11,7 +11,8 @@
 import * as THREE from 'three';
 import { terrainHeight } from '../core/utils.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
-import { USE_REAL_MODELS } from '../core/version.js';
+import { USE_REAL_MODELS, IS_BETA } from '../core/version.js';
+import { BETA_TUNE } from '../core/beta-tuning.js';
 
 /** 真实土拨鼠模型（与藏狐同一套分级回退，见 models/loader.js） */
 const instantiateMarmot = () => instantiate('./assets/models/marmot.glb', 'marmot');
@@ -30,7 +31,8 @@ export class Food {
     this.kind = kind || (this.herbivore ? 'grass' : 'berry');
     this.respawnIn = 0;
     this.group = new THREE.Group();
-    this.group.position.set(x, terrainHeight(x, z) + 0.52, z);
+    this.lift = IS_BETA && this.kind === 'flower' ? 0 : 0.52;
+    this.group.position.set(x, terrainHeight(x, z) + this.lift, z);
 
     if (this.kind === 'flower') this._buildFlower();
     else if (this.herbivore) this._buildHerb();
@@ -58,7 +60,7 @@ export class Food {
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.018, 0.25, 6), new THREE.MeshStandardMaterial({ color: 0x6c8a45, roughness: 0.9 }));
     stem.position.y = 0.03; this.group.add(stem);
     const halo = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.13, depthWrite: false }));
-    halo.rotation.x = -Math.PI / 2; halo.position.y = -0.5; this.group.add(halo); this.halo = halo;
+    halo.rotation.x = -Math.PI / 2; halo.position.y = IS_BETA ? 0.02 : -0.5; this.group.add(halo); this.halo = halo;
   }
 
   /** 浆果造型（正式版） */
@@ -222,8 +224,8 @@ export class Food {
       return;
     }
     this._t += dt;
-    const bob = Math.sin(this._t * 2.2) * (this.herbivore ? 0.035 : 0.06);
-    this.group.position.y = terrainHeight(this.x, this.z) + 0.52 + bob;
+    const bob = Math.sin(this._t * 2.2) * (IS_BETA && this.kind === 'flower' ? 0.012 : (this.herbivore ? 0.035 : 0.06));
+    this.group.position.y = terrainHeight(this.x, this.z) + this.lift + bob;
     this.halo.material.opacity = (this.herbivore ? 0.1 : 0.08) + Math.sin(this._t * 2.6) * (this.herbivore ? 0.04 : 0.04);
     this.group.rotation.y += dt * (this.herbivore ? 0.18 : 0.35);
     if (this.linoleicRing) {
@@ -382,9 +384,11 @@ export class Companion {
     if (this.rescued && !this.saved) {
       const dx = playerPos.x - this.x, dz = playerPos.z - this.z;
       const d = Math.hypot(dx, dz);
-      if (d > 1.5) {
-        this.x += (dx / d) * 7.2 * dt;
-        this.z += (dz / d) * 7.2 * dt;
+      const follow = IS_BETA ? BETA_TUNE : null;
+      if (d > (follow ? follow.companionFollowGap : 1.5)) {
+        const speed = follow ? follow.companionFollowSpeed : 7.2;
+        this.x += (dx / d) * speed * dt;
+        this.z += (dz / d) * speed * dt;
       }
       this.mesh.rotation.y = Math.atan2(dx, dz);
     } else if (!this.rescued) {
