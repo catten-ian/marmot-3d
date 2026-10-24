@@ -181,3 +181,63 @@ hpRatio 与倍率（低血阈值 0.5，线性插值）：
 - `node tools/run-node-tests.cjs`：38/38 PASS
 - `grep levelRepels src/main.js`：自增仅出现在 `wireRepelCallback` 一处
 - `grep startFleeing`：main.js 已无调用；fox.js 保留为 legacy 兜底（不再有触发方）
+
+---
+
+## 阶段 3：战术层 —— 包抄 / 协作 / 受伤就撤
+
+### 1. 包抄槽位分配规则
+
+- **逃跑轴估计**：每只智能狐对玩家位移速度做一阶低通（`dt*3` 增益）得到 `_escVel`，速度 >0.5 m/s 时取 `atan2(vx,vz)` 为 `escapeAxis`；玩家基本不动时退化为"远离本狐"方向。
+- **槽位生成** `flankSlots(count, escapeAxis, player, radius=6)`：以逃跑轴正后方（180°）为基准，按 60° 步长向两侧对称展开 —— 3 只狐 → 180° / 120° / 240°，全部落在逃跑轴后半球，绝不挤在玩家前进正面。
+  ```
+              玩家 → 逃跑方向
+        槽2(240°)  槽0(180°)  槽1(120°)
+              ← 狐从侧后方收拢
+  ```
+- **槽位认领** `assignFlankSlot(self, peers, slots)`：未被同伴 `flankSlotIndex` 占用的槽位中挑最近的，自己上一轮占过的槽位有 1.5m 粘性偏置（不来回跳）；无可用槽位返回 `null` → 退回原直追半径，不崩。
+- `approach` 意图下目标点改为分到的槽位；到槽位 1.3m 内降级为 `observe` 等时机。`observe`/`approach` 的权重与既有半径行为未动。
+
+### 2. 角色派发表（`assignRoles`，复用 `createSmartPack` 之上）
+
+| 角色 | 职责 | 切换条件 | 粘性 |
+|---|---|---|---|
+| striker | 主攻，独占扑咬提交权（`commitAllowed` 只有它为 true） | 距玩家近 + 血量体力最足者 | 1.5s 内不换人 |
+| flanker | 绕逃跑轴侧后槽位 | 非主攻者按 slot 交替 | 1.5s |
+| distractor | 正面施压，不提交扑咬 | 非主攻者按 slot 交替 | 1.5s |
+| retreat | 撤退回血 | 血量<45% / retreating / rest_safe / dead | 即时 |
+
+效果：玩家同一时刻只面对一次有威胁的扑咬（`canCommit` 错峰仍在，角色门控在其之上叠加，不重写）。
+
+### 3. 受伤撤退触发与恢复流程
+
+1. `hit()` 记录 `_lastHitAt = _age`；
+2. 下一帧 `forcedRetreat({lastHitAt}, {now, window:0.05})` 硬规则触发（覆盖 utility 打分，未改 `SMART_WEIGHTS`）→ 进入 0.45s **侧向甩开**窗口：意图强制 `recover`，目标点 = 背离玩家方向 ± 75° 侧移，不直线背逃；
+3. 甩开结束 → `_enterRetreat()` 走阶段 2 的 retreat → `rest_safe` 回血链路（驱退计数不变）；
+4. 从 `rest_safe` 归队 → 8s **谨慎期**（`_cautiousUntil`），期间不提交扑咬。
+
+### 4. 复用的既有机制
+
+- `createSmartPack` 错峰提交（未重写，仅叠加 striker 门控）
+- `flankBias` / `foxSeparation`：侧向偏置与防挤分离原样保留
+- `memory` / `hitStreak` / `interruptions` / `trackFeint`：惯性与记忆照旧
+- 阶段 2 `shouldRetreat` / `_enterRetreat` / `rest_safe` 链路
+- `Fox.slot`：角色派发与槽位占用的稳定身份
+
+### 5. 测试项与结果
+
+`tools/test-fox-tactics.cjs`（12 项，已注册进 `run-node-tests.cjs` 的自动发现）：
+
+- `flankSlots`：数量正确 / 角度互不重叠 / 全在逃跑轴后半球（3 只=120°/180°/240°）/ 单只=正后方 / count=0 返回空
+- `assignFlankSlot`：两狐不同槽、占位避让、粘性保持、无槽返回 null
+- `assignRoles`：唯一 striker、伤员与撤退中=retreat、同输入两次结果相同、holdTime 内不换主攻 / 超时允许换、单只=striker、空数组不崩
+- `forcedRetreat`：刚被打 true / 未被打 false / 旧受击 false
+
+`node tools/run-node-tests.cjs`：OK 39/39（22 个浏览器/CDP 测试按惯例跳过）。
+
+### 验证清单
+
+- `node --check`：smart-fox-core.mjs / smart-fox.js / main.js 全过
+- `node tools/run-node-tests.cjs`：39/39 PASS
+- `grep flankSlots|assignFlankSlot|assignRoles|forcedRetreat src/entities/smart-fox-core.mjs`：四个导出均在
+- observe/approach 权重与 `SMART_WEIGHTS`、普通狐 `Fox` 追击逻辑均未改

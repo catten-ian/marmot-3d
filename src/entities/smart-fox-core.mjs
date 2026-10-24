@@ -166,3 +166,111 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
   if (s.pounceCommitted) s.intent = 'pounce'; else if (s.intent !== 'recover') s.intent = intent;
   return s;
 }
+
+// —— 阶段 3：战术层（包抄站位 / 角色分工 / 受伤即撤）——
+
+/**
+ * 给 N 只狐分配绕行站位槽位（相对玩家逃跑轴）。
+ * 槽位以"逃跑轴正后方(180°)"为基准向两侧对称展开（步长 60°），
+ * 即 3 只狐 → 180° / 120° / 240°，全部落在逃跑轴的后半球，绝不挤在玩家正面。
+ * 返回 [{ index, angle, x, z }]，angle 采用项目统一的 atan2(dx, dz) 偏航约定。
+ */
+export function flankSlots(count, escapeAxis, player, radius = 6) {
+  const n = Math.max(0, Math.floor(count));
+  if (!n || !player) return [];
+  const mid = (n - 1) / 2;
+  const step = n > 1 ? Math.PI / 3 : 0;
+  const slots = [];
+  for (let i = 0; i < n; i++) {
+    const angle = escapeAxis + Math.PI + (i - mid) * step;
+    slots.push({
+      index: i, angle,
+      x: player.x + Math.sin(angle) * radius,
+      z: player.z + Math.cos(angle) * radius,
+    });
+  }
+  return slots;
+}
+
+/**
+ * 这只狐应该去哪个槽位：在未被同伴占用的槽位里挑离自己最近的，
+ * 并对自己上一轮占过的槽位给粘性偏置（避免槽位间来回跳）。
+ * 同伴通过各自的 `flankSlotIndex` 字段声明占用；没有可用槽位返回 null（退回直追，不崩）。
+ */
+export function assignFlankSlot(self, peers, slots) {
+  if (!slots || !slots.length) return null;
+  const claimed = new Set();
+  for (const p of peers || []) {
+    if (p === self) continue;
+    const idx = p.flankSlotIndex;
+    if (Number.isInteger(idx) && idx >= 0 && idx < slots.length) claimed.add(idx);
+  }
+  let best = null;
+  let bestScore = Infinity;
+  for (const s of slots) {
+    if (claimed.has(s.index)) continue;
+    const d = Math.hypot(s.x - self.x, s.z - self.z);
+    const score = s.index === self.flankSlotIndex ? d - 1.5 : d;
+    if (score < bestScore) { bestScore = score; best = s.index; }
+  }
+  return best;
+}
+
+/**
+ * 角色派发：返回 { slot: { role, since } }。
+ *  - retreat    ：已残血 / 撤退中 / 休息中 / 死亡
+ *  - striker    ：距玩家近且血量体力最足者，独占扑咬提交权
+ *  - flanker / distractor ：其余交替（包抄 / 正面牵制），不提交扑咬
+ * 粘性：`prev` 中未过 `holdTime` 的角色优先保留，避免每帧乱跳。
+ */
+export function assignRoles(foxes, player, prev = {}, now = 0, options = {}) {
+  const hold = options.holdTime ?? 1.5;
+  const out = {};
+  const eligible = [];
+  for (const f of foxes || []) {
+    if (!f) continue;
+    const slot = f.slot ?? 0;
+    const pe = prev[slot];
+    const hpRatio = f.maxHp ? f.hp / f.maxHp : 1;
+    const injured = hpRatio < (options.retreatHpRatio ?? 0.45)
+      || f.retreating || f.state === 'rest_safe' || f.state === 'dead' || (f.hp ?? 1) <= 0;
+    if (injured) {
+      out[slot] = { role: 'retreat', since: pe?.role === 'retreat' ? pe.since : now };
+    } else eligible.push(f);
+  }
+  if (!eligible.length) return out;
+  const scored = eligible.map((f) => {
+    const d = Math.hypot(f.x - player.x, f.z - player.z);
+    const hpRatio = f.maxHp ? f.hp / f.maxHp : 1;
+    const staminaRatio = f.maxStamina ? f.stamina / f.maxStamina : 1;
+    return { f, score: d - hpRatio * 2 - staminaRatio * 2 };
+  }).sort((a, b) => a.score - b.score || ((a.f.slot ?? 0) - (b.f.slot ?? 0)));
+  let striker = scored[0].f;
+  for (const { f } of scored) {
+    const pe = prev[f.slot ?? 0];
+    if (pe?.role === 'striker' && now - pe.since < hold) { striker = f; break; }
+  }
+  const strikerSlot = striker.slot ?? 0;
+  out[strikerSlot] = { role: 'striker', since: prev[strikerSlot]?.role === 'striker' ? prev[strikerSlot].since : now };
+  eligible.filter((f) => f !== striker)
+    .sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0))
+    .forEach((f, i) => {
+      const slot = f.slot ?? 0;
+      const pe = prev[slot];
+      let role = i % 2 === 0 ? 'flanker' : 'distractor';
+      if ((pe?.role === 'flanker' || pe?.role === 'distractor') && now - pe.since < hold) role = pe.role;
+      out[slot] = { role, since: pe?.role === role ? pe.since : now };
+    });
+  return out;
+}
+
+/**
+ * 刚被打过 → 强撤退倾向（硬规则，覆盖 utility 打分，不改 SMART_WEIGHTS）。
+ * state: { lastHitAt }；options: { now, window }（window 内受过击即 true）。
+ */
+export function forcedRetreat(state = {}, options = {}) {
+  const now = options.now ?? 0;
+  const window = options.window ?? 0.6;
+  if (!Number.isFinite(state.lastHitAt)) return false;
+  return now - state.lastHitAt <= window;
+}

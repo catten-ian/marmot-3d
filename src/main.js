@@ -1543,6 +1543,9 @@ function update(dt) {
   p.guard = parryWindowT > 0;
   let threats = 0;
   let anyWinding = false;
+  const smartFoxes = foxes.filter((candidate) => candidate.type === 'smart');
+  // 阶段 3：本帧智能狐群体的共享战术存储（角色分派粘性表 roles 等）
+  const smartTactics = { roles: null };
   for (const f of foxes) {
     const prevState = f.state;
     if (sandboxState.parryDrill) {
@@ -1550,9 +1553,8 @@ function update(dt) {
     } else if (f.drillCtx) {
       delete f.drillCtx;
     }
-    const smartFoxes = foxes.filter((candidate) => candidate.type === 'smart');
     f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow,
-      f.type === 'smart' ? { smartFoxes, coordinator: sandboxState.active ? sandboxState.smartPack : null } : null);
+      f.type === 'smart' ? { smartFoxes, coordinator: sandboxState.active ? sandboxState.smartPack : null, tactics: smartTactics } : null);
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
