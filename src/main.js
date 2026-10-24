@@ -350,6 +350,11 @@ const VIEW_MODE_KEY = 'marmot3d.viewMode.v1';
 let thirdPerson = false;
 try { thirdPerson = localStorage.getItem(VIEW_MODE_KEY) === 'third-person'; } catch (_) { /* storage may be unavailable */ }
 
+// 视角切换键可重绑（keybinds 的 cameraView 动作）。binds 实例在模块后段创建，
+// setViewMode 首次执行时 binds 尚不可用，故用可变标签 + 创建后统一刷新。
+// 注意：该变量必须在本文件首次调用 setViewMode() 之前初始化，否则触发 TDZ。
+let viewKeyLabel = 'V';
+
 function setViewMode(enabled, announce = false) {
   thirdPerson = !!enabled;
   controller.setThirdPerson(thirdPerson);
@@ -368,9 +373,6 @@ const viewBtn = document.getElementById('viewBtn');
 if (viewBtn) viewBtn.onclick = () => setViewMode(!thirdPerson, true);
 setViewMode(thirdPerson);
 
-// 视角切换键可重绑（keybinds 的 cameraView 动作）。binds 实例在模块后段创建，
-// setViewMode 首次执行时 binds 尚不可用，故用可变标签 + 创建后统一刷新。
-let viewKeyLabel = 'V';
 function refreshViewKeyHint() {
   if (!viewBtn) return;
   viewBtn.title = thirdPerson
