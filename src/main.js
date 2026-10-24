@@ -79,8 +79,9 @@ import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { createSmartPack } from './entities/smart-fox-core.mjs';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION, VERSION_LABEL } from './core/version.js';
 import { BETA_TUNE, betaFlowerCompletesImmediately, resolveLungeLockYaw } from './core/beta-tuning.js';
+import { documentTitleFor } from './core/version-mode.mjs';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, energyOfFlower, eatLine, HERBIVORE,
@@ -354,6 +355,11 @@ const VIEW_MODE_KEY = 'marmot3d.viewMode.v1';
 let thirdPerson = false;
 try { thirdPerson = localStorage.getItem(VIEW_MODE_KEY) === 'third-person'; } catch (_) { /* storage may be unavailable */ }
 
+// 视角切换键可重绑（keybinds 的 cameraView 动作）。binds 实例在模块后段创建，
+// setViewMode 首次执行时 binds 尚不可用，故用可变标签 + 创建后统一刷新。
+// 注意：该变量必须在本文件首次调用 setViewMode() 之前初始化，否则触发 TDZ。
+let viewKeyLabel = 'V';
+
 function setViewMode(enabled, announce = false) {
   thirdPerson = !!enabled;
   controller.setThirdPerson(thirdPerson);
@@ -361,7 +367,7 @@ function setViewMode(enabled, announce = false) {
   if (viewBtn) {
     viewBtn.textContent = thirdPerson ? '第三人称' : '第一人称';
     viewBtn.setAttribute('aria-pressed', String(thirdPerson));
-    viewBtn.title = thirdPerson ? '切换第一人称视角 (V)' : '切换第三人称视角 (V)';
+    refreshViewKeyHint();
   }
   document.body.classList.toggle('third-person', thirdPerson);
   try { localStorage.setItem(VIEW_MODE_KEY, thirdPerson ? 'third-person' : 'first-person'); } catch (_) { /* storage may be unavailable */ }
@@ -371,6 +377,13 @@ function setViewMode(enabled, announce = false) {
 const viewBtn = document.getElementById('viewBtn');
 if (viewBtn) viewBtn.onclick = () => setViewMode(!thirdPerson, true);
 setViewMode(thirdPerson);
+
+function refreshViewKeyHint() {
+  if (!viewBtn) return;
+  viewBtn.title = thirdPerson
+    ? `切换第一人称视角 (${viewKeyLabel})`
+    : `切换第三人称视角 (${viewKeyLabel})`;
+}
 
 // —— 真实模型预加载（含分级回退）——
 // 异步进行，不阻塞游戏启动。返回每一档的加载级别：
@@ -438,6 +451,12 @@ hud.setLoading(96);
   }
   document.body.classList.toggle('dev-version', IS_DEV);
   document.body.classList.toggle('beta-version', IS_BETA);
+}
+
+// —— 标签页标题：beta/dev 附加通道后缀，stable 保持静态 <title> 不动 ——
+{
+  const docTitle = documentTitleFor(VERSION);
+  if (docTitle) document.title = docTitle;
 }
 
 // ============================================================
@@ -1035,6 +1054,7 @@ function levelClearHTML() {
 
 function finish(won, reason = '被藏狐逮住了。') {
   // 结算只应触发一次
+  hidePauseMini();
   if (game.mode === 'won' || game.mode === 'lost') return;
   clearPendingAerialParry();
   cancelAttackCharge();
@@ -1109,6 +1129,7 @@ function showLevelSelect() {
 }
 
 function title() {
+  hidePauseMini();
   destroySandboxDebugGUI();
   if (game.sandbox && sandboxResumeLevel != null) game.level = sandboxResumeLevel;
   sandboxResumeLevel = null;
@@ -1124,7 +1145,7 @@ function title() {
     <h2>从两只藏狐，到草原守望者。</h2>
     <button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>
     ${IS_BETA ? `<button class="sandbox-entry" id="playAsFoxBtn" type="button" style="border-color:#b98a4a">扮演藏狐（BETA） <span>潜行 · 蓄力 · 扑击捕猎土拨鼠</span></button>` : ''}
-    <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>V</b> 切换为第三人称跟随视角，随时按需选择。</p>
+    <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>${bindText(binds, 'cameraView', 'V')}</b> 切换为第三人称跟随视角，随时按需选择。</p>
     <p>每关完成 <b>采食、救援与陪伴</b>，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
     <p style="font-size:12px">采食需要按住停留；附近有狐狸、疾行或刚受击时会明显变慢。${IS_BETA ? ' BETA 关卡会少量出现稀有花：采得更快、回复更多，但不会刷新。' : ''}</p>
@@ -1241,6 +1262,7 @@ function showTeacherNote() {
 
 function startPlay() {
   audio.ensure();
+  hidePauseMini();
   hud.hidePanel();
   game.mode = 'play';
   loadLevel(game.level, true);
@@ -1258,10 +1280,37 @@ function resetAll() {
 }
 
 function retryLevel() {
+  hidePauseMini();
   loadLevel(game.level, false);
   game.mode = 'play';
   hud.hidePanel();
   if (!controller.touchEnabled) controller.requestLock();
+}
+
+// —— 收起暂停面板后的小悬浮恢复控件 ——
+// 只在"玩家主动收起 PAUSED 大窗但游戏仍处于 pause 态"时存在；
+// resume / 重试 / 回标题 / 结算等任何离开 pause 的路径都必须移除它。
+let pauseMiniEl = null;
+function showPauseMini() {
+  hidePauseMini();
+  const el = document.createElement('button');
+  el.id = 'pauseMini';
+  el.type = 'button';
+  el.textContent = `已暂停 · 点击继续 (${bindText(binds, 'pause')} / Enter)`;
+  el.setAttribute('aria-label', '已暂停，点击继续游戏');
+  // 用 inline 样式而非 styles.css 新类：public shell 的 CSS 带 ?v= 缓存戳，
+  // 本批修复不升戳，inline 样式可确保线上立即生效。
+  el.style.cssText = 'position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));left:50%;'
+    + 'transform:translateX(-50%);z-index:60;padding:8px 18px;border-radius:999px;'
+    + 'border:1px solid rgba(255,255,255,.35);background:rgba(20,30,38,.82);color:#eaf4ff;'
+    + 'font-size:14px;letter-spacing:.04em;cursor:pointer;backdrop-filter:blur(4px);'
+    + 'box-shadow:0 4px 14px rgba(0,0,0,.35);';
+  el.onclick = () => resume();
+  document.body.appendChild(el);
+  pauseMiniEl = el;
+}
+function hidePauseMini() {
+  if (pauseMiniEl) { pauseMiniEl.remove(); pauseMiniEl = null; }
 }
 
 function pause() {
@@ -1272,6 +1321,7 @@ function pause() {
   attackFullFlashT = 0;
   hideAttackHint();
   game.mode = 'pause';
+  hidePauseMini();
   keys.clear();
   touchControls?.releaseAll();
   controller.exitLock();
@@ -1290,9 +1340,16 @@ function pause() {
       <button class="ghost" id="pRetryBtn">重试本关 · ${bindText(binds, 'retry')}</button>
       <button class="ghost" id="pTitleBtn">返回标题</button>
       <button class="ghost" id="pFeedbackBtn">问题反馈 / 反馈建议</button>
+      <button class="ghost" id="pCollapseBtn">收起面板（保持暂停）</button>
     </div>
   `);
   document.getElementById('resumeBtn').onclick = resume;
+  // 只收起面板：游戏保持 pause 态（模拟冻结），由小悬浮控件/暂停键/Enter 恢复。
+  document.getElementById('pCollapseBtn').onclick = () => {
+    if (game.mode !== 'pause') return;
+    hud.hidePanel();
+    showPauseMini();
+  };
   document.getElementById('pRetryBtn').onclick = retryLevel;
   document.getElementById('pTitleBtn').onclick = () => { hud.hidePanel(); title(); };
   document.getElementById('pFeedbackBtn').onclick = () => feedbackUI.open();
@@ -1300,6 +1357,7 @@ function pause() {
 
 function resume() {
   game.mode = 'play';
+  hidePauseMini();
   hud.hidePanel();
   keys.clear();
   // Esc 退出锁定后浏览器有短暂冷却，可能拒绝立即重锁；
@@ -2203,7 +2261,10 @@ touchControls = new TouchControls({
       } else interactHeld = false;
     } else if (pressed && action === 'burst') doBurst();
     else if (pressed && action === 'ultimate') doUltimate();
-    else if (pressed && action === 'pause') pause();
+    else if (pressed && action === 'pause') {
+      // 触屏暂停入口做成切换：暂停面板被收起（保持暂停）时也能从这里恢复。
+      if (game.mode === 'pause') resume(); else pause();
+    }
   },
 });
 
@@ -2244,7 +2305,7 @@ window.addEventListener('keydown', (e) => {
     toggleFullscreen();
     return;
   }
-  if (e.code === 'KeyV' && game.mode === 'play') {
+  if (binds.isAction(e.code, 'cameraView') && game.mode === 'play') {
     e.preventDefault();
     setViewMode(!thirdPerson, true);
     return;
@@ -2428,7 +2489,9 @@ touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
 touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
 touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
-const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState, audio);
+// 设置面板"图形/渲染"只读信息：惰性读取当前渲染器（beta 为经典 WebGLRenderer，
+// dev GS 为 WebGPURenderer 家族；读取失败由 readGpuInfo fail-soft 为"不可用"）。
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState, audio, () => renderer);
 touchLayout.onEditingStart = () => settingsUI.transferPauseToLayoutEditor();
 // 游戏中打开设置自动暂停；关闭时仅在由设置发起暂停时恢复（已暂停/标题态保持）。
 settingsUI.setPauseHooks({
@@ -2655,6 +2718,9 @@ binds.onChange(() => updateKbSkillBar());
 
 // 键位变化时同步帮助面板上的按键提示，避免文档与实际绑定不一致
 function syncHelpKeys() {
+  // 视角切换按钮的 title/快捷键提示跟随 cameraView 绑定实时刷新
+  viewKeyLabel = bindText(binds, 'cameraView', 'V');
+  refreshViewKeyHint();
   const rows = binds.describe();
   const row = (id) => rows.find((x) => x.id === id);
   const parts = (id, includeAlt = true) => {
@@ -2706,7 +2772,7 @@ function syncHelpKeys() {
       <span>${keys('dodge')} 翻滚 / 闪避（触屏右侧翻滚键）</span>
       <span>${keys('burst')} 应急爆发　${keys('ultimate')} 协同大招</span>
       <span>${keys('interact')} 救援 / 陪伴　${keys('sprint')} 疾行（更快但更耗储备）</span>
-      <span><kbd>V</kbd> 第一/第三人称视角切换</span>
+      <span>${keys('cameraView', 'V')} 第一/第三人称视角切换</span>
       <span>${keys('pause')} 暂停　${keys('retry')} 重试本关　${keys('restart')} 从第一关重开　${keys('fullscreen')} 全屏</span>
       <span><kbd>${escLine}</kbd> · <kbd>Enter</kbd> 标题/暂停/通关确认</span>
     </div>

@@ -51,6 +51,7 @@ export const ACTIONS = [
   { id: 'interact',   label: '救援/陪伴', type: 'combat' },
   { id: 'sprint',     label: '疾行',   type: 'combat' },
   { id: 'pause',      label: '暂停',   type: 'system' },
+  { id: 'cameraView', label: '切换视角', type: 'system' },
   { id: 'retry',      label: '重试本关', type: 'system' },
   { id: 'restart',    label: '从第一关重开', type: 'system' },
   { id: 'fullscreen', label: '全屏',   type: 'system' },
@@ -62,6 +63,7 @@ const COMPAT = {
   attack: 'Space', parry: 'KeyB', dodge: 'KeyC', jump: 'KeyF', burst: 'KeyJ', ultimate: 'KeyK',
   interact: 'KeyE', sprint: 'ShiftLeft',
   pause: 'KeyP', retry: 'KeyT', restart: 'KeyR', fullscreen: 'F11',
+  cameraView: 'KeyV',
 };
 
 /**
@@ -96,6 +98,8 @@ const OPTIMIZED = {
   retry: 'KeyT',
   restart: 'KeyY',
   fullscreen: 'F11',
+  // 第一/第三人称切换：默认 V，可在自定义方案中改键
+  cameraView: 'KeyV',
 };
 
 /** 为移动方向补充方向键作为备选（无论哪个方案都保留，照顾习惯用方向键的玩家） */

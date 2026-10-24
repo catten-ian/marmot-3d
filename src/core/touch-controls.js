@@ -309,7 +309,8 @@ export class TouchControls {
     this.root.querySelectorAll('[data-touch-action]').forEach((button) => {
       const action = button.dataset.touchAction;
       add(button, 'touchstart', (event) => {
-        if (!this.enabled || !this.isActive()) return;
+        // pause 按钮例外：游戏已暂停（尤其暂停面板被收起）时仍可点，用于恢复。
+        if (!this.enabled || (!this.isActive() && action !== 'pause')) return;
         for (const touch of event.changedTouches) {
           if (this.pointerRoles.has(touch.identifier)) continue;
           this.pointerRoles.set(touch.identifier, 'button:' + action);

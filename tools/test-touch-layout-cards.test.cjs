@@ -39,3 +39,37 @@ const assert = require('node:assert/strict');
     assert.ok(normalized.y > 0 && normalized.y < 1);
   });
 })();
+
+// —— HUD 卡 X/Y 百分比输入的纯函数（item 4）——
+(async () => {
+  const { normalizedToPercent, percentToNormalized } = await import('../src/ui/touch-layout.js');
+
+  test('normalizedToPercent：0..1 → 0-100（1 位小数，clamp）', () => {
+    assert.equal(normalizedToPercent(0), 0);
+    assert.equal(normalizedToPercent(1), 100);
+    assert.equal(normalizedToPercent(0.5), 50);
+    assert.equal(normalizedToPercent(0.123456), 12.3);
+    assert.equal(normalizedToPercent(-0.2), 0);
+    assert.equal(normalizedToPercent(1.7), 100);
+    assert.equal(normalizedToPercent(NaN), 0);
+  });
+
+  test('percentToNormalized：数字/带%字符串/越界/非法', () => {
+    assert.equal(percentToNormalized(50), 0.5);
+    assert.equal(percentToNormalized('25'), 0.25);
+    assert.equal(percentToNormalized('87.5%'), 0.875);
+    assert.equal(percentToNormalized(' -10 '), 0, '越界 clamp 到 0');
+    assert.equal(percentToNormalized('250'), 1, '越界 clamp 到 1');
+    assert.equal(percentToNormalized('abc'), null, '非法输入返回 null（保持原值）');
+    assert.equal(percentToNormalized(''), null);
+    assert.equal(percentToNormalized(NaN), null);
+    const r = percentToNormalized('33.3');
+    assert.ok(r > 0 && r < 1 && Number.isFinite(r), '结果必须是有限数，绝不 NaN');
+  });
+
+  test('百分比 ↔ 归一化往返一致', () => {
+    for (const v of [0, 0.05, 0.5, 0.876, 1]) {
+      assert.equal(percentToNormalized(normalizedToPercent(v)), Math.round(v * 1000) / 1000);
+    }
+  });
+})();
