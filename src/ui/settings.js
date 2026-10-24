@@ -29,6 +29,9 @@ export class SettingsUI {
       body: document.getElementById('setBody'),
     };
     this.capturing = null; // 正在等待按键重绑的动作 id
+    // 由 main.js 注入的暂停钩子：游戏中打开设置会暂停，关闭时仅在本次发起暂停时恢复。
+    this.pauseHooks = null;
+    this._pausedByPanel = false;
 
     if (this.el.btn) this.el.btn.onclick = () => this.toggle();
     if (this.el.close) this.el.close.onclick = () => this.close();
@@ -48,6 +51,34 @@ export class SettingsUI {
     this.render();
   }
 
+  /** main.js 注入：{ pause(), resume(), isPaused(), isPlaying() } */
+  setPauseHooks(hooks) { this.pauseHooks = hooks || null; }
+
+  _pauseForPanel() {
+    // 只在真正游戏中才由面板发起暂停；标题/已暂停/结算等状态保持原样。
+    if (this.pauseHooks?.isPlaying?.() && !this.pauseHooks?.isPaused?.()) {
+      this.pauseHooks.pause?.();
+      this._pausedByPanel = !!this.pauseHooks.isPaused?.();
+    } else {
+      this._pausedByPanel = false;
+    }
+  }
+
+  _resumeFromPanel() {
+    if (this._pausedByPanel) {
+      this._pausedByPanel = false;
+      this.pauseHooks?.resume?.();
+    }
+  }
+
+  /** 把本面板发起的暂停移交给布局编辑器（从设置面板进入拖动编辑时）。 */
+  transferPauseToLayoutEditor() {
+    if (!this._pausedByPanel || !this.touchLayout?.editing) return false;
+    this._pausedByPanel = false;
+    this.touchLayout.adoptExistingPause?.();
+    return true;
+  }
+
   toggle() {
     if (this.el.sheet.hidden) this.open(); else this.close();
   }
@@ -55,6 +86,7 @@ export class SettingsUI {
   open() {
     this.el.sheet.hidden = false;
     document.body.classList.add('settings-open');
+    this._pauseForPanel();
     this.render();
   }
 
@@ -63,8 +95,10 @@ export class SettingsUI {
     document.body.classList.remove('settings-open');
     this.capturing = null;
     if (this._onKey) window.removeEventListener('keydown', this._onKey, true);
-    // 关闭设置面板时结束触屏布局拖动编辑（会连带恢复自动暂停的游戏）。
+    // 先退出布局编辑（仅当编辑是暂停发起方时它会恢复），再处理本面板发起的暂停，
+    // 避免编辑态仍在时游戏被提前恢复。
     if (this.touchLayout?.editing) this.touchLayout.setEditing(false);
+    this._resumeFromPanel();
   }
 
   /** 进入按键捕获状态 */

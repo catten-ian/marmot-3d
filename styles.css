@@ -2107,3 +2107,12 @@ body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; fi
 .resource-row .resource-error { color: #ffb2a6; overflow-wrap: anywhere; }
 .resource-row .ghost-btn { min-height: 25px; padding: 3px 6px; font-size: 10px; }
 @media (max-width: 700px) { .resource-row { grid-template-columns: 1fr 1fr; } .resource-row .resource-error { grid-column: 1 / -1; } }
+
+/* 暂停态下打开设置/帮助：面板与其触发按钮必须浮在暂停遮罩(z-index:40)之上，
+   否则会被“喘口气”暂停面板盖住；游戏仍保持暂停，不会因为打开它们而继续。 */
+body.paused .set-sheet:not([hidden]),
+body.paused .help-sheet:not([hidden]) { z-index: 50; }
+body.paused .set-btn,
+body.paused .help-btn,
+body.paused .fs-btn,
+body.paused .view-btn { z-index: 50; }
