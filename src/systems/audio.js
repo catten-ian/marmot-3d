@@ -47,7 +47,7 @@ export class Audio {
     return src;
   }
 
-  _tone(freq, dur, type = 'sine', gain = 0.3, freqEnd = null) {
+  _tone(freq, dur, type = 'sine', gain = 0.3, freqEnd = null, pan = 0) {
     if (!this.enabled || !this.ensure()) return;
     const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -58,11 +58,15 @@ export class Audio {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(gain, t + Math.min(0.015, dur * 0.2));
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(g); g.connect(this.master);
+    osc.connect(g);
+    if (pan !== 0 && this.ctx.createStereoPanner) {
+      const panner = this.ctx.createStereoPanner(); panner.pan.value = Math.max(-1, Math.min(1, pan));
+      g.connect(panner); panner.connect(this.master);
+    } else g.connect(this.master);
     osc.start(t); osc.stop(t + dur + 0.02);
   }
 
-  _burstNoise(dur, gain = 0.25, filterFreq = 1200, type = 'lowpass') {
+  _burstNoise(dur, gain = 0.25, filterFreq = 1200, type = 'lowpass', pan = 0) {
     if (!this.enabled || !this.ensure()) return;
     const t = this.ctx.currentTime;
     const src = this._noise();
@@ -73,7 +77,11 @@ export class Audio {
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(gain, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f); f.connect(g); g.connect(this.master);
+    src.connect(f); f.connect(g);
+    if (pan !== 0 && this.ctx.createStereoPanner) {
+      const panner = this.ctx.createStereoPanner(); panner.pan.value = Math.max(-1, Math.min(1, pan));
+      g.connect(panner); panner.connect(this.master);
+    } else g.connect(this.master);
     src.start(t); src.stop(t + dur + 0.02);
   }
 
@@ -119,6 +127,12 @@ export class Audio {
     this._burstNoise(0.06, 0.05, 800);
   }
   foxDash() { this._burstNoise(0.22, 0.16, 1400, 'bandpass'); }
+  /** Caution 1.0-1.2k pure tones; urgent 1.4-1.9k triple tones, distinct from foxDash noise. */
+  companionAlarm(level, pan = 0) {
+    const notes = level === 'urgent' ? [1397, 1661, 1865] : level === 'caution' ? [1046, 1175] : [];
+    const duration = level === 'urgent' ? 0.07 : 0.09, gain = level === 'urgent' ? 0.15 : 0.12, gap = level === 'urgent' ? 0.14 : 0.18;
+    notes.forEach((freq, i) => setTimeout(() => this._tone(freq, duration, level === 'urgent' ? 'sine' : 'triangle', gain, null, pan), i * gap * 1000));
+  }
   rescue() {
     [523, 659, 784].forEach((f, i) => setTimeout(() => this._tone(f, 0.16, 'sine', 0.18), i * 90));
   }

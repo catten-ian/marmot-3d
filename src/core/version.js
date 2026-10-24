@@ -40,11 +40,11 @@ export const VERSION_LABEL = IS_DEV
  */
 export const DEV_FEATURES = {
   /** 采食对象改为草本植物（沙草、禾本科、豆科花等） */
-  herbivoreFood: IS_DEV,
+  herbivoreFood: IS_DEV || IS_BETA,
   /** 耐饥渴：储备消耗降低、见底惩罚放宽 */
   famineTolerance: IS_DEV,
   /** 季节性食物：各关按 levelIndex 循环映射不同季节的适口植物 */
-  seasonalFood: IS_DEV,
+  seasonalFood: IS_DEV || IS_BETA,
   /** 富含亚油酸的食物给予额外储备 */
   linoleicBonus: IS_DEV,
   /**

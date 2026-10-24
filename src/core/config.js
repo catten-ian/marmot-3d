@@ -225,6 +225,8 @@ export const FOX = {
   // 狐狸高速冲刺不应拥有玩家级别的急转与急刹能力。
   handling: {
     maxTurnRate: 0.78, turnAccel: 1.6, windTurnRate: 1.1, windTurnAccel: 3.8,
+    // Ground steering capacity falls with speed; minTurnRate permits slow pivots.
+    maxTurnSlow: 2.8, turnSpeedK: 0.16, minTurnRate: 0.28, locomotionTurnAccel: 3.8, locomotionAccel: 14,
     brakeLerp: 2.8, recoverySpeedMax: 2.8,
   },
   recovery: { normal: 1.15, fast: 0.9, leap: 1.05, combo: 1.2, blocked: 0.9 },

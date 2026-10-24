@@ -2097,3 +2097,11 @@ body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; fi
 @media (orientation: landscape) and (max-height: 520px) {
   .sandbox-status { top: calc(188px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: min(140px, 24vw); }
 }
+
+/* 持续采食反馈：独立于目标卡，避免目标 key 缓存吞掉逐帧进度。 */
+.forage-feedback { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 18; width: min(260px, 54vw); pointer-events: none; text-align: center; color: var(--ink); text-shadow: var(--hud-text-shadow); }
+.forage-label { font-size: 12px; margin-bottom: 4px; }
+.forage-track { height: 5px; border: 1px solid rgba(255,255,255,.34); background: rgba(8,18,12,.68); border-radius: 4px; overflow: hidden; }
+.forage-track i { display: block; height: 100%; width: 0; background: #b8d77d; transition: width .08s linear; }
+.forage-feedback.emergency .forage-track i { background: #ef9b70; }
+.forage-feedback.emergency .forage-label { color: #ffc0a5; }

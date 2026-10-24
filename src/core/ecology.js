@@ -1,5 +1,5 @@
 /**
- * 旱獭生态学数据（仅 dev 版启用）。
+ * 旱獭生态学数据（dev / beta 版启用）。
  *
  * 资料要点（用于把数值机制与真实生态挂钩）：
  *   · 典型草食动物，耐饥渴
@@ -112,6 +112,44 @@ export const HERBIVORE = {
   weakSpeedMul: 0.9,
   weakDamageMul: 0.94,
 };
+
+export const FORAGE = {
+  grassSeconds: 1.4, flowerSeconds: 0.6, berrySeconds: 1.2,
+  emergencyMul: 0.3, emergencyRadius: 12, committedRadius: 16,
+  leaveGrace: 0.18, regrowGrass: 30, regrowFlower: Infinity,
+};
+
+export function stepForageProgress(progress, dt, { inRange, emergency, kind = 'grass' } = {}) {
+  if (!inRange) return 0;
+  const seconds = kind === 'flower' ? FORAGE.flowerSeconds : kind === 'berry' ? FORAGE.berrySeconds : FORAGE.grassSeconds;
+  const rate = (1 / seconds) * (emergency ? FORAGE.emergencyMul : 1);
+  return Math.max(0, Math.min(1, progress + Math.max(0, dt) * rate));
+}
+
+export function isForagingEmergency({ inBurrow, sprinting, recentlyHit, foxes = [] } = {}, { emergencyRadius = FORAGE.emergencyRadius, committedRadius = FORAGE.committedRadius } = {}) {
+  if (inBurrow) return false;
+  if (sprinting || recentlyHit) return true;
+  return foxes.some((f) => {
+    if (!f?.alive) return false;
+    const d = Math.hypot(f.x || 0, f.z || 0);
+    if (d < emergencyRadius) return true;
+    return d < committedRadius && (f.pounceCommitted || f.state === 'dash' || f.state === 'wind');
+  });
+}
+
+export function chooseFlowerIndices(pointCount, levelIndex, opts = {}) {
+  const count = Math.max(0, Math.min(pointCount, opts.count ?? (pointCount >= 6 ? 2 : 1)));
+  if (!count) return [];
+  const out = [];
+  let cursor = Math.abs((levelIndex | 0) * 7 + 3) % pointCount;
+  for (let n = 0; n < count * 3 && out.length < count; n++) {
+    const i = (cursor + n * 5) % pointCount;
+    if (!out.some((v) => v === i || Math.abs(v - i) <= 1)) out.push(i);
+  }
+  return out.sort((a, b) => a - b);
+}
+
+export function energyOfFlower() { return 40; }
 
 /** 把某关的食物点位映射成具体植物（稳定取样，不随机，保证可复现） */
 export function plantsForLevel(levelIndex, pointCount) {

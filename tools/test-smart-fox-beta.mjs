@@ -6,7 +6,12 @@ import {
   applyInterruption,
   stepSmartMotion,
   SMART_INTENTS,
+  smartPounceDistance,
+  habituateDecayRate,
+  updateSmartMemory, stepInterruptionTimes, debounceIntent, createSmartPack, foxSeparation,
+  trackFeint, RECOVER_LOCK,
 } from '../src/entities/smart-fox-core.mjs';
+import { stepFoxLocomotion, foxMaxTurnRate, steerGroundDirection } from '../src/core/fox-motion.js';
 
 test('utilityScores 返回全部意图且选出唯一 topIntent', () => {
   const r = utilityScores({ distance: 3, playerFacing: 1, guard: false, suspicion: 0.9 });
@@ -69,4 +74,118 @@ test('受击打断累加记忆与打断次数', () => {
   assert.equal(m.interruptions, 1);
   assert.ok(m.memory >= 1);
   assert.ok(m.health < 1);
+});
+
+test('统一运动高速转向上限更低且转向时持续前进', () => {
+  let slowState = { x: 0, z: 0, yaw: 0, vx: 0, vz: 1 };
+  let fastState = { x: 0, z: 0, yaw: 0, vx: 0, vz: 10 };
+  for (let i = 0; i < 20; i++) {
+    slowState = stepFoxLocomotion(slowState, { x: 100, z: 0 }, .1, { speed: 1 });
+    fastState = stepFoxLocomotion(fastState, { x: 100, z: 0 }, .1, { speed: 10 });
+  }
+  const slow = slowState, fast = fastState;
+  assert.ok(foxMaxTurnRate(10) < foxMaxTurnRate(1));
+  assert.ok(slow.z > 0 && slow.x > 0);
+});
+
+test('pounce distance integrates acceleration and habituation is capped', () => {
+  const d0 = smartPounceDistance(0), dNear = smartPounceDistance(8), dFast = smartPounceDistance(10.6);
+  assert.ok(d0 < dNear && dNear < dFast);
+  assert.equal(habituateDecayRate(.48, 99), .96);
+});
+
+test('pounce rejects misaligned intent and uses readable windup', () => {
+  let s = { x: 0, z: 0, yaw: Math.PI, vx: 0, vz: 0, windupRemaining: .22 };
+  s = stepSmartMotion(s, { x: 0, z: 5 }, 1 / 60, 'pounce');
+  assert.equal(s.pounceCommitted, undefined);
+  s.yaw = 0; s.windupRemaining = .22;
+  s = stepSmartMotion(s, { x: 0, z: 5 }, .1, 'pounce');
+  assert.notEqual(s.pounceCommitted, true);
+});
+
+test('记忆延迟后按每秒衰减且打断时间窗会过期', () => {
+  let s = { memory: 1, lastInterruptionAt: 0 };
+  s = updateSmartMemory(s, 1, 9, { memoryDecay: .1 }); assert.equal(s.memory, 1);
+  for (let t = 10; t < 20; t++) s = updateSmartMemory(s, 1, t, { memoryDecay: .1 });
+  assert.ok(Math.abs(s.memory) < 1e-9);
+  assert.deepEqual(stepInterruptionTimes([0, 4, 14], 15), [4, 14]);
+  console.log('ASSERT memory-delay-decay/window-expiry OK');
+});
+
+test('佯攻习惯化、防抖、群战错峰与分离纯函数', () => {
+  assert.equal(habituateDecayRate(.48, 3), .78);
+  assert.equal(habituateDecayRate(.48, 6), 1.08);
+  assert.equal(habituateDecayRate(.48, 12), .96);
+  assert.equal(debounceIntent('observe', 'approach', 0, .1).intent, 'observe');
+  assert.equal(debounceIntent('observe', 'recover', 0, .01).intent, 'recover');
+  const pack=createSmartPack(); assert.equal(pack.canCommit(0, 0), true); pack.recordCommit(0, 0);
+  assert.equal(pack.canCommit(1, .1), false); assert.equal(pack.canCommit(1, .4), true);
+  assert.ok(foxSeparation({x:0,z:0},[{x:1,z:0}]).x < 0);
+  console.log('ASSERT habituation/debounce/stagger/separation OK');
+});
+
+test('权重快照保持原公式数值', () => {
+  const r=utilityScores({distance:5,playerFacing:.7,guard:true,fatigue:.2,health:.8,interruptions:2,memory:1.2,suspicion:.6});
+  assert.deepEqual(r.scores,{observe:.3935,approach:.581167,feint:.738667,pounce:.189667,recover:.317333,abandon:.204});
+  console.log('ASSERT utility-weight-snapshot OK');
+});
+
+test('trackFeint 只统计进入佯攻且受击/扑击清零', () => {
+  let s = { repeats: 0, side: 1, prevIntent: 'observe' };
+  for (let i = 0; i < 3; i++) s = trackFeint(s, 'feint', { side: 1 });
+  assert.equal(s.repeats, 1);
+  s = trackFeint(s, 'observe', { side: 1 });
+  s = trackFeint(s, 'feint', { side: 1 });
+  s = trackFeint(s, 'observe', { side: 1 });
+  s = trackFeint(s, 'feint', { side: 1 });
+  assert.equal(s.repeats, 3);
+  s = trackFeint(s, 'observe', { side: -1 });
+  s = trackFeint(s, 'feint', { side: -1 });
+  assert.deepEqual({ repeats: s.repeats, side: s.side }, { repeats: 1, side: -1 });
+  assert.equal(trackFeint(s, 'pounce', { reset: 'pounce' }).repeats, 0);
+  assert.equal(trackFeint(s, 'recover', { reset: 'hit' }).repeats, 0);
+  assert.ok(habituateDecayRate(.48, 3) > habituateDecayRate(.48, 1));
+  assert.equal(habituateDecayRate(.48, 99), .96);
+  console.log('ASSERT track-feint/repeat-habituation OK');
+});
+
+test('feintScale 按比例作用且默认快照不变', () => {
+  const input = { distance: 5, playerFacing: .7, guard: true, fatigue: .2, health: .8, interruptions: 2, memory: 1.2, suspicion: .6 };
+  const base = utilityScores(input).scores.feint;
+  assert.equal(utilityScores({ ...input, feintScale: 1 }).scores.feint, base);
+  const low = utilityScores({ ...input, feintScale: .65 }).scores.feint;
+  const high = utilityScores({ ...input, feintScale: 1.3 }).scores.feint;
+  assert.ok(Math.abs(low / base - .65) < 2e-6);
+  assert.ok(Math.abs(high / base - 1.3) < 2e-6);
+  console.log('ASSERT feint-scale/default-equivalence OK');
+});
+
+test('扑击自然结束后的 recover 硬直阻止再次 committed', () => {
+  let s = { x: 0, z: 0, vx: 0, vz: 0, yaw: 0, pounceCooldown: 0, pounceWindup: 0 };
+  s = stepSmartMotion(s, { x: 0, z: 3 }, 1 / 60, 'pounce');
+  for (let i = 0; i < 60 && !s.pounceJustEnded; i++) s = stepSmartMotion(s, { x: 0, z: 3 }, 1 / 60, 'recover');
+  assert.equal(s.pounceCommitted, false);
+  assert.equal(s.pounceJustEnded, true);
+  s.pounceCooldown = 0;
+  let lock = RECOVER_LOCK;
+  for (let i = 0; i < 6; i++) {
+    lock -= .1;
+    const next = stepSmartMotion(s, { x: 0, z: 3 }, 0, 'recover', { commitAllowed: lock <= 0 });
+    assert.equal(next.intent, 'recover');
+    assert.notEqual(next.pounceCommitted, true);
+    s = next;
+  }
+  s.windupRemaining = 0;
+  s.x = 0; s.z = 0; s.yaw = 0; s.vx = 0; s.vz = 0;
+  const ready = stepSmartMotion(s, { x: 0, z: 3 }, .01, 'pounce', { commitAllowed: true });
+  assert.equal(ready.pounceCommitted, true);
+  console.log('ASSERT recover-lock/recommit-gate OK');
+});
+
+test('steerGroundDirection 直冲岩石转为切向且零速返回 null', () => {
+  const steer = steerGroundDirection(0, 1, 2, { x: 0, z: 0 }, [{ x: 0, z: 1, r: 1.5 }], { hw: 20, hh: 20 }, 0);
+  assert.ok(steer);
+  assert.ok(Math.abs(steer.x) > .05 || steer.z < .95);
+  assert.equal(steerGroundDirection(1, 0, 0, { x: 0, z: 0 }, [], { hw: 20, hh: 20 }), null);
+  console.log('ASSERT ground-steer/zero-speed-null OK');
 });

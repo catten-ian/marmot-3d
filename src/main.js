@@ -77,11 +77,13 @@ import { createBurrows } from './world/burrows.js';
 import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
+import { createSmartPack } from './entities/smart-fox-core.mjs';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION_LABEL } from './core/version.js';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
-  plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
+  plantsForLevel, seasonForLevel, energyOfPlant, energyOfFlower, eatLine, HERBIVORE,
+  stepForageProgress, isForagingEmergency, chooseFlowerIndices,
 } from './core/ecology.js';
 import {
   combatStats, strikeVolumeHit, foxAttackVerticalHit, resolveStrikeProfile, burst, ultimate, interact,
@@ -91,6 +93,7 @@ import { cooldownState, cooldownOverlayData } from './ui/cooldown-overlay.js';
 import { ClawSwing, Shockwave, Particles, DamageText, PlayerAura } from './systems/effects.js';
 import { ViewModel } from './systems/viewmodel.js';
 import { Audio } from './systems/audio.js';
+import { ALARM_INTERVALS, alarmSchedule, companionAlarmLevel, stereoPanFromWorld } from './systems/audio-pan.mjs';
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
 import { adapterPowerPreference, readGraphicsPreference, writeGraphicsPreference } from './core/graphics-preference.js';
@@ -288,12 +291,14 @@ if (gsWorld) {
 // 正式版：浆果（v1.0 造型，一次建好）
 // dev 版：草本植物（随关卡季节变化，需在每关开始时按当季物种重建）
 let berries = [];
+const forage = { index: -1, progress: 0, emergency: false };
 function buildFoods(levelIndex) {
   if (devOn('seasonalFood')) {
     const plants = plantsForLevel(levelIndex, BERRY_POINTS.length);
+    const flowers = new Set(chooseFlowerIndices(BERRY_POINTS.length, levelIndex));
     return BERRY_POINTS.map((p, i) => {
       const [x, z] = scalePoint(p);
-      return new Food(scene, x, z, i, plants[i]);
+      return new Food(scene, x, z, i, plants[i], flowers.has(i) ? 'flower' : 'grass');
     });
   }
   if (!berries.length || berries[0].herbivore) {
@@ -446,6 +451,7 @@ function saveProgress() {
 const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
 const SANDBOX_MODE = new URLSearchParams(location.search).get('sandbox') === '1';
 const sandboxState = createSandboxState();
+ sandboxState.smartPack = createSmartPack();
 if (SANDBOX_MODE) sandboxState.active = true;
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
@@ -501,6 +507,7 @@ function exportTestLogs() {
 }
 
 const game = {
+  companionAlarmTimer: 0,
   testMode: TEST_MODE,
   freezeTimer: testState.freezeTimer,
   mode: 'title',
@@ -537,6 +544,7 @@ const game = {
   season: null, // dev 版：当季食物信息（正式版恒为 null）
   sandbox: false,
   attackMoveLock: 0,
+  recentlyHit: 0,
 };
 
 const colBoost = new THREE.Color(0xffd17a);
@@ -577,6 +585,7 @@ function spawnSandboxFox(_type = 'normal', slot = foxes.filter((f) => !f.isSandb
   }
   fox.sandboxSpeedMul = sandboxState.speedMultiplier;
   fox.sandboxAlertMul = sandboxState.alertMultiplier;
+  fox.applySmartDifficulty?.(sandboxState.difficulty);
   foxes.push(fox);
   return fox;
 }
@@ -591,6 +600,7 @@ function spawnSandboxSmartFox(slot = foxes.filter((f) => !f.isSandboxDummy).leng
   fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
   fox.sandboxSpeedMul = sandboxState.speedMultiplier;
   fox.sandboxAlertMul = sandboxState.alertMultiplier;
+  fox.applySmartDifficulty?.(sandboxState.difficulty);
   foxes.push(fox);
   sandboxState.lastCommand = '已生成 1 只智能藏狐（观察/逼近/虚晃/扑击/喘息）';
   return fox;
@@ -602,6 +612,7 @@ function disposeAllFoxes() {
   } finally {
     foxes = [];
     sandboxState.dummy = null;
+    sandboxState.smartPack = createSmartPack();
   }
 }
 
@@ -674,6 +685,7 @@ function loadLevel(index, announce = true) {
   // 重置玩家
   const p = game.player;
   p.hp = 100; p.energy = 100; p.stress = 0; p.invuln = 2;
+  game.recentlyHit = 0;
   controller.teleport(BURROW_X + 4 * getPointScale(), BURROW_Z + 2 * getPointScale(), Math.PI * 0.05);
   // 出生朝向：看向场地中央
   controller.yaw = Math.atan2(-(0 - controller.position.x), -(0 - controller.position.z));
@@ -697,6 +709,8 @@ function loadLevel(index, announce = true) {
   }
   scenery.resetBerries();
   game.foodCount = 0;
+  forage.index = -1; forage.progress = 0; forage.emergency = false;
+  hud.setForage({ active: false });
 
   // 重置伙伴（关卡配置里的点位是设计坐标，GS 版需经 scalePoint 缩放到运行时场地）
   const [friendX, friendZ] = scalePoint(cfg.friend);
@@ -955,10 +969,11 @@ function title() {
     <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>V</b> 切换为第三人称跟随视角，随时按需选择。</p>
     <p>每关完成 <b>采食、救援与陪伴</b>，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
+    <p style="font-size:12px">采食需要按住停留；附近有狐狸、疾行或刚受击时会明显变慢。${IS_BETA ? ' BETA 关卡会少量出现稀有花：采得更快、回复更多，但不会刷新。' : ''}</p>
     <p style="font-size:12.5px"><b>你不会真的杀死藏狐。</b>把它们打到体力耗尽后，它们会
     <b>夹着尾巴转身逃跑</b>，逃出草地才会消失 —— 一段时间后可能有同类再次出现。
     你要做的是在采食和救援时自卫，随后回洞。</p>
-    ${IS_DEV ? `
+    ${IS_DEV || IS_BETA ? `
     <div class="dev-intro">
       <div class="dev-badge">DEV 版 · 旱獭生态学改写</div>
       <p>旱獭是典型的<b>草食动物</b>，耐饥渴，主食为沙草料、禾本科叶茎与豆科花，
@@ -1427,6 +1442,7 @@ function update(dt) {
     game[k] = Math.max(0, game[k] - dt);
   }
   p.invuln = Math.max(0, p.invuln - dt);
+  game.recentlyHit = Math.max(0, game.recentlyHit - dt);
   game.attackMoveLock = Math.max(0, game.attackMoveLock - dt);
   controller.movementLocked = game.attackMoveLock > 0;
   // 蓄力 0→100% 实时推进；满 1500ms 自动以扑击结算。
@@ -1519,7 +1535,9 @@ function update(dt) {
     } else if (f.drillCtx) {
       delete f.drillCtx;
     }
-    f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow);
+    const smartFoxes = foxes.filter((candidate) => candidate.type === 'smart');
+    f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow,
+      f.type === 'smart' ? { smartFoxes, coordinator: sandboxState.active ? sandboxState.smartPack : null } : null);
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
@@ -1585,6 +1603,7 @@ function update(dt) {
         recordTestLog('player-hit', { foxType: f.type, damage, hpBefore, hpAfter: p.hp,
           preventedByGodMode: testState.godMode });
         p.invuln = 1.3;
+        game.recentlyHit = 1.2;
         p.stress = clamp(p.stress + 8, 0, 100);
         game.hits++;
         const hy = terrainHeight(p.x, p.z);
@@ -1620,28 +1639,38 @@ function update(dt) {
 
   // 攻击在释放时结算：按住期间仅采集方向输入。
 
-  // —— 采食 ——
-  // 正式版吃浆果（+20）；dev 版吃当季草本植物，含多汁/富亚油酸加成
-  for (let i = 0; i < berries.length; i++) {
-    const b = berries[i];
-    if (b.taken) continue;
-    if (Math.hypot(b.x - p.x, b.z - p.z) < BERRY_RADIUS + 0.35) {
-      b.take();
-      scenery.setBerryTaken(i);
-      game.foodCount++;
-      const gain = b.herbivore ? energyOfPlant(b.plant) : BERRY_ENERGY;
+  // —— 持续采食 ——
+  let nearest = -1, nearestDist = Infinity;
+  berries.forEach((b, i) => {
+    if (b.taken) return;
+    const d = Math.hypot(b.x - p.x, b.z - p.z);
+    if (d < BERRY_RADIUS + 0.35 && d < nearestDist) { nearest = i; nearestDist = d; }
+  });
+  if (nearest < 0) {
+    forage.index = -1; forage.progress = 0; forage.emergency = false;
+    hud.setForage({ active: false });
+  } else {
+    const b = berries[nearest];
+    if (forage.index !== nearest) forage.progress = 0;
+    forage.index = nearest;
+    forage.emergency = isForagingEmergency({
+      inBurrow: game.inBurrow, sprinting, recentlyHit: game.recentlyHit > 0,
+      foxes: foxes.map((f) => ({ x: f.x - p.x, z: f.z - p.z, alive: f.alive, type: f.type, pounceCommitted: f.pounceCommitted, state: f.state })),
+    });
+    forage.progress = stepForageProgress(forage.progress, dt, { inRange: true, emergency: forage.emergency, kind: b.kind });
+    hud.setForage({ active: true, kind: b.kind, progress: forage.progress, emergency: forage.emergency });
+    if (forage.progress >= 1) {
+      b.take(); scenery.setBerryTaken(nearest); game.foodCount++;
+      const gain = b.kind === 'flower' ? energyOfFlower() : b.kind === 'grass' ? energyOfPlant(b.plant) : BERRY_ENERGY;
       p.energy = clamp(p.energy + gain, 0, 100);
-      if (game.overdrive <= 0) game.charge = clamp(game.charge + BERRY_CHARGE, 0, 100);
+      if (game.overdrive <= 0) game.charge = clamp(game.charge + (b.kind === 'flower' ? BERRY_CHARGE * 1.5 : BERRY_CHARGE), 0, 100);
       const by = terrainHeight(b.x, b.z);
-      // 草本植物的碎屑用叶色，浆果用红色
-      const c = b.herbivore ? colHerb : colBerry;
+      const c = b.kind === 'flower' ? 0xf2c45c : b.herbivore ? colHerb : colBerry;
       particles.burst(b.x, by + 0.6, b.z, c, 12, 1);
-      if (b.herbivore) {
-        damageText.spawn(b.x, by + 1.1, b.z, eatLine(b.plant), '#dff0c4');
-      } else {
-        damageText.spawn(b.x, by + 1.1, b.z, `+${BERRY_ENERGY} 储备`, '#ffd9e2');
-      }
+      damageText.spawn(b.x, by + 1.1, b.z, b.kind === 'flower' ? `采花 +${gain} 储备` : b.herbivore ? eatLine(b.plant) : `+${gain} 储备`, b.kind === 'flower' ? '#ffe49b' : b.herbivore ? '#dff0c4' : '#ffd9e2');
       audio.berry();
+      forage.index = -1; forage.progress = 0; forage.emergency = false;
+      hud.setForage({ active: false });
     }
   }
 
@@ -1659,6 +1688,15 @@ function update(dt) {
       hud.say('伙伴到家！采食完成后回洞。', 3.3);
     }
   }
+  const alarm = companionAlarmLevel({
+    rescued: game.friend.rescued, saved: game.friend.saved, inBurrow: game.inBurrow,
+    companion: { x: companion.x, z: companion.z, playerX: controller.position.x, playerZ: controller.position.z },
+    foxes: foxes.map((f) => ({ x: f.x, z: f.z, alive: f.alive, type: f.type, pounceCommitted: f.pounceCommitted, state: f.state })),
+  });
+  const alarmTick = alarmSchedule(alarm.level, game.companionAlarmTimer, dt, ALARM_INTERVALS);
+  game.companionAlarmTimer = alarmTick.timer;
+  if (alarmTick.play && alarm.fox) audio.companionAlarm(alarm.level,
+    stereoPanFromWorld(controller.yaw, alarm.fox.x, alarm.fox.z, controller.position.x, controller.position.z));
 
   // 被困伙伴：距离越远呼救越频繁，配合屏幕边缘箭头引导玩家
   if (!game.friend.rescued) {
@@ -2291,7 +2329,7 @@ const sandboxPanelUI = setupSandboxPanel({
       sandboxState.dummyDefeatable = value;
       setSandboxDummyDefeatable(sandboxState.dummy, value);
     }
-    if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { if (!f.isSandboxDummy) { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; } }); }
+    if (name === 'difficulty') { applySandboxDifficulty(sandboxState, value); foxes.forEach((f) => { if (!f.isSandboxDummy) { f.sandboxSpeedMul = sandboxState.speedMultiplier; f.sandboxAlertMul = sandboxState.alertMultiplier; f.applySmartDifficulty?.(sandboxState.difficulty); } }); }
   },
 });
 
@@ -2432,7 +2470,7 @@ function syncHelpKeys() {
       <span>${keys('pause')} 暂停　${keys('retry')} 重试本关　${keys('restart')} 从第一关重开　${keys('fullscreen')} 全屏</span>
       <span><kbd>${escLine}</kbd> · <kbd>Enter</kbd> 标题/暂停/通关确认</span>
     </div>
-    <p class="note">洞穴内不能攻击。完成<b>采食 + 伙伴到家</b>后回洞，自动进入下一关。<br>
+    <p class="note">洞穴内不能攻击。完成<b>采食 + 伙伴到家</b>后回洞，自动进入下一关。采食需按住停留，受惊会变慢；花稀有但高效。<br>
     <b>驱退不等于杀死</b>：藏狐体力耗尽后会转身逃向草地边缘，逃掉才消失，过一阵还可能再来。<br>
     <b>奔跑时会自动俯身冲刺，停下则起身</b> —— 起身比趴下稍慢，就像真的在用四肢撑起身体。<br>
     被困伙伴会周期性<b>呼救</b>，屏幕边缘的<b>绿色箭头</b>指向它；红色箭头则是正在逼近的藏狐。<br>

@@ -22,7 +22,7 @@ import { clamp } from '../core/utils.js';
 import { createProceduralFox } from './procedural-fox.js';
 import { createTibetanFox } from './tibetan-fox.js';
 import {
-  foxRecoverySeconds, stepFoxTurn, stepFoxRecovery,
+  foxRecoverySeconds, stepFoxTurn, stepFoxRecovery, stepFoxLocomotion, foxMaxTurnRate, steerGroundDirection,
   estimatePlayerVelocity, straightWindAimYaw,
 } from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
@@ -672,7 +672,7 @@ export class Fox {
         if (A.turnRate > 0 && !this.drillCtx) {
           const a = Math.atan2(dx, dz);
           const turn = stepFoxTurn(this.yaw, a, this.turnVelocity, dt,
-            Math.min(FOX.handling.maxTurnRate, A.turnRate || 0), FOX.handling.turnAccel);
+            Math.min(foxMaxTurnRate(Math.hypot(this.dashVX || 0, this.dashVZ || 0), { maxTurnSlow: A.turnRate || 0 }), A.turnRate || 0), FOX.handling.turnAccel);
           this.yaw = turn.yaw;
           this.turnVelocity = turn.turnVelocity;
           this.dashDirX = Math.sin(this.yaw);
@@ -804,57 +804,23 @@ export class Fox {
    * 冲刺仍锁定预警方向；若冲刺确实撞上障碍，由 _resolveObstacleOverlaps 结束冲刺。
    */
   _moveGround(wantX, wantZ, speed, dt, burrows) {
-    const wantedLen = Math.hypot(wantX, wantZ);
-    if (wantedLen < 1e-5 || speed <= 0 || dt <= 0) return;
-    let vx = wantX / wantedLen, vz = wantZ / wantedLen;
+    if (speed <= 0 || dt <= 0) return;
+    const steer = this._groundSteer(wantX, wantZ, speed, burrows);
+    if (!steer) return;
+    const moved = stepFoxLocomotion({ x: this.x, z: this.z, yaw: this.yaw,
+      turnVelocity: this.turnVelocity || 0, vx: Math.sin(this.yaw) * (this._locomotionSpeed || 0),
+      vz: Math.cos(this.yaw) * (this._locomotionSpeed || 0) },
+    { x: this.x + steer.x * 100, z: this.z + steer.z * 100 }, dt, { speed,
+      acceleration: FOX.handling.locomotionAccel, turnAcceleration: FOX.handling.locomotionTurnAccel });
+    this.x = moved.x; this.z = moved.z; this.yaw = moved.yaw;
+    this.turnVelocity = moved.turnVelocity; this._locomotionSpeed = moved.speed;
+  }
+
+  _groundSteer(wantX, wantZ, speed, burrows) {
     const bounds = roamBounds();
-    const edgeMargin = Math.min(7, bounds.hw * 0.16, bounds.hh * 0.16);
-    // 边缘避让必须足以抵消向外的目标向量；较弱的排斥会让狐狸长期贴边蹭行。
-    const edgeForce = 1.5;
-    if (this.x < -bounds.hw + edgeMargin) vx += (1 - clamp((this.x + bounds.hw) / edgeMargin, 0, 1)) * edgeForce;
-    if (this.x > bounds.hw - edgeMargin) vx -= (1 - clamp((bounds.hw - this.x) / edgeMargin, 0, 1)) * edgeForce;
-    if (this.z < -bounds.hh + edgeMargin) vz += (1 - clamp((this.z + bounds.hh) / edgeMargin, 0, 1)) * edgeForce;
-    if (this.z > bounds.hh - edgeMargin) vz -= (1 - clamp((bounds.hh - this.z) / edgeMargin, 0, 1)) * edgeForce;
-
-    const clearance = Math.max(1.2, speed * 0.45);
-    const rocks = ROCKS.map((rock) => {
-      const [x, z] = scalePoint(rock);
-      return { x, z, r: scaleRadius(rock[2]) + 0.72 * this.cfg.scale };
-    });
-    for (const burrow of (Array.isArray(burrows) ? burrows : burrows ? [burrows] : [])) rocks.push({ x: burrow.x, z: burrow.z, r: burrow.r + 2.5 });
-    for (let i = 0; i < rocks.length; i++) {
-      const obstacle = rocks[i];
-      const ox = this.x - obstacle.x, oz = this.z - obstacle.z;
-      const dist = Math.hypot(ox, oz);
-      const avoidDist = obstacle.r + clearance;
-      if (dist >= avoidDist) continue;
-      const nx = dist > 1e-4 ? ox / dist : Math.sin(this.yaw);
-      const nz = dist > 1e-4 ? oz / dist : Math.cos(this.yaw);
-      const inward = vx * nx + vz * nz;
-      if (inward >= 0) continue;
-
-      // 去掉直冲障碍的分量并选定一侧切线；侧别稳定，避免每帧左右抖动。
-      vx -= nx * inward;
-      vz -= nz * inward;
-      let len = Math.hypot(vx, vz);
-      if (len < 1e-4) {
-        const side = ((this.slot + i) & 1) ? 1 : -1;
-        vx = -nz * side;
-        vz = nx * side;
-        len = 1;
-      }
-      vx /= len; vz /= len;
-      const urgency = clamp((avoidDist - dist) / Math.max(clearance, 0.01), 0, 1);
-      const side = ((this.slot + i) & 1) ? 1 : -1;
-      vx += -nz * side * urgency * 0.28;
-      vz += nx * side * urgency * 0.28;
-      len = Math.hypot(vx, vz) || 1;
-      vx /= len; vz /= len;
-    }
-
-    this.x += vx * speed * dt;
-    this.z += vz * speed * dt;
-    if (!['dash', 'rest'].includes(this.state)) this.yaw = this._angleLerp(this.yaw, Math.atan2(vx, vz), dt * 3);
+    const obstacles = ROCKS.map((r) => { const [x, z] = scalePoint(r); return { x, z, r: scaleRadius(r[2]) + .72 * this.cfg.scale }; });
+    for (const b of (Array.isArray(burrows) ? burrows : burrows ? [burrows] : [])) obstacles.push({ x: b.x, z: b.z, r: b.r + 2.5 });
+    return steerGroundDirection(wantX, wantZ, speed, { x: this.x, z: this.z }, obstacles, bounds, this.slot, this.yaw);
   }
 
   _stopDashAtObstacle() {
