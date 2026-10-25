@@ -836,8 +836,12 @@ async function enterPlayAsFox() {
   playAsFox = createPlayAsFox({
     scene, camera, renderer, canvas, sky,
     playerModel, companion,
+    touchControls, binds,
+    isTouchMode: () => TOUCH_DEVICE,
+    mouseSensitivity: controller.sensitivity,
+    touchLookSensitivity: controller.touchLookSensitivity,
     getFoxes: () => foxes,
-    requestLock: () => { if (!controller.touchEnabled) controller.requestLock(); },
+    requestLock: () => { if (!touchControls.controller.touchEnabled) controller.requestLock(); },
     onExit: () => {
       playAsFox = null;
       document.body.classList.remove('play-as-fox');
@@ -2397,7 +2401,7 @@ touchControls = new TouchControls({
   lookZone: document.getElementById('touchLookZone'),
   joystick: document.getElementById('touchJoystick'),
   stick: document.getElementById('touchStick'),
-  isActive: () => game.mode === 'play',
+  isActive: () => game.mode === 'play' || !!playAsFox,
   onParryGesture: (ctx) => triggerParryGesture(ctx),
   onRollGesture: (ctx) => triggerRollGesture(ctx),
   onAction: (action, pressed, pointerId, gesture) => {
@@ -2448,6 +2452,8 @@ const isBound = (code) => {
 };
 
 window.addEventListener('keydown', (e) => {
+  // 独立扮演模式自行读取同一 Keybinds；不得同时触发土拨鼠动作。
+  if (playAsFox) return;
   if (e.repeat) {
     // 长按只记录"按住"状态（攻击/移动需要），不重复触发单次动作
     if (game.mode === 'play' && isBound(e.code)) {
@@ -2514,6 +2520,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+  if (playAsFox) return;
   keys.delete(e.code);
   if (binds.isAction(e.code, 'interact')) interactHeld = false;
   if (binds.isAction(e.code, 'attack')) {
@@ -2522,7 +2529,7 @@ window.addEventListener('keyup', (e) => {
 });
 
 canvas.addEventListener('mousedown', (e) => {
-  if (controller.touchEnabled) return;
+  if (playAsFox || controller.touchEnabled) return;
   audio.ensure();
 
   // 中键 = 迎击；阻止浏览器自动滚动，并与触屏左滑复用同一迎击函数。
@@ -3058,7 +3065,7 @@ function frame(now) {
     console.info('[performance] 自适应画质档位切换', adaptiveTransitions[adaptiveTransitions.length - 1]);
   }
 
-  const touchPlaying = TOUCH_DEVICE && game.mode === 'play';
+  const touchPlaying = TOUCH_DEVICE && (game.mode === 'play' || !!playAsFox);
   if (document.body.classList.contains('touch-playing') !== touchPlaying) {
     document.body.classList.toggle('touch-playing', touchPlaying);
     // 触控实玩类切换会改变 HUD 卡片的 CSS 默认位置，未拖动过的卡跟随新设计位置。

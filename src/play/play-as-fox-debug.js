@@ -167,6 +167,7 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
   // —— 扑击 ——
   const fPounce = gui.addFolder('扑击 / Pounce');
   track(fPounce.add(cfg, 'windTime', 0, 1, 0.01).name('蓄力时间'));
+  track(fPounce.add(cfg, 'pounceMaxCharge', 0.22, 3, 0.01).name('触屏最长蓄力'));
   track(fPounce.add(cfg, 'lungeTime', 0.1, 1.2, 0.01).name('腾空时间'));
   track(fPounce.add(cfg, 'lungeSpeed', 4, 26, 0.1).name('腾空速度'));
   track(fPounce.add(cfg, 'lungeHeight', 0, 3, 0.05).name('腾空高度'));

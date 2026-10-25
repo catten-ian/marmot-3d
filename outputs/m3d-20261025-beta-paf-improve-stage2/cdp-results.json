@@ -1,0 +1,278 @@
+{
+  "startedAt": "2026-10-25T13:26:58.383Z",
+  "scenarios": {
+    "normalInitial": {
+      "mode": "play",
+      "touch": true,
+      "display": "block",
+      "attack": true
+    },
+    "normalEdit": {
+      "editing": true,
+      "rect": {
+        "x": 140,
+        "y": 640,
+        "width": 112
+      }
+    },
+    "normalLayout": {
+      "centerX": 140,
+      "centerY": 640,
+      "width": 140,
+      "threshold": 0.7,
+      "stored": {
+        "x": 0.358974358974359,
+        "y": 0.7582938388625592,
+        "scale": 1.25,
+        "sprintThreshold": 0.7
+      }
+    },
+    "foxShared": {
+      "rootDisplay": "block",
+      "joystickVisible": true,
+      "attackVisible": true,
+      "attackText": "← 迎击翻滚 →\n      扑扑击",
+      "noPafStick": true,
+      "noPafBtns": true,
+      "hiddenActions": true,
+      "layoutEntryHidden": true,
+      "centerX": 140,
+      "centerY": 640,
+      "width": 140,
+      "threshold": 0.7,
+      "route": true,
+      "tip": "摇杆移动/转向 · 推过内圈疾跑 · 攻击键扑击（按住蓄力，松手扑出） · 潜行"
+    },
+    "joystickStalk": {
+      "input": {
+        "touch": {
+          "throttle": 0.4200002034505208,
+          "turn": -0.5,
+          "magnitude": 0.6529932395503638,
+          "sprint": false,
+          "stalk": true
+        },
+        "charging": false,
+        "chargeHeld": false,
+        "routeActive": true,
+        "crouchScale": 0.9
+      },
+      "sprint": false,
+      "stalk": true,
+      "pos": {
+        "x": -0.03733202363217996,
+        "y": -2.6435612702026092,
+        "z": -5.7667303989378755,
+        "yaw": -0.2935400000000002,
+        "airY": 0
+      },
+      "tip": "摇杆移动/转向 · 推过内圈疾跑 · 攻击键扑击（按住蓄力，松手扑出） · 潜行",
+      "axes": {
+        "x": 0.5,
+        "y": 0.4200002034505208,
+        "mag": 0.6529932395503638
+      },
+      "delta": {
+        "z": 0.23326960106212447,
+        "yaw": -0.2935400000000002
+      }
+    },
+    "joystickSprint": {
+      "sprint": true,
+      "stalk": false,
+      "input": {
+        "touch": {
+          "throttle": 0.9799997965494791,
+          "turn": 0,
+          "magnitude": 0.9799997965494791,
+          "sprint": true,
+          "stalk": false
+        },
+        "charging": false,
+        "chargeHeld": false,
+        "routeActive": true,
+        "crouchScale": 1
+      },
+      "ring": true,
+      "tip": "摇杆移动/转向 · 推过内圈疾跑 · 攻击键扑击（按住蓄力，松手扑出） · 冲刺（易被发现）"
+    },
+    "joystickBackToStalk": {
+      "sprint": false,
+      "stalk": true,
+      "input": {
+        "touch": {
+          "throttle": 0.39999999999999997,
+          "turn": 0,
+          "magnitude": 0.39999999999999997,
+          "sprint": false,
+          "stalk": true
+        },
+        "charging": false,
+        "chargeHeld": false,
+        "routeActive": true,
+        "crouchScale": 0.9
+      },
+      "ring": false
+    },
+    "attackHolding": {
+      "phase": "wind",
+      "input": {
+        "touch": {
+          "throttle": 0,
+          "turn": 0,
+          "magnitude": 0,
+          "sprint": false,
+          "stalk": true
+        },
+        "charging": true,
+        "chargeHeld": true,
+        "routeActive": true,
+        "crouchScale": 0.72
+      },
+      "tip": "摇杆移动/转向 · 推过内圈疾跑 · 攻击键扑击（按住蓄力，松手扑出） · 蓄力中… · 蓄力 43%"
+    },
+    "attackReleased": {
+      "phase": "lunge",
+      "input": {
+        "touch": {
+          "throttle": 0,
+          "turn": 0,
+          "magnitude": 0,
+          "sprint": false,
+          "stalk": true
+        },
+        "charging": false,
+        "chargeHeld": false,
+        "routeActive": true,
+        "crouchScale": 1
+      }
+    },
+    "attackShort": {
+      "phase": "lunge",
+      "input": {
+        "touch": {
+          "throttle": 0,
+          "turn": 0,
+          "magnitude": 0,
+          "sprint": false,
+          "stalk": true
+        },
+        "charging": false,
+        "chargeHeld": false,
+        "routeActive": true,
+        "crouchScale": 1
+      }
+    },
+    "afterExit": {
+      "foxGone": true,
+      "routeRestored": true,
+      "allButtonsRestored": true,
+      "attackText": "← 迎击翻滚 →\n      爪攻击",
+      "layoutEntry": "",
+      "roles": 0,
+      "move": {
+        "x": 0,
+        "y": 0,
+        "mag": 0
+      },
+      "touchSprint": false,
+      "threshold": 0.7,
+      "bodyFox": false,
+      "editingRestored": true
+    },
+    "normalTouchAfterExit": {
+      "axes": {
+        "x": 0,
+        "y": 0.9500000000000001,
+        "mag": 0.9500000000000001
+      },
+      "sprint": true,
+      "roles": 1,
+      "released": {
+        "axes": {
+          "x": 0,
+          "y": 0,
+          "mag": 0
+        },
+        "sprint": false,
+        "roles": 0
+      }
+    },
+    "reentry": [
+      {
+        "active": true,
+        "route": true,
+        "noPaf": true,
+        "roles": 0,
+        "restored": true
+      },
+      {
+        "active": true,
+        "route": true,
+        "noPaf": true,
+        "roles": 0,
+        "restored": true
+      },
+      {
+        "active": true,
+        "route": true,
+        "noPaf": true,
+        "roles": 0,
+        "restored": true
+      }
+    ],
+    "narrowRefresh": {
+      "width": 360,
+      "root": "block",
+      "sharedVisible": true,
+      "noPaf": true,
+      "scale": 1.25,
+      "threshold": 0.7,
+      "stored": {
+        "x": 0.358974358974359,
+        "y": 0.7582938388625592,
+        "scale": 1.25,
+        "sprintThreshold": 0.7
+      },
+      "route": true
+    }
+  },
+  "checks": {
+    "layoutConsistency": true,
+    "normalSharedVisible": true,
+    "normalLayoutEdited": true,
+    "foxUsesShared": true,
+    "stalkMoveTurn": true,
+    "sprintMutualExclusion": true,
+    "returnToStalk": true,
+    "holdCharge": true,
+    "releasePounce": true,
+    "shortPounce": true,
+    "exitRestores": true,
+    "normalTouchWorks": true,
+    "reentry3": true,
+    "narrowRefresh": true
+  },
+  "errors": [],
+  "screenshots": [
+    "01-marmot-custom-layout.png",
+    "02-fox-shared-layout.png",
+    "03-fox-sprint-ring.png",
+    "04-fox-charge-hold.png",
+    "05-marmot-restored.png",
+    "06-narrow-refresh.png"
+  ],
+  "cdp": {
+    "managed": true,
+    "browser": "Chrome/147.0.7727.137"
+  },
+  "renderer": {
+    "backend": "WebGL2",
+    "gpu": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
+    "acceleration": "硬件加速",
+    "rawGl": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
+    "webgpuAvailable": true
+  },
+  "pass": true,
+  "finishedAt": "2026-10-25T13:27:16.582Z"
+}
