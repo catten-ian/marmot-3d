@@ -1221,10 +1221,10 @@ function title() {
       <span><kbd>${h.burst}</kbd> 短时应急爆发</span>
       <span><kbd>${h.ultimate}</kbd> 蓄满后的范围大招</span>
       <span><kbd>${h.interact}</kbd> 救援 / 陪伴缓压</span>
-      <span><kbd>${h.sprint}</kbd> 疾行（更快但更耗储备）</span>
+      <span><kbd>${h.sprint}</kbd> 疾行（更快但更耗${IS_BETA ? '体力' : '储备'}）</span>
       <span><kbd>${h.pause}</kbd> 暂停　<kbd>${h.retry}</kbd> 重试　<kbd>${h.restart}</kbd> 重开</span>
     </div>
-    <p style="font-size:12.5px">洞口有暖光，那就是家 —— 里面不能攻击，但能休息回储备。<br>
+    <p style="font-size:12.5px">洞口有暖光，那就是家 —— 里面不能攻击，${IS_BETA ? '主洞与临时洞都会咀嚼口中草料，主洞更快；空口不回体力' : '但能休息回储备'}。<br>
     屏幕边缘的红箭头表示有藏狐正在你背后靠近；<b>绿箭头是伙伴的呼救</b>，它会周期性叫两声。</p>
     <p style="font-size:12.5px"><b>奔跑时你会自动俯下身子冲刺，停下则撑起身来</b> ——
     起身比趴下慢一点，就像土拨鼠真的要用四肢撑起身体。</p>
@@ -1436,11 +1436,18 @@ function tryResolvePendingAerialParry() {
   if (state.execute && game.mode === 'play') strike('stand', { fromParryGesture: true });
 }
 
+function interruptForageForAction() {
+  if (!IS_BETA) return;
+  forage.index = -1; forage.progress = 0; forage.emergency = false; grazeCycleEaten = 0;
+  hud.setForage({ active: false });
+}
+
 /** 攻击：扇形范围判定，原版是圆形范围，第一人称下改为朝向前方扇形更合理 */
 function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul = null } = {}) {
   const p = game.player;
   // 站立/静止观察不阻塞出招：站立也必须能短按推击，连续短按按冷却节奏稳定触发。
   if (!strikeGateOpen(game)) return false;
+  interruptForageForAction(); // 实际出招才打断；按住蓄力不会调用 strike。
   const wheel = PLAYER.combatWheel[move] || PLAYER.combatWheel.tap;
   const s = combatStats(game);
   const running = isSprintingNow();
@@ -1659,6 +1666,7 @@ function doUltimate() {
  */
 function doJump() {
   if (!controller.jump()) return;
+  interruptForageForAction();
   sandboxRecorder?.jump({ air: Number(controller.airHeight.toFixed(2)) }, game.totalTime);
   audio.jump();
   const y = controller.position.y;
@@ -1700,7 +1708,7 @@ function doRoll(gesture = null) {
   const wheel = PLAYER.combatWheel.dodge;
   if (game.attackCD > 0 || game.inBurrow || (controller.rollT || 0) > 0.02) return false;
   const atkMul = devOn('famineTolerance') ? HERBIVORE.attackCostMul : 1;
-  if (p.energy < wheel.cost * atkMul) { hud.say('储备不足，无法翻滚', 1.2); return false; }
+  if (p.energy < wheel.cost * atkMul) { hud.say(`${IS_BETA ? '体力' : '储备'}不足，无法翻滚`, 1.2); return false; }
   p.energy -= wheel.cost * atkMul;
   const dir = rollDirFromGesture(gesture);
   // 默认 distance=2.2 / invuln=0.42 时精确保持旧 7.2；调试面板改值会同步改变冲量。
@@ -1860,7 +1868,7 @@ function update(dt) {
     p.energy -= dt * moveCost * costMul;
     p.energy = Math.max(0, p.energy);
   }
-  // 静止回储备（洞穴内回得快）；dev 版恢复更快，符合耐饥渴设定
+  // beta 仅咀嚼口腔草料；stable/dev 保留原静止回储备路径。
   const regenMul = devOn('famineTolerance') ? HERBIVORE.regenMul : 1;
   const burrowRegenMul = devOn('famineTolerance') ? HERBIVORE.burrowRegenMul : 1;
   if (IS_BETA) {
@@ -2124,7 +2132,7 @@ function update(dt) {
         forage.progress = stepForageProgress(forage.progress, dt, { inRange: true, emergency: forage.emergency, kind: 'grass', seconds: BETA_TUNE.grassSeconds });
         // 渐进啃环境草：grazeAt 按 dt 连续扣减圈内草的 growth；
         // bite.density = 本帧实际吃到量 / 满圈产能（按距离加权的连续密度）。
-        // 储备只按实际吃到的草折算（边吃边回、越稀疏每秒回得越少）；
+        // 草料只按前方锥内真实吃量折算（少量立即转化，其余入口腔）；
         // 一轮动作收尾时不再另发能量，避免重复计算。
         const bite = scenery.grazeAt(p.x, p.z, dt, controller.bodyYaw);
         if (bite.eaten > 0) {
@@ -2230,7 +2238,18 @@ function update(dt) {
 
   // —— 交互提示 ——
   let prompt = '';
-  if (game.friend.saved && game.inBaseBurrow && game.socialCD <= 0) {
+  game.gatherAvailable = IS_BETA && !game.inBurrow && berries.some((b) => !b.taken && b.kind === 'flower'
+    && Math.hypot(b.x - p.x, b.z - p.z) < BERRY_RADIUS + 0.35);
+  const touchInteract = document.querySelector('[data-touch-action="interact"]');
+  if (IS_BETA && touchInteract) {
+    touchInteract.classList.toggle('is-gather', game.gatherAvailable);
+    const label = touchInteract.querySelector('small');
+    if (label) label.textContent = game.gatherAvailable ? '采集' : '交互';
+    touchInteract.setAttribute('aria-label', game.gatherAvailable ? '采集花朵' : '救援或陪伴');
+  }
+  if (game.gatherAvailable) {
+    prompt = kbd(bindText(binds, 'interact')) + ' 采集';
+  } else if (game.friend.saved && game.inBaseBurrow && game.socialCD <= 0) {
     prompt = kbd(bindText(binds, 'interact')) + ' 陪伴缓压';
   } else if (!game.friend.rescued && !game.friend.saved
     && !IS_BETA
@@ -2903,6 +2922,7 @@ function cacheKbSkillEls() {
     kbSkillEls[id] = {
       slot,
       key: slot?.querySelector('.kb-key'),
+      name: slot?.querySelector('.kb-name'),
       state: slot?.querySelector('.kb-state'),
     };
   }
@@ -2921,19 +2941,21 @@ function updateKbSkillBar() {
     const ref = kbSkillEls[id];
     if (!ref?.slot) return;
     if (ref.key) ref.key.textContent = key;
+    if (ref.name) ref.name.textContent = label;
     if (ref.state) ref.state.textContent = sub || label;
     ref.slot.classList.toggle('is-cd', state === 'cd');
     ref.slot.classList.toggle('is-charging', state === 'charging');
     ref.slot.classList.toggle('is-no-energy', state === 'no-energy');
     ref.slot.classList.toggle('is-ready', state === 'ready');
     ref.slot.classList.toggle('is-active', state === 'active');
+    ref.slot.classList.toggle('is-gather', id === 'interact' && state === 'gather');
   };
 
   // 应急爆发
   const bKey = keyLabel('burst');
   if (game.boost > 0) setState('burst', bKey, '应急爆发', 'active', `生效 ${Math.ceil(game.boost)}s`);
   else if (game.boostCD > 0) setState('burst', bKey, '应急爆发', 'cd', `冷却 ${Math.ceil(game.boostCD)}s`);
-  else if (game.player.energy < BOOST.minEnergy) setState('burst', bKey, '应急爆发', 'no-energy', `需储备 ${BOOST.minEnergy}`);
+  else if (game.player.energy < BOOST.minEnergy) setState('burst', bKey, '应急爆发', 'no-energy', `需${IS_BETA ? '体力' : '储备'} ${BOOST.minEnergy}`);
   else setState('burst', bKey, '应急爆发', 'ready', '就绪');
 
   // 协同大招（蓄力/冷却/就绪/能量不足）
@@ -2943,14 +2965,15 @@ function updateKbSkillBar() {
   else {
     const uState = cooldownState({ energy: game.player.energy, cost: ULT.cost, charge: game.charge, charging: true });
     const sub = game.charge >= 100
-      ? (game.player.energy < ULT.cost ? `需储备 ${ULT.cost}` : '就绪 · 范围冲击')
+      ? (game.player.energy < ULT.cost ? `需${IS_BETA ? '体力' : '储备'} ${ULT.cost}` : '就绪 · 范围冲击')
       : `蓄力 ${Math.round(game.charge)}/100`;
     setState('ultimate', uKey, '协同大招', game.charge >= 100 ? uState : 'charging', sub);
   }
 
   // 救援 / 陪伴
   const iKey = keyLabel('interact');
-  if (!game.friend.saved && !game.friend.rescued) setState('interact', iKey, '救援/陪伴', 'ready', '待救援');
+  if (game.gatherAvailable) setState('interact', iKey, '采集', 'gather', '可采集');
+  else if (!game.friend.saved && !game.friend.rescued) setState('interact', iKey, '救援/陪伴', 'ready', '待救援');
   else if (!game.friend.saved) setState('interact', iKey, '救援/陪伴', 'ready', '跟随中');
   else if (game.social > 0) setState('interact', iKey, '救援/陪伴', 'active', `缓压 ${Math.ceil(game.social)}s`);
   else if (game.socialCD > 0) setState('interact', iKey, '救援/陪伴', 'cd', `冷却 ${Math.ceil(game.socialCD)}s`);
@@ -3016,7 +3039,7 @@ function syncHelpKeys() {
       <span><kbd>${jumpKeys}</kbd> 跳跃</span>
       <span>${keys('dodge')} 翻滚 / 闪避（触屏右侧翻滚键）</span>
       <span>${keys('burst')} 应急爆发　${keys('ultimate')} 协同大招</span>
-      <span>${keys('interact')} 救援 / 陪伴　${keys('sprint')} 疾行（更快但更耗储备）</span>
+      <span>${keys('interact')} 救援 / 陪伴　${keys('sprint')} 疾行（更快但更耗${IS_BETA ? '体力' : '储备'}）</span>
       <span>${keys('cameraView', 'V')} 第一/第三人称视角切换</span>
       <span>${keys('pause')} 暂停　${keys('retry')} 重试本关　${keys('restart')} 从第一关重开　${keys('fullscreen')} 全屏</span>
       <span><kbd>${escLine}</kbd> · <kbd>Enter</kbd> 标题/暂停/通关确认</span>

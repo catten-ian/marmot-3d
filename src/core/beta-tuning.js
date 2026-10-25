@@ -5,7 +5,7 @@ import { IS_BETA } from './version.js';
 export const BETA_ACTIVE = IS_BETA;
 
 export const BETA_TUNE = {
-  moveSpeedMul: 1.12,
+  moveSpeedMul: 1.07, // 普通移速略降；stable/dev 不经过此倍率。
   sprintMoveCost: 5.0,
   flowerCount: 4,
   flowerInstant: true,

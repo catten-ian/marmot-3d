@@ -1887,6 +1887,7 @@ body.touch-layout-editing .objective.layout-dragging { cursor: grabbing; filter:
 .touch-actions button[data-touch-action="jump"] { border-color: rgba(247, 224, 150, .88); }
 .touch-actions button[data-touch-action="sprint"] { border-color: rgba(164, 220, 146, .88); }
 .touch-actions button[data-touch-action="interact"] { border-color: rgba(150, 218, 205, .9); }
+.touch-actions button[data-touch-action="interact"].is-gather { border-color: #ffd66e; background: rgba(129, 103, 38, .9); box-shadow: 0 0 14px #f5c95a66; }
 .touch-actions button[data-touch-action="burst"] { border-color: rgba(255, 156, 119, .9); }
 .touch-actions button[data-touch-action="ultimate"] { border-color: rgba(207, 171, 255, .92); }
 .touch-actions button.pressed, .touch-pause.pressed {
@@ -2004,6 +2005,8 @@ body.touch-mode .kb-skill-bar { display: none !important; }
 .kb-skill.is-cd .kb-state { color: #c9c3d7; }
 .kb-skill.is-charging .kb-state { color: #c9a8ec; }
 .kb-skill.is-no-energy .kb-state { color: #ffb1a4; }
+.kb-skill.is-gather { border-color: #f1c85c; box-shadow: 0 0 12px #f1c85c44; }
+.kb-skill.is-gather .kb-name, .kb-skill.is-gather .kb-state { color: #ffe29a; }
 body.touch-layout-editing .touch-controls { z-index: 41; }
 /* 编辑态让全屏视角拖动层退让，HUD 卡片/小地图不能被它遮住；摇杆和动作按钮仍可选中拖动。 */
 .touch-controls.layout-editing .touch-look-zone { pointer-events: none; }

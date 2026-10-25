@@ -13,7 +13,7 @@ export function setupSandboxPanel({ root, state, onAction, onChange, recorder = 
     <label class="test-toggle"><input id="sandboxFreezeTimer" type="checkbox" checked> 冻结 / 关闭计时</label>
     <label class="test-toggle"><input id="sandboxParryDrill" type="checkbox"> 迎击练习（单狐正面冲刺，击退即重来）</label>
     <div class="test-actions sandbox-actions">
-      <button type="button" data-sandbox-action="refill">回满生命 / 储备</button>
+      <button type="button" data-sandbox-action="refill">回满生命 / 体力</button>
       <button type="button" data-sandbox-action="clearStress">清零应激</button>
       <button type="button" data-sandbox-action="charge">充满大招</button>
       <button type="button" data-sandbox-action="resetFood">重置食物</button>

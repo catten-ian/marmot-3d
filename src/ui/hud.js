@@ -70,9 +70,9 @@ export class HUD {
     if (!el) return;
     el.hidden = !active;
     if (!active) return;
-    const labels = { grass: '啃食中…', flower: '采花中…', berry: '采食中…' };
+    const labels = { grass: this.beta ? '啃草中' : '啃食中…', flower: '采花中…', berry: '采食中…' };
     el.classList.toggle('emergency', !!emergency);
-    el.querySelector('.forage-label').textContent = emergency ? '危险！进食变慢' : labels[kind] || labels.grass;
+    el.querySelector('.forage-label').textContent = !this.beta && emergency ? '危险！进食变慢' : labels[kind] || labels.grass;
     el.querySelector('.forage-track i').style.width = `${Math.max(0, Math.min(1, progress)) * 100}%`;
   }
 
