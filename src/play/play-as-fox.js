@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { createPafFoxModel } from '../entities/paf-fox-model.js';
 import { createPafMoleModel } from '../entities/paf-mole-model.js';
+import { createPafFpvViewModel } from '../entities/paf-fpv-viewmodel.js';
 import {
   createViewModeState, enterFpvLook, applyLookDelta, dampLookToward,
   tpsCameraPose, fpvCameraPose,
@@ -200,6 +201,12 @@ export function createPlayAsFox(ctx) {
   // —— 玩家扮演的藏狐 ——
   const foxVisual = createPafFoxModel({});
   scene.add(foxVisual.group);
+  // Camera-local fox forequarters. Rendering in the main pass with depth
+  // disabled keeps the existing PAF/main render order unchanged.
+  const fpvVisual = createPafFpvViewModel();
+  camera.add(fpvVisual.root);
+  const cameraWasInScene = camera.parent === scene;
+  if (!camera.parent) scene.add(camera);
   const fox = {
     x: 0, z: -6, y: 0, yaw: 0, vy: 0,
     phase: 'idle',                 // idle | wind | lunge | recover
@@ -318,8 +325,10 @@ export function createPlayAsFox(ctx) {
     if (m === 'fpv') {
       Object.assign(look, enterFpvLook(fox.yaw, cfg.fpvDefaultPitch));
       foxVisual.setHeadVisible?.(false);   // 眼位在头内：隐藏头部防糊屏，保留躯干（低头可见自身）
+      fpvVisual.setVisible(true);
     } else {
       foxVisual.setHeadVisible?.(true);
+      fpvVisual.setVisible(false);
     }
     overlay.classList.toggle('paf-fpv', m === 'fpv');
     if (elViewTag) elViewTag.textContent = m === 'fpv' ? '第一人称' : '第三人称';
@@ -530,6 +539,10 @@ export function createPlayAsFox(ctx) {
       camera.position.y = damp(camera.position.y, pose.pos.y, cfg.camDamp, dt);
       camera.lookAt(pose.lookAt.x, pose.lookAt.y, pose.lookAt.z);
     }
+    fpvVisual.update(dt, {
+      phase: fox.phase, speed: groundSpeed, pitch: look.pitch,
+      phaseT: fox.phaseT, sprint: fox.sprint,
+    });
 
     // HUD
     elTop.textContent = `扮演藏狐 · 捕猎 ${score} 只 · ${elapsed.toFixed(0)}s`;
@@ -560,6 +573,8 @@ export function createPlayAsFox(ctx) {
     for (const p of prey) p.dispose(scene);
     prey = [];
     scene.remove(foxVisual.group);
+    camera.remove(fpvVisual.root);
+    if (!cameraWasInScene && camera.parent === scene) scene.remove(camera);
     overlay.remove();
     document.body.classList.remove('play-as-fox');
     hidden.forEach((o) => { o.visible = true; });
@@ -594,6 +609,7 @@ export function createPlayAsFox(ctx) {
     get terrainHeightAt() { return (x, z) => terrainHeight(x, z); },
     get viewMode() { return viewMode.mode; },
     get look() { return { yaw: look.yaw, pitch: look.pitch }; },
+    get fpvVisual() { return fpvVisual.getDebugState(); },
     toggleView,
     setViewMode: (m) => setViewMode(m),
     // 仅供自动化 QA：直接设置 FPV 视线（仍过俯仰夹紧）

@@ -48,11 +48,11 @@ export function computePafFoxPose(state = {}) {
 
 // —— 毛色 ——
 const palette = {
-  tan: new THREE.Color('#b08a5e'),      // 暖棕侧腹
-  gray: new THREE.Color('#8a8577'),     // 背部灰褐（藏狐灰调）
+  tan: new THREE.Color('#ad8a61'),      // 暖棕侧腹
+  gray: new THREE.Color('#77786e'),     // 背部银灰（藏狐灰调）
   cream: new THREE.Color('#efe6d4'),    // 腹侧奶白
   rust: new THREE.Color('#a06234'),     // 锈棕（耳背/颈背）
-  guard: new THREE.Color('#c2b49c'),
+  guard: new THREE.Color('#c7bba4'),
 };
 function hash3(x, y, z) {
   const n = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
@@ -72,14 +72,16 @@ const mat = (color, roughness = 0.94, extra = {}) => new THREE.MeshStandardMater
 const mats = {
   fur: mat('#ffffff', 0.96, { vertexColors: true }),   // 顶点色载体（setColor 调 color 作乘色）
   cream: mat('#efe6d4', 0.95),
-  rust: mat('#a06234', 0.94),
+  rust: mat('#98613d', 0.94),
   dark: mat('#4a382c', 0.9),                            // 吻尖/尾尖/斑纹
   earInner: mat('#e3cdb2', 0.96),
   nose: mat('#231d19', 0.5),
   eye: mat('#1f1712', 0.18),
   glint: new THREE.MeshBasicMaterial({ color: '#fff6e2' }),
   legLower: mat('#d9cbb4', 0.95),
-  paw: mat('#cfc0a8', 0.95),
+  paw: mat('#c7b99e', 0.95),
+  claw: mat('#352c26', 0.55),
+  ruff: mat('#a8916f', 0.96),
 };
 
 /** 带顶点毛色的有机椭球几何（单位球 → 调用方 scale）。 */
@@ -158,20 +160,20 @@ const sharedEarGeo = taperedEarGeometry();
 function buildEar(head, side) {
   const ear = new THREE.Group();
   ear.name = `ear-${side > 0 ? 'l' : 'r'}`;
-  ear.position.set(side * 0.09, 0.155, -0.03);
+  ear.position.set(side * 0.115, 0.14, -0.035);
   ear.rotation.z = -side * 0.12;
   ear.rotation.x = -0.10;
   // 大而尖的三角耳（藏狐标志性）：壳几何高约 1，耳高 0.34，竖立于颅顶
-  addMesh(ear, 'shell', sharedEarGeo, mats.rust, [0, 0, 0], [0.235, 0.34, 0.34]);
+  addMesh(ear, 'shell', sharedEarGeo, mats.rust, [0, 0, 0], [0.225, 0.24, 0.34]);
   const innerShape = new THREE.Shape();
   innerShape.moveTo(-0.16, 0.06);
   innerShape.quadraticCurveTo(-0.15, 0.32, 0, 0.55);
   innerShape.quadraticCurveTo(0.15, 0.32, 0.16, 0.06);
   innerShape.quadraticCurveTo(0, 0.0, -0.16, 0.06);
   const innerGeo = new THREE.ShapeGeometry(innerShape, 8);
-  addMesh(ear, 'concha', innerGeo, mats.earInner, [0, 0.035, 0.036], [0.62, 0.40, 1]);
+  addMesh(ear, 'concha', innerGeo, mats.earInner, [0, 0.022, 0.036], [0.59, 0.28, 1]);
   // 耳尖深色（独立几何，避免组缩放错位）
-  addMesh(ear, 'tip', new THREE.ConeGeometry(0.034, 0.10, 6), mats.dark, [0, 0.295, 0], null);
+  addMesh(ear, 'tip', new THREE.ConeGeometry(0.024, 0.055, 6), mats.dark, [0, 0.202, 0], null);
   head.add(ear);
   return ear;
 }
@@ -192,7 +194,13 @@ function buildLeg(body, name, x, z, hind) {
   knee.position.set(0, -0.24, hind ? -0.02 : 0);
   pivot.add(knee);
   addMesh(knee, 'lower', new THREE.CylinderGeometry(0.032, 0.042, 0.20, 8), mats.legLower, [0, -0.10, 0]);
-  addEllipsoid(knee, 'paw', [0, -0.22, 0.025], [0.055, 0.04, 0.085], mats.paw, 12);
+  addEllipsoid(knee, 'paw', [0, -0.22, 0.04], [0.060, 0.042, 0.10], mats.paw, 14);
+  for (let toe = -1; toe <= 1; toe++) {
+    addEllipsoid(knee, `toe-${toe}`, [toe * 0.028, -0.224, 0.105], [0.020, 0.022, 0.044], mats.legLower, 10);
+    const claw = addMesh(knee, `claw-${toe}`, new THREE.ConeGeometry(0.009, 0.042, 6), mats.claw,
+      [toe * 0.028, -0.229, 0.142]);
+    claw.rotation.x = Math.PI / 2 - 0.22;
+  }
   return { pivot, knee, hind };
 }
 
@@ -204,9 +212,9 @@ function buildTail(body) {
   // 三段链式蓬松尾：根部暖棕 → 中段 → 尾尖深褐
   const segs = [];
   const segDef = [
-    { len: 0.20, r: [0.085, 0.075, 0.12], m: mats.rust },
-    { len: 0.20, r: [0.105, 0.095, 0.13], m: mats.fur },
-    { len: 0.18, r: [0.085, 0.08, 0.11], m: mats.dark },
+    { len: 0.22, r: [0.105, 0.09, 0.14], m: mats.rust },
+    { len: 0.23, r: [0.135, 0.115, 0.16], m: mats.fur },
+    { len: 0.19, r: [0.105, 0.09, 0.13], m: mats.cream },
   ];
   let parent = tail;
   for (let i = 0; i < segDef.length; i++) {
@@ -235,9 +243,19 @@ export function createPafFoxModel(options = {}) {
   group.add(body);
 
   // 躯干：修长体型 + 胸部 + 腹部奶白贴块
-  addFurMass(body, 'torso', [0, 0.02, -0.04], [0.24, 0.23, 0.46]);
-  addFurMass(body, 'chest', [0, 0.01, 0.30], [0.22, 0.22, 0.24]);
+  addFurMass(body, 'torso', [0, 0.02, -0.04], [0.255, 0.235, 0.47]);
+  addFurMass(body, 'chest', [0, 0.015, 0.30], [0.235, 0.245, 0.25]);
   addEllipsoid(body, 'belly-cream', [0, -0.13, 0.02], [0.17, 0.12, 0.34], mats.cream, 18);
+  // Dense neck ruff and silver saddle give the Tibetan fox its heavy-coated
+  // outline rather than the narrow waist of a red fox.
+  addFurMass(body, 'neck-ruff', [0, 0.14, 0.37], [0.225, 0.205, 0.20]);
+  addEllipsoid(body, 'throat-bib', [0, -0.015, 0.48], [0.125, 0.19, 0.075], mats.cream, 18);
+  for (const side of [-1, 1]) {
+    const shoulderTuft = addMesh(body, `shoulder-ruff-${side}`, new THREE.ConeGeometry(0.075, 0.20, 7), mats.ruff,
+      [side * 0.205, 0.04, 0.29]);
+    shoulderTuft.rotation.z = side * 1.25;
+    addEllipsoid(body, `haunch-${side}`, [side * 0.14, -0.055, -0.32], [0.115, 0.16, 0.17], mats.rust, 16);
+  }
   // 后躯（独立分组，蓄力时额外下压）
   const hips = new THREE.Group();
   hips.name = 'hips';
@@ -248,26 +266,35 @@ export function createPafFoxModel(options = {}) {
   // 头
   const head = new THREE.Group();
   head.name = 'head';
-  head.position.set(0, 0.22, 0.46);
+  head.position.set(0, 0.235, 0.49);
   body.add(head);
-  addFurMass(head, 'skull', [0, 0.02, 0.02], [0.155, 0.135, 0.15]);
-  addEllipsoid(head, 'cheek-l', [0.095, -0.045, 0.105], [0.055, 0.045, 0.055], mats.cream, 14);
-  addEllipsoid(head, 'cheek-r', [-0.095, -0.045, 0.105], [0.055, 0.045, 0.055], mats.cream, 14);
-  // 尖吻
+  // Broad, almost square cranium and flared cheek ruffs are the key Tibetan
+  // fox facial cues; the tapered muzzle remains canine rather than feline.
+  addFurMass(head, 'skull', [0, 0.015, 0.015], [0.185, 0.14, 0.15]);
+  addEllipsoid(head, 'cheek-l', [0.125, -0.045, 0.085], [0.075, 0.070, 0.080], mats.cream, 16);
+  addEllipsoid(head, 'cheek-r', [-0.125, -0.045, 0.085], [0.075, 0.070, 0.080], mats.cream, 16);
+  for (const side of [-1, 1]) {
+    const ruff = addMesh(head, `cheek-ruff-${side}`, new THREE.ConeGeometry(0.047, 0.135, 6), mats.ruff,
+      [side * 0.175, -0.035, 0.045]);
+    ruff.rotation.z = side * 1.35;
+    const brow = addEllipsoid(head, `brow-${side}`, [side * 0.080, 0.075, 0.139], [0.067, 0.018, 0.022], mats.rust, 12);
+    brow.rotation.z = -side * 0.14;
+  }
+  // Short, tapered snout under the broad face.
   const muzzle = new THREE.Group();
   muzzle.name = 'muzzle';
-  muzzle.position.set(0, -0.045, 0.16);
+  muzzle.position.set(0, -0.055, 0.16);
   head.add(muzzle);
-  const muzzleGeo = new THREE.CylinderGeometry(0.035, 0.075, 0.20, 10);
-  addMesh(muzzle, 'snout', muzzleGeo, mats.cream, [0, 0, 0.06], null).rotation.x = Math.PI / 2 - 0.12;
-  addEllipsoid(muzzle, 'nose', [0, 0.008, 0.165], [0.032, 0.026, 0.024], mats.nose, 12);
+  const muzzleGeo = new THREE.CylinderGeometry(0.040, 0.080, 0.19, 12);
+  addMesh(muzzle, 'snout', muzzleGeo, mats.cream, [0, 0, 0.055], null).rotation.x = Math.PI / 2 - 0.08;
+  addEllipsoid(muzzle, 'nose', [0, 0.006, 0.155], [0.037, 0.026, 0.025], mats.nose, 12);
   // 面部深色斑（眼周 + 吻侧）
   addEllipsoid(head, 'mask-l', [0.085, 0.045, 0.135], [0.055, 0.035, 0.03], mats.dark, 12);
   addEllipsoid(head, 'mask-r', [-0.085, 0.045, 0.135], [0.055, 0.035, 0.03], mats.dark, 12);
   for (const side of [-1, 1]) {
-    const eye = addEllipsoid(head, `eye-${side}`, [side * 0.082, 0.05, 0.148], [0.026, 0.022, 0.016], mats.eye, 12);
+    const eye = addEllipsoid(head, `eye-${side}`, [side * 0.092, 0.045, 0.148], [0.024, 0.019, 0.016], mats.eye, 12);
     eye.rotation.z = side * 0.12;
-    addEllipsoid(head, `glint-${side}`, [side * 0.078, 0.058, 0.162], [0.007, 0.006, 0.004], mats.glint, 8);
+    addEllipsoid(head, `glint-${side}`, [side * 0.088, 0.052, 0.162], [0.006, 0.005, 0.004], mats.glint, 8);
   }
   const ears = [buildEar(head, 1), buildEar(head, -1)];
 
@@ -289,7 +316,7 @@ export function createPafFoxModel(options = {}) {
   let cur = { ...PAF_FOX_POSES.idle };
   let walkPhase = 0;
 
-  const DEFAULT_COLORS = { fur: '#ffffff', rust: '#a06234', legLower: '#d9cbb4', paw: '#cfc0a8' };
+  const DEFAULT_COLORS = { fur: '#ffffff', rust: '#98613d', legLower: '#d9cbb4', paw: '#c7b99e' };
   const setColor = (hex) => {
     // hex 作为乘色 tint（默认 0xffffff 保持原配色），派生色 = 默认色 × tint
     const tint = new THREE.Color(hex);

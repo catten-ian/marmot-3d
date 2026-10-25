@@ -98,6 +98,23 @@ test('藏狐模型：setHeadVisible 切换头部可见（FPV 防糊屏）', () =
   assert.equal(fox.head.visible, true);
 });
 
+test('藏狐模型：宽颊、毛领、四腿爪尖与白尾尖构成藏狐轮廓', () => {
+  const fox = foxMod.createPafFoxModel({});
+  assert.ok(fox.body.getObjectByName('neck-ruff'));
+  assert.ok(fox.head.getObjectByName('cheek-ruff-1'));
+  for (const leg of fox.legs) {
+    const knee = leg.children.find((o) => o.name.endsWith('-knee'));
+    assert.ok(knee?.children.some((o) => o.name.startsWith('claw-')), `${leg.name} 缺爪尖`);
+  }
+  const tip = fox.tail.userData.segs[2].getObjectByName('plume');
+  assert.equal(tip.material, fox.head.getObjectByName('cheek-l').material, '尾尖与奶白颊毛同材质');
+  fox.group.traverse((o) => {
+    if (o.isMesh && o.material?.vertexColors) {
+      assert.ok(o.geometry.getAttribute('color'), `${o.name} 顶点色材质缺颜色属性会渲染成黑块`);
+    }
+  });
+});
+
 test('土拨鼠模型：返回 THREE.Group 且兼容 Prey 用法', () => {
   const mole = moleMod.createPafMoleModel({ color: 0xb3925a });
   assert.ok(mole instanceof THREE.Group);
@@ -126,4 +143,22 @@ test('土拨鼠模型：wander/alert/flee 姿态可读差异且无 NaN', () => {
   assert.ok(alert.pitch < wander.pitch - 0.2, '警觉时立起（后仰）');
   assert.ok(alert.y > wander.y, '警觉时身体抬高');
   assert.notEqual(flee.pitch, wander.pitch, '逃跑姿态与游荡不同');
+});
+
+test('土拨鼠模型：圆躯、钝吻、四趾掘土爪与门齿齐全，纯姿态有限', () => {
+  const mole = moleMod.createPafMoleModel({});
+  const body = mole.getObjectByName('body');
+  assert.ok(body.getObjectByName('rump'));
+  const head = body.getObjectByName('head');
+  assert.ok(head.getObjectByName('incisor--1'));
+  for (const side of [-1, 1]) {
+    const paw = body.getObjectByName(`front-paw-${side}`);
+    assert.equal(paw.children.filter((o) => o.name.startsWith('claw-')).length, 4);
+  }
+  for (const state of ['wander', 'alert', 'flee', 'invalid']) {
+    const pose = moleMod.computePafMolePose(state, Number.NaN);
+    for (const key of ['rearUp', 'pawLift', 'earPerk', 'headUp', 'speed', 'gaitFrequency']) {
+      assert.ok(Number.isFinite(pose[key]), `${state}.${key}`);
+    }
+  }
 });

@@ -14,7 +14,7 @@
  *    通过 Target.createTarget 开独立标签页，测完关闭，不影响其它标签；
  *  - 若该端点不可用则自起 headless Chrome（PAF_QA_CDP=off 强制自起）。
  *
- * 产物：outputs/paf-fpv-k3/*.png + qa-result.json
+ * 产物：outputs/paf-fpv-k31/*.png + qa-result.json
  * 用法：node tools/qa-paf-fpv-managed.cjs
  */
 const { spawn } = require('child_process');
@@ -23,7 +23,7 @@ const os = require('os');
 const fs = require('fs');
 
 const ROOT = path.resolve(__dirname, '..');
-const OUT = path.join(ROOT, 'outputs', 'paf-fpv-k3');
+const OUT = path.join(ROOT, 'outputs', 'paf-fpv-k31');
 const HTTP_PORT = 8377;
 const CDP_PORT = 9463;
 const BASE = `http://127.0.0.1:${HTTP_PORT}/index.html?version=beta`;
@@ -214,7 +214,20 @@ function findChrome() {
     record('V 键切到第一人称', (await evalJS(`window.__playAsFox.viewMode`)) === 'fpv');
     const tag1 = await evalJS(`document.querySelector('#pafViewTag')?.textContent`);
     record('HUD 视角标识=第一人称', tag1 === '第一人称', String(tag1));
+    const fpvIdle = await evalJS(`window.__playAsFox.fpvVisual`);
+    record('FPV 狐狸双前爪与身体 cues 可见', !!(fpvIdle?.visible && fpvIdle.paws?.length === 2 && fpvIdle.paws.every(p => p.y < 0.08)), JSON.stringify(fpvIdle));
     await shot('03-fpv-default');
+
+    await key('KeyW');
+    await waitFor(`window.__playAsFox.fpvVisual.pose === 'walk'`, 8000, 150);
+    await sleep(250);
+    const fpvWalk = await evalJS(`window.__playAsFox.fpvVisual`);
+    record('FPV 移动步态响应', fpvWalk?.pose === 'walk'
+      && Math.abs(fpvWalk.rootZ - fpvIdle.rootZ) > 0.005
+      && fpvWalk.paws.some((p) => Math.abs(p.z) > 0.001), JSON.stringify(fpvWalk));
+    await shot('03b-fpv-walk');
+    await key('KeyW', 'keyup');
+    await sleep(250);
 
     // FPV 视线解耦：身体转向，视线 yaw 不变
     await reactivate();
@@ -266,6 +279,20 @@ function findChrome() {
       `body.yaw=${posAfter.yaw.toFixed(2)}, phases=${phases.join('/')}`);
     await shot('06-fpv-after-pounce');
 
+    // A second pounce provides actual action-frame visual evidence.
+    // Extend only this QA-staged pounce so CDP readback cannot miss a phase;
+    // production defaults and the preceding contract probe remain unchanged.
+    await evalJS(`(() => { const c = window.__playAsFox.cfg;
+      window.__pafQaTiming = { windTime: c.windTime, lungeTime: c.lungeTime };
+      c.windTime = 1.2; c.lungeTime = 1.2; })()`);
+    await key('Space');
+    await waitFor(`window.__playAsFox.phase === 'wind'`, 5000, 30);
+    await shot('06a-fpv-wind');
+    await waitFor(`window.__playAsFox.phase === 'lunge'`, 5000, 30);
+    await shot('06b-fpv-lunge');
+    await evalJS(`Object.assign(window.__playAsFox.cfg, window.__pafQaTiming)`);
+    await waitFor(`window.__playAsFox.phase === 'idle'`, 12000, 200);
+
     // V 键切回第三人称
     await key('KeyV');
     await sleep(600);
@@ -278,11 +305,11 @@ function findChrome() {
     const preyInfo = await evalJS(`(() => { const qa = window.__playAsFox;
       const p = qa.prey.find((p) => !p.caught);
       if (!p) return null;
-      const bx = p.x - Math.sin(p.yaw) * 3, bz = p.z - Math.cos(p.yaw) * 3;
+      const bx = p.x - Math.sin(p.yaw) * 1.6, bz = p.z - Math.cos(p.yaw) * 1.6;
       qa.teleport(bx, bz, Math.atan2(p.x - bx, p.z - bz));
       return { x: p.x, z: p.z }; })()`);
     record('找到猎物用于近景', !!preyInfo);
-    await sleep(600);
+    await sleep(200);
     await shot('08-marmot-closeup-tps');
 
     // —— 窄屏 + 触屏仿真（刷新页面） ——
@@ -307,6 +334,8 @@ function findChrome() {
     const btnOn = await evalJS(`document.querySelector('#pafView').classList.contains('paf-on')`);
     record('触屏按钮高亮反馈', btnOn === true);
     await shot('10-narrow-touch-fpv');
+    const narrowFpv = await evalJS(`window.__playAsFox.fpvVisual`);
+    record('窄屏 FPV 双爪仍启用且处于下缘', !!(narrowFpv?.visible && narrowFpv.paws.every(p => p.y < 0.08)), JSON.stringify(narrowFpv));
     await evalJS(`document.querySelector('#pafView').click()`);
     await sleep(400);
     record('触屏按钮切回第三人称', (await evalJS(`window.__playAsFox.viewMode`)) === 'tps');
@@ -320,6 +349,20 @@ function findChrome() {
     const re = await evalJS(`window.__playAsFox && window.__playAsFox.active && window.__playAsFox.viewMode`);
     record('退出后重进且视角复位第三人称', re === 'tps', String(re));
     await shot('11-reenter-tps');
+
+    // Isolated closeups make model-only silhouette/fur/paw changes reviewable.
+    await send('Emulation.setTouchEmulationEnabled', { enabled: false });
+    await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+    await send('Page.navigate', { url: `http://127.0.0.1:${HTTP_PORT}/outputs/paf-fpv-k31/model-viewer.html` });
+    await waitFor(`window.__ready === true`, 20000);
+    await sleep(500);
+    await shot('12-models-front');
+    await evalJS(`window.__set({ camYaw: 1.25, camDist: 2.7 })`);
+    await sleep(350);
+    await shot('13-models-side');
+    await evalJS(`window.__set({ camYaw: 0.15, camDist: 2.4, moleState: 'alert', foxAnim: 'wind' })`);
+    await sleep(600);
+    await shot('14-models-alert-wind');
 
     const realErrs = consoleErrs.filter((e) => !/favicon|404/.test(e));
     record('无控制台错误', realErrs.length === 0, realErrs.slice(0, 3).join(' | '));
