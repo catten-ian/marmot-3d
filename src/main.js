@@ -130,7 +130,10 @@ const INTERACT_TEXT = interactionSemantics(IS_BETA);
 const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
-if (IS_BETA) audio.bindUserGesture(window);
+if (IS_BETA) {
+  audio.preload();
+  audio.bindUserGesture(window);
+}
 
 // The shared shell keeps stable markup. Beta adjusts only the existing interact
 // controls at startup, before help/settings/layout surfaces can expose them.

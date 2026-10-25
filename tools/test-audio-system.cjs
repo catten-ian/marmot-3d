@@ -75,7 +75,7 @@ test('all 17 legacy SFX names map and file/failure/offline decision is pure', as
   assert.equal(mod.selectSfxPlayback({ isBeta: true, enabled: false, fileAvailable: true }), 'silent');
 });
 
-test('static SFX file wins; missing/failing local file silently calls procedural fallback', async () => {
+test('static SFX file wins; missing/failing audio silently calls procedural fallback', async () => {
   const mod = await import('../src/systems/audio.js');
   const urls = [];
   const contextFactory = FakeContext;
@@ -94,8 +94,8 @@ test('static SFX file wins; missing/failing local file silently calls procedural
   fileAudio.hit();
   await sleep(10);
   assert.equal(fileFallbacks, 0);
-  assert.ok(urls.includes('assets/audio/sfx/manifest.json'));
-  assert.ok(urls.includes(mod.SFX_ASSETS.hit));
+  assert.ok(urls.includes(`${mod.TOS_AUDIO_BASE}sfx/manifest.json`));
+  assert.ok(urls.includes(`${mod.TOS_AUDIO_BASE}sfx/hit.mp3`));
   assert.ok(fileAudio.ctx.sources.some((source) => source.started.length === 1));
 
   const missingAudio = new mod.Audio({

@@ -1,11 +1,13 @@
 /**
- * BETA audio: three WebAudio buses, lazy local MP3 playback, and procedural fallback.
+ * BETA audio: three WebAudio buses, TOS-first MP3 playback, and procedural fallback.
  * Stable/dev keep their original 0.32 master level and procedural synth path.
- * No provider SDK, remote service, or API key is present in this runtime module.
+ * No provider SDK or API key is present in this runtime module.
  */
 import { IS_BETA } from '../core/version.js';
 
 export const AUDIO_SETTINGS_KEY = 'marmot3d.audio.beta.v1';
+export const TOS_AUDIO_BASE = 'https://marmot.tos-cn-shanghai.volces.com/audio/';
+export const AUDIO_TIMEOUTS = Object.freeze({ bgm: 15000, sfx: 8000 });
 export const AUDIO_DEFAULTS = Object.freeze({
   masterVolume: 100,
   sfxVolume: 100,
@@ -48,6 +50,12 @@ export const BGM_SLOTS = Object.freeze(['menu', 'explore', 'tension', 'combat', 
 export const BGM_ASSETS = Object.freeze(Object.fromEntries(
   BGM_SLOTS.map((slot) => [slot, `assets/audio/bgm/${slot}.mp3`]),
 ));
+
+/** Map an audio-relative file to its beta remote/local fallback chain. */
+export function audioAssetCandidates(path, isBeta = true) {
+  if (!isBeta || typeof path !== 'string' || !path.startsWith('assets/audio/')) return [path];
+  return [new URL(path.slice('assets/audio/'.length), TOS_AUDIO_BASE).href, path];
+}
 
 const SFX_GROUP = Object.freeze({
   swing: 'swish', hit: 'impact', repel: 'impact', kill: 'impact', hurt: 'impact', foxDash: 'impact',
@@ -274,6 +282,7 @@ export class Audio {
     this._sfxCache = new Map();
     this._bgmCache = new Map();
     this._manifestCache = new Map();
+    this._audioBytesCache = new Map();
     this._reservations = new Map();
     this._bgmManager = null;
     this._desiredBgmSlot = null;
@@ -287,6 +296,7 @@ export class Audio {
   bindUserGesture(target = globalThis.window) {
     if (!this.isBeta || !target?.addEventListener || this._gestureHandler) return;
     this._gestureHandler = () => {
+      this.updateBgmState({ mode: 'title' });
       this.ensure();
       this._resumeContext();
       target.removeEventListener('pointerdown', this._gestureHandler, true);
@@ -297,6 +307,17 @@ export class Audio {
     target.addEventListener('pointerdown', this._gestureHandler, { capture: true, once: true });
     target.addEventListener('keydown', this._gestureHandler, { capture: true, once: true });
     target.addEventListener('touchstart', this._gestureHandler, { capture: true, once: true, passive: true });
+  }
+
+  /** Start network work before the first gesture; decoding still waits for AudioContext. */
+  preload() {
+    if (!this.isBeta || !this.fetchFn) return Promise.resolve([]);
+    const jobs = [
+      this._readManifest('bgm'),
+      this._readManifest('sfx'),
+      this._prefetchAsset(BGM_ASSETS.menu, AUDIO_TIMEOUTS.bgm),
+    ];
+    return Promise.allSettled(jobs).catch(() => []);
   }
 
   ensure() {
@@ -441,6 +462,11 @@ export class Audio {
     if (!this.fetchFn) return Promise.resolve(null);
     if (this._manifestCache.has(kind)) return this._manifestCache.get(kind);
     const path = `assets/audio/${kind}/manifest.json`;
+    if (this.isBeta) {
+      const promise = this._loadBetaManifest(path, AUDIO_TIMEOUTS[kind] || AUDIO_TIMEOUTS.sfx);
+      this._manifestCache.set(kind, promise);
+      return promise;
+    }
     const promise = Promise.resolve().then(() => this.fetchFn(path, { cache: 'force-cache' }))
       .then((response) => response?.ok ? response.json() : null)
       .catch(() => null);
@@ -459,6 +485,7 @@ export class Audio {
   _loadBuffer(path, cache) {
     if (!this.ctx || !this.fetchFn) return Promise.resolve(null);
     if (cache.has(path)) return cache.get(path);
+    if (this.isBeta) return this._loadBetaBuffer(path, cache, AUDIO_TIMEOUTS[path.includes('/bgm/') ? 'bgm' : 'sfx']);
     const promise = Promise.resolve().then(() => this.fetchFn(path, { cache: 'force-cache' }))
       .then((response) => {
         if (!response?.ok) return null;
@@ -466,6 +493,67 @@ export class Audio {
       })
       .then((data) => data ? this.ctx.decodeAudioData(data) : null)
       .catch(() => null);
+    cache.set(path, promise);
+    return promise;
+  }
+
+  async _requestBetaUrl(url, timeoutMs, responseType) {
+    const Controller = globalThis.AbortController;
+    const controller = Controller ? new Controller() : null;
+    let timer;
+    const timeout = new Promise((resolve) => {
+      timer = setTimeout(() => { controller?.abort(); resolve(null); }, timeoutMs);
+    });
+    try {
+      const request = (async () => {
+        const response = await this.fetchFn(url, {
+          cache: 'force-cache', priority: 'low', signal: controller?.signal,
+        });
+        if (!response?.ok) return null;
+        return await response[responseType]();
+      })();
+      return await Promise.race([request, timeout]);
+    } catch (_) {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  _fetchBetaBytes(url, timeoutMs) {
+    if (this._audioBytesCache.has(url)) return this._audioBytesCache.get(url);
+    const promise = this._requestBetaUrl(url, timeoutMs, 'arrayBuffer').catch(() => null);
+    this._audioBytesCache.set(url, promise);
+    return promise;
+  }
+
+  async _prefetchAsset(path, timeoutMs) {
+    for (const url of audioAssetCandidates(path, true)) {
+      const bytes = await this._fetchBetaBytes(url, timeoutMs);
+      if (bytes) return bytes;
+    }
+    return null;
+  }
+
+  async _loadBetaManifest(path, timeoutMs) {
+    for (const url of audioAssetCandidates(path, true)) {
+      const manifest = await this._requestBetaUrl(url, timeoutMs, 'json');
+      if (manifest) return manifest;
+    }
+    return null;
+  }
+
+  _loadBetaBuffer(path, cache, timeoutMs) {
+    const promise = (async () => {
+      for (const url of audioAssetCandidates(path, true)) {
+        const bytes = await this._fetchBetaBytes(url, timeoutMs);
+        if (!bytes) continue;
+        try {
+          return await this.ctx.decodeAudioData(bytes);
+        } catch (_) { /* corrupt remote bytes fall through to the local file */ }
+      }
+      return null;
+    })().catch(() => null);
     cache.set(path, promise);
     return promise;
   }
