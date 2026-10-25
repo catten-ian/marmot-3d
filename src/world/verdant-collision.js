@@ -1,11 +1,9 @@
 /**
- * Dev-only：把 Verdant GLB 里的真实静态碰撞几何（地面 / 沙 / 岩石 / 悬崖 /
- * 树根 / 树干）光栅化成「每个 (x,z) 竖列最高可站立面」高度场。
+ * Dev-only：把 Verdant GLB 里的真实地形的朝上三角形光栅化成高度场。
  *
- * 背景：Blender 导出的 verdant-trail-height.json 只对单个 ground 对象做
- * 向下射线，未命中回退 0（水面/矩形外缘），独立集合 cliffs_boulders 完全
- * 没进高度场——这是真机掉出地图、跳不上岩石的根因。这里在浏览器侧从
- * 已加载的 GLB 重新采样，纯 JS、不依赖重新导出。
+ * 玩家的支撑面必须就是渲染的 ground / sand。岩石、悬崖、树根和树干是
+ * 独立实体，不能用其顶面替换同一 (x,z) 的地形高度；岩石/悬崖另由障碍
+ * 代理处理。否则玩家会站在地面内部看不见的“碰撞台”上。
  *
  * - 只纳入不透明实体网格；BLEND 叶片/草/灌木/水面等可穿过装饰一律排除
  *   （按材质 alphaMode + 节点/材质名双重判定）。
@@ -15,8 +13,11 @@
  */
 import * as THREE from 'three';
 import { findNearestWalkableCell } from './verdant-fall-safety.mjs';
+import { selectConnectedObstacleProxies } from './verdant-obstacles.mjs';
+import { buildSurfaceComponents } from './verdant-placement.mjs';
 
 const WALK_NORMAL_Y = 0.35;
+const TERRAIN_NAME_RE = /^(ground|sand)(?:[._]|$)/i;
 // 名字命中即视为可穿过装饰（叶片 / 草 / 灌木 / 水 / 远景背景件）。
 const FOLIAGE_RE = /(leaf|leaves|ivy|shrub|foliage|grass|fern|flower|petal|water|ocean|sea|monster|background|bacground)/i;
 
@@ -47,8 +48,20 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
   const nx = Math.max(8, Math.ceil(width / cellSize));
   const nz = Math.max(8, Math.ceil(depth / cellSize));
   const top = new Float32Array(nx * nz).fill(NaN);
-  const rockCliffCells = new Uint8Array(nx * nz);
-
+  const layerCount = 4;
+  const surfaceLayers = new Float32Array(nx * nz * layerCount).fill(NaN);
+  const addLayer = (cell, y) => {
+    const base = cell * layerCount;
+    for (let slot = 0; slot < layerCount; slot++) {
+      const old = surfaceLayers[base + slot];
+      if (Number.isFinite(old) && Math.abs(old - y) < 0.12) return;
+      if (!Number.isFinite(old) || y > old) {
+        for (let move = layerCount - 1; move > slot; move--) surfaceLayers[base + move] = surfaceLayers[base + move - 1];
+        surfaceLayers[base + slot] = y;
+        return;
+      }
+    }
+  };
   sceneRoot.updateMatrixWorld(true);
   const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3();
   const e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), n = new THREE.Vector3();
@@ -61,7 +74,9 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
     // BLEND 叶片网格与名字显式属于 foliage/背景的节点整体跳过。
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     if (!solidName(obj.name) || !solidName(obj.parent?.name) || !mats.some(isSolidMaterial)) return;
-    const namedRockCliff = /(rock|boulder|cliff)/i.test(obj.name || '');
+    // A vertical column can contain both terrain and a boulder/cliff above it.
+    // Only authored terrain may define the player's support height.
+    if (!TERRAIN_NAME_RE.test(obj.name || '')) return;
     const geo = obj.geometry;
     const pos = geo?.attributes?.position;
     if (!pos) return;
@@ -106,7 +121,7 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
               const y = pA.y + ((cx - pA.x) * n.x + (cz - pA.z) * n.z) * invNy;
               if (!pointInTriXZ(cx, cz, pA, pB, pC)) continue;
               const k = j * nx + i;
-              if (namedRockCliff) rockCliffCells[k] = 1;
+              addLayer(k, y);
               if (isNaN(top[k]) || y > top[k]) top[k] = y;
             }
           }
@@ -121,9 +136,7 @@ export function rasterizeColumns(sceneRoot, bounds, cellSize = 0.22) {
     }
   });
 
-  let rockCliffSurfaceCells = 0;
-  for (const hit of rockCliffCells) rockCliffSurfaceCells += hit;
-  return { top, nx, nz, cellSize, bounds, rockCliffCells, stats: { meshCount, triCount, usedCount, rockCliffSurfaceCells } };
+  return { top, surfaceLayers, layerCount, nx, nz, cellSize, bounds, stats: { meshCount, triCount, usedCount } };
 }
 
 function pointInTriXZ(px, pz, a, b, c) {
@@ -153,6 +166,68 @@ function sampleJsonHeight(height, x, z) {
   return a * (1 - fz) + c * fz;
 }
 
+/** Build conservative, opt-in circle proxies for named cliffs/boulders. */
+/** Build a small, exact vertical clearance query for candidate placement points. */
+function createPlacementClearance(sceneRoot) {
+  const meshes = [];
+  const box = new THREE.Box3();
+  sceneRoot.updateMatrixWorld(true);
+  sceneRoot.traverse((obj) => {
+    if (!obj.isMesh || !obj.geometry || !solidName(obj.name) || !solidName(obj.parent?.name)) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    if (!mats.some(isSolidMaterial)) return;
+    obj.geometry.computeBoundingBox?.();
+    if (!obj.geometry.boundingBox) return;
+    box.copy(obj.geometry.boundingBox).applyMatrix4(obj.matrixWorld);
+    meshes.push({ obj, bounds: box.clone() });
+  });
+  const ray = new THREE.Raycaster();
+  const origin = new THREE.Vector3(), direction = new THREE.Vector3(0, 1, 0);
+  const offsets = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+  return ({ x, z, y, radius = 0, height = 1.5 }) => {
+    for (const [dx, dz] of offsets) {
+      const px = x + dx * radius * 0.78, pz = z + dz * radius * 0.78;
+      origin.set(px, y + 0.055, pz);
+      ray.set(origin, direction); ray.near = 0; ray.far = Math.max(0, height - 0.055);
+      for (const item of meshes) {
+        const b = item.bounds;
+        if (px < b.min.x || px > b.max.x || pz < b.min.z || pz > b.max.z
+          || b.max.y <= y + 0.08 || b.min.y >= y + height) continue;
+        if (ray.intersectObject(item.obj, false).length) return false;
+      }
+    }
+    return true;
+  };
+}
+
+export function buildObstacleProxies(sceneRoot, bounds, maxProxies = 24) {
+  if (!sceneRoot || !bounds) return [];
+  sceneRoot.updateMatrixWorld(true);
+  const out = [];
+  const box = new THREE.Box3();
+  const center = new THREE.Vector3();
+  const size = new THREE.Vector3();
+  sceneRoot.traverse((obj) => {
+    if (out.length >= maxProxies || !obj.isMesh || !obj.geometry) return;
+    const name = String(obj.name || '');
+    // Background cliffs are scenery, not blockers. Keep only authored boulders
+    // and near-field cliff meshes; callers must explicitly opt in after QA.
+    if (!/(boulder|cliff)/i.test(name) || /background/i.test(name)) return;
+    obj.geometry.computeBoundingBox?.();
+    if (!obj.geometry.boundingBox) return;
+    box.copy(obj.geometry.boundingBox).applyMatrix4(obj.matrixWorld);
+    if (box.max.x < bounds.minX || box.min.x > bounds.maxX
+      || box.max.z < bounds.minZ || box.min.z > bounds.maxZ) return;
+    box.getCenter(center); box.getSize(size);
+    const radius = Math.max(0.25, Math.min(6, Math.hypot(size.x, size.z) * 0.28));
+    out.push({
+      id: name, x: center.x, z: center.z, radius,
+      minY: box.min.y, maxY: box.max.y,
+    });
+  });
+  return out;
+}
+
 /**
  * 合并 GLB 光栅高度与导出 JSON 高度，并构建：
  *   - 双线性 heightAt（NaN 竖列回退最近实体面，保证永不漏底）
@@ -162,10 +237,11 @@ function sampleJsonHeight(height, x, z) {
 export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22, edgeMargin = 0.7 }) {
   const __t0 = Date.now();
   const __pt = (m) => console.info('PT ' + m + ' ' + (Date.now() - __t0) + 'ms');
-  const { top, nx, nz, rockCliffCells, stats } = rasterizeColumns(scene, bounds, cellSize);
+  const { top, surfaceLayers, layerCount, nx, nz, stats } = rasterizeColumns(scene, bounds, cellSize);
+  const obstacleProxies = buildObstacleProxies(scene, bounds);
   __pt('rasterize');
 
-  // 1) 用导出 JSON（ground 对象）填补光栅遗漏：JSON 值 >0 才是有效命中。
+  // 1) 用导出 JSON（与渲染 ground 同一次射线导出）填补光栅遗漏。
   let jsonFilled = 0;
   for (let j = 0; j < nz; j++) {
     for (let i = 0; i < nx; i++) {
@@ -216,60 +292,16 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
   }
 
   __pt('mask');
-  // 4) 最近实体格（两遍 chamfer SDF），供 NaN 竖列安全回退，绝不漏底。
-  const sx = new Int16Array(nx * nz).fill(-1), sz = new Int16Array(nx * nz).fill(-1);
-  for (let k = 0; k < top.length; k++) if (solid[k]) { sx[k] = 0; sz[k] = 0; }
-  // D(k) = 从最近实体格 S 指向 k 的位移（格坐标），即 S = k - D。
-  // 传播：D(k) = D(n) + (k - n)。
-  const pass = (js, je, jsign, xoff, zoff) => {
-    for (let j = js; j !== je; j += jsign) for (let i = 0; i < nx; i++) {
-      const k = j * nx + i;
-      let bx = 1e4, bz = 1e4;
-      const tryN = (kk, ox, oz) => {
-        if (sx[kk] < 0) return;
-        const dx = sx[kk] + ox, dz = sz[kk] + oz;
-        if (dx * dx + dz * dz < bx * bx + bz * bz) { bx = dx; bz = dz; }
-      };
-      if (i + xoff >= 0 && i + xoff < nx) tryN(k + xoff, -xoff, 0);
-      if (j + zoff >= 0 && j + zoff < nz) tryN(k + zoff * nx, 0, -zoff);
-      if (bx < 1e3) { sx[k] = bx; sz[k] = bz; }
-    }
-  };
-  pass(0, nz, 1, -1, -1);
-  // 第二遍必须从末行向首行扫描（j 递减），jsign=-1；
-  // 写成 +1 会让 j 从 nz-1 递增、永远到不了 -1，造成加载期无限循环。
-  pass(nz - 1, -1, -1, 1, 1);
-
   const idxAt = (x, z) => [
     THREE.MathUtils.clamp(Math.floor((x - bounds.minX) / cellSize), 0, nx - 1),
     THREE.MathUtils.clamp(Math.floor((z - bounds.minZ) / cellSize), 0, nz - 1),
   ];
 
-  __pt('sdf');
   function heightAt(x, z) {
-    const gx = THREE.MathUtils.clamp((x - bounds.minX) / cellSize, 0, nx - 1.0001);
-    const gz = THREE.MathUtils.clamp((z - bounds.minZ) / cellSize, 0, nz - 1.0001);
-    const i0 = Math.floor(gx), j0 = Math.floor(gz);
-    const fx = gx - i0, fz = gz - j0;
-    const h = (i, j) => top[j * nx + i];
-    const i1 = Math.min(nx - 1, i0 + 1), j1 = Math.min(nz - 1, j0 + 1);
-    const corners = [h(i0, j0), h(i1, j0), h(i0, j1), h(i1, j1)];
-    if (corners.some((v) => isNaN(v))) {
-      // 任一角空：回退到最近实体格，保证返回有限地面（防持续下坠）。
-      const [ci, cj] = idxAt(x, z);
-      const k = cj * nx + ci;
-      if (sx[k] >= 0) {
-        // S = k - D：回到最近实体格取顶面高度。
-        const fi = THREE.MathUtils.clamp(ci - sx[k], 0, nx - 1);
-        const fj = THREE.MathUtils.clamp(cj - sz[k], 0, nz - 1);
-        return top[fj * nx + fi];
-      }
-      // 理论不可达：全场无实体时退回 JSON 采样。
-      return sampleJsonHeight(heightJson, x, z);
-    }
-    const a = corners[0] * (1 - fx) + corners[1] * fx;
-    const c = corners[2] * (1 - fx) + corners[3] * fx;
-    return a * (1 - fz) + c * fz;
+    // This JSON is raycast from the shipped visual ground, so it is the exact
+    // shared datum. Mesh rasterization is retained for coverage/connectivity;
+    // interpolating its coarser cells here would reintroduce height drift.
+    return sampleJsonHeight(heightJson, x, z);
   }
 
   function resolveGround(x, z) {
@@ -286,13 +318,12 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
     return findNearestWalkableCell({ x, z, nx, nz, cellSize, bounds, walkable, top, heightAt });
   }
 
-  let solidCount = 0, walkCount = 0, walkableRockCliffCells = 0;
+  let solidCount = 0, walkCount = 0;
   let minWalkableY = Infinity, maxWalkableY = -Infinity;
   for (let k = 0; k < top.length; k++) {
     if (solid[k]) solidCount++;
     if (walkable[k]) {
       walkCount++;
-      if (rockCliffCells[k]) walkableRockCliffCells++;
       if (Number.isFinite(top[k])) {
         minWalkableY = Math.min(minWalkableY, top[k]);
         maxWalkableY = Math.max(maxWalkableY, top[k]);
@@ -300,9 +331,23 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
     }
   }
 
+  const centerIndex = idxAt((bounds.minX + bounds.maxX) / 2, (bounds.minZ + bounds.maxZ) / 2);
+  const obstacleSelection = selectConnectedObstacleProxies({
+    proxies: obstacleProxies, walkable, nx, nz, bounds,
+    start: { i: centerIndex[0], j: centerIndex[1] }, minReachableRatio: 0.995,
+  });
+  const safeObstacleProxies = obstacleSelection.proxies;
+  const components = buildSurfaceComponents({
+    surfaceLayers, walkable, nx, nz, cellSize, layerCount,
+  });
+  const mainComponent = components.sizes.reduce((best, size, index, all) => size > (all[best] || 0) ? index : best, -1);
+
   return {
     heightAt, resolveGround, nearestWalkable, bounds, cellSize, nx, nz,
-    stats: { ...stats, jsonFilled, solidCells: solidCount, walkableCells: walkCount, totalCells: nx * nz, walkableRockCliffCells, minWalkableY: Number.isFinite(minWalkableY) ? minWalkableY : null, maxWalkableY: Number.isFinite(maxWalkableY) ? maxWalkableY : null, walkableRatio: walkCount / (nx * nz) },
+    top, walkable, surfaceLayers, layerCount, layerLabels: components.labels, componentSizes: components.sizes, mainComponent,
+    hasPlacementClearance: createPlacementClearance(scene),
+    obstacleProxies: safeObstacleProxies, obstacleMask: obstacleSelection.mask,
+    stats: { ...stats, jsonFilled, solidCells: solidCount, walkableCells: walkCount, totalCells: nx * nz, minWalkableY: Number.isFinite(minWalkableY) ? minWalkableY : null, maxWalkableY: Number.isFinite(maxWalkableY) ? maxWalkableY : null, walkableRatio: walkCount / (nx * nz), obstacleCandidates: obstacleProxies.length, obstacleProxies: safeObstacleProxies.length, obstacleRejected: obstacleSelection.rejected, obstacleReachableRatio: obstacleSelection.baselineReachable ? obstacleSelection.reachable / obstacleSelection.baselineReachable : 0 },
     __ms: (() => { __pt('done'); return Date.now()-__t0; })(),
   };
 }
