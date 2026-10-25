@@ -115,6 +115,8 @@ body.no-lock .crosshair { opacity: 0.25; }
 }
 .fill.hp { background: linear-gradient(90deg, #d8635a, #ff9f8e); }
 .fill.energy { background: linear-gradient(90deg, #d9a63f, var(--gold)); }
+.reserve-detail { margin-top: 4px; color: #f4d798; font-size: 10px; line-height: 1.3; white-space: nowrap; }
+.reserve-detail[hidden] { display: none; }
 .fill.stress { background: linear-gradient(90deg, #8a6fd0, var(--purple)); }
 .fill.charge { background: linear-gradient(90deg, #8a5fd0, #f0c8ff); }
 

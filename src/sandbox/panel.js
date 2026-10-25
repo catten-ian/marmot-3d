@@ -1,6 +1,6 @@
 import { SANDBOX_DIFFICULTIES } from './state.js';
 
-export function setupSandboxPanel({ root, state, onAction, onChange }) {
+export function setupSandboxPanel({ root, state, onAction, onChange, recorder = null }) {
   if (!root) return null;
   const existing = root.querySelector('.sandbox-controls');
   if (existing) existing.remove();
@@ -30,6 +30,13 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
       <button type="button" data-sandbox-action="placeDummy">放置练习木桩</button>
       <button type="button" data-sandbox-action="removeDummy">移除练习木桩</button>
     </div>
+    <div class="sandbox-heading">操作录制（JSON，不是视频）</div>
+    <div class="test-actions sandbox-actions">
+      <button type="button" data-sandbox-action="recordStart" id="sandboxRecordToggle">开始录制</button>
+      <button type="button" data-sandbox-action="recordExport" id="sandboxRecordExport" disabled>导出录制</button>
+    </div>
+    <div id="sandboxRecordStatus" aria-live="polite">未录制 · 记录玩家动作、命中与狐狸状态</div>
+    <pre id="sandboxRecordSummary" style="white-space:pre-wrap;max-height:180px;overflow:auto"></pre>
     <div class="sandbox-debug" id="sandboxDebug" aria-live="polite"></div>
   `;
   root.appendChild(section);
@@ -67,6 +74,23 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
   return {
     section,
     update({ game, controller, foxes, fps }) {
+      const status = recorder?.status?.(game.totalTime);
+      const toggle = section.querySelector('#sandboxRecordToggle');
+      const exportButton = section.querySelector('#sandboxRecordExport');
+      const recordStatus = section.querySelector('#sandboxRecordStatus');
+      if (toggle && status) {
+        toggle.textContent = status.active ? '停止录制' : '开始录制';
+        toggle.dataset.sandboxAction = status.active ? 'recordStop' : 'recordStart';
+      }
+      if (exportButton) exportButton.disabled = !status?.hasTake;
+      if (recordStatus && status) recordStatus.textContent = status.active
+        ? `录制中 ${status.elapsed.toFixed(1)}s · ${status.events}/4000 条（上限后保留最近事件）`
+        : status.hasTake ? `已停止 · ${status.events} 条 · 可导出 JSON` : '未录制 · 记录玩家动作、命中与狐狸状态';
+      const summary = section.querySelector('#sandboxRecordSummary');
+      if (summary) {
+        summary.textContent = state.lastRecordingSummary || '';
+        summary.hidden = !state.lastRecordingSummary;
+      }
       const debug = section.querySelector('#sandboxDebug');
       const badge = document.getElementById('sandboxGodBadge');
       if (badge) badge.style.display = state.godMode ? 'block' : 'none';

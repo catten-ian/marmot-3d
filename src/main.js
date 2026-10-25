@@ -23,6 +23,10 @@ import {
   strikeGateOpen, resolveParryOutcome,
 } from './core/combat-wheel.mjs';
 import { objectivesComplete } from './core/objectives.js';
+import {
+  installEnergyAlias, ingestGraze, chewMouth, applyNutrition, syncMetabolism,
+  createFlowerRecovery, stepFlowerRecovery,
+} from './core/stamina.mjs';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { bindText, kbd, schemeHints, setHintBinds } from './core/key-hints.mjs';
 import { preloadModels } from './models/loader.js';
@@ -112,13 +116,14 @@ import { Minimap } from './ui/minimap.js';
 import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDummy, setSandboxDummyDefeatable } from './sandbox/state.js';
 import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
 import { setupSandboxPanel } from './sandbox/panel.js';
+import { SandboxRecorder, downloadTake, renderSummaryText } from './sandbox/recorder.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 
 // ============================================================
 // 初始化
 // ============================================================
 const canvas = document.getElementById('scene');
-const hud = new HUD();
+const hud = new HUD({ beta: IS_BETA });
 const audio = new Audio();
 if (IS_BETA) audio.bindUserGesture(window);
 
@@ -374,6 +379,7 @@ let viewKeyLabel = 'V';
 
 function setViewMode(enabled, announce = false) {
   thirdPerson = !!enabled;
+  sandboxRecorder?.view(thirdPerson, game.totalTime);
   controller.setThirdPerson(thirdPerson);
   playerModel.visible = thirdPerson;
   // beta 视角状态卡（hudViewMode）实时跟随；stable/dev 不创建该元素。
@@ -504,6 +510,8 @@ const sandboxState = createSandboxState();
 if (SANDBOX_MODE) sandboxState.active = true;
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
+// beta 沙盒操作录制器（stable/dev 为 null，整个录制通道只在 beta 建立）。
+let sandboxRecorder = null;
 const testLogs = [];
 function recordTestLog(type, details = {}) {
   if (!TEST_MODE) return;
@@ -562,7 +570,7 @@ const game = {
   mode: 'title',
   level: 0,
   completed: 0,
-  player: { x: 0, y: 0, z: 0, hp: 100, energy: 100, stress: 0, invuln: 0 },
+  player: { x: 0, y: 0, z: 0, hp: 100, stamina: 100, fat: 0, mouth: 0, mouthCapacity: BETA_TUNE.mouthCapacity, stress: 0, invuln: 0 },
   friend: { x: 0, z: 0, rescued: false, saved: false },
   foodCount: 0,
   levelRepels: 0,
@@ -594,7 +602,9 @@ const game = {
   sandbox: false,
   attackMoveLock: 0,
   recentlyHit: 0,
+  flowerRecovery: null,
 };
+installEnergyAlias(game.player);
 
 const colBoost = new THREE.Color(0xffd17a);
 const colHit = new THREE.Color(0xffe3a4);
@@ -875,7 +885,8 @@ function loadLevel(index, announce = true) {
 
   // 重置玩家
   const p = game.player;
-  p.hp = 100; p.energy = 100; p.stress = 0; p.invuln = 2;
+  p.hp = 100; p.stamina = 100; p.fat = 0; p.mouth = 0; p.stress = 0; p.invuln = 2;
+  game.flowerRecovery = null;
   game.recentlyHit = 0;
   controller.teleport(BURROW_X + 4 * getPointScale(), BURROW_Z + 2 * getPointScale(), Math.PI * 0.05);
   // 出生朝向：看向场地中央
@@ -1484,6 +1495,11 @@ function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul 
   }
   _fwd.set(-Math.sin(attackYaw), 0, -Math.cos(attackYaw));
   const right = new THREE.Vector3(-_fwd.z, 0, _fwd.x);
+  sandboxRecorder?.strike(move, {
+    x: Number(controller.position.x.toFixed(2)), z: Number(controller.position.z.toFixed(2)),
+    yaw: Number(attackYaw.toFixed(3)), running: !!running,
+    boost: game.boost > 0, overdrive: game.overdrive > 0, energy: Number(p.energy.toFixed(1)),
+  }, game.totalTime);
   if (move === 'dodge') {
     const dir = rollDirection({ velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw });
     controller.roll(dir, 7.2);
@@ -1537,7 +1553,13 @@ function scheduleDrillReset(f) {
 function hitFox(f, damage, s) {
   if (f.hp <= 0) return;
   const fy = terrainHeight(f.x, f.z);
+  const hpBefore = f.hp;
   f.hit(damage, s.knockback, s.stun, controller.position.x, controller.position.z);
+  const recFoxHit = (outcome) => sandboxRecorder?.foxHit({
+    fox: sandboxRecorder.idFor(f), foxType: f.type, damage: Number(damage.toFixed(2)),
+    hpBefore: Number(hpBefore.toFixed(2)), hpAfter: Number(f.hp.toFixed(2)),
+    fx: Number(f.x.toFixed(2)), fz: Number(f.z.toFixed(2)), move: s.move || null, outcome,
+  }, game.totalTime);
 
   damageText.spawn(f.x, fy + 1.1, f.z,
     Number.isInteger(damage) ? `-${damage}` : `-${damage.toFixed(1)}`, '#ffedb7');
@@ -1549,6 +1571,7 @@ function hitFox(f, damage, s) {
   if (f.hp <= 0 && !f.isSandboxDummy) {
     // 迎击练习：不计数、不逃跑，立刻复位到玩家正前方重来。
     if (sandboxState.parryDrill) {
+      recFoxHit('drill-reset');
       audio.hit();
       controller.hitShake(0.2);
       scheduleDrillReset(f);
@@ -1558,6 +1581,7 @@ function hitFox(f, damage, s) {
     game.levelRepels = (game.levelRepels || 0) + 1;
     game.totalRepels = (game.totalRepels || 0) + 1;
     f.startFleeing(controller.position.x, controller.position.z, levelCfg);
+    recFoxHit(f.type === 'boss' ? 'gone' : 'repelled');
     if (game.overdrive <= 0) game.charge = clamp(game.charge + 18, 0, 100);
     game.player.energy = clamp(game.player.energy + 8, 0, 100);
     damageText.spawn(f.x, fy + 1.6, f.z, f.type === 'boss' ? '首领逃走了，一去不返' : '威胁已解除', '#ceebbc');
@@ -1567,6 +1591,7 @@ function hitFox(f, damage, s) {
     recordTestLog(f.type === 'boss' ? 'fox-boss-gone' : 'fox-repelled',
       { foxType: f.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
   } else {
+    recFoxHit('hit');
     audio.hit();
     controller.hitShake(0.18);
   }
@@ -1594,6 +1619,7 @@ function wireRepelCallback(f) {
 function doBurst() {
   const ok = burst(game, (t, d) => hud.say(t, d));
   if (ok) {
+    sandboxRecorder?.burst(game.totalTime);
     audio.burst();
     const y = terrainHeight(controller.position.x, controller.position.z);
     particles.burst(controller.position.x, y + 0.4, controller.position.z, colBoost, 26, 1.4);
@@ -1607,6 +1633,7 @@ function doUltimate() {
   const ok = ultimate(game, (t, d) => hud.say(t, d));
   if (!ok) return;
 
+  sandboxRecorder?.ultimate(game.totalTime);
   audio.ultimate();
   const x = controller.position.x, z = controller.position.z;
   shockwave.fire(x, z, ULT.radius);
@@ -1632,6 +1659,7 @@ function doUltimate() {
  */
 function doJump() {
   if (!controller.jump()) return;
+  sandboxRecorder?.jump({ air: Number(controller.airHeight.toFixed(2)) }, game.totalTime);
   audio.jump();
   const y = controller.position.y;
   particles.burst(controller.position.x, y + 0.05, controller.position.z,
@@ -1687,6 +1715,7 @@ function doRoll(gesture = null) {
   playerAttackAnim = 'dodge';
   playerAttackDur = wheel.invuln;
   playerAttackT = wheel.invuln;
+  sandboxRecorder?.dodge({ dir: { x: Number(dir.x.toFixed(2)), z: Number(dir.z.toFixed(2)) } }, game.totalTime);
   return true;
 }
 
@@ -1781,6 +1810,7 @@ function update(dt) {
   // 移动（含疾行）
   let speedMul = stats.speedMul;
   if (IS_BETA) speedMul *= BETA_TUNE.moveSpeedMul;
+  if (IS_BETA) speedMul *= 1 + (BETA_TUNE.grazeMoveSpeedMul - 1) * grazeProne;
   // 疾行：按方案查表，并额外接受任意一侧 Shift（双手都能用）
   const sprinting = controller.touchSprint || binds.isAction('ShiftLeft', 'sprint')
     || binds.isAction('ShiftRight', 'sprint')
@@ -1833,7 +1863,18 @@ function update(dt) {
   // 静止回储备（洞穴内回得快）；dev 版恢复更快，符合耐饥渴设定
   const regenMul = devOn('famineTolerance') ? HERBIVORE.regenMul : 1;
   const burrowRegenMul = devOn('famineTolerance') ? HERBIVORE.burrowRegenMul : 1;
-  if (!moving) {
+  if (IS_BETA) {
+    syncMetabolism(p, chewMouth(p, dt, {
+      running: moving && sprinting, grazing: forage.index === -2 && interactHeld,
+      burrowType: game.currentBurrow?.type || null,
+    }));
+    if (game.flowerRecovery) {
+      const recovery = stepFlowerRecovery(game.flowerRecovery, dt);
+      p.hp = clamp(p.hp + recovery.hp, 0, PLAYER.maxHp);
+      syncMetabolism(p, applyNutrition(p, recovery.nutrition));
+      game.flowerRecovery = recovery.recovery;
+    }
+  } else if (!moving) {
     p.energy = clamp(
       p.energy + (game.inBurrow ? (game.currentBurrow.regenMul || 0) * 14 * burrowRegenMul : 2.5 * regenMul) * dt, 0, 100,
     );
@@ -1844,6 +1885,15 @@ function update(dt) {
   p.facingYaw = controller.bodyYaw;
   p.running = isSprintingNow();
   p.guard = parryWindowT > 0;
+  if (sandboxRecorder) {
+    sandboxRecorder.samplePose(dt, game.totalTime, {
+      x: controller.position.x, z: controller.position.z, yaw: controller.bodyYaw,
+      speed: p.speed || Math.hypot(controller.velocity.x, controller.velocity.z),
+      running: p.running, guard: p.guard, inBurrow: game.inBurrow,
+      hp: Number(p.hp.toFixed(1)), energy: Number(p.energy.toFixed(1)),
+    });
+    sandboxRecorder.sampleFoxStates(game.totalTime, foxes);
+  }
   let threats = 0;
   let anyWinding = false;
   const smartFoxes = foxes.filter((candidate) => candidate.type === 'smart');
@@ -1924,6 +1974,11 @@ function update(dt) {
         p.hp = testState.godMode ? Math.max(1, p.hp) : Math.max(0, p.hp - damage);
         recordTestLog('player-hit', { foxType: f.type, damage, hpBefore, hpAfter: p.hp,
           preventedByGodMode: testState.godMode });
+        sandboxRecorder?.playerHit({
+          fox: sandboxRecorder.idFor(f), foxType: f.type, damage: Number(damage),
+          hpBefore: Number(hpBefore.toFixed(1)), hpAfter: Number(p.hp.toFixed(1)),
+          preventedByGodMode: !!testState.godMode,
+        }, game.totalTime);
         // 同一只狐一次扑击只咬一口；全局无敌仅保留极短一帧，避免多狐同时扑时伤害被整段吞掉。
         f.contactCd = FOX.bite.contactCooldown;
         p.invuln = Math.max(p.invuln, FOX.bite.playerInvuln);
@@ -2048,8 +2103,10 @@ function update(dt) {
       const d = Math.hypot(b.x - p.x, b.z - p.z);
       if (d < BERRY_RADIUS + 0.35 && d < nearestDist) { nearest = i; nearestDist = d; }
     });
-    const nearestFood = nearest >= 0 ? berries[nearest] : null;
-    const grassInRange = IS_BETA && !nearestFood && scenery.hasGrazeable(p.x, p.z, BETA_TUNE.grazeHaloRadius);
+    // 17:15 correction: burrows recover exclusively by chewing; no foraging inside either kind.
+    const nearestFood = !game.inBurrow && nearest >= 0 ? berries[nearest] : null;
+    const grassInRange = IS_BETA && !game.inBurrow && !nearestFood
+      && scenery.hasGrazeable(p.x, p.z, BETA_TUNE.grazeHaloRadius, controller.bodyYaw);
     if (!nearestFood && !grassInRange) {
       forage.index = -1; forage.progress = 0; forage.emergency = false; grazeCycleEaten = 0;
       hud.setForage({ active: false });
@@ -2069,10 +2126,11 @@ function update(dt) {
         // bite.density = 本帧实际吃到量 / 满圈产能（按距离加权的连续密度）。
         // 储备只按实际吃到的草折算（边吃边回、越稀疏每秒回得越少）；
         // 一轮动作收尾时不再另发能量，避免重复计算。
-        const bite = scenery.grazeAt(p.x, p.z, dt);
+        const bite = scenery.grazeAt(p.x, p.z, dt, controller.bodyYaw);
         if (bite.eaten > 0) {
-          p.energy = clamp(p.energy + BETA_TUNE.grazeRegenPerSec * bite.density * dt, 0, 100);
-          grazeCycleEaten += BETA_TUNE.grazeRegenPerSec * bite.density * dt;
+          const intake = BETA_TUNE.grazeRegenPerSec * bite.density * dt;
+          syncMetabolism(p, ingestGraze(p, intake));
+          grazeCycleEaten += intake;
         }
         hud.setForage({ active: true, kind: 'grass', progress: forage.progress, emergency: forage.emergency });
         if (interactHeld) grazeTarget = 1;
@@ -2083,7 +2141,7 @@ function update(dt) {
         const gain = Math.round(grazeCycleEaten);
         const by = terrainHeight(p.x, p.z);
         particles.burst(p.x, by + 0.6, p.z, colHerb, 12, 1);
-        if (gain > 0) damageText.spawn(p.x, by + 1.1, p.z, `啃草 +${gain} 储备`, '#dff0c4');
+        if (gain > 0) damageText.spawn(p.x, by + 1.1, p.z, `啃草 +${gain} 草料 · 站立咀嚼`, '#dff0c4');
         audio.berry();
         forage.index = -1; forage.progress = 0; forage.emergency = false; grazeCycleEaten = 0;
         hud.setForage({ active: false });
@@ -2107,12 +2165,12 @@ function update(dt) {
       if (!(holdToEat && !interactHeld) && forage.progress >= 1) {
         b.take(); scenery.setBerryTaken(b.index); game.foodCount++;
         const gain = b.kind === 'flower' ? energyOfFlower() : b.kind === 'grass' ? energyOfPlant(b.plant) : BERRY_ENERGY;
-        p.energy = clamp(p.energy + gain, 0, 100);
+        if (b.kind === 'flower') game.flowerRecovery = createFlowerRecovery();
         if (game.overdrive <= 0) game.charge = clamp(game.charge + (b.kind === 'flower' ? BERRY_CHARGE * 1.5 : BERRY_CHARGE), 0, 100);
         const by = terrainHeight(b.x, b.z);
         const c = b.kind === 'flower' ? 0xf2c45c : b.herbivore ? colHerb : colBerry;
         particles.burst(b.x, by + 0.6, b.z, c, 12, 1);
-        damageText.spawn(b.x, by + 1.1, b.z, b.kind === 'flower' ? `采花 +${gain} 储备` : b.herbivore ? eatLine(b.plant) : `+${gain} 储备`, b.kind === 'flower' ? '#ffe49b' : b.herbivore ? '#dff0c4' : '#ffd9e2');
+        damageText.spawn(b.x, by + 1.1, b.z, b.kind === 'flower' ? `采花 · ${BETA_TUNE.flowerRecoverySeconds}s 渐缓回复` : b.herbivore ? eatLine(b.plant) : `+${gain} 储备`, b.kind === 'flower' ? '#ffe49b' : b.herbivore ? '#dff0c4' : '#ffd9e2');
         audio.berry();
         forage.index = -1; forage.progress = 0; forage.emergency = false;
         hud.setForage({ active: false });
@@ -2245,6 +2303,7 @@ function update(dt) {
   // 正式通关：采食达标 + 伙伴到家 + 回到【大本营】（临时避难洞不结算）。
   // 驱退狐狸不再是任务配额；boss 也不是强制目标。
   if (!game.sandbox && objectivesComplete({ foodCount: game.foodCount, foodGoal: cfg.goal,
+    fat: p.fat, fatGoal: cfg.fatGoal, beta: IS_BETA,
     friendSaved: game.friend.saved, inBurrow: game.inBaseBurrow })) {
     completeLevel();
     return;
@@ -2759,11 +2818,25 @@ function setTestPanelOpen(open) {
   }));
 }
 
+sandboxRecorder = IS_BETA
+  ? new SandboxRecorder({ now: () => game.totalTime })
+  : null;
 const sandboxPanelUI = setupSandboxPanel({
   root: testPanel,
   state: sandboxState,
+  recorder: sandboxRecorder,
   onAction: (action) => {
-    if (action === 'refill') { game.player.hp = 100; game.player.energy = 100; }
+    if (action === 'recordStart') {
+      sandboxRecorder?.start(game.totalTime, { level: game.level + 1, sandbox: true, foxCount: foxes.length });
+      sandboxState.lastRecordingSummary = '';
+      hud.say('开始录制操作：攻击、受击、移动与狐狸状态会写入 JSON', 2.5);
+    } else if (action === 'recordStop') {
+      const take = sandboxRecorder?.stop(game.totalTime, { reason: 'panel-stop' });
+      sandboxState.lastRecordingSummary = take ? renderSummaryText(take.summary) : '';
+      hud.say('录制已停止，可在面板查看摘要或导出 JSON', 2.5);
+    } else if (action === 'recordExport') {
+      if (sandboxRecorder?.lastTake && downloadTake(sandboxRecorder.lastTake)) hud.say('操作录制 JSON 已导出', 2);
+    } else if (action === 'refill') { game.player.hp = 100; game.player.energy = 100; }
     else if (action === 'clearStress') { game.player.stress = 0; game.stressWarned = false; }
     else if (action === 'charge') game.charge = 100;
     else if (action === 'resetFood') {

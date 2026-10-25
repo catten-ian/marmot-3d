@@ -366,7 +366,8 @@ export const FOX = {
  * 字段说明：
  *   count        同屏藏狐数
  *   speed/wind   藏狐接近速度 / 蓄力基准时长（秒）
- *   goal         需要采食（恢复能量）的次数
+ *   goal         stable/dev 需要采食的次数
+ *   fatGoal      beta 需要储备的脂肪量（不可逆）
  *   time         限时（秒）
  *   reinforce    驱退后重新出现的增援间隔（秒）
  *   friend       伙伴被困位置 [x, z]
@@ -386,6 +387,7 @@ export const LEVELS = [
     count: 2,
     speed: 7.2,
     goal: 4,
+    fatGoal: 24,
     time: 115,
     wind: 0.76,
     reinforce: 8,
@@ -404,6 +406,7 @@ export const LEVELS = [
     count: 3,
     speed: 8.0,
     goal: 5,
+    fatGoal: 30,
     time: 125,
     wind: 0.7,
     reinforce: 7.2,
@@ -422,6 +425,7 @@ export const LEVELS = [
     count: 4,
     speed: 8.6,
     goal: 6,
+    fatGoal: 36,
     time: 140,
     wind: 0.66,
     reinforce: 6.5,
@@ -443,6 +447,7 @@ export const LEVELS = [
     count: 4,
     speed: 9.0,
     goal: 6,
+    fatGoal: 36,
     time: 150,
     wind: 0.62,
     reinforce: 6.0,
@@ -463,6 +468,7 @@ export const LEVELS = [
     count: 6,
     speed: 9.4,
     goal: 7,
+    fatGoal: 42,
     time: 160,
     wind: 0.6,
     reinforce: 5.7,
@@ -484,6 +490,7 @@ export const LEVELS = [
     count: 5,
     speed: 10.2,
     goal: 7,
+    fatGoal: 42,
     time: 165,
     wind: 0.56,
     reinforce: 5.4,
@@ -505,6 +512,7 @@ export const LEVELS = [
     count: 6,
     speed: 10.0,
     goal: 8,
+    fatGoal: 48,
     time: 175,
     wind: 0.55,
     reinforce: 5.2,
@@ -527,6 +535,7 @@ export const LEVELS = [
     count: 8,
     speed: 10.6,
     goal: 8,
+    fatGoal: 48,
     time: 190,
     wind: 0.54,
     reinforce: 5,
@@ -547,6 +556,7 @@ export const LEVELS = [
     count: 6,
     speed: 10.4,
     goal: 7,
+    fatGoal: 42,
     time: 170,
     wind: 0.56,
     reinforce: 5.2,
@@ -563,6 +573,7 @@ export const LEVELS = [
     count: 7,
     speed: 10.6,
     goal: 8,
+    fatGoal: 48,
     time: 180,
     wind: 0.58,
     reinforce: 5.0,
@@ -580,6 +591,7 @@ export const LEVELS = [
     count: 7,
     speed: 10.8,
     goal: 8,
+    fatGoal: 48,
     time: 185,
     wind: 0.58,
     reinforce: 4.8,
@@ -597,6 +609,7 @@ export const LEVELS = [
     count: 9,
     speed: 11.2,
     goal: 9,
+    fatGoal: 54,
     time: 205,
     wind: 0.58,
     reinforce: 4.6,
