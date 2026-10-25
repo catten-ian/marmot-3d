@@ -33,6 +33,18 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
     <div class="sandbox-debug" id="sandboxDebug" aria-live="polite"></div>
   `;
   root.appendChild(section);
+  // “无敌”状态必须一眼可见 —— 徽标挂在 body 上，面板收起也不影响显示。
+  let godBadge = document.getElementById('sandboxGodBadge');
+  if (!godBadge) {
+    godBadge = document.createElement('div');
+    godBadge.id = 'sandboxGodBadge';
+    godBadge.textContent = '🛡 无敌模式：你不会掉血（沙盒面板「无敌」可关闭）';
+    godBadge.style.cssText = 'position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translateX(-50%);'
+      + 'z-index:60;padding:7px 14px;border-radius:999px;font-weight:700;font-size:13px;letter-spacing:.02em;'
+      + 'color:#3a2410;background:linear-gradient(180deg,#ffe7a8,#ffc95e);border:1px solid #d99a2b;'
+      + 'box-shadow:0 4px 16px rgba(120,80,10,.35);display:none;pointer-events:none;max-width:88vw;text-align:center;';
+    document.body.appendChild(godBadge);
+  }
   const god = section.querySelector('#sandboxGodMode');
   const freeze = section.querySelector('#sandboxFreezeTimer');
   const parryDrill = section.querySelector('#sandboxParryDrill');
@@ -56,6 +68,8 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
     section,
     update({ game, controller, foxes, fps }) {
       const debug = section.querySelector('#sandboxDebug');
+      const badge = document.getElementById('sandboxGodBadge');
+      if (badge) badge.style.display = state.godMode ? 'block' : 'none';
       if (!debug) return;
       const enemies = foxes.filter((f) => !f.isSandboxDummy);
       const smart = enemies.filter((f) => f.type === 'smart');

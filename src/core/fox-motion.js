@@ -216,10 +216,16 @@ export function enterRestSafe(state = {}, restSeconds = 6) {
   return { state: 'rest_safe', timer: restSeconds, repelCounted: true, justCounted };
 }
 
-/** 休息计时推进（纯函数）：计时到或血回满 → done=true，调用方退出 rest_safe。 */
-export function stepRestSafe({ timer = 0, hp = 0, maxHp = 1 } = {}, dt = 0) {
+/**
+ * 休息计时推进（纯函数）：推进计时器，并按 FOX.retreat.regenPerSec 实际回复生命，
+ * 上限为 maxHp × restHealTarget。计时到或回到目标血量 → done=true。
+ * @returns {{timer:number, hp:number, done:boolean}}
+ */
+export function stepRestSafe({ timer = 0, hp = 0, maxHp = 1 } = {}, dt = 0, cfg = FOX.retreat) {
   const next = Math.max(0, timer - Math.max(0, dt));
-  return { timer: next, done: next <= 0 || hp >= maxHp };
+  const target = maxHp * (cfg.restHealTarget ?? 1);
+  const healed = Math.min(target, hp + maxHp * (cfg.regenPerSec ?? 0) * Math.max(0, dt));
+  return { timer: next, hp: healed, done: next <= 0 || healed >= target };
 }
 
 /** 休息结束、重新参战的纯状态迁移：repelCounted 复位，允许下次撤退再计数。 */
@@ -227,7 +233,27 @@ export function exitRestSafe() {
   return { state: 'roam', retreating: false, restPoint: null, repelCounted: false, hitStreak: 0 };
 }
 
-/** 受击后的状态裁决（纯函数）：hp ≤ 0 → 真死（'dead'），不是 flee、不重生。 */
-export function resolveHitState(hp) {
-  return hp <= 0 ? 'dead' : null;
+/**
+ * 血量归零后的命运（恢复 d088054 之前旧口径，纯函数）：
+ * 所有狐狸都先"夹尾逃跑"离场（flees=true）；区别只在是否增援回来 ——
+ *   · boss 首领：一去不返（respawns=false）；
+ *   · 其余类型（普通/幼/疾行/厚皮/智能）：过段时间在出生点附近重新出现（respawns=true）。
+ * 调用方据此决定是否在离场计时结束后 respawnAt。
+ */
+export function defeatFate(type) {
+  return type === 'boss'
+    ? { flees: true, respawns: false }
+    : { flees: true, respawns: true };
+}
+
+/**
+ * 离场后的增援倒计时（纯函数）：
+ *   · 会增援的类型（非 boss）：倒数，到 0 → shouldRespawn=true，由调用方 respawnAt；
+ *   · boss：永不倒数、永不重生。
+ */
+export function stepDefeatCooldown(type, respawn, dt) {
+  const fate = defeatFate(type);
+  if (!fate.respawns) return { respawn, shouldRespawn: false };
+  const next = Math.max(0, respawn - Math.max(0, dt));
+  return { respawn: next, shouldRespawn: next <= 0 };
 }

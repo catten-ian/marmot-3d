@@ -796,10 +796,10 @@ function respawnFoxesForTuning() {
 function enterSandbox() {
   hud.hidePanel();
   sandboxResumeLevel = game.level;
-  sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
+  sandboxState.active = true; sandboxState.godMode = false; sandboxState.freezeTimer = true;
   game.sandbox = true; game.mode = 'play'; document.body.classList.add('sandbox-active');
   testModeBtn.hidden = false; testModeBtn.textContent = '沙盒控制';
-  testState.godMode = true; testState.freezeTimer = true;
+  testState.godMode = false; testState.freezeTimer = true;
   loadLevel(0, false); disposeAllFoxes();
   for (let i = 0; i < 3; i++) spawnSandboxFox('normal', i);
   game.time = Infinity; game.foodCount = 0; game.levelRepels = 0; game.player.hp = 100; game.player.energy = 100;
@@ -816,6 +816,8 @@ function exitSandbox() {
   if (sandboxResumeLevel != null) game.level = sandboxResumeLevel;
   sandboxResumeLevel = null;
   destroySandboxDebugGUI();
+  const godBadge = document.getElementById('sandboxGodBadge');
+  if (godBadge) godBadge.style.display = 'none';
   document.body.classList.remove('sandbox-active');
   testModeBtn.hidden = !TEST_MODE; testModeBtn.textContent = '测试';
   setTestPanelOpen(false);
@@ -1178,8 +1180,9 @@ function title() {
     <p>每关完成 <b>采食、救援与陪伴</b>，回洞即可进入下一关。
     ${LEVELS.length} 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。</p>
     <p style="font-size:12px">采食需要按住停留；附近有狐狸、疾行或刚受击时会明显变慢。${IS_BETA ? ' BETA 关卡会少量出现稀有花：采得更快、回复更多，但不会刷新。' : ''}</p>
-    <p style="font-size:12.5px"><b>你几乎打不死藏狐</b> —— 它会自己判断形势，血量体力见底就撤到远处躲起来回血。
-    <b>逼退</b>它才算解决威胁。你要做的是在采食和救援时自卫，随后回洞。</p>
+    <p style="font-size:12.5px"><b>普通藏狐打不死</b> —— 它会自己判断形势，血量见底就撤到远处躲起来把血回满；
+    就算被你打得夹尾逃跑，过一阵也会重新出现，只有<b>狐首领</b>被打退后一去不返。
+    <b>逼退</b>它才算暂时解除威胁。你要做的是在采食和救援时自卫，随后回洞。</p>
     ${IS_DEV || IS_BETA ? `
     <div class="dev-intro">
       <div class="dev-badge">DEV 版 · 旱獭生态学改写</div>
@@ -1540,22 +1543,29 @@ function hitFox(f, damage, s) {
     Number.isInteger(damage) ? `-${damage}` : `-${damage.toFixed(1)}`, '#ffedb7');
   particles.burst(f.x, fy + 0.5, f.z, colHit, 9, 1);
 
-  // 新口径（阶段 2）：驱退不再由"打空血"触发 —— 狐狸血量/体力见底时会
-  // 自主撤退，进入安全休息（rest_safe）那一刻才由 onRepelled 回调计入驱退数。
-  // 这里 hp≤0 是真死：只做死亡表现，不计驱退、不叫它逃跑。
+  // 旧口径（d088054 之前，按用户要求恢复）：普通狐打不死 —— hp 归零不是真死，
+  // 而是夹尾逃跑离场（可见过程），过段时间在出生点附近增援回来；首领被打退则一去不返
+  // （fox.update 里的 defeatFate 决定不重生）。自主撤退 rest_safe 的驱退计数仍走 onRepelled。
   if (f.hp <= 0 && !f.isSandboxDummy) {
-    // 迎击练习：不计数、不让它死透，立刻复位到玩家正前方重来。
+    // 迎击练习：不计数、不逃跑，立刻复位到玩家正前方重来。
     if (sandboxState.parryDrill) {
       audio.hit();
       controller.hitShake(0.2);
       scheduleDrillReset(f);
       return;
     }
-    damageText.spawn(f.x, fy + 1.6, f.z, '它倒下了', '#e8b9a0');
-    particles.burst(f.x, fy + 0.5, f.z, colHurt, 22, 1.4);
-    audio.hit();
+    const levelCfg = LEVELS[game.level];
+    game.levelRepels = (game.levelRepels || 0) + 1;
+    game.totalRepels = (game.totalRepels || 0) + 1;
+    f.startFleeing(controller.position.x, controller.position.z, levelCfg);
+    if (game.overdrive <= 0) game.charge = clamp(game.charge + 18, 0, 100);
+    game.player.energy = clamp(game.player.energy + 8, 0, 100);
+    damageText.spawn(f.x, fy + 1.6, f.z, f.type === 'boss' ? '首领逃走了，一去不返' : '威胁已解除', '#ceebbc');
+    particles.burst(f.x, fy + 0.5, f.z, colRepel, 18, 1.4);
+    audio.repel();
     controller.hitShake(0.3);
-    recordTestLog('fox-died', { foxType: f.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
+    recordTestLog(f.type === 'boss' ? 'fox-boss-gone' : 'fox-repelled',
+      { foxType: f.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
   } else {
     audio.hit();
     controller.hitShake(0.18);
@@ -1860,7 +1870,7 @@ function update(dt) {
     // 才应造成伤害，故对 type==='smart' 额外要求 pounceCommitted。
     // 阶段 4：智能狐只有"扑咬 strike 激活帧"才结算接触伤害（冲刺逼近/前摇/后摇不造成伤害）。
     const smartCanHit = f.type !== 'smart' || (f.pounceCommitted && f.pounceStriking);
-    if (f.alive && !game.inBurrow && p.invuln <= 0 && smartCanHit) {
+    if (f.alive && !game.inBurrow && p.invuln <= 0 && (f.contactCd ?? 0) <= 0 && smartCanHit) {
       const d = Math.hypot(f.x - p.x, f.z - p.z);
       const reach = (PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal));
       // 水平接触仍受原半径限制；高度则比较双方碰撞区间，
@@ -1914,7 +1924,9 @@ function update(dt) {
         p.hp = testState.godMode ? Math.max(1, p.hp) : Math.max(0, p.hp - damage);
         recordTestLog('player-hit', { foxType: f.type, damage, hpBefore, hpAfter: p.hp,
           preventedByGodMode: testState.godMode });
-        p.invuln = 1.3;
+        // 同一只狐一次扑击只咬一口；全局无敌仅保留极短一帧，避免多狐同时扑时伤害被整段吞掉。
+        f.contactCd = FOX.bite.contactCooldown;
+        p.invuln = Math.max(p.invuln, FOX.bite.playerInvuln);
         game.recentlyHit = 1.2;
         p.stress = clamp(p.stress + 8, 0, 100);
         game.hits++;

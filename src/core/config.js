@@ -203,11 +203,11 @@ export const FOX = {
   useProcedural: false,
   proceduralColors: { normal: 0xc4763a, pup: 0xc4763a, fast: 0xd9c294, heavy: 0x9c8770, boss: 0x6b4c31 },
   types: {
-    normal: { hp: 3, speed: 1.0, wind: 1.0, mass: 1.0, knockbackMul: 1, label: '', scale: 1.0 },
+    normal: { hp: 6, speed: 1.0, wind: 1.0, mass: 1.0, knockbackMul: 1, label: '', scale: 1.0 },
     // 幼狐：毛色同 normal，仅体型 62%，血量更低、速度略慢
     pup: { hp: 2, speed: 0.88, wind: 1.1, mass: 1.15, knockbackMul: 1.05, label: '幼狐', scale: 0.62 },
     fast: { hp: 2, speed: 1.2, wind: 0.8, mass: 0.85, knockbackMul: 1.1, label: '疾行狐', scale: 0.88 },
-    heavy: { hp: 6, speed: 0.78, wind: 1.15, mass: 0.6, knockbackMul: 0.62, label: '厚皮狐', scale: 1.2 },
+    heavy: { hp: 9, speed: 0.78, wind: 1.15, mass: 0.6, knockbackMul: 0.62, label: '厚皮狐', scale: 1.2 },
     boss: { hp: 18, speed: 1.1, wind: 0.9, mass: 0.38, knockbackMul: 0.38, label: '狐首领', scale: 1.6 },
   },
   /** 每种类型的攻击模式（行为差异的来源，见文件上方 FOX_ATTACKS） */
@@ -313,8 +313,8 @@ export const FOX = {
    * hp ≤ 0 是真死：不逃、不重生 —— 但正常路径打不到那一步，因为它早就撤了。
    */
   retreat: {
-    /** 血量比例低于此值 → 主动撤退（明显高于 vitals.lowHpThreshold 的致死区） */
-    hpRatio: 0.45,
+    /** 血量比例低于此值 → 主动撤退（更耐打：要多挨几下才会自主打跑） */
+    hpRatio: 0.32,
     /** 体力比例低于此值 → 主动撤退 */
     staminaRatio: 0.25,
     /** 短时间内连续被打这么多次 → 判断形势不利，撤退 */
@@ -327,6 +327,14 @@ export const FOX = {
     speed: 6.0,
     /** 休息时长（秒）：首领明显更长（不该频繁撤退），普通狐短一些 */
     restSeconds: { normal: 6, pup: 4.5, fast: 5, heavy: 7, boss: 12, smart: 7 },
+    /**
+     * 安全休息（rest_safe）期间的生命回复，按 maxHp 比例每秒结算。
+     * 旧实现这里只走计时器、几乎不回血（stepStamina 的 3.5%/s 远不够），
+     * 狐狸白等一场又带残血参战 —— 现改为独立、明显的回复。
+     */
+    regenPerSec: 0.16,
+    /** 安全休息的回血目标（占 maxHp 比例）：到点应接近/达到满血 */
+    restHealTarget: 1.0,
   },
   // 接触判定：土拨鼠体型小，接触距离相应放大到体型的一半以上才合理
   contact: { boss: 2.2, heavy: 1.95, pup: 1.45, default: 1.7 },
@@ -334,6 +342,13 @@ export const FOX = {
   collisionRadius: { normal: 1.28, pup: 1.03, fast: 1.28, heavy: 1.53, boss: 1.78 },
   collisionHeight: { normal: 0.48, pup: 0.34, fast: 0.4, heavy: 0.52, boss: 0.68 },
   damage: { boss: 22, heavy: 18, pup: 8, default: 12 },
+  /**
+   * 狐狸撕咬节流：
+   *  - contactCooldown：同一只狐两次撕咬的最小间隔（一次扑击大致只造成一次伤害）；
+   *  - playerInvuln：玩家被咬后的全局短暂无敌（秒），仅避免同一帧多口叠伤，
+   *    不再像旧值 1.3s 那样把后续其他狐狸的伤害整段吞掉。
+   */
+  bite: { contactCooldown: 0.9, playerInvuln: 0.12 },
   /** 攻击模式档案（定义在本文件上方 FOX_ATTACKS） */
   attacks: FOX_ATTACKS,
   /** 取某类型的攻击档案，新增类型漏配时回退到 normal */
