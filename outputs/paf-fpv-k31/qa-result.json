@@ -1,0 +1,130 @@
+{
+  "backend": {
+    "backend": "WebGL2",
+    "renderer": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)"
+  },
+  "pass": 24,
+  "fail": 0,
+  "results": [
+    {
+      "name": "页面模块就绪（__enterPlayAsFox）",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "渲染后端检测",
+      "pass": true,
+      "detail": "{\"backend\":\"WebGL2\",\"renderer\":\"ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)\"}"
+    },
+    {
+      "name": "进入扮演藏狐模式",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "默认第三人称",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "V 键切到第一人称",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "HUD 视角标识=第一人称",
+      "pass": true,
+      "detail": "第一人称"
+    },
+    {
+      "name": "FPV 狐狸双前爪与身体 cues 可见",
+      "pass": true,
+      "detail": "{\"visible\":true,\"paws\":[{\"x\":-0.17072863038942024,\"y\":0,\"z\":0},{\"x\":0.17072863038942024,\"y\":0,\"z\":0}],\"rootY\":-0.27786382212730826,\"rootZ\":-0.7301004127259415,\"pose\":\"idle\"}"
+    },
+    {
+      "name": "FPV 移动步态响应",
+      "pass": true,
+      "detail": "{\"visible\":true,\"paws\":[{\"x\":-0.1692710801278468,\"y\":0,\"z\":0.0019796871877036993},{\"x\":0.1692710801278468,\"y\":0.0006598957292345665,\"z\":-0.0019796871877036993}],\"rootY\":-0.27572157599279545,\"rootZ\":-0.7198975608949275,\"pose\":\"walk\"}"
+    },
+    {
+      "name": "FPV 视线与身体解耦（转身不动视线）",
+      "pass": true,
+      "detail": "look.yaw 0.00→0.00, body.yaw=0.52"
+    },
+    {
+      "name": "FPV pitch 夹紧",
+      "pass": true,
+      "detail": "{\"lo\":-0.9599310885968813,\"hi\":0.6981317007977318,\"min\":-0.9599310885968813,\"max\":0.6981317007977318}"
+    },
+    {
+      "name": "FPV 扑击过程视线连续（无 NaN）",
+      "pass": true,
+      "detail": "samples=464 phases=wind/lunge/recover"
+    },
+    {
+      "name": "扑击相位完整推进（wind→lunge→recover）",
+      "pass": true,
+      "detail": "wind/lunge/recover"
+    },
+    {
+      "name": "主循环运行（转向+相位推进推出）",
+      "pass": true,
+      "detail": "body.yaw=0.52, phases=wind/lunge/recover"
+    },
+    {
+      "name": "V 键切回第三人称",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "HUD 视角标识=第三人称",
+      "pass": true,
+      "detail": "第三人称"
+    },
+    {
+      "name": "找到猎物用于近景",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "窄屏触屏 HUD（视角按钮可见）",
+      "pass": true,
+      "detail": "{\"touchClass\":true,\"hasBtn\":true,\"btnVisible\":true}"
+    },
+    {
+      "name": "触屏视角按钮切到 FPV",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "触屏按钮高亮反馈",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "窄屏 FPV 双爪仍启用且处于下缘",
+      "pass": true,
+      "detail": "{\"visible\":true,\"paws\":[{\"x\":-0.165,\"y\":0,\"z\":0},{\"x\":0.165,\"y\":0,\"z\":0}],\"rootY\":-0.27413061436716285,\"rootZ\":-0.69,\"pose\":\"idle\"}"
+    },
+    {
+      "name": "触屏按钮切回第三人称",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Esc 退出模式",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "退出后重进且视角复位第三人称",
+      "pass": true,
+      "detail": "tps"
+    },
+    {
+      "name": "无控制台错误",
+      "pass": true,
+      "detail": ""
+    }
+  ]
+}

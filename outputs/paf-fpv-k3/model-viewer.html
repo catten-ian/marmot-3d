@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>PAF model viewer</title>
+<script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
+<style>body{margin:0;background:#335}</style></head><body>
+<script type="module">
+import * as THREE from 'three';
+import { createPafFoxModel } from '/src/entities/paf-fox-model.js';
+import { createPafMoleModel } from '/src/entities/paf-mole-model.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fa8bf);
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.05, 100);
+
+scene.add(new THREE.HemisphereLight(0xcfe5ff, 0x51603c, 1.1));
+const sun = new THREE.DirectionalLight(0xfff2dd, 2.2);
+sun.position.set(4, 8, 5);
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x6a8a4a, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const fox = createPafFoxModel({});
+fox.group.position.set(-0.9, 0, 0);
+scene.add(fox.group);
+const mole = createPafMoleModel({});
+mole.position.set(0.9, 0, 0);
+scene.add(mole);
+
+let foxAnim = 'idle', foxSpeed = 0, moleState = 'wander', camYaw = 0.35, camPitch = 0.18, camDist = 3.2;
+window.__set = (o = {}) => {
+  if (o.foxAnim) foxAnim = o.foxAnim;
+  if (typeof o.foxSpeed === 'number') foxSpeed = o.foxSpeed;
+  if (o.moleState) moleState = o.moleState;
+  if (typeof o.camYaw === 'number') camYaw = o.camYaw;
+  if (typeof o.camPitch === 'number') camPitch = o.camPitch;
+  if (typeof o.camDist === 'number') camDist = o.camDist;
+  return { foxAnim, foxSpeed, moleState, camYaw, camPitch, camDist };
+};
+const clock = new THREE.Clock();
+function loop() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  fox.setAnimState({ anim: foxAnim, speed: foxSpeed });
+  fox.update(dt);
+  mole.setMoleState(moleState);
+  mole.updateAnim(dt, foxSpeed > 4 ? 1 : 0.2);
+  camera.position.set(Math.sin(camYaw) * Math.cos(camPitch) * camDist, 0.7 + Math.sin(camPitch) * camDist, Math.cos(camYaw) * Math.cos(camPitch) * camDist);
+  camera.lookAt(0, 0.45, 0);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+loop();
+window.__ready = true;
+</script></body></html>
