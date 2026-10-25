@@ -4,7 +4,7 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_BASE = '/marmot3d-beta';
-const VERSION_STAMP = 'rev29';
+const VERSION_STAMP = 'rev30';
 
 function replaceOnce(source, pattern, replacement, label) {
   const next = source.replace(pattern, replacement);
