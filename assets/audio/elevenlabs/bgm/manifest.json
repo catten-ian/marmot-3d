@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "provider": "ElevenLabs",
+  "generatedAt": "2026-10-25T23:51:42.135189+00:00",
+  "assets": {
+    "cave": {
+      "file": "assets/audio/elevenlabs/bgm/cave.mp3",
+      "durationSeconds": 12.016,
+      "bytes": 192305,
+      "sha256": "3ec753d006a3ee656b49024d9e42b82163d187af5aa2185d82e422433d2f6a54"
+    },
+    "combat": {
+      "file": "assets/audio/elevenlabs/bgm/combat.mp3",
+      "durationSeconds": 12.069,
+      "bytes": 193141,
+      "sha256": "72acda7a503d288c620f553828a2ad08d97b626d40538934c4d02c2c0a446169"
+    },
+    "defeat": {
+      "file": "assets/audio/elevenlabs/bgm/defeat.mp3",
+      "durationSeconds": 12.016,
+      "bytes": 192305,
+      "sha256": "3ec753d006a3ee656b49024d9e42b82163d187af5aa2185d82e422433d2f6a54"
+    },
+    "explore": {
+      "file": "assets/audio/elevenlabs/bgm/explore.mp3",
+      "durationSeconds": 12.016,
+      "bytes": 192305,
+      "sha256": "1b4afa6691e14f1f5c97f8762c079deb7651bc532c169890a0747daf6e97c4fc"
+    },
+    "menu": {
+      "file": "assets/audio/elevenlabs/bgm/menu.mp3",
+      "durationSeconds": 12.016,
+      "bytes": 192305,
+      "sha256": "cd1af0b8342462a475dea28c432a248d009f40cb6c44c91e8728d8687a43e0c5"
+    },
+    "tension": {
+      "file": "assets/audio/elevenlabs/bgm/tension.mp3",
+      "durationSeconds": 12.069,
+      "bytes": 193141,
+      "sha256": "72acda7a503d288c620f553828a2ad08d97b626d40538934c4d02c2c0a446169"
+    },
+    "victory": {
+      "file": "assets/audio/elevenlabs/bgm/victory.mp3",
+      "durationSeconds": 12.016,
+      "bytes": 192305,
+      "sha256": "29973d35a4e3f5ddc3923ab10b3aaecb1a295c016bcf4c9513847b9b91007245"
+    }
+  }
+}

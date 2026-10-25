@@ -24,31 +24,31 @@ const clampPercent = (value, fallback) => {
 
 /** All public legacy event names remain available, including the repel/kill alias. */
 export const SFX_ASSETS = Object.freeze({
-  swing: 'assets/audio/sfx/swing.mp3',
-  hit: 'assets/audio/sfx/hit.mp3',
+  swing: 'assets/audio/elevenlabs/sfx/swing.mp3',
+  hit: 'assets/audio/elevenlabs/sfx/hit.mp3',
   repel: 'assets/audio/sfx/repel.mp3',
   kill: 'assets/audio/sfx/repel.mp3',
-  berry: 'assets/audio/sfx/berry.mp3',
+  berry: 'assets/audio/elevenlabs/sfx/berry.mp3',
   burst: 'assets/audio/sfx/burst.mp3',
   ultimate: 'assets/audio/sfx/ultimate.mp3',
-  hurt: 'assets/audio/sfx/hurt.mp3',
-  foxWind: 'assets/audio/sfx/foxWind.mp3',
-  jump: 'assets/audio/sfx/jump.mp3',
-  foxDash: 'assets/audio/sfx/foxDash.mp3',
-  rescue: 'assets/audio/sfx/rescue.mp3',
-  helpCry: 'assets/audio/sfx/helpCry.mp3',
-  levelUp: 'assets/audio/sfx/levelUp.mp3',
-  win: 'assets/audio/sfx/win.mp3',
-  lose: 'assets/audio/sfx/lose.mp3',
-  lowHealth: 'assets/audio/sfx/lowHealth.mp3',
+  hurt: 'assets/audio/elevenlabs/sfx/hurt.mp3',
+  foxWind: 'assets/audio/elevenlabs/sfx/foxWind.mp3',
+  jump: 'assets/audio/elevenlabs/sfx/jump.mp3',
+  foxDash: 'assets/audio/elevenlabs/sfx/foxDash.mp3',
+  rescue: 'assets/audio/elevenlabs/sfx/rescue.mp3',
+  helpCry: 'assets/audio/elevenlabs/sfx/helpCry.mp3',
+  levelUp: 'assets/audio/elevenlabs/sfx/levelUp.mp3',
+  win: 'assets/audio/elevenlabs/sfx/win.mp3',
+  lose: 'assets/audio/elevenlabs/sfx/lose.mp3',
+  lowHealth: 'assets/audio/elevenlabs/sfx/lowHealth.mp3',
 });
 export const SFX_EVENT_NAMES = Object.freeze([
   'swing', 'hit', 'repel', 'kill', 'berry', 'burst', 'ultimate', 'hurt', 'foxWind',
   'jump', 'foxDash', 'rescue', 'helpCry', 'levelUp', 'win', 'lose', 'lowHealth',
 ]);
-export const BGM_SLOTS = Object.freeze(['menu', 'explore', 'tension', 'combat', 'victory', 'defeat']);
+export const BGM_SLOTS = Object.freeze(['menu', 'explore', 'tension', 'combat', 'cave', 'victory', 'defeat']);
 export const BGM_ASSETS = Object.freeze(Object.fromEntries(
-  BGM_SLOTS.map((slot) => [slot, `assets/audio/bgm/${slot}.mp3`]),
+  BGM_SLOTS.map((slot) => [slot, `assets/audio/elevenlabs/bgm/${slot}.mp3`]),
 ));
 
 /** Map an audio-relative file to its beta remote/local fallback chain. */
@@ -114,12 +114,13 @@ export function selectSfxPlayback({ isBeta = true, enabled = true, fileAvailable
 }
 
 /** Select the score for the current game state; null means fade to silence (e.g. pause). */
-export function selectBgmSlot({ mode = 'title', hp = 100, stress = 0, threats = 0, winding = false, combat = false, overdrive = 0 } = {}) {
+export function selectBgmSlot({ mode = 'title', hp = 100, stress = 0, threats = 0, winding = false, combat = false, overdrive = 0, inBurrow = false } = {}) {
   if (mode === 'title') return 'menu';
   if (mode === 'won' || mode === 'levelclear') return 'victory';
   if (mode === 'lost') return 'defeat';
   if (mode === 'pause') return null;
   if (mode !== 'play') return 'menu';
+  if (inBurrow) return 'cave';
   if (Number(hp) <= 25) return 'defeat';
   if (combat || Number(overdrive) > 0) return 'combat';
   if (winding || Number(threats) > 0 || Number(stress) >= 55) return 'tension';
@@ -461,7 +462,7 @@ export class Audio {
   _readManifest(kind) {
     if (!this.fetchFn) return Promise.resolve(null);
     if (this._manifestCache.has(kind)) return this._manifestCache.get(kind);
-    const path = `assets/audio/${kind}/manifest.json`;
+    const path = this.isBeta ? `assets/audio/elevenlabs/${kind}/manifest.json` : `assets/audio/${kind}/manifest.json`;
     if (this.isBeta) {
       const promise = this._loadBetaManifest(path, AUDIO_TIMEOUTS[kind] || AUDIO_TIMEOUTS.sfx);
       this._manifestCache.set(kind, promise);
@@ -558,7 +559,7 @@ export class Audio {
     return promise;
   }
 
-  _playBuffer(buffer, bus, { volume = 1, fadeIn = 0.008, fadeOut = 0.025, onended = null } = {}) {
+  _playBuffer(buffer, bus, { volume = 1, fadeIn = 0.008, fadeOut = 0.025, pan = 0, onended = null } = {}) {
     if (!this.ctx || !bus || !this.enabled) return false;
     try {
       const source = this.ctx.createBufferSource();
@@ -567,7 +568,21 @@ export class Audio {
       const duration = Math.max(0.02, Number(buffer.duration) || 0.12);
       source.buffer = buffer;
       source.connect(gain);
-      gain.connect(bus);
+      // Beta spatial mix: distance attenuation is applied before a stereo panner;
+      // a low-pass stage muffles distant/underground sources without affecting stable/dev.
+      let tail = gain;
+      if (this.isBeta && this.ctx.createBiquadFilter) {
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 22000;
+        tail.connect(filter); tail = filter;
+      }
+      if (this.isBeta && this.ctx.createStereoPanner && pan !== 0) {
+        const panner = this.ctx.createStereoPanner();
+        panner.pan.value = Math.max(-1, Math.min(1, Number(pan) || 0));
+        tail.connect(panner); tail = panner;
+      }
+      tail.connect(bus);
       gain.gain.setValueAtTime(0.0001, now);
       gain.gain.linearRampToValueAtTime(Math.max(0.0001, volume), now + Math.min(fadeIn, duration * 0.2));
       gain.gain.setValueAtTime(Math.max(0.0001, volume), now + Math.max(fadeIn, duration - fadeOut));
@@ -606,7 +621,7 @@ export class Audio {
       if (!this.enabled || !this.settings.sfxEnabled) { release(); return; }
       const selected = selectSfxPlayback({ isBeta: this.isBeta, enabled: true, fileAvailable: !!buffer });
       if (selected === 'file' && this._playBuffer(buffer, this.sfxBus, {
-        volume: Math.max(0, 1 - Math.min(0.85, clamp01(attenuation))), onended: release,
+        volume: Math.max(0, 1 - Math.min(0.85, clamp01(attenuation))), pan, onended: release,
       })) return;
       try { fallback(pan); } catch (_) { /* procedural fallback is isolated */ }
       setTimeout(release, FALLBACK_HOLD_MS[name] || 300);
@@ -728,26 +743,26 @@ export class Audio {
   _lose() { [392, 330, 262, 196].forEach((f, i) => setTimeout(() => this._tone(f, 0.42, 'sine', 0.22), i * 190)); }
   _lowHealth() { this._tone(220, 0.16, 'sine', 0.14, 180); }
 
-  swing() { return this._dispatchSfx('swing', () => this._swing()); }
-  hit() { return this._dispatchSfx('hit', () => this._hit()); }
-  repel() { return this._dispatchSfx('repel', () => this._repel()); }
+  swing(options = {}) { return this._dispatchSfx('swing', () => this._swing(), options); }
+  hit(options = {}) { return this._dispatchSfx('hit', () => this._hit(), options); }
+  repel(options = {}) { return this._dispatchSfx('repel', () => this._repel(), options); }
   /** @deprecated Kept as a legacy alias; it intentionally uses the non-lethal repel sound. */
-  kill() { return this._dispatchSfx('kill', () => this._repel()); }
-  berry() { return this._dispatchSfx('berry', () => this._berry()); }
-  burst() { return this._dispatchSfx('burst', () => this._burst()); }
-  ultimate() { return this._dispatchSfx('ultimate', () => this._ultimate()); }
-  hurt() { return this._dispatchSfx('hurt', () => this._hurt()); }
-  foxWind() { return this._dispatchSfx('foxWind', () => this._foxWind()); }
-  jump() { return this._dispatchSfx('jump', () => this._jump()); }
-  foxDash() { return this._dispatchSfx('foxDash', () => this._foxDash()); }
-  rescue() { return this._dispatchSfx('rescue', () => this._rescue()); }
+  kill(options = {}) { return this._dispatchSfx('kill', () => this._repel(), options); }
+  berry(options = {}) { return this._dispatchSfx('berry', () => this._berry(), options); }
+  burst(options = {}) { return this._dispatchSfx('burst', () => this._burst(), options); }
+  ultimate(options = {}) { return this._dispatchSfx('ultimate', () => this._ultimate(), options); }
+  hurt(options = {}) { return this._dispatchSfx('hurt', () => this._hurt(), options); }
+  foxWind(options = {}) { return this._dispatchSfx('foxWind', () => this._foxWind(), options); }
+  jump(options = {}) { return this._dispatchSfx('jump', () => this._jump(), options); }
+  foxDash(options = {}) { return this._dispatchSfx('foxDash', () => this._foxDash(), options); }
+  rescue(options = {}) { return this._dispatchSfx('rescue', () => this._rescue(), options); }
   helpCry(attenuation = 0.5) {
     return this._dispatchSfx('helpCry', () => this._helpCry(attenuation), { attenuation });
   }
-  levelUp() { return this._dispatchSfx('levelUp', () => this._levelUp()); }
-  win() { return this._dispatchSfx('win', () => this._win()); }
-  lose() { return this._dispatchSfx('lose', () => this._lose()); }
-  lowHealth() { return this._dispatchSfx('lowHealth', () => this._lowHealth()); }
+  levelUp(options = {}) { return this._dispatchSfx('levelUp', () => this._levelUp(), options); }
+  win(options = {}) { return this._dispatchSfx('win', () => this._win(), options); }
+  lose(options = {}) { return this._dispatchSfx('lose', () => this._lose(), options); }
+  lowHealth(options = {}) { return this._dispatchSfx('lowHealth', () => this._lowHealth(), options); }
   /** Two-level companion escort alarm; pan positions it in the stereo field via sfxBus. */
   companionAlarm(level, pan = 0) {
     return this._dispatchSfx('companionAlarm', (p) => this._companionAlarm(level, p ?? pan), { pan });

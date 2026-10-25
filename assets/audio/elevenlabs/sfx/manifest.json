@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "provider": "ElevenLabs",
+  "generatedAt": "2026-10-25T23:51:42.663585+00:00",
+  "assets": {
+    "berry": {
+      "file": "assets/audio/elevenlabs/sfx/berry.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "52874d939840074be30489e9a2d99dcc7493eb0a85b2ca9490ea867c5c98b118"
+    },
+    "foxDash": {
+      "file": "assets/audio/elevenlabs/sfx/foxDash.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "37890319fc5c8929044e59369138c09e896024c70384ca70417e9ec167efed7a"
+    },
+    "foxWind": {
+      "file": "assets/audio/elevenlabs/sfx/foxWind.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "37890319fc5c8929044e59369138c09e896024c70384ca70417e9ec167efed7a"
+    },
+    "helpCry": {
+      "file": "assets/audio/elevenlabs/sfx/helpCry.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "bcbf09a99659d170655c3887cf81490fdd22c35ab233cda42a73ea5c0b4d6c07"
+    },
+    "hit": {
+      "file": "assets/audio/elevenlabs/sfx/hit.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "95df28e52a84c2e877afea91e603e634694218efdc9612f894103acab2e5994a"
+    },
+    "hurt": {
+      "file": "assets/audio/elevenlabs/sfx/hurt.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "95df28e52a84c2e877afea91e603e634694218efdc9612f894103acab2e5994a"
+    },
+    "jump": {
+      "file": "assets/audio/elevenlabs/sfx/jump.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "b5ddc1a824dfd8f2cca8ef7ba2de18df622c1928966d571bafdc2c73307b2694"
+    },
+    "levelUp": {
+      "file": "assets/audio/elevenlabs/sfx/levelUp.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "5acfb305f0dbcb2bb1554cedf58056aceb5ddd220de88d3403ff8998b0d2d001"
+    },
+    "lose": {
+      "file": "assets/audio/elevenlabs/sfx/lose.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "95df28e52a84c2e877afea91e603e634694218efdc9612f894103acab2e5994a"
+    },
+    "lowHealth": {
+      "file": "assets/audio/elevenlabs/sfx/lowHealth.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "95df28e52a84c2e877afea91e603e634694218efdc9612f894103acab2e5994a"
+    },
+    "rescue": {
+      "file": "assets/audio/elevenlabs/sfx/rescue.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "5acfb305f0dbcb2bb1554cedf58056aceb5ddd220de88d3403ff8998b0d2d001"
+    },
+    "swing": {
+      "file": "assets/audio/elevenlabs/sfx/swing.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "27e567309ef0c223ba34fb71c82f8ece6049de7a44ff8c5904dd07ae54db391e"
+    },
+    "win": {
+      "file": "assets/audio/elevenlabs/sfx/win.mp3",
+      "durationSeconds": 3.03,
+      "bytes": 48944,
+      "sha256": "5acfb305f0dbcb2bb1554cedf58056aceb5ddd220de88d3403ff8998b0d2d001"
+    }
+  }
+}

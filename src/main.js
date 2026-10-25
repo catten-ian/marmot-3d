@@ -3243,6 +3243,7 @@ function frame(now) {
       winding: inRangeFoxes.some((fox) => fox.state === 'wind'),
       combat: game.overdrive > 0 || inRangeFoxes.some((fox) => fox.state === 'dash'),
       overdrive: game.overdrive,
+      inBurrow: game.inBurrow,
     });
   }
   // 键鼠技能状态条在 play/pause 都要刷新（函数内部按模式与输入方式决定显隐）。
