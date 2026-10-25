@@ -38,10 +38,11 @@ class PafDebugView {
     scene.add(this.group);
 
     this.catchRing = this._ring(0xff8a4a, 0.95);   // 扑击范围（橙）
-    this.detectRing = this._ring(0xffd24a, 0.55);  // 察觉半径（黄）
+    this.detectRing = this._ring(0xffd24a, 0.55);  // 视觉察觉半径（黄）
+    this.hearRing = this._ring(0x7fd8ff, 0.4);     // 听觉半径（蓝，全向）
     this.foxCyl = this._cylinder(0x63c7ff);        // 藏狐碰撞（蓝）
     this.preyCyl = new THREE.Group();              // 土拨鼠碰撞（红，多个）
-    this.group.add(this.catchRing, this.detectRing, this.foxCyl, this.preyCyl);
+    this.group.add(this.catchRing, this.detectRing, this.hearRing, this.foxCyl, this.preyCyl);
     this._preyMeshes = [];
   }
   _ring(color, opacity) {
@@ -81,7 +82,7 @@ class PafDebugView {
       this.foxCyl.position.set(pos.x, pos.y + cfg.foxHeight / 2, pos.z);
     }
 
-    // 扑击范围（仅扑击相位显示，跟随锁定朝向不需要——捕获只看水平距离）
+    // 扑击水平范围（仅扑击相位显示；实际捕获还需通过垂直窗口）
     const pouncing = api.phase === 'lunge' || api.phase === 'wind';
     this.catchRing.visible = !!view.catchRange;
     if (view.catchRange) {
@@ -90,12 +91,17 @@ class PafDebugView {
       (this.catchRing.material).opacity = pouncing ? 0.95 : 0.35;
     }
 
-    // 当前察觉半径（潜行/冲刺）
+    // 当前视觉/听觉察觉半径（档位：潜行 / 冲刺 / wind+lunge）
     this.detectRing.visible = !!view.detect;
+    this.hearRing.visible = !!view.detect;
     if (view.detect) {
-      const dr = api.sprint ? cfg.detectSprint : cfg.detectStalk;
-      this.detectRing.scale.set(dr, 1, dr);
+      const threat = api.phase === 'wind' || api.phase === 'lunge';
+      const vr = threat ? cfg.visionRadiusLunge : api.sprint ? cfg.detectSprint : cfg.detectStalk;
+      const hr = threat ? cfg.detectLunge : api.sprint ? cfg.hearRadiusSprint : cfg.hearRadiusStalk;
+      this.detectRing.scale.set(vr, 1, vr);
       this.detectRing.position.set(pos.x, pos.y + 0.02, pos.z);
+      this.hearRing.scale.set(hr, 1, hr);
+      this.hearRing.position.set(pos.x, pos.y + 0.02, pos.z);
     }
 
     // 土拨鼠碰撞圆柱
@@ -166,6 +172,13 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
   track(fPounce.add(cfg, 'lungeHeight', 0, 3, 0.05).name('腾空高度'));
   track(fPounce.add(cfg, 'recoverTime', 0, 1.5, 0.01).name('硬直时间'));
   track(fPounce.add(cfg, 'catchRadius', 0.3, 6, 0.05).name('扑击范围 r'));
+  track(fPounce.add(cfg, 'leadLungeFraction', 0, 1.2, 0.01).name('lead 腾空系数'));
+  track(fPounce.add(cfg, 'windRetargetDeg', 0, 45, 0.5).name('wind重瞄上限°'));
+  track(fPounce.add(cfg, 'windRetargetFrac', 0, 1, 0.02).name('wind可重瞄比例'));
+  track(fPounce.add(cfg, 'windRetargetDamp', 0, 30, 0.5).name('wind重瞄速率'));
+  track(fPounce.add(cfg, 'catchFoxCenter', 0.1, 1.2, 0.02).name('命中中心高'));
+  track(fPounce.add(cfg, 'catchVerticalTol', 0.1, 2, 0.02).name('垂直容差±'));
+  track(fPounce.add(cfg, 'preyCenterHeight', 0.1, 1.2, 0.02).name('猎物中心高'));
 
   // —— 碰撞体积 ——
   const fCol = gui.addFolder('碰撞体积 / Collision');
@@ -185,6 +198,45 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
   track(fPrey.add(cfg, 'detectLunge', 1, 40, 0.2).name('扑击察觉半径'));
   track(fPrey.add(cfg, 'alertTime', 0, 1.5, 0.02).name('警觉停留'));
   track(fPrey.add(cfg, 'fleeCommit', 0.1, 1, 0.01).name('逼近立即逃比例'));
+  // A1 多线索察觉
+  track(fPrey.add(cfg, 'visionHalfAngleDeg', 20, 180, 1).name('视锥半角°(全锥2倍)'));
+  track(fPrey.add(cfg, 'visionRadiusLunge', 1, 40, 0.2).name('扑击视觉半径'));
+  track(fPrey.add(cfg, 'hearRadiusStalk', 0, 20, 0.2).name('潜行听觉半径'));
+  track(fPrey.add(cfg, 'hearRadiusSprint', 0, 30, 0.2).name('冲刺听觉半径'));
+  track(fPrey.add(cfg, 'visionFalloffInner', 0, 1, 0.02).name('视觉满强度内圈'));
+  track(fPrey.add(cfg, 'hearFalloffInner', 0, 1, 0.02).name('听觉满强度内圈'));
+  track(fPrey.add(cfg, 'visionRate', 0, 6, 0.05).name('视觉上升率/s'));
+  track(fPrey.add(cfg, 'hearRate', 0, 6, 0.05).name('听觉上升率/s'));
+  track(fPrey.add(cfg, 'speedCoefStalk', 0, 2, 0.02).name('视觉系数·潜行'));
+  track(fPrey.add(cfg, 'speedCoefSprint', 0, 2, 0.02).name('视觉系数·冲刺'));
+  track(fPrey.add(cfg, 'speedCoefLunge', 0, 2, 0.02).name('视觉系数·扑击'));
+  track(fPrey.add(cfg, 'noiseCoefStalk', 0, 2, 0.02).name('听觉系数·潜行'));
+  track(fPrey.add(cfg, 'noiseCoefSprint', 0, 2, 0.02).name('听觉系数·冲刺'));
+  track(fPrey.add(cfg, 'noiseCoefLunge', 0, 2, 0.02).name('听觉系数·扑击'));
+  track(fPrey.add(cfg, 'suspicionAlert', 0, 2, 0.02).name('suspicion警觉阈'));
+  track(fPrey.add(cfg, 'suspicionFlee', 0, 2, 0.02).name('suspicion逃跑阈'));
+  track(fPrey.add(cfg, 'suspicionDecay', 0, 3, 0.02).name('suspicion衰减/s'));
+  // A2 freeze
+  track(fPrey.add(cfg, 'freezeMin', 0, 1.5, 0.02).name('冻结最短s'));
+  track(fPrey.add(cfg, 'freezeMax', 0, 1.5, 0.02).name('冻结最长s'));
+  track(fPrey.add(cfg, 'freezeBandMin', 0, 1.5, 0.02).name('冻结距离带近'));
+  track(fPrey.add(cfg, 'freezeBandMax', 0, 1.5, 0.02).name('冻结距离带远'));
+  // A3 zigzag
+  track(fPrey.add(cfg, 'zigzagDistance', 0, 25, 0.5).name('zigzag距离'));
+  track(fPrey.add(cfg, 'zigzagAngleMin', 0, 90, 1).name('zigzag偏角小°'));
+  track(fPrey.add(cfg, 'zigzagAngleMax', 0, 90, 1).name('zigzag偏角大°'));
+  track(fPrey.add(cfg, 'zigzagPeriodMin', 0.05, 1.2, 0.01).name('反转周期短s'));
+  track(fPrey.add(cfg, 'zigzagPeriodMax', 0.05, 1.2, 0.01).name('反转周期长s'));
+  track(fPrey.add(cfg, 'zigzagJitter', 0, 0.5, 0.02).name('反转周期抖动'));
+  track(fPrey.add(cfg, 'zigzagSpeedFactor', 0.5, 1, 0.01).name('zigzag速度系数'));
+  // A4 轨迹回避
+  track(fPrey.add(cfg, 'evadeCurrentWeight', 0, 1, 0.02).name('回避·当前位置'));
+  track(fPrey.add(cfg, 'evadeLandingWeight', 0, 1, 0.02).name('回避·着陆点'));
+  track(fPrey.add(cfg, 'landingPredict', 0, 1.2, 0.02).name('着陆点预测系数'));
+  // E3 重生防贴脸
+  track(fPrey.add(cfg, 'respawnMinDist', 0, 60, 0.5).name('重生最近距离'));
+  track(fPrey.add(cfg, 'respawnViewDeg', 0, 90, 1).name('重生避开视角°'));
+  track(fPrey.add(cfg, 'respawnAttempts', 1, 50, 1).name('重生尝试次数'));
 
   // —— 相机 ——
   const fCam = gui.addFolder('相机 / Camera');

@@ -11,7 +11,7 @@
  *  - 移动：坦克式操控，W/S 前后，鼠标 / ←→ / A D 转向；默认潜行（蹲伏、
  *    土拨鼠更近才察觉），按住 Shift 冲刺（快但更早被发现）。
  *  - 扑击：空格 / 左键，短蓄力后沿锁定朝向跃扑，带抛物线腾空；
- *    扑击激活帧内水平重叠即捕获土拨鼠；扑完有硬直。
+ *    扑击激活帧内水平重叠且处于垂直窗口才捕获土拨鼠；扑完有硬直。
  *  - 猎物：AI 土拨鼠游荡，进入察觉半径会警觉（!）随后逃离，扑击时惊逃更快。
  *
  * 所有平衡数值集中在 PAF_DEFAULTS / 运行时 cfg，?pafdebug=1 时由
@@ -22,6 +22,11 @@ import { createProceduralFox } from '../entities/procedural-fox.js';
 import { buildMarmotMesh } from '../entities/props_entities.js';
 import { terrainHeight } from '../core/utils.js';
 import { moveBounds } from '../core/config.js';
+import {
+  CUE_MODE, deg2rad, yawTo, inViewCone, stepPreyMind, stepZigzag, zigzagActive,
+  predictLandingPoint, evadeVector, canCatch, pickRespawnPoint,
+  nearestTarget, leadTarget, windLeadTime, retargetWindYaw,
+} from '../core/predator-prey.js';
 
 /** 扮演藏狐模式全部可调平衡数值（后台滑块直接改这里的运行时副本）。 */
 export const PAF_DEFAULTS = {
@@ -48,11 +53,60 @@ export const PAF_DEFAULTS = {
   preyFlee: 5.0,          // 惊逃速度
   preyBurst: 8.2,         // 被扑击瞬间惊逃峰值
   respawnTime: 1.6,       // 捕获后重生 s
-  detectStalk: 6.2,       // 潜行时被察觉半径
-  detectSprint: 11.5,     // 冲刺时被察觉半径
-  detectLunge: 17.0,      // 扑击瞬间被察觉半径
+  // 旧三档察觉半径（A1 起作为视觉/听觉档位锚点；与 config.js FOX.detection 对齐）
+  detectStalk: 6.2,       // 潜行视觉半径
+  detectSprint: 11.5,     // 冲刺视觉半径
+  detectLunge: 17.0,      // 扑击全向听觉半径
   alertTime: 0.32,        // 警觉停留 s 后开始逃
-  fleeCommit: 0.55,       // 距离近于 察觉半径*该比例 立即逃
+  fleeCommit: 0.55,       // 距离近于 察觉半径*该比例 立即逃（跳过 freeze）
+  // A1 多线索察觉（距离衰减 × 视锥 × 速度/姿态 + 全向听觉代理）
+  visionHalfAngleDeg: 60, // 视锥半角（全锥 120°）
+  visionRadiusLunge: 13.0,// 扑击中视觉半径（扑击主要靠全向听觉被发现）
+  hearRadiusStalk: 3.0,   // 潜行脚步听觉半径
+  hearRadiusSprint: 9.0,  // 冲刺听觉半径
+  visionFalloffInner: 0.65, // 视觉半径该比例内满强度，外圈线性衰减到 0
+  hearFalloffInner: 0.5,  // 听觉同上
+  visionRate: 1.8,        // suspicion 视觉上升率 /s
+  hearRate: 1.6,          // suspicion 听觉上升率 /s
+  speedCoefStalk: 0.75,   // 视觉速度系数：潜行 < 冲刺 < 扑击
+  speedCoefSprint: 1.0,
+  speedCoefLunge: 1.25,
+  noiseCoefStalk: 0.45,   // 听觉噪声系数
+  noiseCoefSprint: 1.0,
+  noiseCoefLunge: 1.5,
+  suspicionAlert: 0.5,    // 进 alert 的累积阈值
+  suspicionFlee: 1.0,     // 累积到该值直接逃
+  suspicionDecay: 0.6,    // 离开感知后衰减 /s
+  // A2 freeze / tremble 中间态
+  freezeMin: 0.25,        // 冻结时长随机带 s
+  freezeMax: 0.45,
+  freezeBandMin: 0.6,     // 冻结触发距离带 = 潜行视觉半径的 60%–100%
+  freezeBandMax: 1.0,
+  // A3 近距离 zigzag 逃跑
+  zigzagDistance: 10,     // 距离 < 该值启用（玩家 wind/lunge 时无条件启用）
+  zigzagAngleMin: 35,     // 侧向偏角随机带（度）
+  zigzagAngleMax: 60,
+  zigzagPeriodMin: 0.28,  // 反转周期带 s（另叠加 ±20% 抖动）
+  zigzagPeriodMax: 0.45,
+  zigzagJitter: 0.2,
+  zigzagSpeedFactor: 0.9, // zigzag 期间主速系数（≥0.85 防永远追不上）
+  // A4 回避攻击终点（轨迹回避）
+  evadeCurrentWeight: 0.4,// 逃离当前位置权重
+  evadeLandingWeight: 0.6,// 逃离预测着陆点权重
+  landingPredict: 0.7,    // 着陆点 = pos + dir × lungeSpeed × lungeTime × 该系数
+  // B1 扑击 lead 提前量 + wind 限时重瞄
+  leadLungeFraction: 0.45,// lead 时间 = wind 剩余 + lungeTime × 该系数
+  windRetargetDeg: 12,    // wind 重瞄相对起始朝向的最大修正角（防自动瞄准）
+  windRetargetFrac: 0.6,  // wind 前 60% 可重瞄，后 40% 锁定
+  windRetargetDamp: 10,   // 重瞄缓转速率
+  // B2 捕获垂直窗口
+  catchFoxCenter: 0.45,   // 狐狸扑击命中中心相对足部高度
+  catchVerticalTol: 0.8,  // 垂直容差 ±m
+  preyCenterHeight: 0.45, // 猎物中心高 = 地形 + 该值（建议带 0.25–0.65）
+  // E3 重生防贴脸
+  respawnMinDist: 18,     // 重生点距玩家 ≥ m
+  respawnViewDeg: 35,     // 且不在玩家视线中心 ±该角度 内
+  respawnAttempts: 20,    // 尝试次数，全失败取最远候选
   // 追尾相机
   camDist: 5.2,
   camHeight: 2.3,
@@ -79,11 +133,14 @@ class Prey {
     this.mesh = buildMarmotMesh(0xb3925a);
     this.x = x; this.z = z; this.vx = 0; this.vz = 0;
     this.yaw = Math.random() * Math.PI * 2;
-    this.state = 'wander';          // wander | alert | flee
+    this.state = 'wander';          // wander | alert | freeze | flee（A2）
     this.timer = Math.random() * 2;
     this.caught = false;
     this.respawn = 0;
     this.bob = Math.random() * 10;
+    this.suspicion = 0;             // A1 分级察觉累积值
+    this.zz = { active: false, sign: 0, angle: 0, timer: 0 }; // A3 zigzag 相位
+    this.trembleT = Math.random() * 10; // A2 冻结战栗视觉相位（不碰碰撞）
     scene.add(this.mesh);
     this._place(terrainHeight(x, z));
 
@@ -107,49 +164,76 @@ class Prey {
     scene.remove(this.mesh);
     this.mark.remove();
   }
-  respawnAt(bounds) {
-    const a = Math.random() * Math.PI * 2;
-    const r = 8 + Math.random() * Math.min(bounds.hw, bounds.hh) * 0.7;
-    this.x = clamp(Math.cos(a) * r, -bounds.hw + 2, bounds.hw - 2);
-    this.z = clamp(Math.sin(a) * r, -bounds.hh + 2, bounds.hh - 2);
-    this.vx = this.vz = 0; this.state = 'wander'; this.caught = false;
+  respawnAt(bounds, fox, cfg) {
+    // E3：距玩家 ≥ respawnMinDist、避开视线中心 ±respawnViewDeg；20 次失败取最远候选。
+    const f = fox || { x: 0, z: 0, yaw: 0 };
+    const pick = pickRespawnPoint(bounds, f, cfg || PAF_DEFAULTS, Math.random);
+    this.x = pick.x; this.z = pick.z;
+    this.vx = this.vz = 0;
+    this.state = 'wander'; this.suspicion = 0; this.timer = Math.random() * 2;
+    this.zz = { active: false, sign: 0, angle: 0, timer: 0 };
+    this.caught = false;
     this.mesh.visible = true; this.mark.style.display = 'none';
     this._place(terrainHeight(this.x, this.z));
   }
   update(dt, fox, cam, hudLayer, bounds, cfg) {
     if (this.caught) {
       this.respawn -= dt;
-      if (this.respawn <= 0) this.respawnAt(bounds);
+      if (this.respawn <= 0) this.respawnAt(bounds, fox, cfg);
       return;
     }
-    const dx = this.x - fox.x, dz = this.z - fox.z;
-    const dist = Math.hypot(dx, dz) || 0.001;
-    // 察觉半径：潜行近、冲刺远、扑击最远
-    const pouncing = fox.phase === 'lunge';
-    const detect = pouncing ? cfg.detectLunge : fox.sprint ? cfg.detectSprint : cfg.detectStalk;
-    if (dist < detect) {
-      if (this.state === 'wander') { this.state = 'alert'; this.timer = cfg.alertTime; }
-      else if (this.state === 'alert') { this.timer -= dt; if (this.timer <= 0 || dist < detect * cfg.fleeCommit) this.state = 'flee'; }
-      if (pouncing) this.state = 'flee';
-    } else if (this.state !== 'wander' && dist > detect + 4) {
-      this.state = 'wander'; this.timer = Math.random() * 2;
-    }
+    const toFoxX = fox.x - this.x, toFoxZ = fox.z - this.z;
+    const dist = Math.hypot(toFoxX, toFoxZ) || 0.001;
+    // A1：多线索察觉（距离衰减 × 视锥 × 速度/姿态 + 全向听觉；LOS 遮挡预留未接）
+    const threatening = fox.phase === 'wind' || fox.phase === 'lunge';
+    const mode = threatening ? CUE_MODE.LUNGE : fox.sprint ? CUE_MODE.SPRINT : CUE_MODE.STALK;
+    const inCone = inViewCone(this.yaw, toFoxX, toFoxZ, deg2rad(cfg.visionHalfAngleDeg));
+    const mind = stepPreyMind(
+      { state: this.state, suspicion: this.suspicion, timer: this.timer },
+      { dist, inCone, mode, threatening }, dt, cfg, Math.random);
+    this.state = mind.state; this.suspicion = mind.suspicion; this.timer = mind.timer;
 
     let speed = 0;
     if (this.state === 'flee') {
-      speed = pouncing ? cfg.preyBurst : cfg.preyFlee;
-      this.yaw = Math.atan2(dx, dz);           // 径直逃离狐狸
+      speed = fox.phase === 'lunge' ? cfg.preyBurst : cfg.preyFlee;
+      // A4：wind/lunge 时逃离方向 = 逃离当前位置与预测着陆点的加权和
+      let fleeYaw;
+      if (threatening) {
+        const threatYaw = fox.phase === 'lunge' ? fox.lungeYaw : fox.yaw;
+        const land = predictLandingPoint(fox.x, fox.z, threatYaw, cfg);
+        const ev = evadeVector(this.x, this.z, fox.x, fox.z, land.x, land.z, cfg);
+        fleeYaw = ev.ok ? ev.yaw : yawTo(this.x - fox.x, this.z - fox.z);
+      } else {
+        fleeYaw = yawTo(this.x - fox.x, this.z - fox.z);
+      }
+      // A3：近距离或玩家 wind/lunge 时叠加周期性侧向偏角，远距保持直线
+      this.zz = stepZigzag(this.zz, zigzagActive(dist, threatening, cfg), dt, cfg, Math.random);
+      if (this.zz.active) {
+        fleeYaw += this.zz.sign * this.zz.angle;
+        speed *= cfg.zigzagSpeedFactor;
+      }
+      this.yaw = fleeYaw;
     } else if (this.state === 'wander') {
       speed = cfg.preyWander * 0.5;
       this.timer -= dt;
       if (this.timer <= 0) { this.yaw += (Math.random() - 0.5) * 2.2; this.timer = 1 + Math.random() * 2.5; }
+      this.zz = stepZigzag(this.zz, false, dt, cfg, Math.random);
+    } else if (this.state === 'freeze') {
+      // A2：冻结——静止、头朝玩家；碰撞体不动（tremble 仅视觉，见下）
+      speed = 0;
+      this.vx = 0; this.vz = 0; // 真静止：不继承 alert/wander 的阻尼滑行
+      this.yaw = yawTo(toFoxX, toFoxZ);
+      this.zz = stepZigzag(this.zz, false, dt, cfg, Math.random);
+    } else {
+      // alert：原地警觉
+      this.zz = stepZigzag(this.zz, false, dt, cfg, Math.random);
     }
     this.vx = damp(this.vx, Math.sin(this.yaw) * speed, this.state === 'flee' ? 9 : 4, dt);
     this.vz = damp(this.vz, Math.cos(this.yaw) * speed, this.state === 'flee' ? 9 : 4, dt);
     this.x += this.vx * dt; this.z += this.vz * dt;
     // 撞边界转向场内
     if (Math.abs(this.x) > bounds.hw - 1.5 || Math.abs(this.z) > bounds.hh - 1.5) {
-      this.yaw = Math.atan2(-this.x, -this.z); this.state = 'wander';
+      this.yaw = yawTo(-this.x, -this.z); this.state = 'wander'; this.suspicion = 0;
       this.x = clamp(this.x, -bounds.hw + 1.5, bounds.hw - 1.5);
       this.z = clamp(this.z, -bounds.hh + 1.5, bounds.hh - 1.5);
     }
@@ -158,9 +242,18 @@ class Prey {
     this.mesh.rotation.y = this.yaw;
     // 奔跑轻微起伏
     if (speed > 0.5) { this.bob += dt * speed * 2.2; this.mesh.position.y = y + Math.abs(Math.sin(this.bob)) * 0.04; }
+    // A2：freeze 战栗——只抖网格（位移/偏摆视觉量），逻辑 x/z 与碰撞不变
+    if (this.state === 'freeze') {
+      this.trembleT += dt * 46;
+      const j = Math.sin(this.trembleT) * 0.018;
+      this.mesh.position.x = this.x + j;
+      this.mesh.rotation.z = j * 1.2;
+    } else if (this.mesh.rotation.z) {
+      this.mesh.rotation.z = 0;
+    }
 
-    // 警觉标记投影到屏幕
-    if (this.state === 'alert') {
+    // 警觉标记投影到屏幕（alert 与 freeze 期间持续显示）
+    if (this.state === 'alert' || this.state === 'freeze') {
       const wp = new THREE.Vector3(this.x, y + 1.5, this.z).project(cam);
       if (wp.z < 1) {
         this.mark.style.display = 'block';
@@ -186,7 +279,7 @@ export function createPlayAsFox(ctx) {
     x: 0, z: -6, y: 0, yaw: 0, vy: 0,
     phase: 'idle',                 // idle | wind | lunge | recover
     phaseT: 0, sprint: false,
-    lungeYaw: 0, airY: 0,
+    lungeYaw: 0, airY: 0, windStartYaw: 0,
     get forward() { return { x: Math.sin(this.yaw), z: Math.cos(this.yaw) }; },
   };
 
@@ -280,6 +373,7 @@ export function createPlayAsFox(ctx) {
   function startPounce() {
     if (fox.phase !== 'idle') return;
     fox.phase = 'wind'; fox.phaseT = 0;
+    fox.windStartYaw = fox.yaw;   // B1 重瞄护栏的基准朝向
   }
   function catchPrey(p) {
     p.caught = true; p.respawn = cfg.respawnTime;
@@ -365,6 +459,19 @@ export function createPlayAsFox(ctx) {
     // 相位推进
     if (fox.phase === 'wind') {
       fox.phaseT += dt;
+      // B1：wind 前 60% 对最近猎物做 lead 预测并允许 ≤windRetargetDeg 的缓慢重瞄，后 40% 锁定
+      const live = prey.filter((p) => !p.caught).map((p) => ({ x: p.x, z: p.z, vx: p.vx, vz: p.vz }));
+      const near = nearestTarget(fox.x, fox.z, live);
+      if (near) {
+        const t = near.target;
+        const leadT = windLeadTime(Math.max(0, cfg.windTime - fox.phaseT), cfg);
+        const aim = leadTarget(t.x, t.z, t.vx, t.vz, leadT);
+        const desired = yawTo(aim.x - fox.x, aim.z - fox.z);
+        fox.yaw = retargetWindYaw({
+          startYaw: fox.windStartYaw, yaw: fox.yaw, desiredYaw: desired,
+          progress: Math.min(fox.phaseT, cfg.windTime) / cfg.windTime, dt,
+        }, cfg);
+      }
       if (fox.phaseT >= cfg.windTime) { fox.phase = 'lunge'; fox.phaseT = 0; fox.lungeYaw = fox.yaw; }
     } else if (fox.phase === 'lunge') {
       fox.phaseT += dt;
@@ -415,8 +522,9 @@ export function createPlayAsFox(ctx) {
       p.update(dt, fox, camera, overlay, bounds, cfg);
       // 扑击激活帧判定捕获（水平接近）
       if (!p.caught && fox.phase === 'lunge') {
-        const d = Math.hypot(p.x - fox.x, p.z - fox.z);
-        if (d < cfg.catchRadius) catchPrey(p);
+        // B2：水平半径 + 垂直窗口同时满足；腾空越过头顶不再"吸"中
+        const preyTerrainY = terrainHeight(p.x, p.z);
+        if (canCatch(p.x - fox.x, p.z - fox.z, fox.airY, preyTerrainY, cfg, groundY)) catchPrey(p);
       }
     }
 
@@ -491,6 +599,10 @@ export function createPlayAsFox(ctx) {
     resetTuning: () => { Object.keys(PAF_DEFAULTS).forEach((k) => { cfg[k] = PAF_DEFAULTS[k]; }); },
     get terrainHeightAt() { return (x, z) => terrainHeight(x, z); },
   };
+  // 自动化仅在显式 ?pafqa=1 时开放固定步长；普通玩家无此入口、无额外模块/几何体。
+  if (new URLSearchParams(location.search).get('pafqa') === '1') {
+    qa.step = (dt = 1 / 60) => update(Math.max(0, Math.min(0.05, dt)));
+  }
   if (typeof window !== 'undefined') window.__playAsFox = qa;
   return api;
 }
