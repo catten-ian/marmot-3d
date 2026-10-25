@@ -2,14 +2,18 @@
  * 全局配置与关卡表
  * 数值内核移植自 2D 原版《土拨鼠大作战·闯关爆发版》，单位换算为米。
  */
+import { deriveFeedbackEndpoint } from './feedback-endpoint.mjs';
 
 // —— 世界尺度 ——
 // 原版战场 1040 x 590 像素，按 1 像素 ≈ 0.125m 换算为米制竞技场。
 export const FIELD_W = 130;
 export const FIELD_H = 78;
 
-// 静态站点可在部署时填写反馈接收地址；留空时使用本地离线队列。
-export const FEEDBACK = { endpoint: '' };
+// 根据当前通道路径选择同源反馈接口；失败上报进入本地队列并在重新联网后自动补传。
+export const FEEDBACK = {
+  endpoint: deriveFeedbackEndpoint(typeof location !== 'undefined' ? location : null),
+  queueFlushIntervalMs: 8000,
+};
 
 // BETA 账号接口：token 只写入 localStorage，并通过 Authorization 请求头发送。
 export const ACCOUNTS = {

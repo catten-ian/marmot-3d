@@ -57,15 +57,63 @@ export function collectGameSnapshot(context = {}) {
 function readQueue(storage) {
   try { const value = JSON.parse(storage.getItem(QUEUE_KEY) || '[]'); return Array.isArray(value) ? value : []; } catch (_) { return []; }
 }
+function writeQueue(storage, queue) {
+  try { storage.setItem(QUEUE_KEY, JSON.stringify(queue)); return true; } catch (_) { return false; }
+}
 export function enqueueFeedback(payload, storage = typeof localStorage !== 'undefined' ? localStorage : null) {
   if (!storage) return false;
-  try { const queue = readQueue(storage); queue.push(payload); while (queue.length > MAX_QUEUE) queue.shift(); storage.setItem(QUEUE_KEY, JSON.stringify(queue)); return true; } catch (_) { return false; }
+  try { const queue = readQueue(storage); queue.push(payload); while (queue.length > MAX_QUEUE) queue.shift(); return writeQueue(storage, queue); } catch (_) { return false; }
+}
+
+/** Flush queued submissions in order and remove each item only after an HTTP success. */
+export async function flushFeedbackQueue({ endpoint, storage = typeof localStorage !== 'undefined' ? localStorage : null, fetchFn = typeof fetch === 'function' ? fetch : null } = {}) {
+  if (!endpoint || !storage || !fetchFn) return { flushed: 0, remaining: 0 };
+  let flushed = 0;
+  while (true) {
+    const queue = readQueue(storage);
+    if (!queue.length) return { flushed, remaining: 0 };
+    const payload = queue[0];
+    let ok = false;
+    let timer = null;
+    try {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      if (controller) timer = setTimeout(() => controller.abort(), 5000);
+      const response = await fetchFn(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller && controller.signal });
+      ok = !!(response && response.ok === true);
+    } catch (_) { ok = false; }
+    finally { if (timer) clearTimeout(timer); }
+    if (!ok) return { flushed, remaining: readQueue(storage).length };
+
+    // Re-read after await so a concurrent new submission is never lost when persisting this success.
+    const current = readQueue(storage);
+    const index = current.findIndex((item) => item === payload || JSON.stringify(item) === JSON.stringify(payload));
+    if (index < 0) return { flushed: flushed + 1, remaining: current.length };
+    current.splice(index, 1);
+    if (!writeQueue(storage, current)) return { flushed: flushed + 1, remaining: current.length + 1 };
+    flushed++;
+  }
+}
+
+let flushInitialized = false;
+export function initFeedbackFlush({ endpoint = '', intervalMs = 8000 } = {}) {
+  if (flushInitialized || !endpoint || typeof window === 'undefined') return;
+  flushInitialized = true;
+  let inFlight = false;
+  const run = async () => {
+    if (inFlight) return;
+    inFlight = true;
+    try { await flushFeedbackQueue({ endpoint }); } catch (_) { /* offline queue remains available */ }
+    finally { inFlight = false; }
+  };
+  run();
+  window.addEventListener('online', run);
+  if (intervalMs > 0) setInterval(run, intervalMs);
 }
 
 export function feedbackStatusText(result) {
   if (result && result.ok && !result.queued) return '已提交，感谢反馈';
-  if (result && result.queued) return '已保存到本机；当前未联网上报。';
-  return '未能保存反馈；当前未联网上报，请稍后重试。';
+  if (result && result.queued) return '提交暂未成功，已暂存到本机；联网后会自动补传。';
+  return '提交失败，且本机暂存不可用；请稍后重试。';
 }
 
 export async function submitFeedback(payload, options = {}) {

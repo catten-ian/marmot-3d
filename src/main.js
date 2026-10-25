@@ -101,7 +101,7 @@ import { ALARM_INTERVALS, alarmSchedule, companionAlarmLevel, stereoPanFromWorld
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
 import { adapterPowerPreference, readGraphicsPreference, writeGraphicsPreference } from './core/graphics-preference.js';
-import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
+import { FeedbackUI, collectGameSnapshot, initFeedbackFlush } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
 import { AccountsApi, buildScorePayload, escapeHtml } from './core/accounts-api.mjs';
 import { clearSession, isUnauthorized, readSession, writeSession, restoreSession } from './core/accounts-session.mjs';
@@ -2629,6 +2629,7 @@ document.getElementById('helpClose').onclick = closeHelp;
 
 // 设置面板（键位方案）
 const touchLayout = new TouchLayout();
+initFeedbackFlush({ endpoint: FEEDBACK.endpoint, intervalMs: FEEDBACK.queueFlushIntervalMs });
 const feedbackUI = new FeedbackUI({
   endpoint: FEEDBACK.endpoint,
   getSnapshot: () => collectGameSnapshot({
