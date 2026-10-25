@@ -120,7 +120,10 @@ import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
-if (IS_BETA) audio.bindUserGesture(window);
+if (IS_BETA) {
+  audio.preload();
+  audio.bindUserGesture(window);
+}
 
 hud.setLoading(8);
 
