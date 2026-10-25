@@ -1,0 +1,33 @@
+✔ released attack and successful jump interrupt forage; charging has no interrupt call (0.95527ms)
+✔ beta gather prompt uses the exact collection radius and distinct action state (0.390568ms)
+✔ beta movement is slightly reduced and joystick scale range is wider, guarded from stable/dev (0.176287ms)
+✔ beta uses only the requested citrus 1K derivative with sRGB equirectangular mapping (1.173235ms)
+✔ runtime sky is a small 1024x512 JPEG and metadata pins source/hash/fallback (1.139176ms)
+✔ grid queries radius boundaries and filters (2.373027ms)
+✔ growth tracks damage and regrowth with clamping (0.51117ms)
+✔ density is a continuous quantity (no binary 0.5 threshold) (0.59267ms)
+✔ case 1: grazing deducts a continuous amount, never wipes the radius in one bite (1.130454ms)
+✔ case 1b: repeated grazing accumulates and eventually clears blades (8.351131ms)
+✔ weight falls off linearly through the halo and is binary-free (0.241385ms)
+✔ case 3: per-second energy return follows continuous density monotonically (1.172573ms)
+✔ case 4: slow regrow lifts density back but cannot out-pace grazing (no infinite energy) (23.573002ms)
+✔ case 5: fully eaten blades reach exactly growth 0 (visual layer can hide them) (0.617128ms)
+✔ beta forage contracts remain fixed (0.206403ms)
+✔ front cone uses controller yaw, excludes rear grass, and depleted front grass yields nothing until regrowth (0.331618ms)
+✔ sparse front-only local grass has a monotone harvest-speed falloff (0.126994ms)
+✔ beta campaign objective uses configured irreversible fat rather than food count (1.086357ms)
+✔ recorder produces a bounded readable combat ledger and preserves start metadata (1.762502ms)
+✔ recorder drops oldest body events above cap and can restart cleanly (0.382179ms)
+✔ stamina is canonical and legacy energy remains a two-way compatibility alias (1.406074ms)
+✔ fat curve is 0 through 60%, increasing above 60%, and 100% at full (0.330461ms)
+✔ mouth is finite, immediate share is small, overflow is explicit, chewing only works standing (0.302533ms)
+✔ both burrows chew only the mouth; main > temporary and no mouth means zero recovery (0.207724ms)
+✔ flower recovery has fixed total, diminishing equal-step rates, and is movement independent (0.260847ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 118.323835

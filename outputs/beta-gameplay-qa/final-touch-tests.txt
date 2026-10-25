@@ -1,0 +1,14 @@
+touch layout adjust gate + auto-pause + HUD cards + joystick: all assertions passed
+✔ 旧 cards 存档缺 hudMinimap 时补默认并保留旧卡位置 (1.039978ms)
+✔ 小地图中心坐标按渲染尺寸夹紧到 safe area (0.216032ms)
+✔ normalizedToPercent：0..1 → 0-100（1 位小数，clamp） (0.115275ms)
+✔ percentToNormalized：数字/带%字符串/越界/非法 (0.211865ms)
+✔ 百分比 ↔ 归一化往返一致 (0.13739ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6.41891
