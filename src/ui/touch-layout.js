@@ -46,12 +46,10 @@ const SELECTABLE_IDS = [...ALL_IDS, JOYSTICK];
 // 摇杆整体大小滑块范围（相对 CSS 基准尺寸的倍数）。
 const JOYSTICK_SCALE_MIN = 0.7, JOYSTICK_SCALE_MAX = 1.4;
 // 可调整的常驻 HUD 信息卡：布局 id → 页面元素。
-// hudViewMode（视角状态卡）仅 beta 由 main.js 创建；stable/dev 上元素缺失，
-// 构造时 cards[id] 为 null，设置面板下拉与编辑选中都按“存在的卡”过滤。
-export const CARDS = ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox', 'hudMinimap', 'hudViewMode'];
+export const CARDS = ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox', 'hudMinimap'];
 const CARD_SELECTORS = {
   hudVitals: '.vitals', hudMission: '.mission', hudObjective: '.objective',
-  hudSandbox: '.sandbox-status', hudMinimap: '.minimap', hudViewMode: '.viewmode-card',
+  hudSandbox: '.sandbox-status', hudMinimap: '.minimap',
 };
 // 卡片单卡缩放/透明度范围（比按钮更保守，避免卡片被缩到不可读）。
 const CARD_SCALE = [0.75, 1.25];
@@ -78,7 +76,6 @@ const LABELS = {
   hudObjective: '本关目标卡',
   hudSandbox: '沙盒状态卡',
   hudMinimap: '站立观察小地图',
-  hudViewMode: '视角状态卡（第一/第三人称）',
 };
 const SIZE = {
   attack: 76, dodge: 58, jump: 58, interact: 56, burst: 56, ultimate: 58, pause: 38,
@@ -300,12 +297,6 @@ export class TouchLayout {
       const top = landscape && h <= 520 ? 42 : w <= 860 ? 96 : 64;
       const right = w <= 860 ? 9 : 14;
       return [w - safe.right - right - mapWidth / 2, safe.top + top + mapHeight / 2];
-    }
-    if (id === 'hudViewMode') {
-      // 默认贴右上、小地图正下方；与 view-mode-card.js 的 inline 设计位置一致。
-      const top = landscape && h <= 520 ? 42 + 128 + 26 : w <= 860 ? 96 + 142 + 26 : 64 + 174 + 26;
-      const right = w <= 860 ? 9 : 14;
-      return [w - safe.right - right - 56, safe.top + top + 14];
     }
     if (w <= 860 || landscape) return [w - safe.right - 86, safe.top + (landscape ? 122 : 196)];
     return [w - safe.right - 116, h - safe.bottom - 100];

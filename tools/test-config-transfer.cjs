@@ -64,8 +64,8 @@ const assert = require('node:assert/strict');
     assert.deepEqual(conflicts.get('KeyJ'), ['attack', 'burst']);
   });
 
-  test('CARDS 包含 beta 视角状态卡', () => {
+  test('CARDS 已移除重复视角状态卡 hudViewMode', () => {
     assert.ok(layout.CARDS.includes('hudMinimap'));
-    assert.ok(layout.CARDS.includes('hudViewMode'));
+    assert.ok(!layout.CARDS.includes('hudViewMode'));
   });
 })();
