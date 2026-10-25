@@ -9,6 +9,7 @@ import {
   needsOverwriteConfirm, serializeSavedConfig, parseSavedConfig,
   formatConfigSize, formatConfigTime,
 } from './tuning-schema.mjs';
+import { buildGameUrl, runtimePayloadFromAdminConfig } from '../core/runtime-config.mjs';
 
 const fmt = (v) => {
   if (typeof v === 'boolean') return v ? '开' : '关';
@@ -340,13 +341,17 @@ export class TuningPanel {
       meta.textContent = `${formatConfigTime(item.updatedAt)} · ${formatConfigSize(item.size)}`;
       const actions = document.createElement('span');
       actions.className = 'cloud-item-actions';
+      const applyBtn = document.createElement('button');
+      applyBtn.type = 'button'; applyBtn.className = 'cloud-apply'; applyBtn.textContent = '应用';
+      applyBtn.title = '在 Beta 游戏页启动并应用这份运行时调参';
+      applyBtn.addEventListener('click', () => this._applyConfig(item.name, applyBtn));
       const loadBtn = document.createElement('button');
       loadBtn.type = 'button'; loadBtn.className = 'cloud-load'; loadBtn.textContent = '加载';
       loadBtn.addEventListener('click', () => this._loadConfig(item.name));
       const delBtn = document.createElement('button');
       delBtn.type = 'button'; delBtn.className = 'cloud-delete danger'; delBtn.textContent = '删除';
       delBtn.addEventListener('click', () => this._deleteConfig(item.name, delBtn));
-      actions.append(loadBtn, delBtn);
+      actions.append(applyBtn, loadBtn, delBtn);
       li.append(main, meta, actions);
       this.cloudListEl.appendChild(li);
     }
@@ -389,6 +394,24 @@ export class TuningPanel {
       const msg = `保存失败：${e && e.message ? e.message : e}`;
       this._cloudStatus(msg, 'error');
       this.toast(msg, 'error');
+    }
+  }
+
+  async _applyConfig(name, btn) {
+    const old = btn.textContent; btn.disabled = true; btn.textContent = '读取中…';
+    try {
+      if (typeof fetch !== 'function') throw new Error('fetch 不可用');
+      const res = await fetch(configItemUrl(this.apiBase, name), { headers: { Accept: 'application/json' } });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data && data.error ? data.error : `HTTP ${res.status}`);
+      const url = buildGameUrl(typeof location !== 'undefined' ? location.pathname : '/admin.html', runtimePayloadFromAdminConfig(data.config));
+      // Assigning location preserves the server/API origin and makes the payload
+      // observable/testable as URLSearchParams on the game page.
+      location.assign(url);
+    } catch (e) {
+      const msg = `应用失败：${e && e.message ? e.message : e}`;
+      this._cloudStatus(msg, 'error'); this.toast(msg, 'error');
+      btn.disabled = false; btn.textContent = old;
     }
   }
 
