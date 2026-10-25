@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-10-25T12:11:53.925Z",
-  "target": "http://127.0.0.1:8331/index.html?webgl=1&play-as-fox=1&pafqa=1&t=1792930314005",
+  "startedAt": "2026-10-25T12:52:40.997Z",
+  "target": "http://127.0.0.1:8331/index.html?webgl=1&play-as-fox=1&pafqa=1&t=1792932761977",
   "renderer": {
     "backend": "WebGL2",
     "gpu": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
@@ -28,38 +28,38 @@
     },
     "freezeScreenshotState": "freeze",
     "zigzag": {
-      "flips": 3,
-      "medianSpeed": 3.93,
+      "flips": 4,
+      "medianSpeed": 3.58,
       "tailSamples": [
         {
-          "x": 0.03,
-          "z": 12.59,
-          "s": 2.26
+          "x": 0.5,
+          "z": 11.54,
+          "s": 2.14
         },
         {
-          "x": 0.03,
-          "z": 12.63,
-          "s": 2.17
+          "x": 0.5,
+          "z": 11.57,
+          "s": 2.06
         },
         {
-          "x": 0.03,
-          "z": 12.66,
-          "s": 2.08
+          "x": 0.51,
+          "z": 11.6,
+          "s": 1.98
         },
         {
-          "x": 0.03,
-          "z": 12.69,
-          "s": 2
+          "x": 0.51,
+          "z": 11.64,
+          "s": 1.91
         },
         {
-          "x": 0.03,
-          "z": 12.73,
-          "s": 1.93
+          "x": 0.51,
+          "z": 11.67,
+          "s": 1.84
         },
         {
-          "x": 0.03,
-          "z": 12.76,
-          "s": 1.86
+          "x": 0.52,
+          "z": 11.7,
+          "s": 1.78
         }
       ],
       "driver": "qa.step(1/60)"
@@ -81,10 +81,10 @@
     },
     "leadPounce": {
       "trials": 16,
-      "lateralTrials": 16,
+      "lateralTrials": 14,
       "catches": 16,
       "catchRate": 1,
-      "maxRetargetDeg": 8.14,
+      "maxRetargetDeg": 8.26,
       "capDeg": 12,
       "retargetsWithinCap": true,
       "retargeted": true,
@@ -156,8 +156,8 @@
     "respawn": {
       "trials": 60,
       "strictOk": 60,
-      "minDist": 18.09,
-      "minViewAngleDeg": 35.9
+      "minDist": 18.1,
+      "minViewAngleDeg": 37.2
     },
     "narrow": {
       "width": 390,
@@ -224,5 +224,5 @@
     "normalPlayer": true
   },
   "pass": true,
-  "finishedAt": "2026-10-25T12:13:30.127Z"
+  "finishedAt": "2026-10-25T12:53:01.146Z"
 }

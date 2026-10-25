@@ -41,14 +41,14 @@
 | `node tools/test-fox-vitals.cjs` | **9/9 通过，0 失败** |
 | `node tools/test-fox-tactics.cjs` | **10/10 通过，0 失败** |
 | `node tools/test-procedural-fox.cjs` | **通过：`procedural fox: all assertions passed`** |
-| `node tools/run-node-tests.cjs` | **57/57 通过，0 失败**； runner 按既有规则跳过 22 个 browser/CDP 文件，PAF 浏览器验收另行执行如下。 |
+| `timeout --signal=TERM --kill-after=5s 55s node tools/run-node-tests.cjs` | **57/57 通过，0 失败**；runner 按既有规则跳过 22 个 browser/CDP 文件，PAF 浏览器验收另行执行如下。 |
 
-日志：`outputs/m3d-20261025-beta-paf-improve/unit-tests.log`、`node-tests.log`。
+日志：`outputs/m3d-20261025-beta-paf-improve/syntax-check.log`、`unit-tests.log`、`fox-contract-tests.log`、`node-tests.log`。
 
 ## 4. Chrome CDP 实测
 
-命令：`node tools/qa-paf-stage1.cjs`
-结果：**退出码 0；14/14 检查通过；0 console.error / Runtime exception**。本轮耗时约 96 秒，低于 480 秒硬上限。
+命令：`timeout --signal=TERM --kill-after=5s 475s node tools/qa-paf-stage1.cjs`
+结果：**退出码 0；14/14 检查通过；0 console.error / Runtime exception**。本轮结构化场景从 `2026-10-25T12:52:40.997Z` 到 `12:53:01.146Z`，约 **20.15 秒**；进程清理后正常退出，低于外层 475 秒与脚本内 480 秒上限。
 
 - URL 覆盖 `?play-as-fox=1`，通过应用现有 `window.__enterPlayAsFox()` 进入同一模式入口；未改动受限的 `main.js`。
 - 托管 Chrome：`Chrome/147.0.7727.137`，`http://127.0.0.1:18800`。
@@ -58,11 +58,11 @@
 | 场景 | 实测结果 |
 |---|---|
 | A2 freeze | `wander → alert → freeze → flee`（线索丢失后最终回 wander）；本次 freeze 266.7ms；冻结逻辑位移 **0m**、朝向误差 **0°**。 |
-| A3 zigzag | 近距离 2 秒内反转 **3 次**，速度中位数 **3.93m/s**，轨迹非直线。 |
+| A3 zigzag | 近距离 2 秒内反转 **4 次**，速度中位数 **3.58m/s**，轨迹非直线。 |
 | A4 轨迹回避 | 实际逃向与 0.4/0.6 加权期望方向误差 **1.20°**；相对只逃当前位置的方向偏离 **4.94°**。 |
-| B1 lead + 重瞄 | **16/16 横向对抗试验捕获**，最大重瞄 **8.14° < 12°**；lunge 不重瞄。此结果仅是该固定步长场景，不宣称普遍命中率。 |
+| B1 lead + 重瞄 | 16 次试验中 **14 次具有横向速度，16/16 捕获**，最大重瞄 **8.26° < 12°**；lunge 不重瞄。此结果仅是该固定步长场景，不宣称普遍命中率。 |
 | B2 垂直窗 | 平地高度差 0.0025m；高空组保持捕获开启，将水平圈设为 1.0m 以隔离高空段；进入水平圈后 airY 0.90–1.05m **全程未捕获**，低空近距对照捕获成功。 |
-| E3 重生 | **60/60** 合格；最小距离 **18.09m**，最小视线偏角 **35.9°**；20 次退化另由纯逻辑测试覆盖。 |
+| E3 重生 | **60/60** 合格；最小距离 **18.10m**，最小视线偏角 **37.2°**；20 次退化另由纯逻辑测试覆盖。 |
 | 窄屏 | 390×844，触控 class 与摇杆均有效，见截图。 |
 | 刷新 / 退出重进 | 均通过；重进后 8 只猎物，退出时 HUD 销毁，同页重进成功。 |
 | 故障路径 | localStorage get/set/remove 全抛时仍可进入并扑击；离线后模式保持 active 且相位推进。 |
@@ -85,11 +85,13 @@
 
 - 按 Stage 1 边界，不接真实 LOS/岩石遮挡；仅保留可插拔 probe。听觉为全向代理，不是声学传播模拟。
 - 参数是建议书起点，仍需后续真人手感灰度；确定性 QA 的命中数不是普遍难度承诺。
-- Stage 2（体力/冷却/顿帧/难度/计分/连击）与 Stage 3（姿态/四足/掩体）不在本次范围。
+- Stage 2（触屏兼容）、Stage 3（体力/冷却/顿帧/难度/计分/连击）与 Stage 4 其余工作（姿态/四足/掩体）不在本次范围。
+- 本轮未发现 Stage 1 阻断性遗留问题；数值手感和普遍命中率仍需后续真人 playtest，不能用确定性 QA 替代。
 - 未引入 RL/模仿学习，未改 AI 藏狐线 `observe/approach` 或其实体层。
 
 ## 6. 提交与发布状态
 
 - 实现 commit：`43d104d4b7a186359aa65780a53aaa28281eb936`（完整 hash 在本文件更新后保留于 git 历史）。
-- 本报告在实现提交后填入准确实现 hash，并有单独的本地报告提交。
+- 初版验收报告 commit：`f9cb00906fc016731c6986b4b41215edfad5c1e0`。
+- 本轮收口提交包含复测后的结构化结果、6 张截图与本报告；其本地 commit hash 在交付回复中列明。复测日志保留在上述 `outputs/m3d-20261025-beta-paf-improve/` 路径。
 - **未 push、未部署；未改版本戳、Caddy、systemd 或线上文件。**
