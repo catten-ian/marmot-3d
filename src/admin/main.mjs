@@ -8,6 +8,9 @@ import {
 } from './tuning-schema.mjs';
 import { TuningPanel } from './panel.mjs';
 import { AdminPreview } from './preview.mjs';
+import { FeedbackPanel } from './feedback-panel.mjs';
+import { MechanismDocs } from './mechanism-docs.mjs';
+import { deriveApiBase } from './tuning-schema.mjs';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -38,6 +41,22 @@ const entriesById = indexEntries(entries);
 const state = createTuningState(entries);
 $('#tune-count').textContent = `共 ${entries.length} 项可调数值`;
 let preview = null;
+
+// 三个工作区相互独立；隐藏预览不销毁 WebGL，返回调参时保留当前编辑状态。
+document.querySelectorAll('[data-view]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const view = button.dataset.view;
+    document.querySelectorAll('[data-view]').forEach((item) => item.classList.toggle('active', item === button));
+    $('#tuning-view').hidden = view !== 'tuning';
+    $('#feedback-view').hidden = view !== 'feedback';
+    $('#docs-view').hidden = view !== 'docs';
+    if (view === 'feedback') $('#feedback-view').querySelector('input')?.focus();
+  });
+});
+let apiBase = '/api';
+try { apiBase = deriveApiBase(location.pathname); } catch { /* local preview fallback */ }
+new FeedbackPanel({ root: $('#feedback-view'), apiBase, onToast: toast });
+new MechanismDocs({ root: $('#docs-view'), entries });
 
 function refreshWindowSummary() {
   const box = $('#window-summary');

@@ -94,7 +94,7 @@ test('服务器配置序列化/反序列化往返：改动能在新 state 上完
   assert.equal(restored.values['fox.windRange'], byId.get('fox.windRange').def);
 });
 
-test('服务器精简配置在 549 项默认值下仍远低于 100KB 上限', () => {
+test('服务器精简配置在完整默认值集合下仍远低于 100KB 上限', () => {
   const state = createTuningState(entries);
   const saved = serializeSavedConfig(entries, state);
   const bytes = Buffer.byteLength(JSON.stringify({ name: '体积检查', config: saved }));

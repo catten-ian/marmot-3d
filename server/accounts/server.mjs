@@ -9,6 +9,7 @@
  *  - 成绩上报：单关最佳成绩榜 + 全通关竞速榜兼容；每玩家仅保留最佳。
  *  - 排行榜公开可读；“我的成绩”和上报仅需有效令牌（游客或正式账号）。
  *  - Beta 后台命名调参配置：保存/列表/读取/删除（configs.jsonl，同名覆盖）。
+ *  - Beta 后台用户反馈：账号会话鉴权后，由服务端代理反馈管理接口；内部令牌不下发。
  *
  * 存储：DATA_DIR 下 JSONL（accounts.jsonl / scores.jsonl / configs.jsonl），启动载入内存；
  *      分数仅追加（保留历史），读取时按玩家取最佳；账号与配置文件变更时原子重写。
@@ -18,6 +19,7 @@
  *  M3D_ACCOUNTS_SECRET  令牌签名密钥（必填；缺失拒绝启动）
  *  BODY_LIMIT(默认16384) RATE_PER_MIN(默认60) LEVEL_COUNT(默认12)
  *  MAX_TOTAL_TIME(默认 86400 秒，防作弊上限)
+ *  M3D_FEEDBACK_URL(默认 http://127.0.0.1:8094) M3D_FEEDBACK_TOKEN(反馈代理必填)
  */
 import http from 'node:http';
 import crypto from 'node:crypto';
@@ -33,6 +35,8 @@ const CONFIG_NAME_RE = /^[\p{L}\p{N}_\-]{1,50}$/u;
 const CONFIG_MAX_BYTES = 100 * 1024;
 /** 读 body 时给 {name, config} 外层信封留的余量。 */
 const CONFIG_ENVELOPE_SLACK = 1024;
+const FEEDBACK_RESPONSE_LIMIT = 2 * 1024 * 1024;
+const FEEDBACK_LIST_QUERY = ['type', 'version', 'q', 'handled', 'month', 'limit', 'before'];
 
 // ---------------- 工具 ----------------
 function isObj(v) { return typeof v === 'object' && v !== null && !Array.isArray(v); }
@@ -263,10 +267,58 @@ export function createAccountsServer(options = {}) {
   const authLimiter = createRateLimiter(20); // 登录/注册/升级更严格
   const guestLimiter = createRateLimiter(options.guestRatePerMin || 10); // 游客签发按 IP 严格限流
   let loaded = null;
+  const feedbackUrl = options.feedbackUrl ?? process.env.M3D_FEEDBACK_URL ?? 'http://127.0.0.1:8094';
+  const feedbackToken = options.feedbackToken ?? process.env.M3D_FEEDBACK_TOKEN ?? '';
+  const feedbackTimeoutMs = Math.max(50, Number(options.feedbackTimeoutMs ?? 6000) || 6000);
 
   function authUser(req) {
     const match = /^Bearer\s+(\S+)$/i.exec(String(req.headers.authorization || ''));
     return match ? verifyToken(match[1], secret, store.users) : null;
+  }
+
+  async function proxyFeedback(req, res, kind, searchParams) {
+    if (!authUser(req)) return sendJson(res, 401, { error: '登录已失效，请重新登录' });
+    if (!String(feedbackToken).trim() || !String(feedbackUrl).trim()) {
+      return sendJson(res, 503, { error: '反馈服务未配置，请联系管理员配置 M3D_FEEDBACK_URL 和 M3D_FEEDBACK_TOKEN', code: 'feedback_not_configured' });
+    }
+    let target;
+    try {
+      const base = new URL(String(feedbackUrl));
+      if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password) throw new Error('invalid feedback url');
+      target = new URL(kind === 'stats' ? '/stats' : '/list', base);
+      if (kind === 'list') {
+        for (const key of FEEDBACK_LIST_QUERY) {
+          const value = searchParams.get(key);
+          if (value !== null && value !== '') target.searchParams.set(key, value);
+        }
+      }
+    } catch {
+      return sendJson(res, 503, { error: '反馈服务地址配置无效', code: 'feedback_not_configured' });
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), feedbackTimeoutMs);
+    try {
+      const upstream = await fetch(target, {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${String(feedbackToken).trim()}` },
+        signal: controller.signal,
+      });
+      if (!upstream.ok) return sendJson(res, 503, { error: `反馈服务暂不可用（HTTP ${upstream.status}）`, code: 'feedback_unavailable' });
+      const declared = Number(upstream.headers.get('content-length') || 0);
+      if (declared > FEEDBACK_RESPONSE_LIMIT) return sendJson(res, 502, { error: '反馈服务响应过大', code: 'feedback_bad_response' });
+      const text = await upstream.text();
+      if (Buffer.byteLength(text) > FEEDBACK_RESPONSE_LIMIT) return sendJson(res, 502, { error: '反馈服务响应过大', code: 'feedback_bad_response' });
+      let data;
+      try { data = JSON.parse(text); } catch { return sendJson(res, 502, { error: '反馈服务返回了无效数据', code: 'feedback_bad_response' }); }
+      if (!isObj(data) || text.includes(String(feedbackToken).trim())) {
+        return sendJson(res, 502, { error: '反馈服务返回了不可转发的数据', code: 'feedback_bad_response' });
+      }
+      return sendJson(res, 200, data);
+    } catch (e) {
+      const timedOut = e?.name === 'AbortError';
+      return sendJson(res, 503, { error: timedOut ? '反馈服务响应超时，请稍后重试' : '无法连接反馈服务，请稍后重试', code: timedOut ? 'feedback_timeout' : 'feedback_unavailable' });
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   const server = http.createServer(async (req, res) => {
@@ -358,6 +410,11 @@ export function createAccountsServer(options = {}) {
         const user = authUser(req);
         if (!user) return sendJson(res, 401, { error: 'unauthorized' });
         return sendJson(res, 200, { user: { id: user.id, name: user.name, guest: user.guest === true } });
+      }
+
+      // ---------- 用户反馈（仅服务端持内部令牌；浏览器只使用账号会话）----------
+      if (req.method === 'GET' && (route === '/admin/feedback/list' || route === '/admin/feedback/stats')) {
+        return proxyFeedback(req, res, route.endsWith('/stats') ? 'stats' : 'list', url.searchParams);
       }
 
       // ---------- 成绩上报（需有效令牌；游客与正式账号均可）----------
@@ -485,6 +542,8 @@ if (isMain) {
     ratePerMin: Math.max(1, Number(process.env.RATE_PER_MIN || 60)),
     levelCount: Math.max(1, Number(process.env.LEVEL_COUNT || 12)),
     maxTotalTime: Math.max(60, Number(process.env.MAX_TOTAL_TIME || 86400)),
+    feedbackUrl: process.env.M3D_FEEDBACK_URL || 'http://127.0.0.1:8094',
+    feedbackToken: process.env.M3D_FEEDBACK_TOKEN || '',
   });
   server.listen(PORT, HOST, () => console.log(`[accounts] listening on http://${HOST}:${PORT} data=${DATA_DIR}`));
   let down = false;

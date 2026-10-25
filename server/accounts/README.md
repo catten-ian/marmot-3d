@@ -18,6 +18,8 @@
 | `LEVEL_COUNT` | 否 | `12` | 关卡总数（校验 level 下标） |
 | `MAX_TOTAL_TIME` | 否 | `86400` | 单次成绩用时上限（秒，防作弊） |
 | `BODY_LIMIT` / `RATE_PER_MIN` | 否 | `16384` / `60` | body 上限 / 每玩家每分钟写次数（游客创建每 IP 10/min；登录、注册、升级每 IP 20/min） |
+| `M3D_FEEDBACK_URL` | 否 | `http://127.0.0.1:8094` | 账号服务端访问反馈服务的地址，不下发浏览器 |
+| `M3D_FEEDBACK_TOKEN` | 反馈代理必填 | — | 反馈服务管理令牌，仅账号服务端持有；缺失时反馈代理返回 503，不影响账号/排行/配置 |
 
 ## API
 
@@ -35,6 +37,19 @@ POST /auth/register / POST /auth/login -> 200 {"token":"<bearer>","user":{"id","
    # 注册重名 409，凭证错误 401
 GET  /auth/me        Bearer -> {"user":{"id","name","guest":false|true}} / 401
 ```
+
+Beta 后台用户反馈（需要有效账号会话；兼容 `/marmot3d-beta/api` 与 `/api` 前缀）：
+
+```
+GET /admin/feedback/list?type=&version=&q=&handled=&month=&limit=&before=
+GET /admin/feedback/stats
+```
+
+浏览器先调用 `POST /auth/login`，之后仅把账号会话 token 发给这两个路由。服务端先用 `authUser`
+校验会话，再以 `Authorization: Bearer $M3D_FEEDBACK_TOKEN` 请求本机反馈服务；只转发上列白名单
+query，不转发浏览器提供的其他参数或请求体。内部反馈令牌不出现在响应中。反馈服务未配置、拒绝、
+不可达或超时均返回可读错误；账号会话无效仍返回 401。部署时把反馈令牌加入账号服务的私有
+环境文件（权限 600），不要写入静态页面、仓库或报告。
 
 成绩（上报与查询需有效令牌，游客/正式账号均可；只接受“更快”的最佳）：
 
@@ -104,6 +119,8 @@ PORT=8095
 HOST=127.0.0.1
 DATA_DIR=/var/www/m3d-accounts/data
 LEVEL_COUNT=12
+M3D_FEEDBACK_URL=http://127.0.0.1:8094
+# M3D_FEEDBACK_TOKEN 必须与反馈服务私有环境一致；在此文件中设置，不要提交真实值。
 ```
 
 ## Caddy（必须在 `handle_path /marmot3d-beta/*` 之前）
@@ -122,3 +139,4 @@ handle_path /marmot3d-beta/* {
 
 - 备份 `DATA_DIR` 三个 JSONL（accounts / scores / configs）即可。
 - `node --test server/accounts/test.mjs`：游客创建限流、游客单关上报与最快记录、升级冲突/校验/正式账号拒绝、uid 与成绩继承、旧令牌失效、新账号登录、旧账号兼容，以及原注册/登录/成绩/路由断言；并覆盖 `/configs` 的保存/列表/读取/同名覆盖/删除/100KB 上限/持久化重载。
+- `node --test tools/test-admin-feedback-proxy.mjs`：使用临时账号目录、临时签名/反馈令牌和真实临时 mock HTTP 服务，覆盖未登录/错误账号 401、登录代理成功、白名单参数、令牌不泄漏、下游 503/超时和未配置 503。
