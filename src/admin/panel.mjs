@@ -5,6 +5,9 @@
 import {
   filterEntries, toView, setViewValue, resetGroup,
   serializeConfig, parseConfigText, applyImport,
+  validateConfigName, deriveApiBase, configsIndexUrl, configItemUrl,
+  needsOverwriteConfirm, serializeSavedConfig, parseSavedConfig,
+  formatConfigSize, formatConfigTime,
 } from './tuning-schema.mjs';
 
 const fmt = (v) => {
@@ -34,6 +37,10 @@ export class TuningPanel {
     this.onChange = onChange || (() => {});
     this.toast = onToast || (() => {});
     this.inputs = new Map(); // id -> {slider, number, select, row}
+    this.cloudItems = [];    // 服务器配置列表 [{name, updatedAt, size}]
+    this.pendingOverwrite = null; // 同名覆盖确认中的名字
+    try { this.apiBase = deriveApiBase(typeof location !== 'undefined' ? location.pathname : '/'); }
+    catch { this.apiBase = '/api'; }
     this._build();
   }
 
@@ -43,6 +50,7 @@ export class TuningPanel {
     bar.className = 'panel-toolbar';
     bar.innerHTML = `
       <input type="search" class="search" placeholder="搜索：中文名 / 常量名 / 来源文件…">
+      <button data-act="cloud" type="button">保存到服务器</button>
       <button data-act="export" type="button">导出配置</button>
       <button data-act="copy" type="button">复制到剪贴板</button>
       <label class="import-label">导入配置<input type="file" accept="application/json,.json" hidden></label>
@@ -50,10 +58,13 @@ export class TuningPanel {
     this.root.appendChild(bar);
     this.searchInput = bar.querySelector('.search');
     this.searchInput.addEventListener('input', () => this._renderList());
+    bar.querySelector('[data-act=cloud]').addEventListener('click', () => this._toggleCloud());
     bar.querySelector('[data-act=export]').addEventListener('click', () => this._exportFile());
     bar.querySelector('[data-act=copy]').addEventListener('click', () => this._copyClipboard());
     bar.querySelector('[data-act=resetAll]').addEventListener('click', () => this._reset(null));
     bar.querySelector('input[type=file]').addEventListener('change', (ev) => this._importFile(ev));
+
+    this._buildCloud();
 
     this.list = document.createElement('div');
     this.list.className = 'panel-list';
@@ -238,5 +249,198 @@ export class TuningPanel {
       this.toast(msg, res.ignored.length || res.clamped.length ? 'warn' : 'ok');
     };
     reader.readAsText(file);
+  }
+
+  // ---------------- 服务器命名配置（保存/列表/加载/删除）----------------
+  _buildCloud() {
+    const box = document.createElement('div');
+    box.className = 'cloud-box';
+    box.hidden = true;
+    box.innerHTML = `
+      <form class="cloud-form">
+        <input class="cloud-name" type="text" maxlength="50" autocomplete="off"
+               placeholder="配置名字：中英文/数字/-/_，1-50 位">
+        <button type="submit" class="cloud-save">保存当前配置到服务器</button>
+      </form>
+      <div class="cloud-confirm" hidden>
+        <span class="cloud-confirm-text"></span>
+        <button type="button" class="cloud-ok danger">确认覆盖</button>
+        <button type="button" class="cloud-cancel">取消</button>
+      </div>
+      <div class="cloud-bar">
+        <span class="cloud-title">服务器上的配置</span>
+        <button type="button" class="cloud-refresh">刷新列表</button>
+        <span class="cloud-status"></span>
+      </div>
+      <ul class="cloud-list"></ul>`;
+    this.root.appendChild(box);
+    this.cloudBox = box;
+    this.cloudName = box.querySelector('.cloud-name');
+    this.cloudForm = box.querySelector('.cloud-form');
+    this.cloudConfirm = box.querySelector('.cloud-confirm');
+    this.cloudConfirmText = box.querySelector('.cloud-confirm-text');
+    this.cloudListEl = box.querySelector('.cloud-list');
+    this.cloudStatusEl = box.querySelector('.cloud-status');
+    this.cloudForm.addEventListener('submit', (ev) => { ev.preventDefault(); this._submitSave(); });
+    this.cloudName.addEventListener('input', () => { if (this.pendingOverwrite) this._hideOverwrite(); });
+    box.querySelector('.cloud-ok').addEventListener('click', () => {
+      const name = this.pendingOverwrite;
+      if (name) this._doSave(name);
+    });
+    box.querySelector('.cloud-cancel').addEventListener('click', () => this._hideOverwrite());
+    box.querySelector('.cloud-refresh').addEventListener('click', () => this._refreshConfigs());
+  }
+
+  _toggleCloud() {
+    this.cloudBox.hidden = !this.cloudBox.hidden;
+    if (!this.cloudBox.hidden) {
+      try { this.cloudName.focus(); } catch { /* noop */ }
+      this._refreshConfigs();
+    }
+  }
+
+  _cloudStatus(text, kind = '') {
+    this.cloudStatusEl.textContent = text || '';
+    this.cloudStatusEl.className = kind ? `cloud-status ${kind}` : 'cloud-status';
+  }
+
+  _hideOverwrite() {
+    this.pendingOverwrite = null;
+    this.cloudConfirm.hidden = true;
+  }
+
+  async _refreshConfigs() {
+    this._cloudStatus('读取中…');
+    try {
+      if (typeof fetch !== 'function') throw new Error('fetch 不可用');
+      const res = await fetch(configsIndexUrl(this.apiBase), { headers: { Accept: 'application/json' } });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || !Array.isArray(data.configs)) {
+        throw new Error(data && data.error ? data.error : `HTTP ${res.status}`);
+      }
+      this.cloudItems = data.configs;
+      this._renderCloudList();
+      this._cloudStatus(this.cloudItems.length ? `共 ${this.cloudItems.length} 个命名配置` : '服务器上还没有保存的配置');
+    } catch (e) {
+      this.cloudItems = [];
+      this._renderCloudList();
+      this._cloudStatus(`列表读取失败：${e && e.message ? e.message : e}`, 'error');
+    }
+  }
+
+  _renderCloudList() {
+    this.cloudListEl.innerHTML = '';
+    for (const item of this.cloudItems) {
+      const li = document.createElement('li');
+      const main = document.createElement('span');
+      main.className = 'cloud-item-name';
+      main.textContent = item.name;
+      const meta = document.createElement('span');
+      meta.className = 'cloud-item-meta';
+      meta.textContent = `${formatConfigTime(item.updatedAt)} · ${formatConfigSize(item.size)}`;
+      const actions = document.createElement('span');
+      actions.className = 'cloud-item-actions';
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button'; loadBtn.className = 'cloud-load'; loadBtn.textContent = '加载';
+      loadBtn.addEventListener('click', () => this._loadConfig(item.name));
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button'; delBtn.className = 'cloud-delete danger'; delBtn.textContent = '删除';
+      delBtn.addEventListener('click', () => this._deleteConfig(item.name, delBtn));
+      actions.append(loadBtn, delBtn);
+      li.append(main, meta, actions);
+      this.cloudListEl.appendChild(li);
+    }
+  }
+
+  async _submitSave() {
+    this._hideOverwrite();
+    const v = validateConfigName(this.cloudName.value);
+    if (!v.ok) { this._cloudStatus(v.error, 'error'); return; }
+    if (needsOverwriteConfirm(this.cloudItems.map((x) => x.name), v.name)) {
+      // 同名：内联二次确认，不使用 confirm()/alert()。
+      this.pendingOverwrite = v.name;
+      this.cloudConfirmText.textContent = `服务器上已存在「${v.name}」，保存将覆盖旧版本，是否继续？`;
+      this.cloudConfirm.hidden = false;
+      this._cloudStatus('请确认是否覆盖同名配置', 'warn');
+      return;
+    }
+    await this._doSave(v.name);
+  }
+
+  async _doSave(name) {
+    const payload = serializeSavedConfig(this.entries, this.state);
+    try {
+      if (typeof fetch !== 'function') throw new Error('fetch 不可用');
+      const res = await fetch(configsIndexUrl(this.apiBase), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ name, config: payload }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.ok !== true) {
+        throw new Error(data && data.error ? data.error : `HTTP ${res.status}`);
+      }
+      this.toast(`已把当前调参状态保存为「${name}」`, 'ok');
+      this._cloudStatus(`已保存「${name}」`, 'ok');
+      this.cloudName.value = '';
+      this._hideOverwrite();
+      await this._refreshConfigs();
+    } catch (e) {
+      const msg = `保存失败：${e && e.message ? e.message : e}`;
+      this._cloudStatus(msg, 'error');
+      this.toast(msg, 'error');
+    }
+  }
+
+  async _loadConfig(name) {
+    try {
+      if (typeof fetch !== 'function') throw new Error('fetch 不可用');
+      const res = await fetch(configItemUrl(this.apiBase, name), { headers: { Accept: 'application/json' } });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data && data.error ? data.error : `HTTP ${res.status}`);
+      const parsed = parseSavedConfig(data.config);
+      if (!parsed.ok) throw new Error(parsed.error);
+      const r = applyImport(this.entries, this.entriesById, this.state, parsed.data);
+      this._renderList();
+      this.onChange(null); // 替换编辑状态并立即应用到预览
+      let msg = `已加载服务器配置「${name}」：应用 ${r.applied.length} 项，预览已更新`;
+      if (r.ignored.length) msg += `，忽略未知字段 ${r.ignored.length} 个`;
+      if (r.clamped.length) msg += `，钳制非法值 ${r.clamped.length} 个`;
+      this.toast(msg, r.ignored.length || r.clamped.length ? 'warn' : 'ok');
+      this._cloudStatus(`已加载「${name}」`, 'ok');
+    } catch (e) {
+      const msg = `加载失败：${e && e.message ? e.message : e}`;
+      this._cloudStatus(msg, 'error');
+      this.toast(msg, 'error');
+    }
+  }
+
+  _deleteConfig(name, btn) {
+    // 两次点击内联确认（3 秒内有效），不使用 confirm()。
+    if (!btn.dataset.confirming) {
+      btn.dataset.confirming = '1';
+      btn.textContent = '确认删除？';
+      this._cloudStatus(`再次点击以删除「${name}」`, 'warn');
+      setTimeout(() => {
+        if (btn.dataset.confirming) { delete btn.dataset.confirming; btn.textContent = '删除'; }
+      }, 3000);
+      return;
+    }
+    delete btn.dataset.confirming;
+    btn.textContent = '删除';
+    (async () => {
+      try {
+        if (typeof fetch !== 'function') throw new Error('fetch 不可用');
+        const res = await fetch(configItemUrl(this.apiBase, name), { method: 'DELETE', headers: { Accept: 'application/json' } });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || data.ok !== true) throw new Error(data && data.error ? data.error : `HTTP ${res.status}`);
+        this.toast(`已删除服务器配置「${name}」`, 'ok');
+        await this._refreshConfigs();
+      } catch (e) {
+        const msg = `删除失败：${e && e.message ? e.message : e}`;
+        this._cloudStatus(msg, 'error');
+        this.toast(msg, 'error');
+      }
+    })();
   }
 }

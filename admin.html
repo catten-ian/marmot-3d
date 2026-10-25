@@ -49,6 +49,29 @@
                       border-radius: 4px; padding: 4px 6px; font-size: 12px; }
   .tune-ctrl .unit { font-size: 11px; color: #8a8474; }
   .empty { color: #8a8474; font-size: 13px; }
+  .cloud-box { margin: 8px 0 2px; padding: 8px; border: 1px solid #4a5a44; border-radius: 8px;
+               background: #1d211a; }
+  .cloud-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .cloud-form .cloud-name { flex: 1 1 200px; min-width: 140px; background: #171a14; color: #e8e2d0;
+                            border: 1px solid #4a5240; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+  .cloud-confirm { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px;
+                   padding: 6px 8px; border: 1px solid #6a5634; border-radius: 6px; background: #4a3a26; font-size: 12px; }
+  .cloud-confirm-text { color: #ffd9a8; }
+  .cloud-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .cloud-title { font-size: 12px; font-weight: 700; color: #cfe0ae; }
+  .cloud-refresh { padding: 3px 8px; font-size: 11px; }
+  .cloud-status { font-size: 11px; color: #8a8474; }
+  .cloud-status.ok { color: #9fc06a; }
+  .cloud-status.warn { color: #e7c06a; }
+  .cloud-status.error { color: #e88a7a; }
+  .cloud-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column;
+                gap: 4px; max-height: 240px; overflow-y: auto; }
+  .cloud-list li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center;
+                   padding: 4px 6px; border-radius: 6px; background: rgba(255,255,255,.03); font-size: 12px; }
+  .cloud-item-name { color: #dfe8cf; word-break: break-all; }
+  .cloud-item-meta { color: #8a8474; font-size: 11px; }
+  .cloud-item-actions { margin-left: auto; display: flex; gap: 4px; }
+  .cloud-item-actions button { padding: 3px 10px; font-size: 11px; }
   #stage { position: relative; display: flex; flex-direction: column; min-width: 0; }
   #view { flex: 1; width: 100%; height: 100%; display: block; touch-action: none; }
   .stage-bar { position: absolute; left: 10px; top: 10px; background: rgba(0,0,0,.62);
