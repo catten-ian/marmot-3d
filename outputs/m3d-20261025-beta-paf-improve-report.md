@@ -2,7 +2,7 @@
 
 日期：2026-10-25（Asia/Shanghai）
 通道 / 分支：`beta` / `codex/beta-paf-improve-20261025`
-实现 commit hash：`IMPLEMENTATION_COMMIT_PENDING`
+实现 commit hash：`43d104d4b7a186359aa65780a53aaa28281eb936`
 状态：Stage 1（A1/A2/A3/A4/B1/B2/E3）完成；**未 push、未部署**。
 
 ## 1. 目标
@@ -90,6 +90,6 @@
 
 ## 6. 提交与发布状态
 
-- 实现 commit：`IMPLEMENTATION_COMMIT_PENDING`（完整 hash 在本文件更新后保留于 git 历史）。
+- 实现 commit：`43d104d4b7a186359aa65780a53aaa28281eb936`（完整 hash 在本文件更新后保留于 git 历史）。
 - 本报告在实现提交后填入准确实现 hash，并有单独的本地报告提交。
 - **未 push、未部署；未改版本戳、Caddy、systemd 或线上文件。**
