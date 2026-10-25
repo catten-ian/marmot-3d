@@ -64,8 +64,8 @@ export class FirstPersonController {
     this.shakeDecay = 6;
     this.locked = false;
     this.thirdPerson = false;
-    this.cameraDistance = 3.6;
-    this.cameraHeight = 1.9;
+    this.cameraDistance = 5.4;
+    this.cameraHeight = 2.15;
     this.cameraLookDown = -0.38;
 
     this._forward = new THREE.Vector3();

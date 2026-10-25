@@ -3,7 +3,7 @@
   "pack": "m3d-dev/20261022/low",
   "tier": "low",
   "generatedAt": "2026-10-22",
-  "totalBytes": 95593623,
+  "totalBytes": 95380674,
   "fileCount": 127,
   "files": [
     {
@@ -428,9 +428,9 @@
     },
     {
       "path": "manifest-low.json",
-      "size": 2201,
-      "sha256": "e4c5131490b0de175054af767e663319c0f9d96b6f9b48fb942e2b6cb5d9e84c",
-      "md5": "2ed745b276c7b6bedf3ae7ee0f707367",
+      "size": 41305,
+      "sha256": "2bd1182cf0f3338fd9b417ea0d9b5f859a3f70315c0997af66db0151b2c2122b",
+      "md5": "cf0bf929918690aa296e4f54cd320b87",
       "contentType": "application/json"
     },
     {
@@ -883,16 +883,16 @@
     },
     {
       "path": "verdant-trail-low-height.json",
-      "size": 788347,
-      "sha256": "b4a3817b4e7c865f59c8abca691976ca36aa9d34ef83aca642015948ee1439d3",
-      "md5": "1f7ed31a66fa34fca103602f38fde403",
+      "size": 543410,
+      "sha256": "caf28a11a80973d44e611c7d4e1f5c701a2c600ead7cb4af55cb13db7d6cc863",
+      "md5": "2bd33eaf746866b92267b008898d72d5",
       "contentType": "application/json"
     },
     {
       "path": "verdant-trail-low.glb",
-      "size": 52825048,
-      "sha256": "23025bdcaa20017986be23cb7a3668c8e9f5b9944fcdad0b4b7a27800db5e462",
-      "md5": "5a97128cfddcf4fafb01b8b47d13d1ae",
+      "size": 52817932,
+      "sha256": "92d73f3744332bb835dde5c072d53efd02f93b21dd49af4c3cb707e46d1daa9e",
+      "md5": "b6f0808c5efc221ca568add2637b403a",
       "contentType": "image/png"
     }
   ]

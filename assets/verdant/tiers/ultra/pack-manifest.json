@@ -3,14 +3,14 @@
   "pack": "m3d-dev/20261022/ultra",
   "tier": "ultra",
   "generatedAt": "2026-10-22",
-  "totalBytes": 2273725636,
+  "totalBytes": 2273480718,
   "fileCount": 145,
   "files": [
     {
       "path": "manifest-ultra.json",
-      "size": 2246,
-      "sha256": "74be0148e2c8fe3cf24d465dc7340d35291db4ebff66cd94c9117b3d5dd0e5c7",
-      "md5": "82d9707f4aa200c20e726026d4f4d79b",
+      "size": 2265,
+      "sha256": "e91660b63b5b2246ef9fa8315feec171321144f29203503b7a62c5c262b5d4fb",
+      "md5": "a3f6b0e17defff26a620d5d0939ccb9a",
       "contentType": "application/json"
     },
     {
@@ -1009,9 +1009,9 @@
     },
     {
       "path": "verdant-trail-ultra-height.json",
-      "size": 788347,
-      "sha256": "b4a3817b4e7c865f59c8abca691976ca36aa9d34ef83aca642015948ee1439d3",
-      "md5": "1f7ed31a66fa34fca103602f38fde403",
+      "size": 543410,
+      "sha256": "caf28a11a80973d44e611c7d4e1f5c701a2c600ead7cb4af55cb13db7d6cc863",
+      "md5": "2bd33eaf746866b92267b008898d72d5",
       "contentType": "application/json"
     },
     {

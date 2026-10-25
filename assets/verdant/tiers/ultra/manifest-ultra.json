@@ -1,87 +1,86 @@
 {
-  "format": 2,
-  "scene": "A Verdant Trail",
-  "source": {
-    "blend": "verdant_trail.blend (external source asset)",
-    "sha256": "1099755db10b036aae9a92db1b1d774b054cf3896dc0ada9bb99d6cca2644f28"
+ "format": 2,
+ "scene": "A Verdant Trail",
+ "source": {
+  "blend": "verdant_trail.blend (external source asset)",
+  "sha256": "1099755db10b036aae9a92db1b1d774b054cf3896dc0ada9bb99d6cca2644f28"
+ },
+ "files": {
+  "scene": "verdant-trail-ultra.gltf",
+  "height": "verdant-trail-ultra-height.json"
+ },
+ "mapping": {
+  "runtimeField": {
+   "width": 130,
+   "height": 78
   },
-  "files": {
-    "scene": "verdant-trail-ultra.gltf",
-    "height": "verdant-trail-ultra-height.json"
+  "sourceHorizontalAxes": {
+   "runtimeX": "sourceY",
+   "runtimeZ": "sourceX"
   },
-  "mapping": {
-    "runtimeField": {
-      "width": 130,
-      "height": 78
-    },
-    "sourceHorizontalAxes": {
-      "runtimeX": "sourceY",
-      "runtimeZ": "sourceX"
-    },
-    "scale": 4.417446522966308,
-    "horizontalScale": [
-      4.417446522966308,
-      4.941406000545672
-    ],
-    "sourceCenter": [
-      3.8650999069213867,
-      3.3580503463745117
-    ],
-    "verticalOffset": 1.719414878906521,
-    "playableBounds": {
-      "minX": -56.51360000000001,
-      "maxX": 56.51360000000001,
-      "minZ": -33.90816,
-      "maxZ": 33.90816
-    },
-    "heightGrid": 257
+  "scale": 4.417446522966308,
+  "horizontalScale": [
+   4.417446522966308,
+   4.941406000545672
+  ],
+  "sourceCenter": [
+   3.8650999069213867,
+   3.3580503463745117
+  ],
+  "verticalOffset": 1.719414878906521,
+  "playableBounds": {
+   "minX": -57.19999313354492,
+   "maxX": 57.20001220703125,
+   "minZ": -34.31999588012695,
+   "maxZ": 34.319976806640625
+  }
+ },
+ "export": {
+  "collections": [
+   "background",
+   "cliffs_boulders",
+   "debris",
+   "debris_patches",
+   "foliage",
+   "grass_medium_02",
+   "hanging_grass",
+   "island_tree_01_branches",
+   "island_tree_01_leaves",
+   "jacaranda_tree_leaves",
+   "main_scene",
+   "scene_components",
+   "shrub_01",
+   "shrub_03",
+   "shrub_04",
+   "tree_small_02_leaves"
+  ],
+  "groundObject": "ground",
+  "tier": "ultra",
+  "maxTriangles": null,
+  "heightGrid": 257,
+  "texturePolicy": "native source resolution; external glTF + .bin + textures; displacement retained in native pack",
+  "geometryOnly": false,
+  "textureTiers": {
+   "near": 2048,
+   "far": 512,
+   "normal": 1024
   },
-  "export": {
-    "collections": [
-      "background",
-      "cliffs_boulders",
-      "debris",
-      "debris_patches",
-      "foliage",
-      "grass_medium_02",
-      "hanging_grass",
-      "island_tree_01_branches",
-      "island_tree_01_leaves",
-      "jacaranda_tree_leaves",
-      "main_scene",
-      "scene_components",
-      "shrub_01",
-      "shrub_03",
-      "shrub_04",
-      "tree_small_02_leaves"
-    ],
-    "groundObject": "ground",
-    "tier": "ultra",
-    "maxTriangles": null,
-    "heightGrid": 257,
-    "texturePolicy": "native source resolution; external glTF + .bin + textures; displacement retained in native pack",
-    "geometryOnly": false,
-    "textureTiers": {
-      "near": 2048,
-      "far": 512,
-      "normal": 1024
-    },
-    "decimation": false,
-    "applicableDevice": "高性能独显 + WebGPU"
-  },
-  "stats": {
-    "externalResources": true,
-    "sourceObjects": 55,
-    "sourceTriangles": 2783719,
-    "exportTriangles": 4298106,
-    "textureCount": 124,
-    "fileBytes": 112702,
-    "heightBytes": 788347,
-    "textureBytes": 2266657407,
-    "packBytes": 2273725636,
-    "packFileCount": 145,
-    "fileSha256": "17aa50a9cde2815b5300438b1d7f74fd74402cfb1966032738683922b5fb67d6",
-    "heightSha256": "b4a3817b4e7c865f59c8abca691976ca36aa9d34ef83aca642015948ee1439d3"
-  },
-  "packManifest": "pack-manifest.json"
+  "decimation": false,
+  "applicableDevice": "高性能独显 + WebGPU"
+ },
+ "stats": {
+  "externalResources": true,
+  "sourceObjects": 55,
+  "sourceTriangles": 2783719,
+  "exportTriangles": 4298106,
+  "textureCount": 124,
+  "fileBytes": 112702,
+  "heightBytes": 543410,
+  "textureBytes": 2266657407,
+  "packBytes": 2273480718,
+  "packFileCount": 145,
+  "fileSha256": "17aa50a9cde2815b5300438b1d7f74fd74402cfb1966032738683922b5fb67d6",
+  "heightSha256": "b4a3817b4e7c865f59c8abca691976ca36aa9d34ef83aca642015948ee1439d3"
+ },
+ "packManifest": "pack-manifest.json"
 }
