@@ -511,3 +511,77 @@ export function roundTrip(entries, entriesById, state) {
   }
   return { ok: true, ...res };
 }
+
+// ---------------- 服务器命名配置（保存/加载/删除）纯逻辑 ----------------
+// 说明：服务端单配置上限 100KB。含 detail 的完整导出在默认值时已约 107KB，
+// 因此服务器通道只存 {schemaVersion, app, savedAt, values} 精简结构（约 16KB），
+// 与文件导出通道相互独立；parseConfigText 同样接受该结构。
+
+/** 配置名规则：1-50 位，中英文/数字/连字符/下划线（与服务端 CONFIG_NAME_RE 一致）。 */
+export const CONFIG_NAME_RE = /^[\p{L}\p{N}_\-]{1,50}$/u;
+
+/** 校验并规范化配置名（trim）。返回 {ok, name} 或 {ok:false, error}。 */
+export function validateConfigName(input) {
+  const name = typeof input === 'string' ? input.trim() : '';
+  if (!name) return { ok: false, error: '请输入配置名字' };
+  if (!CONFIG_NAME_RE.test(name)) return { ok: false, error: '名字限 1-50 位，可用中英文/数字/连字符/下划线' };
+  return { ok: true, name };
+}
+
+/**
+ * 由当前页面路径推导 API 基址。
+ * /marmot3d-beta/admin.html -> /marmot3d-beta/api
+ * 其它部署（/x/admin.html）-> /x/api；根路径（/admin.html）-> /api。
+ */
+export function deriveApiBase(pathname) {
+  const p = String(pathname || '/');
+  const m = /^(.*\/marmot3d-beta)(?:\/|$)/u.exec(p);
+  let prefix;
+  if (m) prefix = m[1];
+  else if (/(^|\/)admin\.html$/u.test(p)) prefix = p.replace(/admin\.html$/u, '').replace(/\/$/u, '');
+  else prefix = p.replace(/\/[^/]*$/u, '');
+  return `${prefix}/api`;
+}
+
+/** 配置列表/保存地址。 */
+export function configsIndexUrl(base) { return `${base}/configs`; }
+/** 单个配置地址（名字经 URL 编码，支持中文）。 */
+export function configItemUrl(base, name) { return `${base}/configs/${encodeURIComponent(name)}`; }
+
+/** 列表中已存在同名配置时，保存前需要内联确认覆盖。纯判断。 */
+export function needsOverwriteConfirm(existingNames, name) {
+  const n = typeof name === 'string' ? name.trim() : '';
+  for (const x of existingNames || []) if (x === n) return true;
+  return false;
+}
+
+/** 服务器配置精简序列化（与文件导出共用 schemaVersion/values 语义）。 */
+export function serializeSavedConfig(entries, state, at = new Date().toISOString()) {
+  return {
+    schemaVersion: ADMIN_SCHEMA_VERSION,
+    app: 'marmot3d-beta-admin',
+    savedAt: at,
+    values: Object.fromEntries(entries.map((e) => [e.id, state.values[e.id]])),
+  };
+}
+
+/** 解析服务器取回的配置对象。返回 {ok, data?, error?}。 */
+export function parseSavedConfig(config) {
+  let text;
+  try { text = JSON.stringify(config); } catch { return { ok: false, error: '配置内容无法序列化' }; }
+  return parseConfigText(text);
+}
+
+/** 字节数展示。 */
+export function formatConfigSize(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n < 0) return '';
+  return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`;
+}
+
+/** ISO 时间展示（失败回退原值）。 */
+export function formatConfigTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso || '');
+  try { return d.toLocaleString('zh-CN', { hour12: false }); } catch { return String(iso); }
+}
