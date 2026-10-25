@@ -1,0 +1,21 @@
+{
+  "sourcePack": "/home/fame/marmot3d-assets/assets.7z",
+  "sourcePath": "assets/citrus_orchard_road_puresky_8k.exr",
+  "sourceDimensions": [
+    8192,
+    4096
+  ],
+  "sourceFormat": "EXR",
+  "sourceBytes": 271693799,
+  "sourceSha256": "13ca6ad7cd6acb3e598be1468c6a14b8c2f95514168c100db3126abdb68e87e5",
+  "runtime": "citrus_orchard_road_puresky_1k.jpg",
+  "dimensions": [
+    1024,
+    512
+  ],
+  "format": "JPEG (sRGB, quality 92)",
+  "transform": "OpenCV INTER_AREA, exposure 0.7, Reinhard, IEC sRGB transfer",
+  "bytes": 46141,
+  "sha256": "9fcebaa8f6d91ec76300c71820869ee4d0abd4959c4f1c3f0b972564f3560511",
+  "fallback": "Existing procedural gradient dome remains until load succeeds and is restored on error."
+}

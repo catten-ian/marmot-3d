@@ -376,6 +376,8 @@ try { thirdPerson = localStorage.getItem(VIEW_MODE_KEY) === 'third-person'; } ca
 // setViewMode 首次执行时 binds 尚不可用，故用可变标签 + 创建后统一刷新。
 // 注意：该变量必须在本文件首次调用 setViewMode() 之前初始化，否则触发 TDZ。
 let viewKeyLabel = 'V';
+// beta 沙盒操作录制器：声明必须在初始化期 setViewMode() 之前，避免 TDZ。
+let sandboxRecorder = null;
 
 function setViewMode(enabled, announce = false) {
   thirdPerson = !!enabled;
@@ -510,8 +512,6 @@ const sandboxState = createSandboxState();
 if (SANDBOX_MODE) sandboxState.active = true;
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
-// beta 沙盒操作录制器（stable/dev 为 null，整个录制通道只在 beta 建立）。
-let sandboxRecorder = null;
 const testLogs = [];
 function recordTestLog(type, details = {}) {
   if (!TEST_MODE) return;

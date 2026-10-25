@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { FIELD_W, FIELD_H } from '../core/config.js';
 import { terrainHeight } from '../core/utils.js';
 import { getRenderProfile } from '../core/performance.js';
+import { IS_BETA } from '../core/version.js';
 
 export class Sky {
   constructor(scene, renderer) {
@@ -41,12 +42,39 @@ export class Sky {
 
     this._buildDome();
     this._buildTerrain();
+    this.skyTextureStatus = { state: IS_BETA ? 'loading' : 'disabled' };
+    if (IS_BETA) this._loadCitrusSky();
 
     // 雾的 far 要小于地形边缘半径（215），让边缘完全隐入雾中；
     // near 保持在 70 以保证场内视野清晰。
     // 雾的 far 要大于最远的可见物体（远山椭圆环 ~330m），
     // 让边缘完全隐入雾中；near 保持在 70 以保证场内视野清晰。
     scene.fog = new THREE.Fog(0x93a4a8, 70, 420);
+  }
+
+  /** Beta-only citrus panorama; procedural dome remains a fail-soft loading/error fallback. */
+  _loadCitrusSky() {
+    const url = 'assets/sky/citrus_orchard_road_puresky_1k.jpg';
+    this.skyTextureStatus = { state: 'loading', url };
+    new THREE.TextureLoader().load(url, (texture) => {
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.generateMipmaps = false;
+      // Preserve source panorama orientation (2:1, no flip/crop); this is background only,
+      // so existing level fog, hemisphere light, sun and WebGL2/WebGPU profiles stay authoritative.
+      this.scene.backgroundRotation.set(0, 0, 0);
+      this.scene.backgroundIntensity = 1;
+      this.scene.background = texture;
+      this.dome.visible = false;
+      this.skyTexture = texture;
+      this.skyTextureStatus = { state: 'loaded', url, mapping: texture.mapping, colorSpace: texture.colorSpace };
+    }, undefined, () => {
+      this.scene.background = null;
+      this.dome.visible = true;
+      this.skyTextureStatus = { state: 'fallback', url, reason: 'texture-load-failed' };
+    });
   }
 
   /** 应用静态/自适应渲染预算，尺寸变化时重建阴影贴图。 */
