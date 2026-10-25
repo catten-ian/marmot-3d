@@ -267,6 +267,8 @@ export class Scenery {
     }
     this._buildRocks();
     this._buildBushes();
+    this._buildWildflowers();
+    this._buildFireflies();
     // 风的时间推进：用 rAF 绝对时间而非 dt 累加，暂停/切页也不会失步。
     // Scenery 全局单例（main.js 只 new 一次），常驻 rAF 不会累积泄漏；
     // 标题界面与暂停时风继续吹，环境保持"活着"。隐藏页面时暂停 RAF，避免后台重复调度。
@@ -292,10 +294,17 @@ export class Scenery {
     const rng = makeRng(4471);
     // 单片草叶：细长四边形（顶窄底宽），比三角片更像草
     const blade = new THREE.BufferGeometry();
-    blade.setAttribute('position', new THREE.Float32BufferAttribute([
+    const bladePositions = [
       -0.035, 0, 0, 0.035, 0, 0, 0.008, 0.34, 0.02,
       -0.035, 0, 0, 0.008, 0.34, 0.02, -0.022, 0.26, 0.015,
-    ], 3));
+    ];
+    if (IS_BETA) bladePositions.push(
+      -0.017, 0, -0.03, 0.018, 0, 0.031, -0.003, 0.34, 0,
+      -0.017, 0, -0.03, -0.003, 0.34, 0, -0.015, 0.26, 0.01,
+      0.032, 0, -0.01, -0.032, 0, 0.01, 0.01, 0.34, -0.008,
+      0.032, 0, -0.01, 0.01, 0.34, -0.008, 0.022, 0.26, 0.014,
+    );
+    blade.setAttribute('position', new THREE.Float32BufferAttribute(bladePositions, 3));
     blade.computeVertexNormals();
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffffff, roughness: 1, side: THREE.DoubleSide,
@@ -352,8 +361,8 @@ export class Scenery {
     while (i < COUNT && guard < COUNT * 6) {
       guard++;
       // 覆盖到竞技场之外，让远处过渡带也有草
-      const x = (rng() - 0.5) * 200;
-      const spanZ = 150 * getPointScale();
+      const x = (rng() - 0.5) * (IS_BETA ? 132 : 200);
+      const spanZ = (IS_BETA ? 90 : 150) * getPointScale();
       const z = (rng() - 0.5) * spanZ;
       // 洞穴附近不长草，保持干净。洞穴位置/半径随运行时缩放，
       // 不能硬编码 (x+52) —— GS 版洞穴在 BURROW.x*K，会对不上。
@@ -392,6 +401,15 @@ export class Scenery {
       this._grassBaseMatrices = mesh.instanceMatrix.array.slice();
     }
     this.group.add(mesh);
+  }
+
+  update(dt = 0) {
+    if (this.fireflies) {
+      this.fireflyTime += dt;
+      this.fireflies.rotation.y += dt * 0.018;
+      this.fireflies.material.opacity = 0.34 + Math.sin(this.fireflyTime * 1.7) * 0.18;
+      this.fireflies.position.y = Math.sin(this.fireflyTime * 0.55) * 0.18;
+    }
   }
 
   hasGrazeable(x, z, radius = BETA_TUNE.grazeHaloRadius) {
@@ -455,6 +473,43 @@ export class Scenery {
     this._grazeVisualTimer = 0;
     this.grass.instanceMatrix.array.set(this._grassBaseMatrices);
     this.grass.instanceMatrix.needsUpdate = true;
+  }
+
+  _buildWildflowers() {
+    // Beta-only color accents: a few alpine flowers make open forage areas readable without collision.
+    if (!IS_BETA) return;
+    const rng = makeRng(17331), count = 180;
+    const stemGeo = new THREE.ConeGeometry(0.055, 0.32, 5);
+    const flowerGeo = new THREE.SphereGeometry(0.12, 6, 4);
+    const stemMat = new THREE.MeshStandardMaterial({ color: 0x71884c, roughness: 1 });
+    const flowerMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x302313, emissiveIntensity: 0.22, roughness: 0.76 });
+    const stems = new THREE.InstancedMesh(stemGeo, stemMat, count);
+    const blooms = new THREE.InstancedMesh(flowerGeo, flowerMat, count);
+    const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), rotation = new THREE.Quaternion(), scale = new THREE.Vector3();
+    const colors = [0xf5d58a, 0xd98ba0, 0xc2b7f1, 0xe9f0d0].map((hex) => new THREE.Color(hex));
+    for (let i = 0; i < count; i++) {
+      const x = (rng() - 0.5) * 164, z = (rng() - 0.5) * 116;
+      const y = terrainHeight(x, z), size = 0.55 + rng() * 0.55;
+      position.set(x, y + 0.16 * size, z); rotation.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rng() * Math.PI * 2); scale.set(size, size, size);
+      matrix.compose(position, rotation, scale); stems.setMatrixAt(i, matrix);
+      position.y = y + 0.36 * size; scale.set(size, size * 0.72, size);
+      matrix.compose(position, rotation, scale); blooms.setMatrixAt(i, matrix); blooms.setColorAt(i, colors[(rng() * colors.length) | 0]);
+    }
+    stems.castShadow = false; blooms.castShadow = false;
+    stems.instanceMatrix.needsUpdate = true; blooms.instanceMatrix.needsUpdate = true;
+    if (blooms.instanceColor) blooms.instanceColor.needsUpdate = true;
+    const group = new THREE.Group(); group.name = 'wildflowers'; group.add(stems, blooms);
+    this.group.add(group); this.wildflowers = group;
+  }
+
+  _buildFireflies() {
+    if (!IS_BETA) return;
+    const rng = makeRng(9042), count = 42;
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) { positions[i*3] = (rng()-0.5)*150; positions[i*3+1] = 1.4 + rng()*3.8; positions[i*3+2] = (rng()-0.5)*110; }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({ color: 0xffd991, size: 0.18, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+    this.fireflies = new THREE.Points(geo, mat); this.fireflies.name = 'fireflies'; this.group.add(this.fireflies); this.fireflyTime = 0;
   }
 
   _buildRocks() {

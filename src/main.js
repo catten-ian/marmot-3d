@@ -438,6 +438,8 @@ preloadModels('./assets/models/', { foxFile: FOX_PRELOAD_FILE }).then((st) => {
 // 玩家转身就会看到"贴着的那份消失了、背后的露出来"，反而更假。
 buildBackdrop().then((root) => {
   if (root) {
+    // Beta 保留真实资源加载与回退，但不叠加扫描网格的孔洞到程序化地平线；其它版本保持原显示。
+    if (IS_BETA) root.visible = false;
     scene.add(root);
     backdropRoot = root;
     const ud = root.userData || {};
@@ -964,7 +966,7 @@ const env = {
   gustDir: 1,     // 风向（+1 / -1，横风沿 X 轴）
   sandT: 0,       // 沙尘周期计时
   sandOn: false,  // 沙尘是否正在弥漫
-  fogBase: 70,    // 本关雾的 near
+  fogBase: IS_BETA ? 60 : 70,    // 本关雾的 near
   fogFarBase: 420,// 本关雾的 far
   fogSandFar: 30, // 沙尘时的 far（越近越看不清）
 };
@@ -972,7 +974,7 @@ const env = {
 /** 按关卡配置设置环境修饰的基准值 */
 function applyEnvModifiers(cfg) {
   env.gustMax = cfg.windGust || 0;
-  env.fogBase = cfg.fogNear || 70;
+  env.fogBase = cfg.fogNear || (IS_BETA ? 60 : 70);
   env.fogFarBase = cfg.fogFar || 420;
   env.sandPeriod = cfg.sandstorm ? 11 : 0;
   env.gustPhase = (game.level * 2.399) % 6.283; // 黄金角散布，各关风向/起始相位不同
@@ -3058,6 +3060,7 @@ function frame(now) {
     console.info('[performance] 自适应画质档位切换', adaptiveTransitions[adaptiveTransitions.length - 1]);
   }
 
+  if (IS_BETA) scenery.update(dt);
   const touchPlaying = TOUCH_DEVICE && game.mode === 'play';
   if (document.body.classList.contains('touch-playing') !== touchPlaying) {
     document.body.classList.toggle('touch-playing', touchPlaying);

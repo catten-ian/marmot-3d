@@ -4,8 +4,9 @@
  */
 import * as THREE from 'three';
 import { FIELD_W, FIELD_H } from '../core/config.js';
-import { terrainHeight } from '../core/utils.js';
+import { terrainHeight, fbm } from '../core/utils.js';
 import { getRenderProfile } from '../core/performance.js';
+import { IS_BETA } from '../core/version.js';
 
 export class Sky {
   constructor(scene, renderer) {
@@ -46,7 +47,7 @@ export class Sky {
     // near 保持在 70 以保证场内视野清晰。
     // 雾的 far 要大于最远的可见物体（远山椭圆环 ~330m），
     // 让边缘完全隐入雾中；near 保持在 70 以保证场内视野清晰。
-    scene.fog = new THREE.Fog(0x93a4a8, 70, 420);
+    scene.fog = new THREE.Fog(0x93a4a8, IS_BETA ? 60 : 70, IS_BETA ? 420 : 420);
   }
 
   /** 应用静态/自适应渲染预算，尺寸变化时重建阴影贴图。 */
@@ -93,7 +94,7 @@ export class Sky {
         offset: { value: 60 },
         exponent: { value: 0.85 },
         // 云量：0.42 左右的覆盖率最像草原多云天；阴天关由天空色自然压暗
-        cloudiness: { value: 0.42 },
+        cloudiness: { value: IS_BETA ? 0.52 : 0.42 },
       },
       vertexShader: /* glsl */ `
         varying vec3 vWorldPosition;
@@ -200,8 +201,11 @@ const segX = 200, segZ = 170;
       // 注意：不要用 sin(x)*cos(z) 这类规则函数，它会形成连续的
       // 明暗条带，在贴地视角下看起来就是一条横贯视野的亮线。
       const n1 = Math.sin(x * 0.13 + z * 0.07) * Math.sin(z * 0.11 - x * 0.05);
-      const t = THREE.MathUtils.clamp(0.5 + h * 0.13 + n1 * 0.07, 0, 1);
+      const patch = IS_BETA ? fbm(x * 0.038, z * 0.038, 3) : 0;
+      const detailPatch = IS_BETA ? fbm(x * 0.15, z * 0.15, 2) : 0;
+      const t = THREE.MathUtils.clamp(0.5 + h * 0.13 + n1 * 0.07 + patch * 0.15, 0, 1);
       tmp.copy(cA).lerp(cB, t);
+      if (IS_BETA) tmp.multiplyScalar(0.88 + patch * 0.12 + detailPatch * 0.035);
       // 竞技场之外的远景压暗，配合雾营造纵深
       const out = Math.max(0, Math.abs(x) - hw, Math.abs(z) - hh);
       const edgeK = Math.min(1, Math.max(0, (out - 10) / 55));
@@ -213,7 +217,7 @@ const segX = 200, segZ = 170;
 
     const mat = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.96,
+      roughness: IS_BETA ? 0.98 : 0.96,
       metalness: 0,
     });
     this.terrain = new THREE.Mesh(geo, mat);
@@ -228,6 +232,43 @@ const segX = 200, segZ = 170;
    *  关键是山脚必须埋在地形边缘之下、山脊必须高过地平线，
    *  否则会出现"地形边缘露出一条细脊"的接缝。 */
   _buildHills() {
+    if (!IS_BETA) { this._buildLegacyHills(); return; }
+    // 多层连续山脊代替锥体阵列，轮廓更像真实高原，且仍是纯装饰。
+    const group = new THREE.Group();
+    const layers = [
+      { rx: 250, rz: 224, count: 56, height: 34, color: 0x586a60 },
+      { rx: 282, rz: 252, count: 64, height: 48, color: 0x718075 },
+      { rx: 315, rz: 282, count: 72, height: 66, color: 0x8a9186 },
+    ];
+    const ridgeRand = (i, seed) => { const v = Math.sin(i * 12.9898 + seed * 78.233) * 43758.5453; return v - Math.floor(v); };
+    for (let li = 0; li < layers.length; li++) {
+      const layer = layers[li], positions = [], indices = [];
+      for (let i = 0; i <= layer.count; i++) {
+        const a = (i / layer.count) * Math.PI * 2;
+        const wobble = 0.92 + ridgeRand(i, layer.count) * 0.16;
+        const rx = layer.rx * wobble, rz = layer.rz * wobble;
+        const wave = Math.sin(a * 5.0 + li * 1.7) * 0.23 + Math.sin(a * 11.0 - li * 0.8) * 0.11 + Math.sin(a * 19.0 + 2.3) * 0.035;
+        const h = layer.height * (0.78 + wave);
+        positions.push(Math.cos(a) * rx, -16, Math.sin(a) * rz);
+        positions.push(Math.cos(a) * rx, h - 16, Math.sin(a) * rz);
+      }
+      for (let i = 0; i < layer.count; i++) {
+        const j = i * 2, n = (i + 1) * 2;
+        indices.push(j, n, j + 1, n, n + 1, j + 1);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setIndex(indices); geo.computeVertexNormals();
+      const mat = new THREE.MeshBasicMaterial({ color: layer.color, fog: true, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.name = `beta-ridge-layer-${li}`;
+      group.add(mesh);
+    }
+    this.hills = group;
+    this.scene.add(group);
+  }
+
+  _buildLegacyHills() {
     const group = new THREE.Group();
     const rand = (i) => {
       const s = Math.sin(i * 12.9898) * 43758.5453;
@@ -287,15 +328,24 @@ const segX = 200, segZ = 170;
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), z = pos.getZ(i), h = pos.getY(i);
       const n1 = Math.sin(x * 0.13 + z * 0.07) * Math.sin(z * 0.11 - x * 0.05);
-      const t = THREE.MathUtils.clamp(0.5 + h * 0.13 + n1 * 0.07, 0, 1);
+      const patch = IS_BETA ? fbm(x * 0.038, z * 0.038, 3) : 0;
+      const detailPatch = IS_BETA ? fbm(x * 0.15, z * 0.15, 2) : 0;
+      const t = THREE.MathUtils.clamp(0.5 + h * 0.13 + n1 * 0.07 + patch * 0.15, 0, 1);
       tmp.copy(cA).lerp(cB, t);
+      if (IS_BETA) tmp.multiplyScalar(0.88 + patch * 0.12 + detailPatch * 0.035);
       const out = Math.max(0, Math.abs(x) - hw, Math.abs(z) - hh);
       const edgeK = Math.min(1, Math.max(0, (out - 10) / 55));
       if (edgeK > 0) tmp.lerp(cEdge, edgeK * 0.7);
       colors.setXYZ(i, tmp.r, tmp.g, tmp.b);
     }
     colors.needsUpdate = true;
-    this.hills.children.forEach((m) => m.material.color.set(cfg.fog).multiplyScalar(1.12));
+    if (IS_BETA) {
+      const ridgePalette = [0x586a60, 0x718075, 0x8a9186].map((hex) => new THREE.Color(hex));
+      const haze = new THREE.Color(cfg.fog);
+      this.hills.children.forEach((m, i) => m.material.color.copy(ridgePalette[i]).lerp(haze, 0.32));
+    } else {
+      this.hills.children.forEach((m) => m.material.color.set(cfg.fog).multiplyScalar(1.12));
+    }
     // 关卡基准光强随关卡变化，刷关卡时重置并重新应用进洞压暗。
     this._baseHemi = this.hemi.intensity;
     this._baseAmbient = this.ambient.intensity;
