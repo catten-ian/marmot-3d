@@ -142,6 +142,7 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
     get x() { return Number(api.pos.x.toFixed(2)); },
     get z() { return Number(api.pos.z.toFixed(2)); },
     get yaw() { return Number(api.pos.yaw.toFixed(2)); },
+    get 视角() { return api.viewMode === 'fpv' ? '第一人称' : '第三人称'; },
   };
   const sf = gui.addFolder('状态 / Status');
   track(sf.add(status, '阶段').listen());
@@ -149,6 +150,7 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
   track(sf.add(status, '计时').listen());
   track(sf.add(status, '存活猎物').listen());
   track(sf.add(status, 'x').listen()); track(sf.add(status, 'z').listen()); track(sf.add(status, 'yaw').listen());
+  track(sf.add(status, '视角').listen());
 
   // —— 移动 ——
   const fMove = gui.addFolder('移动 / Movement');
@@ -194,6 +196,19 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
   track(fCam.add(cfg, 'camLookAhead', 0, 6, 0.1).name('注视超前'));
   track(fCam.add(cfg, 'camDamp', 1, 30, 0.5).name('跟随平滑'));
 
+  // —— 第一人称 / FPV ——
+  const fFpv = gui.addFolder('第一人称 / FPV');
+  track(fFpv.add(cfg, 'fpvEyeHeight', 0.3, 1.6, 0.01).name('眼位高度'));
+  track(fFpv.add(cfg, 'fpvHeadForward', 0, 1.2, 0.01).name('眼位前移'));
+  track(fFpv.add(cfg, 'fpvPitchMin', -89, 0, 1).name('俯仰下限°'));
+  track(fFpv.add(cfg, 'fpvPitchMax', 0, 89, 1).name('俯仰上限°'));
+  track(fFpv.add(cfg, 'fpvMouseLook', 0.0005, 0.008, 0.0001).name('鼠标视角灵敏度'));
+  track(fFpv.add(cfg, 'fpvTouchLook', 0.001, 0.012, 0.0001).name('触屏视角灵敏度'));
+  track(fFpv.add(cfg, 'fpvDefaultPitch', -45, 30, 1).name('进入俯仰°'));
+  track(fFpv.add(cfg, 'fpvPounceLockDamp', 0, 20, 0.5).name('扑击视线锁定阻尼'));
+  track(fFpv.add(cfg, 'fpvPouncePitch', -60, 20, 1).name('扑击锁定俯仰°'));
+  track(fFpv.add(cfg, 'camMinGround', 0.05, 1, 0.01).name('相机离地最小'));
+
   // —— 可视化开关 ——
   const fView = gui.addFolder('可视化 / Visualize');
   track(fView.add(view, 'enabled').name('显示辅助线'));
@@ -204,6 +219,7 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
   // —— 工具 ——
   const tools = {
     扑击一次: () => hooks.pounce?.(),
+    切换视角: () => api.toggleView?.(),
     增加猎物: () => api.addPrey(),
     移除猎物: () => api.removePrey(),
     复位猎物: () => api.respawnAll(cfg.preyCount),
@@ -217,6 +233,7 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
   };
   const fTools = gui.addFolder('工具 / Tools');
   track(fTools.add(tools, '扑击一次'));
+  track(fTools.add(tools, '切换视角'));
   track(fTools.add(tools, '增加猎物'));
   track(fTools.add(tools, '移除猎物'));
   track(fTools.add(tools, '复位猎物'));

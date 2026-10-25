@@ -18,8 +18,12 @@
  * play-as-fox-debug.js 的 lil-gui 后台实时调整（见同目录）。普通玩家永远用默认值。
  */
 import * as THREE from 'three';
-import { createProceduralFox } from '../entities/procedural-fox.js';
-import { buildMarmotMesh } from '../entities/props_entities.js';
+import { createPafFoxModel } from '../entities/paf-fox-model.js';
+import { createPafMoleModel } from '../entities/paf-mole-model.js';
+import {
+  createViewModeState, enterFpvLook, applyLookDelta, dampLookToward,
+  tpsCameraPose, fpvCameraPose,
+} from '../core/paf-camera.js';
 import { terrainHeight } from '../core/utils.js';
 import { moveBounds } from '../core/config.js';
 
@@ -59,6 +63,17 @@ export const PAF_DEFAULTS = {
   camPitch: 0.32,
   camLookAhead: 2.2,
   camDamp: 12,
+  // 第一人称视角（FPV；默认关闭，V 键 / 触屏视角按钮切换）
+  fpvEyeHeight: 0.85,     // 眼位高度（相对狐狸脚底）
+  fpvHeadForward: 0.45,   // 眼位沿视线前移（探出头腔）
+  fpvPitchMin: -55,       // 俯仰夹紧（度）
+  fpvPitchMax: 40,
+  fpvMouseLook: 0.0026,   // FPV 鼠标灵敏度 rad/px
+  fpvTouchLook: 0.0045,   // FPV 触屏拖拽灵敏度 rad/px
+  fpvDefaultPitch: -6,    // 进入 FPV 时的初始俯仰（度）
+  fpvPounceLockDamp: 7,   // 扑击时视线锁向扑击方向的阻尼（0=不锁）
+  fpvPouncePitch: -10,    // 扑击锁定俯仰（度）
+  camMinGround: 0.22,     // 相机离地最小高度
 };
 
 const PAF_CFG_KEY = 'm3d_paf_cfg_v1';
@@ -76,7 +91,7 @@ function damp(cur, target, lambda, dt) { return THREE.MathUtils.lerp(cur, target
 /** 猎物（AI 土拨鼠）。 */
 class Prey {
   constructor(scene, x, z) {
-    this.mesh = buildMarmotMesh(0xb3925a);
+    this.mesh = createPafMoleModel({ color: 0xb3925a });
     this.x = x; this.z = z; this.vx = 0; this.vz = 0;
     this.yaw = Math.random() * Math.PI * 2;
     this.state = 'wander';          // wander | alert | flee
@@ -158,6 +173,9 @@ class Prey {
     this.mesh.rotation.y = this.yaw;
     // 奔跑轻微起伏
     if (speed > 0.5) { this.bob += dt * speed * 2.2; this.mesh.position.y = y + Math.abs(Math.sin(this.bob)) * 0.04; }
+    // 模型姿态（纯视觉：wander/alert/flee 可读差异，不改 AI）
+    this.mesh.setMoleState?.(this.state);
+    this.mesh.updateAnim?.(dt, clamp(speed / cfg.preyFlee, 0, 1));
 
     // 警觉标记投影到屏幕
     if (this.state === 'alert') {
@@ -180,7 +198,7 @@ export function createPlayAsFox(ctx) {
   const cfg = { ...PAF_DEFAULTS, ...(debugOn ? loadPafCfg() : {}) };
 
   // —— 玩家扮演的藏狐 ——
-  const foxVisual = createProceduralFox({});
+  const foxVisual = createPafFoxModel({});
   scene.add(foxVisual.group);
   const fox = {
     x: 0, z: -6, y: 0, yaw: 0, vy: 0,
@@ -195,6 +213,10 @@ export function createPlayAsFox(ctx) {
   let elapsed = 0;
   let running = true;
   const keys = new Set();
+
+  // —— 视角：默认第三人称；V 键 / 触屏按钮切第一人称（FPV 视线与身体朝向解耦）——
+  const viewMode = createViewModeState('tps');
+  const look = { yaw: 0, pitch: 0 };
 
   function spawnPoint() {
     const a = Math.random() * Math.PI * 2;
@@ -239,6 +261,14 @@ export function createPlayAsFox(ctx) {
       #pafPounce { width:92px;height:92px;background:radial-gradient(circle at 35% 30%,#d98a4a,#9c5320) }
       #pafSprint { width:68px;height:68px;background:radial-gradient(circle at 35% 30%,#7c8f63,#48552f);font-size:14px }
       #pafSprint.paf-on { outline:3px solid #ffe08a }
+      #pafView { width:68px;height:68px;background:radial-gradient(circle at 35% 30%,#6f86a8,#3d4c66);font-size:14px }
+      #pafView.paf-on { outline:3px solid #9fd0ff }
+      #pafViewTag { position:absolute;top:12px;left:14px;padding:4px 10px;border-radius:8px;
+        background:rgba(20,28,20,.62);color:#cfe0bd;border:1px solid #55654a;font-size:12px;
+        font-weight:700;letter-spacing:.05em }
+      #playAsFoxHud.paf-fpv #pafViewTag { color:#9fd0ff;border-color:#5b7391 }
+      #pafLook { position:absolute;right:0;top:0;bottom:0;width:52%;pointer-events:none;touch-action:none }
+      #playAsFoxHud.paf-fpv.paf-touch #pafLook { pointer-events:auto }
     `;
     document.head.appendChild(style);
   }
@@ -248,9 +278,12 @@ export function createPlayAsFox(ctx) {
     <div id="pafTip" style="position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#dfe8d6;text-shadow:0 1px 3px #000;font-size:13px;line-height:1.6"></div>
     <div id="pafCenter" style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);color:#ffd24a;font-size:30px;font-weight:900;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .15s"></div>
     <button id="pafExit" style="position:absolute;top:12px;right:14px;pointer-events:auto;padding:8px 14px;border-radius:10px;border:1px solid #6f7d5f;background:rgba(20,28,20,.72);color:#e7eedf;font-size:13px;cursor:pointer">退出扮演 (Esc)</button>
+    <div id="pafViewTag">第三人称</div>
     <div id="pafTouch">
+      <div id="pafLook"></div>
       <div id="pafStick"><div id="pafKnob"></div></div>
       <div id="pafBtns">
+        <button id="pafView" type="button">视角</button>
         <button id="pafSprint" type="button">冲刺</button>
         <button id="pafPounce" type="button">扑击</button>
       </div>
@@ -277,6 +310,25 @@ export function createPlayAsFox(ctx) {
     clearTimeout(flash._t); flash._t = setTimeout(() => { elCenter.style.opacity = '0'; }, 650);
   }
 
+  // 视角切换：进入 FPV 时视线从当前身体朝向出发；退出无任何残留状态。
+  const elViewTag = overlay.querySelector('#pafViewTag');
+  const viewBtn = overlay.querySelector('#pafView');
+  function setViewMode(mode, silent = false) {
+    const m = viewMode.set(mode);
+    if (m === 'fpv') {
+      Object.assign(look, enterFpvLook(fox.yaw, cfg.fpvDefaultPitch));
+      foxVisual.setHeadVisible?.(false);   // 眼位在头内：隐藏头部防糊屏，保留躯干（低头可见自身）
+    } else {
+      foxVisual.setHeadVisible?.(true);
+    }
+    overlay.classList.toggle('paf-fpv', m === 'fpv');
+    if (elViewTag) elViewTag.textContent = m === 'fpv' ? '第一人称' : '第三人称';
+    viewBtn?.classList.toggle('paf-on', m === 'fpv');
+    if (!silent) flash(m === 'fpv' ? '第一人称视角' : '第三人称视角', '#9fd0ff');
+    return m;
+  }
+  function toggleView() { setViewMode(viewMode.toggle()); return viewMode.mode; }
+
   function startPounce() {
     if (fox.phase !== 'idle') return;
     fox.phase = 'wind'; fox.phaseT = 0;
@@ -293,16 +345,29 @@ export function createPlayAsFox(ctx) {
     if (e.repeat) return;
     keys.add(e.code);
     if (e.code === 'Space') { e.preventDefault(); startPounce(); }
+    if (e.code === 'KeyV') {
+      // 主线 window keydown（bubble）也绑定 V=普通模式视角切换：本模式独占 V，阻断冒泡防串扰
+      e.stopImmediatePropagation();
+      toggleView();
+    }
     if (e.code === 'Escape') exit();
   };
   const onKeyUp = (e) => keys.delete(e.code);
   const onMouseMove = (e) => {
-    if (document.pointerLockElement === canvas) fox.yaw += e.movementX * cfg.mouseTurn;
+    if (document.pointerLockElement !== canvas) return;
+    if (viewMode.mode === 'fpv') {
+      // FPV：鼠标自由视角（pitch 夹紧），不动身体朝向
+      applyLookDelta(look, e.movementX, e.movementY, {
+        sensitivity: cfg.fpvMouseLook, pitchMinDeg: cfg.fpvPitchMin, pitchMaxDeg: cfg.fpvPitchMax,
+      });
+    } else {
+      fox.yaw += e.movementX * cfg.mouseTurn;
+    }
   };
   const onMouseDown = (e) => { if (e.button === 0) startPounce(); };
   const onCanvasClick = () => { if (document.pointerLockElement !== canvas && ctx.requestLock) ctx.requestLock(); };
   const onResize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); };
-  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keydown', onKeyDown, true);   // capture：先于主线 bubble 监听拦 V
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('mousemove', onMouseMove);
   renderer.domElement.addEventListener('mousedown', onMouseDown);
@@ -339,6 +404,29 @@ export function createPlayAsFox(ctx) {
   stick?.addEventListener('pointermove', onStickMove);
   stick?.addEventListener('pointerup', onStickUp);
   stick?.addEventListener('pointercancel', onStickUp);
+  // 触屏 FPV 自由视角：右半屏拖拽（#pafLook 仅 FPV+触屏时接管指针）
+  const lookArea = overlay.querySelector('#pafLook');
+  let lookId = null, lookLast = null;
+  const onLookDown = (e) => {
+    if (viewMode.mode !== 'fpv') return;
+    e.preventDefault(); lookId = e.pointerId; lookLast = { x: e.clientX, y: e.clientY };
+    lookArea.setPointerCapture?.(e.pointerId);
+  };
+  const onLookMove = (e) => {
+    if (lookId !== e.pointerId || !lookLast) return;
+    e.preventDefault();
+    applyLookDelta(look, e.clientX - lookLast.x, e.clientY - lookLast.y, {
+      sensitivity: cfg.fpvTouchLook, pitchMinDeg: cfg.fpvPitchMin, pitchMaxDeg: cfg.fpvPitchMax,
+    });
+    lookLast = { x: e.clientX, y: e.clientY };
+  };
+  const onLookUp = (e) => { if (e.pointerId === lookId) { lookId = null; lookLast = null; } };
+  lookArea?.addEventListener('pointerdown', onLookDown);
+  lookArea?.addEventListener('pointermove', onLookMove);
+  lookArea?.addEventListener('pointerup', onLookUp);
+  lookArea?.addEventListener('pointercancel', onLookUp);
+  viewBtn?.addEventListener('click', (e) => { e.preventDefault(); toggleView(); });
+
   pounceBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); startPounce(); });
   sprintBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); setSprint(true); });
   sprintBtn?.addEventListener('pointerup', () => setSprint(false));
@@ -402,13 +490,15 @@ export function createPlayAsFox(ctx) {
     fox.y = groundY + fox.airY;
     foxVisual.group.position.set(fox.x, fox.y, fox.z);
     foxVisual.group.rotation.y = fox.yaw;
-    // 蹲伏（潜行/蓄力）：以足部为原点整体压低头；扑击/蓄力做整组俯仰
-    const crouchAmt = (fox.phase === 'wind') ? 0.72 : (!fox.sprint && throttle !== 0 && fox.phase === 'idle') ? 0.9 : 1;
-    foxVisual.group.scale.set(1, crouchAmt, 1);
-    if (fox.phase === 'lunge') foxVisual.group.rotation.x = -0.3;
-    else if (fox.phase === 'wind') foxVisual.group.rotation.x = 0.32;
-    else foxVisual.group.rotation.x = damp(foxVisual.group.rotation.x, 0, 10, dt);
-    try { foxVisual.update?.(dt); } catch (_) {}
+    // 姿态：分组混合（模型内部：body 下移/后躯下压/腿折弯/头补偿），替代旧的 scale.y 压扁
+    const animName = fox.phase !== 'idle' ? fox.phase
+      : throttle !== 0 ? (fox.sprint ? 'dash' : 'stalk') : 'idle';
+    const groundSpeed = fox.phase === 'lunge' ? cfg.lungeSpeed
+      : Math.abs(throttle) * (fox.sprint ? cfg.runSpeed : cfg.stalkSpeed);
+    try {
+      foxVisual.setAnimState?.({ anim: animName, speed: groundSpeed });
+      foxVisual.update?.(dt);
+    } catch (_) {}
 
     // 猎物
     for (const p of prey) {
@@ -423,29 +513,37 @@ export function createPlayAsFox(ctx) {
     // 天空球跟随
     sky?.update?.({ x: fox.x, y: fox.y, z: fox.z }, dt);
 
-    // 第三人称追尾相机
-    const fwd = fox.forward;
-    const tx = fox.x - fwd.x * cfg.camDist;
-    const tz = fox.z - fwd.z * cfg.camDist;
-    camera.position.x = damp(camera.position.x, tx, cfg.camDamp, dt);
-    camera.position.z = damp(camera.position.z, tz, cfg.camDamp, dt);
-    const camY = fox.y + cfg.camHeight + cfg.camPitch * 1.4;
-    camera.position.y = damp(camera.position.y, camY, cfg.camDamp, dt);
-    camera.lookAt(fox.x + fwd.x * cfg.camLookAhead, fox.y + 0.9, fox.z + fwd.z * cfg.camLookAhead);
+    // —— 相机：默认第三人称追尾（原口径不变）；FPV 视线与身体朝向解耦 ——
+    if (viewMode.mode === 'fpv') {
+      // 扑击期间视线柔和锁向扑击方向（阻尼回正，不瞬移）
+      if (fox.phase === 'wind' || fox.phase === 'lunge') {
+        const targetYaw = fox.phase === 'lunge' ? fox.lungeYaw : fox.yaw;
+        dampLookToward(look, targetYaw, cfg.fpvPouncePitch, cfg.fpvPounceLockDamp, dt);
+      }
+      const pose = fpvCameraPose(fox, look, cfg, groundY);
+      camera.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
+      camera.lookAt(pose.lookAt.x, pose.lookAt.y, pose.lookAt.z);
+    } else {
+      const pose = tpsCameraPose(fox, cfg);
+      camera.position.x = damp(camera.position.x, pose.pos.x, cfg.camDamp, dt);
+      camera.position.z = damp(camera.position.z, pose.pos.z, cfg.camDamp, dt);
+      camera.position.y = damp(camera.position.y, pose.pos.y, cfg.camDamp, dt);
+      camera.lookAt(pose.lookAt.x, pose.lookAt.y, pose.lookAt.z);
+    }
 
     // HUD
     elTop.textContent = `扮演藏狐 · 捕猎 ${score} 只 · ${elapsed.toFixed(0)}s`;
     const phaseLabel = fox.phase === 'wind' ? '蓄力中…' : fox.phase === 'lunge' ? '扑击！' : fox.phase === 'recover' ? '硬直' : fox.sprint ? '冲刺（易被发现）' : '潜行';
     elTip.innerHTML = isTouch
       ? `左下摇杆移动/转向 · <b>冲刺</b>切换潜行 · <b>扑击</b>捕猎（${phaseLabel}）`
-      : `W/S 前后 · 鼠标或 A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 扑击（${phaseLabel}）`;
+      : `W/S 前后 · 鼠标或 A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 扑击 · <b>V</b> 切换视角（${phaseLabel}）`;
   }
 
   function exit() {
     if (!running) return;
     running = false;
     if (typeof window !== 'undefined' && window.__playAsFox === qa) window.__playAsFox = null;
-    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('mousemove', onMouseMove);
     renderer.domElement.removeEventListener('mousedown', onMouseDown);
@@ -455,6 +553,10 @@ export function createPlayAsFox(ctx) {
     stick?.removeEventListener('pointermove', onStickMove);
     stick?.removeEventListener('pointerup', onStickUp);
     stick?.removeEventListener('pointercancel', onStickUp);
+    lookArea?.removeEventListener('pointerdown', onLookDown);
+    lookArea?.removeEventListener('pointermove', onLookMove);
+    lookArea?.removeEventListener('pointerup', onLookUp);
+    lookArea?.removeEventListener('pointercancel', onLookUp);
     for (const p of prey) p.dispose(scene);
     prey = [];
     scene.remove(foxVisual.group);
@@ -490,6 +592,17 @@ export function createPlayAsFox(ctx) {
     respawnAll: (n) => respawnAll(Number.isFinite(n) ? n : cfg.preyCount),
     resetTuning: () => { Object.keys(PAF_DEFAULTS).forEach((k) => { cfg[k] = PAF_DEFAULTS[k]; }); },
     get terrainHeightAt() { return (x, z) => terrainHeight(x, z); },
+    get viewMode() { return viewMode.mode; },
+    get look() { return { yaw: look.yaw, pitch: look.pitch }; },
+    toggleView,
+    setViewMode: (m) => setViewMode(m),
+    // 仅供自动化 QA：直接设置 FPV 视线（仍过俯仰夹紧）
+    setLook: (yaw, pitch) => {
+      if (Number.isFinite(yaw)) look.yaw = yaw;
+      if (Number.isFinite(pitch)) {
+        look.pitch = clamp(pitch, cfg.fpvPitchMin * Math.PI / 180, cfg.fpvPitchMax * Math.PI / 180);
+      }
+    },
   };
   if (typeof window !== 'undefined') window.__playAsFox = qa;
   return api;
