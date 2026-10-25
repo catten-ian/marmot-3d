@@ -1,6 +1,6 @@
 import { SANDBOX_DIFFICULTIES } from './state.js';
 
-export function setupSandboxPanel({ root, state, onAction, onChange }) {
+export function setupSandboxPanel({ root, state, onAction, onChange, recorder = null }) {
   if (!root) return null;
   const existing = root.querySelector('.sandbox-controls');
   if (existing) existing.remove();
@@ -13,7 +13,7 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
     <label class="test-toggle"><input id="sandboxFreezeTimer" type="checkbox" checked> 冻结 / 关闭计时</label>
     <label class="test-toggle"><input id="sandboxParryDrill" type="checkbox"> 迎击练习（单狐正面冲刺，击退即重来）</label>
     <div class="test-actions sandbox-actions">
-      <button type="button" data-sandbox-action="refill">回满生命 / 储备</button>
+      <button type="button" data-sandbox-action="refill">回满生命 / 体力</button>
       <button type="button" data-sandbox-action="clearStress">清零应激</button>
       <button type="button" data-sandbox-action="charge">充满大招</button>
       <button type="button" data-sandbox-action="resetFood">重置食物</button>
@@ -30,9 +30,28 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
       <button type="button" data-sandbox-action="placeDummy">放置练习木桩</button>
       <button type="button" data-sandbox-action="removeDummy">移除练习木桩</button>
     </div>
+    <div class="sandbox-heading">操作录制（JSON，不是视频）</div>
+    <div class="test-actions sandbox-actions">
+      <button type="button" data-sandbox-action="recordStart" id="sandboxRecordToggle">开始录制</button>
+      <button type="button" data-sandbox-action="recordExport" id="sandboxRecordExport" disabled>导出录制</button>
+    </div>
+    <div id="sandboxRecordStatus" aria-live="polite">未录制 · 记录玩家动作、命中与狐狸状态</div>
+    <pre id="sandboxRecordSummary" style="white-space:pre-wrap;max-height:180px;overflow:auto"></pre>
     <div class="sandbox-debug" id="sandboxDebug" aria-live="polite"></div>
   `;
   root.appendChild(section);
+  // “无敌”状态必须一眼可见 —— 徽标挂在 body 上，面板收起也不影响显示。
+  let godBadge = document.getElementById('sandboxGodBadge');
+  if (!godBadge) {
+    godBadge = document.createElement('div');
+    godBadge.id = 'sandboxGodBadge';
+    godBadge.textContent = '🛡 无敌模式：你不会掉血（沙盒面板「无敌」可关闭）';
+    godBadge.style.cssText = 'position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translateX(-50%);'
+      + 'z-index:60;padding:7px 14px;border-radius:999px;font-weight:700;font-size:13px;letter-spacing:.02em;'
+      + 'color:#3a2410;background:linear-gradient(180deg,#ffe7a8,#ffc95e);border:1px solid #d99a2b;'
+      + 'box-shadow:0 4px 16px rgba(120,80,10,.35);display:none;pointer-events:none;max-width:88vw;text-align:center;';
+    document.body.appendChild(godBadge);
+  }
   const god = section.querySelector('#sandboxGodMode');
   const freeze = section.querySelector('#sandboxFreezeTimer');
   const parryDrill = section.querySelector('#sandboxParryDrill');
@@ -55,7 +74,26 @@ export function setupSandboxPanel({ root, state, onAction, onChange }) {
   return {
     section,
     update({ game, controller, foxes, fps }) {
+      const status = recorder?.status?.(game.totalTime);
+      const toggle = section.querySelector('#sandboxRecordToggle');
+      const exportButton = section.querySelector('#sandboxRecordExport');
+      const recordStatus = section.querySelector('#sandboxRecordStatus');
+      if (toggle && status) {
+        toggle.textContent = status.active ? '停止录制' : '开始录制';
+        toggle.dataset.sandboxAction = status.active ? 'recordStop' : 'recordStart';
+      }
+      if (exportButton) exportButton.disabled = !status?.hasTake;
+      if (recordStatus && status) recordStatus.textContent = status.active
+        ? `录制中 ${status.elapsed.toFixed(1)}s · ${status.events}/4000 条（上限后保留最近事件）`
+        : status.hasTake ? `已停止 · ${status.events} 条 · 可导出 JSON` : '未录制 · 记录玩家动作、命中与狐狸状态';
+      const summary = section.querySelector('#sandboxRecordSummary');
+      if (summary) {
+        summary.textContent = state.lastRecordingSummary || '';
+        summary.hidden = !state.lastRecordingSummary;
+      }
       const debug = section.querySelector('#sandboxDebug');
+      const badge = document.getElementById('sandboxGodBadge');
+      if (badge) badge.style.display = state.godMode ? 'block' : 'none';
       if (!debug) return;
       const enemies = foxes.filter((f) => !f.isSandboxDummy);
       const smart = enemies.filter((f) => f.type === 'smart');

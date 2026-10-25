@@ -1,0 +1,77 @@
+{
+  "elapsedSeconds": 122.166,
+  "managedChrome": "http://127.0.0.1:18800",
+  "loaded": {
+    "fallback": false,
+    "targetId": "02A1BC18884466323BBD375C0AFBD721",
+    "assetResponses": [
+      {
+        "url": "http://127.0.0.1:39577/assets/sky/citrus_orchard_road_puresky_1k.jpg",
+        "status": 200,
+        "mimeType": "image/jpeg"
+      }
+    ],
+    "errors": [],
+    "exceptions": [],
+    "expectedBlockedRequests": [],
+    "state": {
+      "beta": true,
+      "status": {
+        "state": "loaded",
+        "url": "assets/sky/citrus_orchard_road_puresky_1k.jpg",
+        "mapping": 303,
+        "colorSpace": "srgb"
+      },
+      "background": "http://127.0.0.1:39577/assets/sky/citrus_orchard_road_puresky_1k.jpg",
+      "domeVisible": false,
+      "backgroundRotation": [
+        0,
+        0,
+        0,
+        "XYZ"
+      ],
+      "renderer": "WebGLRenderer",
+      "stamina": 100,
+      "fat": 0,
+      "mouth": 0,
+      "energyAlias": 100,
+      "objective": "本关目标\n脂肪储备\n0/24\n伙伴\n待救援\n回大本营结算\n未回洞\n关卡提示：学会爆发与反击\n冬眠后刚醒，进食最强烈，为开春储备能量",
+      "energyLabel": null
+    },
+    "screenshot": "/home/fame/code/marmot3d/m3d-beta-gameplay-tune-20261025/outputs/beta-gameplay-qa/sky-citrus-loaded.png"
+  },
+  "fallback": {
+    "fallback": true,
+    "targetId": "1BB741A82FB9023DB6A9EF418B327537",
+    "assetResponses": [],
+    "errors": [],
+    "exceptions": [],
+    "expectedBlockedRequests": [
+      "http://127.0.0.1:39577/assets/sky/citrus_orchard_road_puresky_1k.jpg"
+    ],
+    "state": {
+      "beta": true,
+      "status": {
+        "state": "fallback",
+        "url": "assets/sky/citrus_orchard_road_puresky_1k.jpg",
+        "reason": "texture-load-failed"
+      },
+      "background": null,
+      "domeVisible": true,
+      "backgroundRotation": [
+        0,
+        0,
+        0,
+        "XYZ"
+      ],
+      "renderer": "WebGLRenderer",
+      "stamina": 100,
+      "fat": 0,
+      "mouth": 0,
+      "energyAlias": 100,
+      "objective": "",
+      "energyLabel": null
+    },
+    "screenshot": "/home/fame/code/marmot3d/m3d-beta-gameplay-tune-20261025/outputs/beta-gameplay-qa/sky-fallback.png"
+  }
+}

@@ -24,7 +24,7 @@ import { createTibetanFox } from './tibetan-fox.js';
 import {
   foxRecoverySeconds, stepFoxTurn, stepFoxRecovery, stepFoxLocomotion, foxMaxTurnRate, steerGroundDirection,
   estimatePlayerVelocity, straightWindAimYaw, canSprint, stepStamina, hpSpeedMultiplier,
-  shouldRetreat, chooseRestPoint, enterRestSafe, stepRestSafe, exitRestSafe, resolveHitState,
+  shouldRetreat, chooseRestPoint, enterRestSafe, stepRestSafe, exitRestSafe, defeatFate, stepDefeatCooldown,
 } from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
 import { advanceDrillState, sampleWalkableGround, stepGroundY } from './smart-fox-core.mjs';
@@ -175,6 +175,10 @@ export class Fox {
     this.dashVX = 0;
     this.dashVZ = 0;
 
+    // 出生点：被驱退离场后，增援在这附近重新出现（旧口径）
+    this.spawnPoint = [x, z];
+    // 接触撕咬节流：一次扑击只咬一口（由 main 在命中时置位，每帧递减）
+    this.contactCd = 0;
     // 驱退（逃跑）状态
     this.fleeing = false;
     this.fleeTime = 0;
@@ -502,6 +506,7 @@ export class Fox {
     const allBurrows = Array.isArray(burrows) ? burrows : (burrows ? [burrows] : []);
     this._stateAge += dt;
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+    this.contactCd = Math.max(0, (this.contactCd ?? 0) - dt);
     const previousX = this.x, previousZ = this.z;
     const y = terrainAt(this.x, this.z);
     this.baseY = y;
@@ -529,14 +534,25 @@ export class Fox {
     }
 
     if (this.hp <= 0) {
-      // 真死（阶段 2 口径）：不 flee、不 respawn、不再参与更新。
-      // 正常路径玩家几乎打不到这一步 —— 血量还剩一截时狐狸就自己撤退回血了。
-      this.state = 'dead';
-      this.retreating = false;
+      // 旧口径（d088054 之前）：狐狸是被"打退/吓跑"而不是被杀。
+      // startFleeing 跑出视野后 fleeing=false、mesh 隐藏并设置增援计时；
+      // 这里在离场期间倒数，到点在出生点附近重新出现。首领一去不返（不倒数、不重生）。
+      const fate = defeatFate(this.type);
       this.mesh.visible = false;
       this.warn.visible = false;
       this.hpBar.visible = false;
       this.staminaBar.visible = false;
+      if (fate.respawns) {
+        const cd = stepDefeatCooldown(this.type, this.respawn, dt);
+        this.respawn = cd.respawn;
+        if (cd.shouldRespawn && this.spawnPoint) {
+          const [sx, sz] = this.spawnPoint;
+          this.respawnAt(sx + (Math.random() - 0.5) * 4, sz + (Math.random() - 0.5) * 4);
+        }
+      } else {
+        this.state = 'dead';
+        this.retreating = false;
+      }
       return;
     }
 
@@ -558,12 +574,15 @@ export class Fox {
       const V = FOX.vitals;
       const dashing = this.state === 'dash';
       const resting = this.state === 'rest' || this.state === 'rest_safe';
+      // rest_safe 的生命回复交给 case 'rest_safe' 的 stepRestSafe（更明显、独立配置），
+      // 这里只让普通喘息 rest 走缓慢的 restHpRegenRatio，避免两处重复回血。
+      const hpRegenRatio = this.state === 'rest_safe' ? 0 : V.restHpRegenRatio;
       const stepped = stepStamina({ stamina: this.stamina, locked: this.staminaLocked, hp: this.hp }, dt, {
         maxStamina: this.maxStamina,
         drainPerSec: dashing ? V.pounceStaminaPerSec : V.stalkStaminaPerSec,
         regenPerSec: V.restStaminaPerSec,
         resting,
-        hpRegenRatio: V.restHpRegenRatio,
+        hpRegenRatio,
         hp: this.hp, maxHp: this.maxHp,
         staminaLockSeconds: V.staminaLockSeconds,
       });
@@ -701,6 +720,7 @@ export class Fox {
         this.warn.visible = false;
         const r = stepRestSafe({ timer: this.timer, hp: this.hp, maxHp: this.maxHp }, dt);
         this.timer = r.timer;
+        this.hp = r.hp;
         if (r.done) this._exitRestSafe();
         break;
       }
@@ -1247,8 +1267,10 @@ export class Fox {
 
   /** 受击：扣血 + 击退 + 硬直 */
   /**
-   * 命中。返回 true 表示"这只藏狐被打死"（hp ≤ 0 → 真死，不逃跑不重生）。
-   * 驱退不再由受击触发：狐狸血量/体力见底时会自主撤退，见 _enterRetreat()。
+   * 命中。返回 true 表示"血量被打空"（hp ≤ 0）。
+   * 旧口径（d088054 之前）：普通狐打不死 —— hp 归零后由 main 调 startFleeing
+   * 夹尾逃跑离场，过段时间在出生点附近增援回来；首领被打退则一去不返（见 update
+   * 里的 defeatFate 分支）。撤退/安全休息中的狐已经解除威胁，不能被二次打跑。
    */
   hit(damage, knockback, stun, fromX, fromZ) {
     if (this.hp <= 0) return false;
@@ -1265,7 +1287,10 @@ export class Fox {
       this.warn.visible = false;
       return this.hp <= 0;
     }
-    this.hp = Math.max(0, this.hp - damage);
+    // 已在撤退/安全休息 = 威胁已解除：保住至少 1 点血（它正在远处回血），
+    // 不会被追打再次"打死/打跑"，也不重复计驱退。
+    const disengaged = this.retreating || this.state === 'rest_safe';
+    this.hp = Math.max(disengaged ? 1 : 0, this.hp - damage);
     this.stamina = Math.max(0, this.stamina - FOX.vitals.hitStaminaCost);
     this.hitStreak = (this.hitStreak ?? 0) + 1;
     this._sinceHit = 0;
@@ -1275,19 +1300,10 @@ export class Fox {
     this.knockbackVX = clamp(this.knockbackVX + (dx / d) * impulse, -8, 8);
     this.knockbackVZ = clamp(this.knockbackVZ + (dz / d) * impulse, -8, 8);
     this.stun = stun * (this.type === 'boss' ? 0.45 : 1);
-    // 血量归零 → 真死：不 flee、不 respawn。
-    const dead = resolveHitState(this.hp);
-    if (dead) {
-      this.state = dead;
-      this.retreating = false;
-      this.comboActive = false;
-      this.comboLeft = 0;
-      this.leap = 0;
-      this.warn.visible = false;
-      return true;
-    }
+    // 血量归零：交给 main.startFleeing 做可见的夹尾逃跑（普通狐会增援，首领不回来）。
+    if (this.hp <= 0) return true;
     // 撤退/安全休息中的狐狸被打不退出撤退、不重置 repelCounted（撤退不受打断）。
-    if (this.retreating || this.state === 'rest_safe') return false;
+    if (disengaged) return false;
     // 受击必然打断当前攻击节奏。除了回到 roam，还必须清掉连冲账本：
     // 否则 comboActive 仍为 true，首领下一次正常蓄力进 _beginDash 时
     // 会被当成"连冲中段"，段数与 windTotal 全是错的。

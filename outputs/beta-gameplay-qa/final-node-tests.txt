@@ -1,0 +1,84 @@
+PASS test-accounts-frontend.mjs
+SKIP test-action-layout.cjs (browser/CDP)
+PASS test-admin-tuning.mjs
+PASS test-attack-charge-air.cjs
+PASS test-attack-parry.js
+SKIP test-attack.cjs (browser/CDP)
+SKIP test-attacks.cjs (browser/CDP)
+PASS test-audio-system.cjs
+PASS test-beta-contract.cjs
+PASS test-beta-fox-ai.cjs
+PASS test-beta-gameplay-contract.mjs
+PASS test-beta-sky.mjs
+PASS test-beta-tuning.mjs
+SKIP test-body-view.cjs (browser/CDP)
+PASS test-burrow-forage-audit.mjs
+PASS test-combat-realism.cjs
+PASS test-combat-strike-volumes.cjs
+PASS test-combat-wheel.cjs
+PASS test-companion-alarm.mjs
+PASS test-config-transfer.cjs
+PASS test-control-merge.cjs
+PASS test-cooldown-overlay.cjs
+PASS test-damage-text-size.cjs
+PASS test-debug-volumes.cjs
+SKIP test-dev-gs.cjs (browser/CDP)
+SKIP test-dev-turn.cjs (browser/CDP)
+PASS test-drill-reset.cjs
+SKIP test-ecology.cjs (browser/CDP)
+PASS test-feedback-fixes.cjs
+PASS test-feedback.cjs
+SKIP test-fixes.cjs (browser/CDP)
+PASS test-forage-contract.cjs
+PASS test-foraging.mjs
+SKIP test-fox-navigation.cjs (browser/CDP)
+PASS test-fox-pounce.cjs
+PASS test-fox-repel.cjs
+PASS test-fox-retask.mjs
+SKIP test-fox-run.cjs (browser/CDP)
+PASS test-fox-tactics.cjs
+PASS test-fox-tuning.cjs
+SKIP test-fox-types.cjs (browser/CDP)
+PASS test-fox-vitals.cjs
+SKIP test-fullscreen.cjs (browser/CDP)
+SKIP test-glb.cjs (browser/CDP)
+PASS test-gpu-info.cjs
+PASS test-graphics-preference.cjs
+PASS test-graphics-renderer-consumer.cjs
+PASS test-graze-grid.mjs
+SKIP test-gs.cjs (browser/CDP)
+PASS test-input-mode.cjs
+SKIP test-jump-physics.cjs (browser/CDP)
+PASS test-key-hints.js
+PASS test-keybind-cameraview.cjs
+PASS test-minimap.cjs
+SKIP test-models.cjs (browser/CDP)
+PASS test-move-facing.cjs
+PASS test-multi-burrow.cjs
+PASS test-normal-fox-sandbox.cjs
+PASS test-objectives.mjs
+PASS test-parry-window.cjs
+SKIP test-particles.cjs (browser/CDP)
+PASS test-pc-parry.cjs
+SKIP test-posture.cjs (browser/CDP)
+PASS test-procedural-fox.cjs
+SKIP test-repel.cjs (browser/CDP)
+PASS test-rev12-sandbox-help.cjs
+PASS test-sandbox-panel.cjs
+PASS test-sandbox-recorder.mjs
+PASS test-smart-fox-beta.mjs
+PASS test-sprint-threshold.cjs
+PASS test-stamina.mjs
+PASS test-touch-drive.cjs
+PASS test-touch-layout-cards.test.cjs
+PASS test-touch-layout.js
+PASS test-touch-pointers.cjs
+PASS test-tps-drive.cjs
+PASS test-underground-burrow.cjs
+SKIP test-v11.cjs (browser/CDP)
+SKIP test-v12.cjs (browser/CDP)
+PASS test-version-title.cjs
+SKIP test-viewmodel.cjs (browser/CDP)
+
+22 browser/CDP tests skipped (need Chrome): test-action-layout.cjs, test-attack.cjs, test-attacks.cjs, test-body-view.cjs, test-dev-gs.cjs, test-dev-turn.cjs, test-ecology.cjs, test-fixes.cjs, test-fox-navigation.cjs, test-fox-run.cjs, test-fox-types.cjs, test-fullscreen.cjs, test-glb.cjs, test-gs.cjs, test-jump-physics.cjs, test-models.cjs, test-particles.cjs, test-posture.cjs, test-repel.cjs, test-v11.cjs, test-v12.cjs, test-viewmodel.cjs
+OK 59/59

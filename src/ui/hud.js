@@ -11,12 +11,14 @@ const CH_CIRCUMFERENCE = 2 * Math.PI * 18;
 const INTERACT_TEXT = interactionSemantics(IS_BETA);
 
 export class HUD {
-  constructor() {
+  constructor({ beta = false } = {}) {
+    this.beta = beta;
     this.el = {
       hpBar: document.getElementById('hpBar'),
       hpText: document.getElementById('hpText'),
       energyBar: document.getElementById('energyBar'),
       energyText: document.getElementById('energyText'),
+      energyLabel: document.getElementById('energyText')?.parentElement?.querySelector('span'),
       stressBar: document.getElementById('stressBar'),
       stressText: document.getElementById('stressText'),
       mission: document.getElementById('mission'),
@@ -41,6 +43,11 @@ export class HUD {
       loaderFill: document.getElementById('loaderFill'),
     };
 
+    this.el.betaReserves = document.createElement('div');
+    this.el.betaReserves.className = 'reserve-detail';
+    this.el.betaReserves.hidden = !beta;
+    this.el.energyBar.closest('.vitals')?.appendChild(this.el.betaReserves);
+    if (beta && this.el.energyLabel) this.el.energyLabel.textContent = '◆ 体力值';
     this.toastTimer = 0;
     this.bannerTimer = 0;
     this._threatMarks = [];
@@ -66,9 +73,9 @@ export class HUD {
     if (!el) return;
     el.hidden = !active;
     if (!active) return;
-    const labels = { grass: '啃食中…', flower: '采花中…', berry: '采食中…' };
+    const labels = { grass: this.beta ? '啃草中' : '啃食中…', flower: '采花中…', berry: '采食中…' };
     el.classList.toggle('emergency', !!emergency);
-    el.querySelector('.forage-label').textContent = emergency ? '危险！进食变慢' : labels[kind] || labels.grass;
+    el.querySelector('.forage-label').textContent = !this.beta && emergency ? '危险！进食变慢' : labels[kind] || labels.grass;
     el.querySelector('.forage-track i').style.width = `${Math.max(0, Math.min(1, progress)) * 100}%`;
   }
 
@@ -166,6 +173,7 @@ export class HUD {
     this.el.hpText.textContent = Math.round(p.hp) + '/100';
     this.el.energyText.textContent = Math.round(p.energy) + '/100';
     this.el.stressText.textContent = Math.round(p.stress) + (stats.overloaded ? ' · 过载' : '');
+    if (this.beta) this.el.betaReserves.textContent = `脂肪储备 ${Math.round(p.fat || 0)}/100 · 口中草料 ${Math.round(p.mouth || 0)}/${p.mouthCapacity || 36}`;
 
     // Keep only level identity and live status in the always-visible mission
     // chip. Instructional text lives in the always-visible objective card.
@@ -181,7 +189,7 @@ export class HUD {
     let detail = `伤害 ${stats.damage.toFixed(1)} · 攻速 ${(1 / stats.cooldown).toFixed(1)}/秒`;
     if (stats.overloaded) detail += '<br><span class="warn">负荷 ≥75：伤害 −25%、攻速下降、移动 −18%</span>';
     else if (g.fatigue > 0) detail += `<br><span style="color:#c9c3d7">大招后疲劳 ${Math.ceil(g.fatigue)}s：移速 −20%、攻速下降</span>`;
-    else if (stats.weak) detail += '<br><span style="color:#ffb1a4">储备见底：伤害与移速下降，回洞休息或采食</span>';
+    else if (stats.weak) detail += `<br><span style="color:#ffb1a4">${this.beta ? '体力见底：伤害与移速下降，回洞咀嚼或采食' : '储备见底：伤害与移速下降，回洞休息或采食'}</span>`;
     this.el.combatInfo.innerHTML = `战斗：<strong>${state}</strong> · 范围 ${stats.range.toFixed(1)}m · `
       + `移速 ${ (Number.isFinite(g.player?.speed) ? g.player.speed : 0).toFixed(1) }m/s`
       + `<span class="combat-detail">${detail}</span>`;
@@ -237,7 +245,7 @@ export class HUD {
     this.el.sandboxStatus?.classList.remove('on');
     this.el.sandboxStatus?.setAttribute('aria-hidden', 'true');
     const f = g.friend;
-    const key = `${g.level}/${g.foodCount}/${f.rescued}/${f.saved}/${g.inBurrow}/${cfg.goal}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
+    const key = `${g.level}/${g.foodCount}/${g.player.fat}/${f.rescued}/${f.saved}/${g.inBurrow}/${cfg.goal}/${cfg.fatGoal}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
     if (key === this._lastObjective) return;
     this._lastObjective = key;
 
@@ -248,7 +256,7 @@ export class HUD {
     let html = '<div class="obj-title">本关目标</div>';
     // dev 版：采食对象随季节变化，标签应随之改变
     const eatLabel = g.season ? `采食 · ${g.season.season}` : '采食浆果';
-    html += row(eatLabel, g.foodCount, cfg.goal);
+    html += this.beta ? row('脂肪储备', Math.floor(g.player.fat || 0), cfg.fatGoal) : row(eatLabel, g.foodCount, cfg.goal);
     html += `<div class="obj-row ${f.saved ? 'done' : ''}"><span>伙伴</span><b>${f.saved ? '已到家' : f.rescued ? '跟随中' : '待救援'}</b></div>`;
     html += `<div class="obj-row ${g.inBaseBurrow ? 'done' : ''}"><span>回大本营结算</span><b>${g.inBaseBurrow ? '在大本营' : g.inBurrow ? '临时避难中' : '未回洞'}</b></div>`;
     const levelHint = cfg.subtitle || cfg.brief;

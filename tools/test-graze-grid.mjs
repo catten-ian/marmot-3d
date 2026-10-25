@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildGrazeGrid, queryGrazeRadius, createGrassGrowth,
-  grassDensity, grazeWeight, grazeGrass, regrowGrass,
+  grassDensity, grazeWeight, grazeGrass, regrowGrass, inGrazeCone,
 } from '../src/core/graze-grid.mjs';
 import { BETA_TUNE } from '../src/core/beta-tuning.js';
 
@@ -187,4 +187,37 @@ test('beta forage contracts remain fixed', () => {
   assert.equal(BETA_TUNE.grazeRegenPerSec, 8.0);
   assert.equal(BETA_TUNE.grazeRate, 0.55);
   assert.equal(BETA_TUNE.grassRegrowPerSec, 0.012);
+});
+
+test('front cone uses controller yaw, excludes rear grass, and depleted front grass yields nothing until regrowth', () => {
+  const points = [
+    { index: 0, x: 0, z: -1 }, { index: 1, x: 0, z: 1 },
+    { index: 2, x: 1, z: 0 }, { index: 3, x: -1, z: 0 },
+  ];
+  const grid = buildGrazeGrid(points, 2), growth = createGrassGrowth(4);
+  assert.equal(inGrazeCone(0, -1, 0), true);
+  assert.equal(inGrazeCone(0, 1, 0), false);
+  const front = grazeGrass(growth, grid, 0, 0, 1, { ...OPTS, yaw: 0, halfAngle: Math.PI / 3 });
+  assert.deepEqual(front.touched, [0]);
+  assert.equal(growth.get(1), 1, 'rear grass must remain untouched');
+  assert.equal(growth.get(2), 1, 'side grass outside cone remains untouched');
+  growth.set(0, 0);
+  assert.equal(grazeGrass(growth, grid, 0, 0, 1, { ...OPTS, yaw: 0 }).eaten, 0);
+  assert.equal(queryGrazeRadius(grid, 0, 0, 3, (i) => growth.get(i) > 0, { yaw: 0, halfAngle: Math.PI / 3 }).length, 0);
+  regrowGrass(growth, 1, 0.1);
+  assert.ok(grazeGrass(growth, grid, 0, 0, 0.1, { ...OPTS, yaw: 0 }).eaten > 0, 'regrowth makes grass edible again');
+});
+
+test('sparse front-only local grass has a monotone harvest-speed falloff', () => {
+  const points = [{ index: 0, x: 0, z: -1 }, { index: 1, x: 0, z: -2 }, { index: 2, x: 0, z: 1 }];
+  const grid = buildGrazeGrid(points, 2), growth = createGrassGrowth(3);
+  const opts = { ...OPTS, yaw: 0 };
+  const full = grazeGrass(growth, grid, 0, 0, 0.01, opts).eaten;
+  growth.set(0, 0); growth.set(1, 0);
+  const empty = grazeGrass(growth, grid, 0, 0, 0.01, opts).eaten;
+  growth.set(0, 0.5);
+  const sparse = grazeGrass(growth, grid, 0, 0, 0.01, opts).eaten;
+  assert.ok(sparse < full && sparse > 0);
+  assert.equal(empty, 0);
+  assert.equal(growth.get(2), 1);
 });

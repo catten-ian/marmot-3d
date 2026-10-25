@@ -46,7 +46,7 @@ const ALL_IDS = [...ACTIONS, SANDBOX_CONTROL];
 const JOYSTICK = 'joystick';
 const SELECTABLE_IDS = [...ALL_IDS, JOYSTICK];
 // 摇杆整体大小滑块范围（相对 CSS 基准尺寸的倍数）。
-const JOYSTICK_SCALE_MIN = 0.7, JOYSTICK_SCALE_MAX = 1.4;
+const JOYSTICK_SCALE_MIN = IS_BETA ? 0.5 : 0.7, JOYSTICK_SCALE_MAX = IS_BETA ? 1.8 : 1.4;
 // 可调整的常驻 HUD 信息卡：布局 id → 页面元素。
 // hudViewBtn 对应 index.html 里原有的 #viewBtn（第一/第三人称切换按钮，位于 ⚙ 设置键
 // 左侧）。它复用卡片组的 位置X·Y / 大小 / 透明度 / 拖动 / 持久化 通路，但 apply 时按
@@ -696,7 +696,7 @@ export class TouchLayout {
       <div class="layout-setting-row button-row"><label for="layoutButtonScale">单项大小</label><input id="layoutButtonScale" type="range" min="0.7" max="1.35" step="0.05"><output data-layout-value="buttonScale"></output></div>
       <div class="layout-setting-row button-row"><label for="layoutButtonOpacity">单项透明度</label><input id="layoutButtonOpacity" type="range" min="0.3" max="1" step="0.05"><output data-layout-value="buttonOpacity"></output></div>
       <div class="layout-setting-row card-pos-row"><label>卡片位置（屏幕宽/高百分比）</label><span class="card-pos-inputs"><label>X <input id="layoutCardX" type="number" min="0" max="100" step="0.5" inputmode="decimal">%</label><label>Y <input id="layoutCardY" type="number" min="0" max="100" step="0.5" inputmode="decimal">%</label></span></div>
-      <div class="layout-setting-row joystick-row"><label for="layoutJoystickScale">摇杆整体大小 (70-140%)</label><input id="layoutJoystickScale" type="range" min="${JOYSTICK_SCALE_MIN}" max="${JOYSTICK_SCALE_MAX}" step="0.05" value="${this.layout.joystick.scale}"><output data-layout-value="joystickScale"></output></div>
+      <div class="layout-setting-row joystick-row"><label for="layoutJoystickScale">摇杆整体大小 (${Math.round(JOYSTICK_SCALE_MIN * 100)}-${Math.round(JOYSTICK_SCALE_MAX * 100)}%)</label><input id="layoutJoystickScale" type="range" min="${JOYSTICK_SCALE_MIN}" max="${JOYSTICK_SCALE_MAX}" step="0.05" value="${this.layout.joystick.scale}"><output data-layout-value="joystickScale"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreSize">攻击键内圈大小 (40-100%)</label><input id="layoutAttackCoreSize" type="range" min="0.4" max="1" step="0.01"><output data-layout-value="attackCoreSize"></output></div>
       <div class="layout-setting-row attack-core-row"><label for="layoutAttackCoreOpacity">攻击键内圈透明度 (30-100%)</label><input id="layoutAttackCoreOpacity" type="range" min="0.3" max="1" step="0.01"><output data-layout-value="attackCoreOpacity"></output></div>
       <div class="layout-setting-row"><label for="layoutSprintThreshold">摇杆内圈·疾跑触发范围 (55-95%)</label><input id="layoutSprintThreshold" type="range" min="0.55" max="0.95" step="0.01" value="${this.layout.joystick.sprintThreshold}"><output data-layout-value="sprintThreshold"></output></div>

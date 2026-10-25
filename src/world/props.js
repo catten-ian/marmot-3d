@@ -394,11 +394,12 @@ export class Scenery {
     this.group.add(mesh);
   }
 
-  hasGrazeable(x, z, radius = BETA_TUNE.grazeHaloRadius) {
+  hasGrazeable(x, z, radius = BETA_TUNE.grazeHaloRadius, yaw = null) {
     if (!IS_BETA) return false;
     // 连续判定：圈内只要还有 growth>0（没被啃光）的草就能继续啃，
     // 不再使用 growth>0.5 二值阈值。
-    return queryGrazeRadius(this.grazeGrid, x, z, radius, (index) => this.growth.get(index) > 0).length > 0;
+    const cone = Number.isFinite(yaw) ? { yaw, halfAngle: BETA_TUNE.grazeConeHalfAngle } : null;
+    return queryGrazeRadius(this.grazeGrid, x, z, radius, (index) => this.growth.get(index) > 0, cone).length > 0;
   }
 
   /** 连续密度（0~1）：半径内草株 growth 平均值，详见 graze-grid.mjs。 */
@@ -424,12 +425,13 @@ export class Scenery {
    *   density —— eaten/capacity，按距离加权的连续密度（0~1），
    *              能量回量 = grazeRegenPerSec * density * dt，与实际吃到的草严格同源。
    */
-  grazeAt(x, z, dt) {
+  grazeAt(x, z, dt, yaw = null) {
     if (!IS_BETA || !(dt > 0)) return { eaten: 0, density: 0 };
     const { eaten, capacity, touched } = grazeGrass(this.growth, this.grazeGrid, x, z, dt, {
       rate: BETA_TUNE.grazeRate,
       coreRadius: BETA_TUNE.grazeCoreRadius,
       haloRadius: BETA_TUNE.grazeHaloRadius,
+      yaw, halfAngle: BETA_TUNE.grazeConeHalfAngle,
     });
     for (const index of touched) this._setGrassVisual(index, this.growth.get(index));
     if (touched.length) this.grass.instanceMatrix.needsUpdate = true;

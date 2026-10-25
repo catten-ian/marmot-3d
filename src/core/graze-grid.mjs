@@ -29,7 +29,15 @@ export function buildGrazeGrid(points, cellSize = 2) {
   return { cellSize: size, map, points: pointsByIndex };
 }
 
-export function queryGrazeRadius(grid, x, z, radius, filter = null) {
+export function inGrazeCone(dx, dz, yaw = 0, halfAngle = Math.PI / 3) {
+  const distance = Math.hypot(dx, dz);
+  if (distance < 1e-9) return true;
+  if (!Number.isFinite(yaw) || !(halfAngle >= 0)) return false;
+  // Same convention as FirstPersonController.forwardFlat: (-sin(yaw), -cos(yaw)).
+  return (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) / distance >= Math.cos(halfAngle) - 1e-12;
+}
+
+export function queryGrazeRadius(grid, x, z, radius, filter = null, cone = null) {
   if (!grid?.map || !Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(radius) || radius < 0) return [];
   const r = radius;
   const size = grid.cellSize > 0 ? grid.cellSize : 2;
@@ -42,6 +50,7 @@ export function queryGrazeRadius(grid, x, z, radius, filter = null) {
     for (const index of bucket) {
       const point = grid.points?.get(index);
       if (point && Math.hypot(point.x - x, point.z - z) > r) continue;
+      if (point && cone && !inGrazeCone(point.x - x, point.z - z, cone.yaw, cone.halfAngle)) continue;
       if (!filter || filter(index)) out.push(index);
     }
   }
@@ -82,8 +91,8 @@ export function createGrassGrowth(count, initial = 1) {
  *   半径内没有草株（竞技场边缘）或全部被啃光 = 0。
  * 于是「越稀疏 → 每秒回量越少」是平滑关系，不再有跌破阈值瞬间归零的断崖。
  */
-export function grassDensity(grid, growth, x, z, radius) {
-  const indices = queryGrazeRadius(grid, x, z, radius);
+export function grassDensity(grid, growth, x, z, radius, cone = null) {
+  const indices = queryGrazeRadius(grid, x, z, radius, null, cone);
   if (!indices.length) return 0;
   let sum = 0;
   for (const index of indices) sum += growth?.get?.(index) ?? 0;
@@ -115,13 +124,14 @@ export function grazeWeight(distance, coreRadius, haloRadius) {
  * eaten / capacity 即按距离加权的连续密度：草越稀疏，同样按住每秒吃到的越少。
  */
 export function grazeGrass(growth, grid, x, z, dt, {
-  rate = 0.55, coreRadius = 1.2, haloRadius = 3.0,
+  rate = 0.55, coreRadius = 1.2, haloRadius = 3.0, yaw = null, halfAngle = Math.PI / 3,
 } = {}) {
   if (!growth || !grid?.points || !(dt > 0) || !(rate > 0) || !(haloRadius > 0)) {
     return { eaten: 0, capacity: 0, touched: [] };
   }
   const core = Math.min(coreRadius, haloRadius);
-  const indices = queryGrazeRadius(grid, x, z, haloRadius);
+  const cone = Number.isFinite(yaw) ? { yaw, halfAngle } : null;
+  const indices = queryGrazeRadius(grid, x, z, haloRadius, null, cone);
   let eaten = 0;
   let weightSum = 0;
   const touched = [];
