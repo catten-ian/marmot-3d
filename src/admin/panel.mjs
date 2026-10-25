@@ -71,6 +71,19 @@ export class TuningPanel {
     this.list.className = 'panel-list';
     this.root.appendChild(this.list);
     this._renderList();
+    this.help = document.createElement('div');
+    this.help.className = 'tune-help'; this.help.hidden = true;
+    document.body.appendChild(this.help);
+  }
+
+  _bindHelp(row, entry) {
+    const show = () => { this.help.textContent = entry.help; this.help.hidden = false; row.classList.add('help-open'); };
+    const hide = () => { this.help.hidden = true; row.classList.remove('help-open'); };
+    row.addEventListener('pointerenter', show); row.addEventListener('pointerleave', hide);
+    let timer = 0;
+    row.addEventListener('pointerdown', (ev) => { if (ev.pointerType === 'touch') timer = window.setTimeout(show, 520); }, { passive: true });
+    row.addEventListener('pointerup', () => { if (timer) window.clearTimeout(timer); });
+    row.addEventListener('pointercancel', () => { if (timer) window.clearTimeout(timer); });
   }
 
   _groups() {
@@ -165,6 +178,7 @@ export class TuningPanel {
       refs.slider = slider; refs.number = num;
     }
     row.appendChild(ctrl);
+    this._bindHelp(row, entry);
     this._markDirty(row, entry);
     this.inputs.set(entry.id, refs);
     return row;

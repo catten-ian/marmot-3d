@@ -122,6 +122,10 @@ if (preview) {
   $('#fox-yaw').addEventListener('input', (e) => { preview.setYaw(Number(e.target.value) * Math.PI / 180); preview.rebuildVolumes(); });
   $('#fox-x').addEventListener('input', (e) => { preview.foxRoot.position.x = Number(e.target.value); preview.rebuildVolumes(); });
   $('#fox-z').addEventListener('input', (e) => { preview.foxRoot.position.z = Number(e.target.value); preview.rebuildVolumes(); });
+  document.querySelectorAll('[data-object]').forEach((cb) => { cb.addEventListener('change', () => preview.setObjectVisible(cb.dataset.object, cb.checked)); });
+  $('#timeline-play').addEventListener('click', (e) => { preview.toggleTimeline(); e.target.textContent = preview.timeline.playing ? '暂停' : '继续'; });
+  $('#timeline-replay').addEventListener('click', () => { preview.replayTimeline(); $('#timeline').value = 0; $('#timeline-play').textContent = '暂停'; });
+  $('#timeline').addEventListener('input', (e) => preview.setTimelineTime(e.target.value));
   document.querySelectorAll('[data-vol]').forEach((cb) => {
     cb.addEventListener('change', () => {
       preview.show[cb.dataset.vol] = cb.checked;

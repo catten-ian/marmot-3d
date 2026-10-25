@@ -51,6 +51,8 @@
   .tune-ctrl select { background: #171a14; color: #e8e2d0; border: 1px solid #4a5240;
                       border-radius: 4px; padding: 4px 6px; font-size: 12px; }
   .tune-ctrl .unit { font-size: 11px; color: #8a8474; }
+  .tune-help { position: fixed; z-index: 100; left: 12px; right: 12px; bottom: 12px; max-width: 760px; padding: 10px 12px; background: #182016; border: 1px solid #8fa96a; border-radius: 8px; color: #e8e2d0; font-size: 12px; line-height: 1.6; box-shadow: 0 4px 18px #0008; }
+  .tune-row.help-open { outline: 1px solid #9fc06a; }
   .empty { color: #8a8474; font-size: 13px; }
   .cloud-box { margin: 8px 0 2px; padding: 8px; border: 1px solid #4a5a44; border-radius: 8px;
                background: #1d211a; }
@@ -201,6 +203,7 @@
         <span>X</span><input id="fox-x" type="number" step="0.5" value="0">
         <span>Z</span><input id="fox-z" type="number" step="0.5" value="0">
       </div>
+      <div class="row"><span>对象：</span><label><input type="checkbox" data-object="marmot" checked>土拨鼠</label><label><input type="checkbox" data-object="flora" checked>花/草</label><label><input type="checkbox" data-object="target" checked>木桩假人</label></div>
       <div class="row"><span>可视化：</span>
         <label><input type="checkbox" data-vol="pounceSector" checked>扑击扇形</label>
         <label><input type="checkbox" data-vol="dashTrack" checked>冲刺轨迹</label>
@@ -210,7 +213,7 @@
         <label><input type="checkbox" data-vol="strikeFan" checked>扑击攻击体积</label>
       </div>
       <div class="row"><span id="model-status">模型加载中…</span></div>
-      <div id="window-summary"></div>
+      <div id="window-summary"></div><div class="row"><span>时间线：</span><button id="timeline-play" type="button">暂停</button><button id="timeline-replay" type="button">重播</button><input id="timeline" type="range" min="0" max="1" step="0.001" value="0"></div><div class="window-text">前摇 → 锁定/冲刺 → 命中窗口 → 后摇（拖动滑块可逐帧检查）</div>
       <div class="row"><span>拖动左键旋转 · 右键平移 · 滚轮缩放</span></div>
     </div>
   </div>

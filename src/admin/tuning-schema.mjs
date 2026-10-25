@@ -22,6 +22,15 @@ import { STRIKE_VOLUMES } from '../systems/combat.js';
 /** 导出文件的 schema 版本；导入时校验。 */
 export const ADMIN_SCHEMA_VERSION = 1;
 
+function describeEntry(entry) {
+  const unit = entry.unit ? `单位：${entry.unit}。` : '单位：无量纲。';
+  const range = entry.kind === 'number' && Number.isFinite(entry.min) && Number.isFinite(entry.max) ? `范围：${entry.min}～${entry.max}。` : '';
+  const direction = entry.kind === 'boolean' ? '开启会启用该机制，关闭会停用该机制。' : entry.kind === 'enum' ? '切换选项会改变该机制采用的行为模式。' : '调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。';
+  const danger = /角度|范围|距离|半径|碰撞|锁定|速度|冷却|伤害|体力|蓄力|前摇|后摇|高度/.test(entry.label) ? '危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。' : '危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。';
+  return `含义：${entry.label}（来源 ${entry.source}）。${unit}${range}${direction}关联机制：${entry.group}与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。${danger}`;
+}
+
+
 const deg = (r) => r * 180 / Math.PI;
 
 /**
@@ -372,6 +381,7 @@ export function buildTuningEntries() {
   e.push(num('misc.fieldW', G_MISC, '场地宽', F_CONFIG, 'FIELD_W', FIELD_W, { min: 20, max: 300, unit: 'm' }));
   e.push(num('misc.fieldH', G_MISC, '场地高', F_CONFIG, 'FIELD_H', FIELD_H, { min: 20, max: 300, unit: 'm' }));
 
+  for (const entry of e) entry.help = describeEntry(entry);
   return e;
 }
 

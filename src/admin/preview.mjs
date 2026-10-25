@@ -3,7 +3,6 @@
  * 所有可视化尺寸都读自面板预览态 values（改动即时反映）。
  */
 import * as THREE from 'three';
-import { instantiate, normalizeModel } from '../models/loader.js';
 import { createProceduralFox } from '../entities/procedural-fox.js';
 
 const TYPE_COLOR = { normal: 0xc4763a, pup: 0xc4763a, fast: 0xd9c294, heavy: 0x9c8770, boss: 0x6b4c31 };
@@ -46,7 +45,8 @@ export class AdminPreview {
     this.pose = 'idle';
     this.foxType = 'normal';
     this.foxYaw = 0;
-    this.show = { pounceSector: true, dashTrack: true, collision: true, windRange: true, lungeLock: true, strikeFan: true };
+    this.show = { pounceSector: true, dashTrack: true, collision: true, windRange: true, lungeLock: true, strikeFan: true, marmot: true, flora: true, target: true };
+    this.timeline = { playing: true, time: 0 };
     this._time = 0;
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -83,6 +83,7 @@ export class AdminPreview {
     this.scene.add(this.volGroup);
 
     this._buildFox();
+    this._buildSceneObjects();
     this._bindOrbit(canvas);
     this.rebuildVolumes();
     this._resize();
@@ -91,24 +92,29 @@ export class AdminPreview {
   }
 
   // ---------- 狐狸模型 ----------
-  async _buildFox() {
-    try {
-      const model = await instantiate('./assets/models/fox.glb', 'fox');
-      if (!model) throw new Error('模型加载器返回空模型');
-      // 与游戏实体共用归一化策略：保留 GLB 原始 up 轴姿态，再统一前向 -X → +Z。
-      const norm = normalizeModel(model, 0.92, { upAxis: 'native' });
-      norm.wrap.rotation.y = Math.PI / 2;
-      this.modelKind = 'glb';
-      this._setModel(norm.wrap);
-      this.onStatus('已加载真实狐狸模型 assets/models/fox.glb（姿态通过程序化倾斜/弹跳预览）');
-    } catch (e) {
-      this.modelKind = 'procedural';
-      this.proc = createProceduralFox({ color: TYPE_COLOR[this.foxType] || TYPE_COLOR.normal });
-      this._setModel(this.proc.group);
-      this.onStatus('fox.glb 加载失败，已回退程序化狐狸');
-    }
+  _buildFox() {
+    this.modelKind = 'procedural';
+    this.proc = createProceduralFox({ color: TYPE_COLOR[this.foxType] || TYPE_COLOR.normal });
+    this._setModel(this.proc.group);
+    this.onStatus('模型来源：Beta 程序化模型（默认）；未加载真实 fox.glb，无回退。');
     this.refreshTuning();
   }
+
+  _buildSceneObjects() {
+    this.objects = new THREE.Group(); this.scene.add(this.objects);
+    const marmot = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.SphereGeometry(.42, 16, 10), solidMat(0x8b654e, .95)); body.scale.y = 1.2; body.position.y = .5;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.3, 14, 10), solidMat(0xa77b5b, .95)); head.position.set(0, 1.02, .05);
+    marmot.add(body, head); marmot.position.set(0, 0, 4); this.marmot = marmot; this.objects.add(marmot);
+    const flora = new THREE.Group();
+    for (let i = 0; i < 8; i++) { const stem = new THREE.Mesh(new THREE.ConeGeometry(.08, .55, 6), solidMat(i % 2 ? 0x6b9b4f : 0xe9b2bf, .9)); stem.position.set((i - 3.5) * .55, .27, 2.2 + (i % 2) * .45); flora.add(stem); }
+    this.flora = flora; this.objects.add(flora);
+    const target = new THREE.Mesh(new THREE.CylinderGeometry(.38, .38, 1.1, 16), wireMat(0xffd36a, .9)); target.position.set(0, .55, 2.8); this.target = target; this.objects.add(target);
+  }
+  setObjectVisible(name, visible) { if (this[name]) this[name].visible = visible; }
+  setTimelineTime(time) { this.timeline.time = Math.max(0, Math.min(1, Number(time) || 0)); this.timeline.playing = false; }
+  replayTimeline() { this.timeline.time = 0; this.timeline.playing = true; }
+  toggleTimeline() { this.timeline.playing = !this.timeline.playing; }
 
   _setModel(obj) {
     this.foxModelSlot.clear();
@@ -286,6 +292,7 @@ export class AdminPreview {
     const dt = Math.min(0.05, this._lastT ? (t - this._lastT) / 1000 : 1 / 60);
     this._lastT = t;
     this._time += dt;
+    if (this.timeline.playing) this.timeline.time = (this.timeline.time + dt / 2.2) % 1;
 
     // 姿态动画（程序驱动 GLB；程序化模型同时驱动四肢）
     const slot = this.foxModelSlot;
@@ -307,7 +314,8 @@ export class AdminPreview {
     }[this.pose] || 0;
     const lean = { idle: 0, walk: -0.04, dash: -0.16, pounce: -0.38 }[this.pose] || 0;
     slot.position.y = bob;
-    slot.rotation.x = lean;
+    const phaseLean = this.timeline.time < .18 ? 0 : this.timeline.time < .45 ? -.16 : this.timeline.time < .7 ? -.38 : 0;
+    slot.rotation.x = this.pose === 'pounce' ? phaseLean : lean;
 
     const o = this._orbit;
     this.camera.position.set(
