@@ -1,6 +1,19 @@
 const VIEW_RADIUS = 34;
 
 /**
+ * Source-of-truth for observation visibility. Beta keeps the map available for
+ * the whole stationary posture blend (including grazing crouch and standing
+ * back up); stable/dev retain the original settled-upright requirement.
+ */
+export function shouldObserveMinimap({
+  beta = false, moving = false, inBurrow = false, crouch = 0, postureSpeed = 0,
+} = {}) {
+  if (moving || inBurrow) return false;
+  if (beta) return true;
+  return crouch < 0.08 && postureSpeed < 0.04;
+}
+
+/**
  * 世界坐标到小地图坐标：北向上，世界 +X 向屏幕右，世界 +Z 向屏幕下。
  * 因而世界 +Z 的标定点位保持在地图下方，不对地图本身做镜像。
  */
@@ -16,10 +29,11 @@ export function worldYawToMapAngle(yaw) { return -Number(yaw || 0); }
 
 /** 站立静止时显示的有限视野地图，北向上。 */
 export class Minimap {
-  constructor() {
+  constructor({ beta = false } = {}) {
     this.root = document.createElement('div');
     this.root.className = 'minimap';
-    this.root.innerHTML = '<canvas width="220" height="220" aria-label="站立观察小地图"></canvas><span>站立观察</span>';
+    const label = beta ? '原地观察' : '站立观察';
+    this.root.innerHTML = `<canvas width="220" height="220" aria-label="${label}小地图"></canvas><span>${label}</span>`;
     document.body.appendChild(this.root);
     this.canvas = this.root.querySelector('canvas');
     this.ctx = this.canvas.getContext('2d');

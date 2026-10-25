@@ -19,6 +19,7 @@
  */
 
 import { IS_BETA, IS_DEV } from './version.js';
+import { interactionSemantics } from './interaction-semantics.mjs';
 
 export const CONTROL_MODE_STORAGE_KEY = 'marmot3d.control-mode';
 export const CONTROL_MODE_OPTIONS = [
@@ -48,7 +49,7 @@ export const ACTIONS = [
   { id: 'jump',       label: '跳跃',   type: 'combat' },
   { id: 'burst',      label: '应急爆发', type: 'combat' },
   { id: 'ultimate',   label: '协同大招', type: 'combat' },
-  { id: 'interact',   label: '救援/陪伴', type: 'combat' },
+  { id: 'interact',   label: interactionSemantics(IS_BETA).actionLabel, type: 'combat' },
   { id: 'sprint',     label: '疾行',   type: 'combat' },
   { id: 'pause',      label: '暂停',   type: 'system' },
   { id: 'cameraView', label: '切换视角', type: 'system' },

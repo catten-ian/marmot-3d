@@ -20,12 +20,13 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { ModelLoadCache, loadWithRetry, requireUsableModel } from './model-load-retry.mjs';
 
 const loader = new GLTFLoader();
 const SOFT_TIMEOUT_MS = 15000;
 
-/** url -> { level, scene, error, geomOnly } */
-const cache = new Map();
+/** Successful assets persist; failures are coalesced only for a bounded cooldown. */
+const cache = new ModelLoadCache();
 /** 全局统计，供 UI 展示 */
 const STATUS = {
   marmot: { level: 'pending', error: null, tris: 0, textured: false },
@@ -117,34 +118,22 @@ function stripTextures(root, label) {
   return stripped;
 }
 
-/** 统计三角面数（用于状态展示） */
-function countTris(root) {
-  let tris = 0;
-  root.traverse((o) => {
-    if (!o.isMesh) return;
-    const idx = o.geometry.index;
-    tris += (idx ? idx.count : o.geometry.attributes.position.count) / 3;
-  });
-  return Math.round(tris);
-}
-
 /**
- * 加载模型。明确失败时 resolve(null)；慢加载不因软超时被取消或缓存成 null。
+ * 单次加载。明确失败/空几何时 reject，由上层执行有界退避重试。
+ * 慢加载仍只是软超时，不会被取消；程序化实例在等待期间保持可见。
  *
  * @returns Promise<{scene: Object3D, level: string, textured: boolean}|null>
  */
-export function loadModel(url, key = '') {
-  if (cache.has(url)) return cache.get(url);
-
-  const p = new Promise((resolve) => {
+function loadModelAttempt(url, key) {
+  return new Promise((resolve, reject) => {
     // 15s 是软超时，不是取消加载：实例已先显示程序化版本，
     // 因此慢模型继续加载也不会阻塞游戏；迟到成功仍应替换回真实模型。
     let settled = false;
-    const done = (v) => {
+    const done = (error, value) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve(v);
+      if (error) reject(error); else resolve(value);
     };
     const timer = setTimeout(() => {
       if (key && STATUS[key]) {
@@ -157,64 +146,74 @@ export function loadModel(url, key = '') {
     loader.load(
       url,
       (gltf) => {
-        const root = gltf.scene;
-        if (!root) {
-          if (key && STATUS[key]) { STATUS[key].level = 'empty'; STATUS[key].error = '场景为空'; }
-          done(null);
+        let root, tris;
+        try {
+          root = gltf?.scene;
+          // Validate before changing materials or exposing the scene to callers.
+          tris = requireUsableModel(root);
+        } catch (error) {
+          done(error);
           return;
         }
 
         // —— L1 判定：贴图是否可用 ——
         let textured = false;
-        root.traverse((o) => {
-          if (!o.isMesh) return;
-          const ms = Array.isArray(o.material) ? o.material : [o.material];
-          for (const m of ms) if (m && textureUsable(m.map)) textured = true;
-        });
-        if (!textured) {
-          stripTextures(root, key || url);
-        }
+        try {
+          root.traverse((o) => {
+            if (!o.isMesh) return;
+            const ms = Array.isArray(o.material) ? o.material : [o.material];
+            for (const m of ms) if (m && textureUsable(m.map)) textured = true;
+          });
+          if (!textured) stripTextures(root, key || url);
 
-        const tris = countTris(root);
-        if (tris < 8) {
-          // 几何体是空的 —— 视为不可用，走程序化
-          console.warn(`[models] ${url} 几何体为空（${tris} 面），回退`);
-          if (key && STATUS[key]) { STATUS[key].level = 'empty-geometry'; STATUS[key].error = `${tris} 面`; }
-          done(null);
-          return;
-        }
+          // 强制双面渲染（详见 forceDoubleSided 的注释）——
+          // 单面渲染下简化后的摄影测量网格会渲染成空壳，画面上完全看不见。
+          const dblSided = forceDoubleSided(root);
+          if (dblSided) {
+            console.info(`[models] ${key || url}: ${dblSided} 个材质已设为双面渲染` +
+              '（简化后的摄影测量网格绕序不一致，单面会渲染成空壳）');
+          }
 
-        // 强制双面渲染（详见 forceDoubleSided 的注释）——
-        // 单面渲染下简化后的摄影测量网格会渲染成空壳，画面上完全看不见。
-        const dblSided = forceDoubleSided(root);
-        if (dblSided) {
-          console.info(`[models] ${key || url}: ${dblSided} 个材质已设为双面渲染` +
-            '（简化后的摄影测量网格绕序不一致，单面会渲染成空壳）');
+          const level = textured ? 'full' : 'geometry-only';
+          if (key && STATUS[key]) {
+            STATUS[key].level = level;
+            STATUS[key].error = null;
+            STATUS[key].tris = tris;
+            STATUS[key].textured = textured;
+          }
+          console.info(`[models] ${key || url} 加载成功 [${level}] ${tris.toLocaleString()} 面`);
+          done(null, { scene: root, level, textured, tris, url });
+        } catch (error) {
+          // A malformed material/graph is no more usable than a malformed GLB.
+          done(error);
         }
-
-        const level = textured ? 'full' : 'geometry-only';
-        if (key && STATUS[key]) {
-          STATUS[key].level = level;
-          STATUS[key].error = null;
-          STATUS[key].tris = tris;
-          STATUS[key].textured = textured;
-        }
-        console.info(`[models] ${key || url} 加载成功 [${level}] ${tris.toLocaleString()} 面`);
-        done({ scene: root, level, textured, tris });
       },
       undefined,
       (err) => {
-        clearTimeout(timer);
-        const msg = (err && (err.message || err.type)) || String(err);
-        console.warn('[models] 加载失败，回退到程序化建模:', url, msg);
-        if (key && STATUS[key]) { STATUS[key].level = 'failed'; STATUS[key].error = msg; }
-        done(null);
+        done(err instanceof Error ? err : new Error((err && (err.message || err.type)) || String(err)));
       },
     );
   });
+}
 
-  cache.set(url, p);
-  return p;
+/** 同一 URL 共享完整重试序列；重试中/耗尽后程序化模型始终可用。 */
+export function loadModel(url, key = '') {
+  return cache.load(url, () => loadWithRetry({
+    attempt: () => loadModelAttempt(url, key),
+    onError: (error, { number, attempts, final, delayMs }) => {
+      const msg = error?.message || String(error);
+      if (key && STATUS[key]) {
+        STATUS[key].level = final ? (error?.code || 'failed') : 'retrying';
+        STATUS[key].error = final ? `${msg}；${attempts} 次加载均失败` : `${msg}；${delayMs}ms 后重试`;
+        STATUS[key].tris = 0;
+        STATUS[key].textured = false;
+      }
+      console.warn(
+        final ? '[models] 加载重试耗尽，回退到程序化建模:' : '[models] 加载失败，稍后自动重试:',
+        url, `${number}/${attempts}`, msg,
+      );
+    },
+  }));
 }
 
 /**
@@ -270,12 +269,12 @@ export function preloadModels(baseUrl = './assets/models/', opts = {}) {
  */
 export async function revalidateTextures() {
   let bad = 0;
-  for (const [url, p] of cache) {
+  for (const p of cache.promises()) {
     let rec;
     try { rec = await p; } catch { continue; }
     if (!rec || !rec.scene) continue;
     // stripTextures 遍历并剥离解码尺寸为 0 的失效贴图，返回剥离数量
-    const stripped = stripTextures(rec.scene, url);
+    const stripped = stripTextures(rec.scene, rec.url || rec.scene.name || 'cached model');
     if (stripped > 0 && rec.textured) {
       bad += stripped;
       rec.textured = false;

@@ -82,6 +82,7 @@ import { hpDamageMultiplier } from './core/fox-motion.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION, VERSION_LABEL } from './core/version.js';
 import { BETA_TUNE, betaFlowerCompletesImmediately, resolveLungeLockYaw } from './core/beta-tuning.js';
+import { betaInteractionSkillState, interactionSemantics } from './core/interaction-semantics.mjs';
 import { documentTitleFor } from './core/version-mode.mjs';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
@@ -108,11 +109,13 @@ import { clearSession, isUnauthorized, readSession, writeSession, restoreSession
 import { AuthModal } from './ui/auth-modal.mjs';
 import { LeaderboardUI } from './ui/leaderboard.mjs';
 import { TouchLayout } from './ui/touch-layout.js';
-import { Minimap } from './ui/minimap.js';
+import { Minimap, shouldObserveMinimap } from './ui/minimap.js';
 import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDummy, setSandboxDummyDefeatable } from './sandbox/state.js';
 import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
+
+const INTERACT_TEXT = interactionSemantics(IS_BETA);
 
 // ============================================================
 // 初始化
@@ -121,6 +124,17 @@ const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
 if (IS_BETA) audio.bindUserGesture(window);
+
+// The shared shell keeps stable markup. Beta adjusts only the existing interact
+// controls at startup, before help/settings/layout surfaces can expose them.
+if (IS_BETA) {
+  const interactButton = document.querySelector('[data-touch-action="interact"]');
+  interactButton?.setAttribute('aria-label', INTERACT_TEXT.touchAria);
+  const interactButtonLabel = interactButton?.querySelector('small');
+  if (interactButtonLabel) interactButtonLabel.textContent = INTERACT_TEXT.touchLabel;
+  const interactSkillLabel = document.querySelector('[data-kb-skill="interact"] .kb-name');
+  if (interactSkillLabel) interactSkillLabel.textContent = INTERACT_TEXT.skillLabel;
+}
 
 hud.setLoading(8);
 
@@ -327,7 +341,7 @@ function buildFoods(levelIndex) {
 }
 berries = buildFoods(0);
 const companion = new Companion(scene);
-const minimap = new Minimap();
+const minimap = new Minimap({ beta: IS_BETA });
 let debugVolumes = null;
 let debugVolumesReady = Promise.resolve();
 let foxes = [];
@@ -416,6 +430,9 @@ preloadModels('./assets/models/', { foxFile: FOX_PRELOAD_FILE }).then((st) => {
     full: '完整',
     'geometry-only': '仅几何（贴图不可用）',
     'loading-slow': '加载较慢（程序化模型可见）',
+    retrying: '加载失败，正在自动重试',
+    empty: '场景为空（程序化模型可见）',
+    'empty-geometry': '几何无效（程序化模型可见）',
     procedural: '程序化兜底',
     timeout: '加载超时',
     failed: '加载失败',
@@ -1206,7 +1223,7 @@ function title() {
       <span><kbd>${h.jump}</kbd> 跳跃（可躲扑击）</span>
       <span><kbd>${h.burst}</kbd> 短时应急爆发</span>
       <span><kbd>${h.ultimate}</kbd> 蓄满后的范围大招</span>
-      <span><kbd>${h.interact}</kbd> 救援 / 陪伴缓压</span>
+      <span><kbd>${h.interact}</kbd> ${INTERACT_TEXT.titleHelp}</span>
       <span><kbd>${h.sprint}</kbd> 疾行（更快但更耗储备）</span>
       <span><kbd>${h.pause}</kbd> 暂停　<kbd>${h.retry}</kbd> 重试　<kbd>${h.restart}</kbd> 重开</span>
     </div>
@@ -1363,7 +1380,7 @@ function pause() {
   hud.showPanel(`
     <div class="eyebrow">PAUSED</div>
     <h2>喘口气。</h2>
-    <p><span id="pauseMoveHint">${TOUCH_DEVICE ? '第一人称左摇杆左右转向、前后移动（可同时）；第三人称按摇杆方向移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。' : h.movement}</span>${TOUCH_DEVICE ? '' : ` · ${bindText(binds, 'attack', '左键')} 攻击 · ${bindText(binds, 'parry', '中键')} 迎击 · ${bindText(binds, 'burst')} 爆发 · ${bindText(binds, 'ultimate')} 大招 · ${bindText(binds, 'interact')} 救援。`}<br>暂停不会消耗时间。</p>
+    <p><span id="pauseMoveHint">${TOUCH_DEVICE ? (IS_BETA ? INTERACT_TEXT.touchHelp : '第一人称左摇杆左右转向、前后移动（可同时）；第三人称按摇杆方向移动 · 右侧拖动视角 · 触屏按钮可攻击、疾行、跳跃、交互与释放技能。') : h.movement}</span>${TOUCH_DEVICE ? '' : ` · ${bindText(binds, 'attack', '左键')} 攻击 · ${bindText(binds, 'parry', '中键')} 迎击 · ${bindText(binds, 'burst')} 爆发 · ${bindText(binds, 'ultimate')} 大招 · ${bindText(binds, 'interact')} ${INTERACT_TEXT.pauseHelp}。`}<br>暂停不会消耗时间。</p>
     <div class="row">
       <button class="primary" id="resumeBtn">继续 · ${bindText(binds, 'pause')} / Enter</button>
       <button class="ghost" id="pRetryBtn">重试本关 · ${bindText(binds, 'retry')}</button>
@@ -1681,6 +1698,9 @@ function doRoll(gesture = null) {
 }
 
 function doInteract() {
+  // Beta reserves this input for held grazing/foraging. Proximity rescue below
+  // remains intact, but pressing the key must never emit companion feedback.
+  if (IS_BETA) return;
   const f = game.friend;
   const d = Math.hypot(f.x - controller.position.x, f.z - controller.position.z);
   const inBurrow = game.inBurrow;
@@ -1809,7 +1829,13 @@ function update(dt) {
   // 进洞平滑压暗全局光：避免一闪而过，露出 burrow 自带暖光与黑井。
   game._undergroundK = THREE.MathUtils.lerp(game._undergroundK || 0, game.inBurrow ? 1 : 0, Math.min(1, dt * 5));
   sky.setUnderground(game._undergroundK);
-  game.observing = controller.crouch < 0.08 && controller.postureSpeed < 0.04 && !moving && !game.inBurrow;
+  game.observing = shouldObserveMinimap({
+    beta: IS_BETA,
+    moving,
+    inBurrow: game.inBurrow,
+    crouch: controller.crouch,
+    postureSpeed: controller.postureSpeed,
+  });
 
   // 移动消耗储备
   // dev 版「耐饥渴」：同一动作消耗更低（旱獭能长时间不进食活动）
@@ -2160,7 +2186,10 @@ function update(dt) {
 
   // —— 交互提示 ——
   let prompt = '';
-  if (game.friend.saved && game.inBaseBurrow && game.socialCD <= 0) {
+  if (IS_BETA) {
+    if (forage.index === -2) prompt = kbd(bindText(binds, 'interact')) + ` ${INTERACT_TEXT.grassPrompt}`;
+    else if (forage.index >= 0) prompt = kbd(bindText(binds, 'interact')) + ` ${INTERACT_TEXT.flowerPrompt}`;
+  } else if (game.friend.saved && game.inBaseBurrow && game.socialCD <= 0) {
     prompt = kbd(bindText(binds, 'interact')) + ' 陪伴缓压';
   } else if (!game.friend.rescued && !game.friend.saved
     && !IS_BETA
@@ -2864,9 +2893,16 @@ function updateKbSkillBar() {
     setState('ultimate', uKey, '协同大招', game.charge >= 100 ? uState : 'charging', sub);
   }
 
-  // 救援 / 陪伴
+  // 共享 interact 动作的状态文案按通道区分；beta 不读取伙伴救援状态。
   const iKey = keyLabel('interact');
-  if (!game.friend.saved && !game.friend.rescued) setState('interact', iKey, '救援/陪伴', 'ready', '待救援');
+  if (IS_BETA) {
+    const status = betaInteractionSkillState({
+      available: forage.index !== -1,
+      held: interactHeld,
+      kind: forage.index === -2 ? 'grass' : 'flower',
+    });
+    setState('interact', iKey, status.label, status.state, status.sub);
+  } else if (!game.friend.saved && !game.friend.rescued) setState('interact', iKey, '救援/陪伴', 'ready', '待救援');
   else if (!game.friend.saved) setState('interact', iKey, '救援/陪伴', 'ready', '跟随中');
   else if (game.social > 0) setState('interact', iKey, '救援/陪伴', 'active', `缓压 ${Math.ceil(game.social)}s`);
   else if (game.socialCD > 0) setState('interact', iKey, '救援/陪伴', 'cd', `冷却 ${Math.ceil(game.socialCD)}s`);
@@ -2932,7 +2968,7 @@ function syncHelpKeys() {
       <span><kbd>${jumpKeys}</kbd> 跳跃</span>
       <span>${keys('dodge')} 翻滚 / 闪避（触屏右侧翻滚键）</span>
       <span>${keys('burst')} 应急爆发　${keys('ultimate')} 协同大招</span>
-      <span>${keys('interact')} 救援 / 陪伴　${keys('sprint')} 疾行（更快但更耗储备）</span>
+      <span>${keys('interact')} ${INTERACT_TEXT.help}　${keys('sprint')} 疾行（更快但更耗储备）</span>
       <span>${keys('cameraView', 'V')} 第一/第三人称视角切换</span>
       <span>${keys('pause')} 暂停　${keys('retry')} 重试本关　${keys('restart')} 从第一关重开　${keys('fullscreen')} 全屏</span>
       <span><kbd>${escLine}</kbd> · <kbd>Enter</kbd> 标题/暂停/通关确认</span>

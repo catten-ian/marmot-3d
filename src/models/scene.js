@@ -25,20 +25,28 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { ModelLoadCache, loadWithRetry, requireUsableModel } from './model-load-retry.mjs';
 
 const loader = new GLTFLoader();
-const cache = new Map();
+const cache = new ModelLoadCache();
 
 export function loadSceneModel(url) {
-  if (cache.has(url)) return cache.get(url);
-  const p = new Promise((resolve) => {
-    loader.load(url, (gltf) => resolve(gltf.scene), undefined, () => {
-      console.warn('[scene] 场景模型加载失败:', url);
-      resolve(null);
-    });
-  });
-  cache.set(url, p);
-  return p;
+  return cache.load(url, () => loadWithRetry({
+    attempt: () => new Promise((resolve, reject) => {
+      loader.load(url, (gltf) => {
+        try {
+          requireUsableModel(gltf?.scene);
+          resolve(gltf.scene);
+        } catch (error) { reject(error); }
+      }, undefined, (error) => reject(error instanceof Error ? error : new Error(String(error))));
+    }),
+    onError: (error, { number, attempts, final, delayMs }) => {
+      console.warn(
+        final ? '[scene] 场景模型重试耗尽，保留程序化地形:' : '[scene] 场景模型加载失败，稍后自动重试:',
+        url, `${number}/${attempts}`, final ? '' : `${delayMs}ms`, error?.message || String(error),
+      );
+    },
+  }));
 }
 
 /**

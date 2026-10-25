@@ -23,6 +23,8 @@ import {
   SPRINT_STICK_THRESHOLD,
   clampSprintThreshold,
 } from '../core/touch-settings.mjs';
+import { IS_BETA } from '../core/version.js';
+import { interactionSemantics } from '../core/interaction-semantics.mjs';
 
 const STORAGE_KEY = 'marmot.touch-layout.v1';
 // “启用触屏布局调整”开关：默认关闭。关闭时所有调整入口隐藏，setEditing(true) 被拒绝。
@@ -70,7 +72,7 @@ function joystickBaseSize(w = innerWidth || 390, h = innerHeight || 844) {
   return 128;
 }
 const LABELS = {
-  attack: '攻击', dodge: '翻滚', jump: '跳跃', interact: '交互', burst: '爆发', ultimate: '大招', pause: '暂停',
+  attack: '攻击', dodge: '翻滚', jump: '跳跃', interact: interactionSemantics(IS_BETA).touchLabel, burst: '爆发', ultimate: '大招', pause: '暂停',
   sandboxControl: '沙盒控制（入口按钮）',
   joystick: '移动摇杆（含疾跑内圈）',
   hudVitals: '顶部状态卡（生命/储备/负荷）',

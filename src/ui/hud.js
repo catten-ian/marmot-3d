@@ -4,8 +4,11 @@
  */
 import { LEVELS } from '../core/config.js';
 import { bindText } from '../core/key-hints.mjs';
+import { IS_BETA } from '../core/version.js';
+import { interactionSemantics } from '../core/interaction-semantics.mjs';
 
 const CH_CIRCUMFERENCE = 2 * Math.PI * 18;
+const INTERACT_TEXT = interactionSemantics(IS_BETA);
 
 export class HUD {
   constructor() {
@@ -202,8 +205,10 @@ export class HUD {
     this.el.cortisolStatus.innerHTML = '<strong>持续动员</strong> '
       + `${Math.round(g.cortisol)}/100`
       + (g.cortisol >= 60 ? ' · 攻击 +2' : g.cortisol >= 25 ? ' · 攻击 +1' : ' · 达 25 后攻击 +1');
-    this.el.socialStatus.innerHTML = '<strong>' + (interactKey ? `${interactKey} ` : '') + '陪伴</strong> '
-      + (!g.friend.saved ? '先救伙伴' : g.social > 0 ? `缓压中 ${Math.ceil(g.social)}s` : g.socialCD > 0 ? `冷却 ${Math.ceil(g.socialCD)}s` : '回大本营使用');
+    this.el.socialStatus.innerHTML = IS_BETA
+      ? '<strong>' + (interactKey ? `${interactKey} ` : '') + `${INTERACT_TEXT.hudLabel}</strong> ${INTERACT_TEXT.hudDetail}`
+      : '<strong>' + (interactKey ? `${interactKey} ` : '') + '陪伴</strong> '
+        + (!g.friend.saved ? '先救伙伴' : g.social > 0 ? `缓压中 ${Math.ceil(g.social)}s` : g.socialCD > 0 ? `冷却 ${Math.ceil(g.socialCD)}s` : '回大本营使用');
 
     this._updateObjective(g, cfg);
   }
