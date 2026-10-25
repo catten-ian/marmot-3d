@@ -106,9 +106,10 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   });
   const group = new THREE.Group(); group.name = 'VerdantTrailEnvironment'; group.add(scene);
   group.userData.verdantManifest = manifest; group.userData.packManifest = packManifest;
-  onProgress?.(0.99, '光栅化可行走地面（地面 / 岩石 / 树根）');
-  // 用真实 GLB 静态碰撞几何重建可行走高度场（导出 JSON 只采样了 ground，
-  // 岩石/悬崖缺失、外缘水面为 0——真机掉底与跳不上岩石的根因）。
+  onProgress?.(0.99, '光栅化可行走地形');
+  // JSON 由渲染 ground 直接射线生成，是玩家支撑高度的权威数据源；
+  // ground / sand 三角形栅格提供可行走覆盖与连通性，并填补漏采掩膜。
+  // 岩石/悬崖保持独立实体，不得把它们的顶面混成同一竖列的地形高度。
   const field = buildWalkableField({ scene, heightJson: height, bounds: manifest.mapping.playableBounds });
   console.info('[verdant] 可行走高度场:', field.stats);
   onProgress?.(1, 'Verdant 场景就绪');

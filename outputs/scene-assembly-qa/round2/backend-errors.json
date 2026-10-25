@@ -1,0 +1,9 @@
+{
+  "backend": {
+    "contextLost": false,
+    "glError": 0,
+    "backend": "webgl2",
+    "renderer": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)"
+  },
+  "consoleErrors": []
+}

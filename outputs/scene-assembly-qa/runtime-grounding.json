@@ -1,0 +1,123 @@
+{
+  "format": 1,
+  "source": "CDP fresh managed target",
+  "tier": "low",
+  "spawn": {
+    "mode": "play",
+    "spawn": {
+      "x": -41.02999313354492,
+      "y": 1.7351303643424554,
+      "z": -1.8699958801269518
+    },
+    "heightAt": 1.7351303643424554,
+    "resolveGround": {
+      "y": 1.7351303643424554,
+      "walkable": true
+    },
+    "walkable": true
+  },
+  "samples": [
+    {
+      "x": 0,
+      "z": 20,
+      "visualGroundY": null,
+      "heightJsonY": 0,
+      "collisionY": 0,
+      "walkable": false,
+      "visualMinusJson": null,
+      "visualMinusCollision": null,
+      "jsonMinusCollision": 0
+    },
+    {
+      "x": -18,
+      "z": 8,
+      "visualGroundY": 1.9185,
+      "heightJsonY": 1.9184,
+      "collisionY": 1.9184,
+      "walkable": true,
+      "visualMinusJson": 0.0001,
+      "visualMinusCollision": 0.0001,
+      "jsonMinusCollision": 0
+    },
+    {
+      "x": 24,
+      "z": -18,
+      "visualGroundY": 4.3176,
+      "heightJsonY": 4.3176,
+      "collisionY": 4.3176,
+      "walkable": true,
+      "visualMinusJson": 0,
+      "visualMinusCollision": 0,
+      "jsonMinusCollision": 0
+    },
+    {
+      "x": 0,
+      "z": 0,
+      "visualGroundY": 2.4654,
+      "heightJsonY": 2.4639,
+      "collisionY": 2.4639,
+      "walkable": true,
+      "visualMinusJson": 0.0015,
+      "visualMinusCollision": 0.0015,
+      "jsonMinusCollision": 0
+    },
+    {
+      "x": -30,
+      "z": -20,
+      "visualGroundY": 0.5307,
+      "heightJsonY": 0.5404,
+      "collisionY": 0.5404,
+      "walkable": true,
+      "visualMinusJson": -0.0097,
+      "visualMinusCollision": -0.0097,
+      "jsonMinusCollision": 0
+    },
+    {
+      "x": 20,
+      "z": 10,
+      "visualGroundY": 5.2378,
+      "heightJsonY": 5.2378,
+      "collisionY": 5.2378,
+      "walkable": true,
+      "visualMinusJson": 0.0001,
+      "visualMinusCollision": 0.0001,
+      "jsonMinusCollision": 0
+    }
+  ],
+  "camera": [
+    {
+      "name": "04-third-person",
+      "player": {
+        "x": -41.03,
+        "y": 1.735,
+        "z": -1.87
+      },
+      "camera": {
+        "x": -41.03,
+        "y": 3.885,
+        "z": 2.969
+      },
+      "cameraPlayerDistance": 5.295,
+      "playerModelCameraDistance": 5.135,
+      "cameraInsidePlayerBox": false,
+      "playerModelVisible": true
+    },
+    {
+      "name": "05-overview",
+      "player": {
+        "x": 0,
+        "y": 2.464,
+        "z": 0
+      },
+      "camera": {
+        "x": 0.3,
+        "y": 36.464,
+        "z": 5.5
+      },
+      "cameraPlayerDistance": 34.443,
+      "playerModelCameraDistance": 34.019,
+      "cameraInsidePlayerBox": false,
+      "playerModelVisible": true
+    }
+  ]
+}
