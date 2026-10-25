@@ -200,6 +200,14 @@ function installDom({ width = 1280, height = 720, store = {} } = {}) {
     assert.equal(passed, 0);
   });
 
+  test('beta 默认在设置键左侧，非编辑态不被全屏菜单遮罩拦截', () => {
+    const addonCss = fs.readFileSync(path.join(ROOT, 'styles-beta-addon.css'), 'utf8');
+    // 桌面 #setBtn 为 right:92px + 32px 宽；viewBtn right:132px 留出 8px 间距。
+    assert.match(addonCss, /@media \(min-width: 861px\)\s*\{\s*body\.beta-version \.view-btn\s*\{[^}]*right:\s*132px/s);
+    // 开始/暂停 overlay 为 z-index:40；实玩按钮须在其上，编辑态仍由拖动层接管。
+    assert.match(addonCss, /body\.beta-version:not\(\.touch-layout-editing\) \.view-btn\s*\{[^}]*z-index:\s*50/s);
+  });
+
   test('重复件 view-mode-card 已物理删除，main.js/全仓无 hudViewMode 残留', () => {
     assert.equal(fs.existsSync(path.join(ROOT, 'src/ui/view-mode-card.js')), false);
     const mainSrc = fs.readFileSync(path.join(ROOT, 'src/main.js'), 'utf8');

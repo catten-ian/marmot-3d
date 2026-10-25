@@ -49,7 +49,7 @@ const JOYSTICK_SCALE_MIN = 0.7, JOYSTICK_SCALE_MAX = 1.4;
 // hudViewBtn 对应 index.html 里原有的 #viewBtn（第一/第三人称切换按钮，位于 ⚙ 设置键
 // 左侧）。它复用卡片组的 位置X·Y / 大小 / 透明度 / 拖动 / 持久化 通路，但 apply 时按
 // 「按钮型卡片」处理（BUTTON_CARDS）：不冻结宽度（文案会在第一/第三人称之间切换）、
-// 不强制 z-index（保留 styles.css 普通态 22 / 暂停态 50 的层级）、绝不写 pointer-events
+// 不强制 z-index（保留 styles.css / beta addon 的 22 / 50 层级）、绝不写 pointer-events
 // 限制（游戏态必须始终可点击切换视角）。
 // 该可调项仅 beta 开放：元素在所有渠道都存在，但只有 main.js 以 { beta: IS_BETA }
 // 构造时才接入；stable/dev 上 this.cards.hudViewBtn 为 null，渠道语义保持不变。
