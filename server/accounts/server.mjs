@@ -269,6 +269,8 @@ export function createAccountsServer(options = {}) {
   let loaded = null;
   const feedbackUrl = options.feedbackUrl ?? process.env.M3D_FEEDBACK_URL ?? 'http://127.0.0.1:8094';
   const feedbackToken = options.feedbackToken ?? process.env.M3D_FEEDBACK_TOKEN ?? '';
+  const feedbackAdminUsers = new Set(String(options.feedbackAdminUsers ?? process.env.M3D_FEEDBACK_ADMIN_USERS ?? 'catten')
+    .split(',').map((name) => name.trim().toLowerCase()).filter(Boolean));
   const feedbackTimeoutMs = Math.max(50, Number(options.feedbackTimeoutMs ?? 6000) || 6000);
 
   function authUser(req) {
@@ -277,7 +279,11 @@ export function createAccountsServer(options = {}) {
   }
 
   async function proxyFeedback(req, res, kind, searchParams) {
-    if (!authUser(req)) return sendJson(res, 401, { error: '登录已失效，请重新登录' });
+    const user = authUser(req);
+    if (!user) return sendJson(res, 401, { error: '登录已失效，请重新登录' });
+    if (!feedbackAdminUsers.has(String(user.name || '').trim().toLowerCase())) {
+      return sendJson(res, 403, { error: '当前账号无权查看后台反馈', code: 'feedback_forbidden' });
+    }
     if (!String(feedbackToken).trim() || !String(feedbackUrl).trim()) {
       return sendJson(res, 503, { error: '反馈服务未配置，请联系管理员配置 M3D_FEEDBACK_URL 和 M3D_FEEDBACK_TOKEN', code: 'feedback_not_configured' });
     }

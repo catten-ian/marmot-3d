@@ -74,6 +74,20 @@ test('未登录和错误账号均为 401，且不会访问下游', async () => {
   const wrongLogin = await request('/auth/login', { method: 'POST', body: { username: 'catten', password: 'definitely-wrong-test-password' } });
   assert.equal(wrongLogin.status, 401);
   assert.equal(requests.length, beforeCount);
+
+  const nonAdmin = fs.mkdtempSync(path.join(os.tmpdir(), 'm3d-feedback-nonadmin-test-'));
+  const nonAdminApp = createAccountsServer({ secret: 'temporary-nonadmin-signing-secret', dataDir: nonAdmin, feedbackUrl: 'http://127.0.0.1:9', feedbackToken: 'temporary-token', feedbackAdminUsers: 'catten' });
+  const nonAdminPort = await listen(nonAdminApp.server);
+  try {
+    const registration = await fetch(`http://127.0.0.1:${nonAdminPort}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'tester', password: 'temporary-password' }) });
+    const account = await registration.json();
+    const response = await fetch(`http://127.0.0.1:${nonAdminPort}/admin/feedback/list`, { headers: { Authorization: `Bearer ${account.token}` } });
+    assert.equal(response.status, 403);
+    assert.equal((await response.json()).code, 'feedback_forbidden');
+  } finally {
+    await close(nonAdminApp.server);
+    fs.rmSync(nonAdmin, { recursive: true, force: true });
+  }
 });
 
 test('登录后通过部署前缀代理列表和统计，只转发白名单参数', async () => {
@@ -125,7 +139,7 @@ test('下游 503、超时与缺少配置均 fail-soft，内部 token 不出现�
 
 test('已登录但代理未配置时明确返回 503', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'm3d-feedback-unconfigured-test-'));
-  const app = createAccountsServer({ secret: 'temporary-unconfigured-signing-secret', dataDir, feedbackToken: '' });
+  const app = createAccountsServer({ secret: 'temporary-unconfigured-signing-secret', dataDir, feedbackToken: '', feedbackAdminUsers: 'tester' });
   const port = await listen(app.server);
   const localBase = `http://127.0.0.1:${port}`;
   try {
