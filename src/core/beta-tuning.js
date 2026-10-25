@@ -15,7 +15,18 @@ export const BETA_TUNE = {
   grazeHaloRadius: 3.0,     // 啃食外圈半径，单位米；权重从核心边缘线性衰减到 0
   grazeRate: 0.55,          // 每株草每秒被啃掉的 growth 量（满权重）：约 1.8s 把核心圈一株草从 1 啃到 0
   grassRegrowPerSec: 0.012, // 环境草自长速度（growth/秒）：啃光后约 83s 长满，约为啃食速度的 1/46，原地持续啃不可能刷出能量
-  grazeRegenPerSec: 8.0,    // 按住啃食、圈内草完好（连续密度=1）时每秒回的储备；实际按「本帧吃到量/满圈产能」连续折算，越稀疏回得越少
+  grazeRegenPerSec: 8.0,    // 满密度时每秒入口的草料单位；实际按前方锥内真实吃量连续折算
+  grazeConeHalfAngle: Math.PI / 3, // 以身体 yaw 为中心的 120° 前方采食锥；身后草不参与
+  grazeMoveSpeedMul: 0.16,
+  grazeImmediateShare: 0.12, // 仅少量草料立即转化，其余进入有限口腔缓冲
+  mouthCapacity: 36,
+  chewPerSec: 5,
+  mainBurrowChewPerSec: 12,
+  temporaryBurrowChewPerSec: 7.5,
+  staminaFatThreshold: 0.6,
+  flowerHpTotal: 18,
+  flowerStaminaTotal: 28,
+  flowerRecoverySeconds: 8,
   companionFollowSpeed: 9.6,
   companionFollowGap: 1.05,
   grazeEyeDropExtra: 0.12,
