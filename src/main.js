@@ -2622,7 +2622,7 @@ helpBtn.onclick = () => { helpSheet.hidden ? openHelp() : closeHelp(); };
 document.getElementById('helpClose').onclick = closeHelp;
 
 // 设置面板（键位方案）
-const touchLayout = new TouchLayout();
+const touchLayout = new TouchLayout({ beta: IS_BETA });
 const feedbackUI = new FeedbackUI({
   endpoint: FEEDBACK.endpoint,
   getSnapshot: () => collectGameSnapshot({

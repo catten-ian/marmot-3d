@@ -66,7 +66,7 @@ export function configExportFilename(now = new Date()) {
 }
 
 const LAYOUT_BUTTON_IDS = ['attack', 'dodge', 'jump', 'interact', 'burst', 'ultimate', 'pause', 'sandboxControl'];
-const LAYOUT_CARD_IDS = ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox', 'hudMinimap'];
+const LAYOUT_CARD_IDS = ['hudVitals', 'hudMission', 'hudObjective', 'hudSandbox', 'hudMinimap', 'hudViewBtn'];
 const LAYOUT_TOP_KEYS = ['scale', 'opacity', 'buttons', 'cards', 'joystick', 'attackCoreSize', 'attackCoreOpacity'];
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 

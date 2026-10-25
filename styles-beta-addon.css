@@ -1,6 +1,19 @@
 /* beta 新增样式（rev22 不升戳期间的追加段；新文件无旧缓存，立即生效）。
    仅放编辑态/选中态等“非默认观感”规则；默认观感由元素 inline style 提供。 */
 
+/* 原有视角切换按钮 #viewBtn（布局 id hudViewBtn）纳入 beta 布局编辑：
+   仅编辑态显示抓取光标/描边并允许拖选；非编辑态它始终是普通可点按钮
+   （不套 pointer-events:none，点击与 V 键照常切换第一/第三人称）。
+   作用域限 body.beta-version，stable/dev 渠道观感与行为完全不变。 */
+body.beta-version.touch-layout-editing .view-btn {
+  touch-action: none;
+  cursor: grab;
+  outline: 1px dashed rgba(255, 232, 177, .72);
+  outline-offset: 3px;
+}
+body.beta-version.touch-layout-editing .view-btn.layout-selected { outline: 2px solid #ffe0a1; outline-offset: 4px; }
+body.beta-version.touch-layout-editing .view-btn.layout-dragging { cursor: grabbing; filter: brightness(1.18); }
+
 /* 配置导入/导出区块的状态提示条（页面内提示，不用 alert）。 */
 .config-io-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .config-io-status { font-size: 12px; color: #b7c7ae; margin: 4px 0; min-height: 1.2em; }
