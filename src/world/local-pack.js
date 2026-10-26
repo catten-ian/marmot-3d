@@ -180,7 +180,7 @@ export function getLocalPackAssetInfo(path) { const url = resolveLocalAsset(path
 
 function tosConfig() {
   let cfg = typeof window !== 'undefined' ? window.__VERDANT_TOS__ : null;
-  if (!cfg?.baseUrl && typeof localStorage !== 'undefined') { const saved = localStorage.getItem('verdant-tos-base'); if (saved) cfg = { ...(cfg || {}), baseUrl: saved, version: '20261022' }; }
+  if (!cfg?.baseUrl && typeof localStorage !== 'undefined') { const saved = localStorage.getItem('verdant-tos-base'); if (saved) cfg = { ...(cfg || {}), baseUrl: saved, version: '20261027' }; }
   return cfg && typeof cfg === 'object' && (cfg.baseUrl || cfg.packRoots) ? cfg : null;
 }
 export function getTosBaseUrl() {
@@ -203,7 +203,7 @@ export function setTosBaseUrl(value) {
   if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('TOS URL 仅接受 HTTP(S)');
   const normalized = parsed.href.replace(/\/+$/, '');
   try { localStorage.setItem('verdant-tos-base', normalized); } catch (_) {}
-  if (typeof window !== 'undefined') window.__VERDANT_TOS__ = { ...(window.__VERDANT_TOS__ || {}), baseUrl: normalized, version: '20261022' };
+  if (typeof window !== 'undefined') window.__VERDANT_TOS__ = { ...(window.__VERDANT_TOS__ || {}), baseUrl: normalized, version: '20261027' };
   renderLocalPackUi();
   return normalized;
 }
@@ -213,7 +213,7 @@ function packRoot(tier) {
   if (direct) return new URL(String(direct).endsWith('/') ? direct : `${direct}/`, location.href).href;
   if (!cfg.baseUrl) return null;
   const base = String(cfg.baseUrl).endsWith('/') ? cfg.baseUrl : `${cfg.baseUrl}/`;
-  const version = encodeURIComponent(String(cfg.version || '20261022'));
+  const version = encodeURIComponent(String(cfg.version || '20261027'));
   return new URL(`m3d-dev/${version}/${encodeURIComponent(tier)}/`, base).href;
 }
 function logicalAssetPath(url) {
