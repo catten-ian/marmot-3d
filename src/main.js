@@ -257,9 +257,10 @@ function autoVerdantTier() {
   if (verdantTierPreference !== 'auto') return verdantTierPreference;
   // 移动端（手机/平板，含微信/QQ 等谎报 pointer 的内置浏览器）auto 一律锁 low 档。
   // 旧逻辑只看 deviceMemory/hardwareConcurrency：安卓 Chrome 普遍上报 8GB/8 核（deviceMemory
-  // 上限就是 8），会被误分到 medium(84MB)/high(90MB)，而 TOS 上只有 low 档（50MB），
-  // medium/high 必然回源到经 Cloudflare 的慢服务器（实测约 1MB/s），手机在 15s 看门狗内
-  // 根本下不完，于是反复「加载超时」。low 档走火山上海 TOS（实测约 17MB/s），手机 3~6s 可完成。
+  // 上限就是 8），会被误分到 medium/high。
+  // 20261027 起四档资源都已上传到火山 TOS（low/medium/high/ultra 全覆盖），任何档位都优先走
+  // TOS（实测国内 17~37MB/s），不会再回源到经 Cloudflare 的慢服务器（约 1MB/s）。
+  // 但 ultra 档包体 2.4GB、high 档 400MB+，移动端流量与耗时仍不现实，所以 auto 继续锁 low。
   // 玩家仍可在设置里手动选更高档；这里只修正 auto 的误判。
   if (isTouchPrimary()) return 'low';
   const mem = Number(navigator.deviceMemory) || 4;

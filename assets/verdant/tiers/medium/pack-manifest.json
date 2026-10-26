@@ -1,9 +1,9 @@
 {
   "format": 1,
-  "pack": "m3d-dev/20261022/medium",
+  "pack": "m3d-dev/20261027/medium",
   "tier": "medium",
-  "generatedAt": "2026-10-22",
-  "totalBytes": 100533237,
+  "generatedAt": "2026-10-26",
+  "totalBytes": 100533225,
   "fileCount": 127,
   "files": [
     {
@@ -428,9 +428,9 @@
     },
     {
       "path": "manifest-medium.json",
-      "size": 39019,
-      "sha256": "dcb40083ef5bfcfe4d6e3cb5d89f20cf6649d8fb4cbe248bb15e48553292587b",
-      "md5": "c4d1211639f24251276eb72cf0f2c6c7",
+      "size": 39007,
+      "sha256": "59b5316401e9de23fedf83355ac6a40aafc5ac7e382132d2c6ef8eaaeae96425",
+      "md5": "8bf782269b43938d41cfe8c78375a518",
       "contentType": "application/json"
     },
     {
@@ -893,7 +893,7 @@
       "size": 55838932,
       "sha256": "3f8f72b5198a9a2a5c3ac3c0ad3e721051decbc9a09dd4def40a7416f632184a",
       "md5": "685574b14bf2a3b995fed54e03282f36",
-      "contentType": "image/png"
+      "contentType": "application/octet-stream"
     }
   ]
 }
