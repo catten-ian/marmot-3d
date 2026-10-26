@@ -21,10 +21,11 @@
 <script>
   // 公共只读 TOS 资源基址（仅匿名 GET，不含任何密钥）。DEV Verdant 素材三级回退：
   // 本地资源包 → 火山 TOS（大文件/ultra）→ 同源服务器。stable/beta 不加载 verdant 代码，此配置对它们无效。
+  // 20261027 起四档（low/medium/high/ultra）全部已上传到 TOS，各档都优先走 TOS，不再回源慢服务器。
   // QA/离线调试可用 ?tos=0 关闭 TOS 候选，强制同源资源（避免跨源缓存干扰真机审计）。
   window.__VERDANT_TOS__ = /(?:[?&])tos=0(?:&|$)/.test(location.search)
     ? null
-    : { baseUrl: 'https://marmot.tos-cn-shanghai.volces.com', version: '20261022' };
+    : { baseUrl: 'https://marmot.tos-cn-shanghai.volces.com', version: '20261027' };
 </script>
 </head>
 <body>

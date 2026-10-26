@@ -1,9 +1,9 @@
 {
   "format": 1,
-  "pack": "m3d-dev/20261022/low",
+  "pack": "m3d-dev/20261027/low",
   "tier": "low",
-  "generatedAt": "2026-10-22",
-  "totalBytes": 64801205,
+  "generatedAt": "2026-10-26",
+  "totalBytes": 64801181,
   "fileCount": 127,
   "files": [
     {
@@ -428,9 +428,9 @@
     },
     {
       "path": "manifest-low.json",
-      "size": 39052,
-      "sha256": "4403b8e0f405dfe5789c49ace0388cac4d4a3cadc99667a2989adb14434841d9",
-      "md5": "a77a4ac4e2173f2990d46ba0494a9682",
+      "size": 39028,
+      "sha256": "73c476848cbddeb37ee06481fefb8854443c1ecc1e667d754aaf1a59a5296e9a",
+      "md5": "2e534d644df0f53b33885b09cef36ca8",
       "contentType": "application/json"
     },
     {
@@ -893,7 +893,7 @@
       "size": 38941216,
       "sha256": "eab638d28609f1f7780cafe163284675ba1c79b09642936fe93e161729e3aa59",
       "md5": "86edbc8ec10e51b05120e9bbbc332f7d",
-      "contentType": "image/png"
+      "contentType": "application/octet-stream"
     }
   ]
 }
