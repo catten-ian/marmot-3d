@@ -116,8 +116,3 @@ export function findNearestWalkableCell({ x, z, nx, nz, cellSize, bounds, walkab
     moved: Math.sqrt(bestD2),
   };
 }
-
-/** Grounded feet follow the sampled surface immediately; airborne Y is never clamped. */
-export function resolveGroundedY(positionY, groundY, grounded) {
-  return grounded && Number.isFinite(groundY) ? groundY : positionY;
-}
