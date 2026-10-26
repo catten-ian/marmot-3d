@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>loader-ui-qa</title>
+<link rel="stylesheet" href="/outputs/m3d-20261027-dev-loader-restore/visual/fixed.css">
+<style>html,body{margin:0;padding:0;background:#0c120f;height:100%;overflow:hidden}</style>
+</head>
+<body>
+<div id="loader" class="loader">
+  <video class="loader-video" id="loaderVideo" muted loop playsinline preload="none"
+         disablepictureinpicture x-webkit-airplay="deny"></video>
+  <div class="loader-scrim" aria-hidden="true"></div>
+  <div class="loader-marmot" aria-hidden="true">🐹</div>
+  <div class="loader-hud">
+    <div class="loader-brand">
+      <span class="loader-logo" aria-hidden="true">🐹</span>
+      <span class="loader-title">土拨鼠大作战 <em>DEV</em></span>
+    </div>
+    <div class="loader-track"><div class="loader-fill" id="loaderFill"></div><i class="loader-shine"></i></div>
+    <div class="loader-meta">
+      <span class="loader-text">正在筑巢…</span>
+      <span class="loader-bytes" id="loaderBytes" hidden></span>
+      <span class="loader-pct" id="loaderPct">0%</span>
+    </div>
+  </div>
+</div>
+<script type="module">
+import { HUD } from '/src/ui/hud.js';
+const hud = new HUD();
+// 模拟一次真实下载中的进度回报：字节、总量、剩余、速度、来源。
+hud.setLoading(62, '加载 Verdant 场景', {
+  doneBytes: 268435456,
+  totalBytes: 1073741824,
+  remainingBytes: 805306368,
+  speedBytesPerSecond: 12582912,
+  sourceLabel: 'TOS',
+});
+window.__qaReady = true;
+</script>
+</body></html>
