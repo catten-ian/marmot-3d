@@ -358,6 +358,16 @@ export function createPlayAsFox(ctx) {
       body.play-as-fox .minimap { display:none !important; }
       body.play-as-fox #overlay.overlay.on { display:none !important; }
       body.play-as-fox.touch-playing #touchControls { display:block; }
+      /* 藏狐模式只保留藏狐语义的控件：土拨鼠专属动作键（啃草/爆发/大招）与
+         主游戏暂停键在 PAF 下没有对应行为，必须隐藏，避免双套操作系统混显。 */
+      body.play-as-fox [data-touch-action="interact"],
+      body.play-as-fox [data-touch-action="burst"],
+      body.play-as-fox [data-touch-action="ultimate"],
+      body.play-as-fox [data-touch-action="pause"] { display:none !important; }
+      /* 主游戏右上角帮助/全屏/设置按钮与「退出扮演」重叠，PAF 期间隐藏。 */
+      body.play-as-fox #helpBtn,
+      body.play-as-fox #fsBtn,
+      body.play-as-fox #setBtn { display:none !important; }
       body.play-as-fox #touchLookZone span { font-size:0; }
       body.play-as-fox #touchLookZone span::after { content:'右侧拖动转向';font-size:10px; }
       body.play-as-fox #touchJoystick > span { font-size:0; }

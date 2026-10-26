@@ -17,6 +17,18 @@ test('PAF reuses the shared TouchControls route and has no independent touch DOM
   assert.match(paf, /data-touch-action=\"jump\"/);
 });
 
+test('PAF hides marmot-only touch actions and overlapping utility buttons', () => {
+  // 藏狐模式不得混显土拨鼠专属触控件（死按钮）：啃草/爆发/大招/暂停全部隐藏。
+  for (const action of ['interact', 'burst', 'ultimate', 'pause']) {
+    assert.match(paf, new RegExp(`body\\.play-as-fox \\[data-touch-action=\\"${action}\\"\\]`));
+  }
+  assert.match(paf, /data-touch-action="interact"[\s\S]*?display:none/);
+  // 顶部帮助/全屏/设置按钮与「退出扮演」重叠，PAF 期间同步隐藏。
+  for (const id of ['helpBtn', 'fsBtn', 'setBtn']) {
+    assert.match(paf, new RegExp(`body\\.play-as-fox #${id}`));
+  }
+});
+
 test('Beta entry hands off to the independent PAF update loop and exit callback returns to title', () => {
   assert.match(main, /pafBtn\) pafBtn\.onclick = enterPlayAsFox/);
   assert.match(main, /playAsFox = createPlayAsFox\([\s\S]*?onExit: \(\) => \{[\s\S]*?title\(\)/);
