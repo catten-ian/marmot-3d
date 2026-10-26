@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius, getGravityScale } from '../core/config.js';
 import { terrainHeight, terrainGround, groundResolveActive, solidColliderActive, clamp } from '../core/utils.js';
-import { undergroundFloorY } from '../world/underground.js';
+import { undergroundFloorY, undergroundCavesEnabled, undergroundDefs, undergroundProfile } from '../world/underground.js';
 import { findGroundPathBlock, findSegmentLanding, resolveGroundedY, shouldRescueVerdantPosition, VERDANT_SWEEP_STEP } from '../world/verdant-fall-safety.mjs';
 import { resolveObstacleProxies, shouldUseDesignRocks } from '../world/verdant-obstacles.mjs';
 import { resolveMoveIntent, dampAngle, wrapAngle, resolveTouchDrive } from './move-facing.mjs';
@@ -466,15 +466,36 @@ export class FirstPersonController {
     const safety = this.verdantSafety;
     const wasGrounded = this.grounded;
     if (groundResolveActive()) {
-      // 记录移动前落点，用于台阶 / 水域边界阻挡
-      groundInfo = terrainGround(this.position.x, this.position.z);
+      // dev Verdant 洞口：进入缩小开口后允许从高度场地表下降到程序化平底。
+      // stable/beta 没有高度场 resolver，因此完全走原路径。
+      let cave = null;
+      if (undergroundCavesEnabled()) {
+        for (const b of undergroundDefs()) {
+          const q = undergroundProfile(b);
+          const d = Math.hypot(this.position.x - b.x, this.position.z - b.z);
+          const surface = terrainHeight(b.x, b.z);
+          if (d < q.slopeRadius && this.position.y <= surface + 0.35) { cave = { b, q, d, surface }; break; }
+        }
+      }
+      if (cave && this.grounded && cave.d < cave.q.openingRadius * 0.9 && this.position.y >= cave.surface - 0.12) {
+        this.grounded = false; this.vy = -2.2; this.position.y = cave.surface - 0.14;
+      }
+      const inCave = cave && this.position.y < cave.surface - 0.1;
+      const caveGroundAt = (x, z) => {
+        const hit = undergroundDefs().find((b) => {
+          const q = undergroundProfile(b);
+          return Math.hypot(x - b.x, z - b.z) <= q.slopeRadius;
+        });
+        return hit ? { y: undergroundFloorY(x, z, [hit]), walkable: true } : terrainGround(x, z);
+      };
+      groundInfo = inCave ? caveGroundAt(this.position.x, this.position.z) : terrainGround(this.position.x, this.position.z);
       const prevGround = this._lastGround ?? groundInfo;
       // 低重力飞行观察模式下自由穿行（不被水域/台阶水平阻挡）；高度场 SDF 始终返回有限地面，不会掉出世界。
       if (!this.allowAirJump) {
         const blockedByVoid = !groundInfo.walkable;
         const blockedByStep = this.grounded && (groundInfo.y - prevGround.y) > this.stepUp;
         const safety = this.verdantSafety;
-        const blockedOnPath = this.grounded && safety && actualMoved > 0.025
+        const blockedOnPath = this.grounded && safety && !inCave && actualMoved > 0.025
           ? findGroundPathBlock({
             from: { x: prevX, z: prevZ }, to: { x: this.position.x, z: this.position.z },
             groundAt: terrainGround,
@@ -510,13 +531,23 @@ export class FirstPersonController {
         ? findSegmentLanding({
           from: { x: prevX, y: prevY, z: prevZ },
           to: { x: this.position.x, y: nextY, z: this.position.z },
-          groundAt: terrainGround,
+          groundAt: (x, z) => {
+            const hit = undergroundDefs().find((b) => {
+              const q = undergroundProfile(b);
+              return undergroundCavesEnabled() && Math.hypot(x - b.x, z - b.z) <= q.slopeRadius;
+            });
+            return hit ? { y: undergroundFloorY(x, z, [hit]), walkable: true } : terrainGround(x, z);
+          },
           maxStep: Math.min(0.16, Math.max(0.05, (safety.cellSize || VERDANT_SWEEP_STEP * 2) * 0.45)),
         }) : null;
       if (landing) {
         this.position.x = landing.x;
         this.position.z = landing.z;
-        groundInfo = terrainGround(landing.x, landing.z);
+        const landingBurrow = undergroundDefs().find((b) => {
+          const q = undergroundProfile(b);
+          return undergroundCavesEnabled() && Math.hypot(landing.x - b.x, landing.z - b.z) <= q.slopeRadius;
+        });
+        groundInfo = landingBurrow ? { y: undergroundFloorY(landing.x, landing.z, [landingBurrow]), walkable: true } : terrainGround(landing.x, landing.z);
         groundY = groundInfo.y;
         this.position.y = groundY;
         this.vy = 0;
@@ -549,7 +580,9 @@ export class FirstPersonController {
     if (safety) {
       const checkGround = [this.position.x, this.position.z].every(Number.isFinite)
         ? terrainGround(this.position.x, this.position.z) : null;
-      const result = shouldRescueVerdantPosition({
+      const caveY = undergroundFloorY(this.position.x, this.position.z);
+      const inVirtualCave = undergroundCavesEnabled() && this.position.y < terrainHeight(this.position.x, this.position.z) - 0.1 && caveY < terrainHeight(this.position.x, this.position.z) - 0.1;
+      const result = inVirtualCave ? { rescue: false } : shouldRescueVerdantPosition({
         position: this.position, ground: checkGround, bounds: safety.bounds,
         minWalkableY: safety.minWalkableY, killPlane: safety.killPlane,
       });

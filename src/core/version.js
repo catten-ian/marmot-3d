@@ -58,6 +58,12 @@ export const DEV_FEATURES = {
   verdantWorld: IS_DEV,
   /** Explicit intelligent fox sandbox control; never available outside DEV. */
   smartFoxSandbox: IS_DEV,
+  /** dev scanning interiors and grounded cave entry */
+  scannedBurrows: IS_DEV,
+  /** dev screaming marmot for player and companion */
+  screamingMarmot: IS_DEV,
+  /** dev sorrel plant model for gatherables */
+  sorrelFood: IS_DEV,
 };
 
 /** 是否启用某 dev 特性（正式版恒为 false） */
