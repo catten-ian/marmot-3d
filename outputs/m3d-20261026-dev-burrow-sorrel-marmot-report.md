@@ -3,7 +3,7 @@
 - 分支：`feat/dev-burrow-sorrel-marmot-20261026`
 - 基线：`d266ce6`
 - 通道：dev（`?version=dev`），stable/beta 通过 `IS_DEV` 保持原路径
-- commit：`16a7778`
+- commit：`bb4f5a3`
 - push/deploy：未 push，未部署
 
 ## 完成的代码行为
