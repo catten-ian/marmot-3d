@@ -1,0 +1,22 @@
+{
+  "state": {
+    "mode": "play",
+    "active": false,
+    "hud": false,
+    "button": true
+  },
+  "errors": [
+    {
+      "text": "Uncaught (in promise)",
+      "line": 516,
+      "url": "http://127.0.0.1:8387/src/play/play-as-fox.js",
+      "desc": "SyntaxError: Identifier 'touch' has already been declared"
+    },
+    {
+      "text": "Uncaught (in promise)",
+      "line": 516,
+      "url": "http://127.0.0.1:8387/src/play/play-as-fox.js",
+      "desc": "SyntaxError: Identifier 'touch' has already been declared"
+    }
+  ]
+}

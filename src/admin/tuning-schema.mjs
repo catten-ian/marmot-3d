@@ -173,7 +173,8 @@ export function buildTuningEntries() {
   const G_BETA = 'Beta · 平衡';
   for (const [k, label, min, max, unit] of [
     ['moveSpeedMul', '移动速度倍率', 0.5, 2, ''],
-    ['sprintMoveCost', '冲刺移动消耗', 0, 20, ''],
+    ['sprintMoveCost', '疾跑移动体力消耗', 0, 20, '体力/s'],
+    ['runMoveCost', '奔跑移动体力消耗', 0, 20, '体力/s'],
     ['flowerCount', '花的数量', 0, 20, '朵'],
     ['grassSeconds', '啃草耗时', 0.1, 5, 's'],
     ['grazeCoreRadius', '环境草核心圈半径', 0.1, 8, 'm'],
@@ -181,12 +182,24 @@ export function buildTuningEntries() {
     ['grazeRate', '环境草啃食速率', 0.01, 3, 'growth/s'],
     ['grassRegrowPerSec', '环境草再生速率', 0, 0.2, 'growth/s'],
     ['grazeRegenPerSec', '满密度啃草储备收益', 0, 30, '/s'],
+    ['grazeMoveSpeedMul', '吃草移动速度倍率', 0, 2, ''],
+    ['mouthCapacity', '口中食物储备上限', 0, 500, '单位'],
+    ['chewPerSec', '站立吃草咀嚼速率', 0, 30, '单位/s'],
+    ['mainBurrowChewPerSec', '主洞咀嚼速率', 0, 60, '单位/s'],
+    ['temporaryBurrowChewPerSec', '临时洞咀嚼速率', 0, 60, '单位/s'],
+
+    ['flowerHpTotal', '花朵生命回复总量', 0, 100, '生命'],
+    ['flowerStaminaTotal', '花朵体力回复总量', 0, 100, '体力'],
+    ['flowerRecoverySeconds', '花朵回复时长', 0, 60, 's'],
     ['companionFollowSpeed', '伙伴跟随速度', 1, 20, 'm/s'],
     ['companionFollowGap', '伙伴跟随间距', 0.2, 5, 'm'],
     ['grazeEyeDropExtra', '啃食视高额外下降', 0, 1, 'm'],
     ['thirdPersonGrazeDrop', '第三人称啃食视高下降', 0, 2, 'm'],
     ['lungeLockRange', '扑击锁敌距离', 1, 20, 'm'],
   ]) e.push(num(`beta.${k}`, G_BETA, label, F_BETA, `BETA_TUNE.${k}`, BETA_TUNE[k], { min, max, unit }));
+  e.push(num('beta.grazeImmediateShare', G_BETA, '吃草即时转化率', F_BETA, 'BETA_TUNE.grazeImmediateShare', BETA_TUNE.grazeImmediateShare, { min: 0, max: 1, toView: (v) => v * 100, toStore: (v) => v / 100, unit: '%' }));
+  e.push(num('beta.staminaFatThreshold', G_BETA, '体力转储备阈值', F_BETA, 'BETA_TUNE.staminaFatThreshold', BETA_TUNE.staminaFatThreshold, { min: 0, max: 0.99, toView: (v) => v * 100, toStore: (v) => v / 100, unit: '%' }));
+  e.push(num('beta.grazeConeHalfAngle', G_BETA, '吃草锥半角', F_BETA, 'BETA_TUNE.grazeConeHalfAngle', BETA_TUNE.grazeConeHalfAngle, { min: 0, max: Math.PI, toView: deg, toStore: (v) => v * Math.PI / 180, unit: '°' }));
   e.push(num('beta.lungeLockHalfAngle', G_BETA, '扑击锁敌半角', F_BETA, 'BETA_TUNE.lungeLockHalfAngle', BETA_TUNE.lungeLockHalfAngle, { min: 0.05, max: Math.PI, toView: deg, toStore: (d) => d * Math.PI / 180, unit: '°' }));
   e.push(bool('beta.flowerInstant', G_BETA, '吃花立即完成', F_BETA, 'BETA_TUNE.flowerInstant', BETA_TUNE.flowerInstant));
 

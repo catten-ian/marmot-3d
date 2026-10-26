@@ -1904,7 +1904,7 @@ function update(dt) {
   const costMul = devOn('famineTolerance') ? HERBIVORE.moveCostMul : 1;
   if (moving) {
     const sprintCost = IS_BETA ? BETA_TUNE.sprintMoveCost : 3.4;
-    const moveCost = game.overdrive > 0 ? 4 : game.boost > 0 ? 4.8 : sprinting ? sprintCost : 1.6;
+    const moveCost = game.overdrive > 0 ? 4 : game.boost > 0 ? 4.8 : sprinting ? sprintCost : (IS_BETA ? BETA_TUNE.runMoveCost : 1.6);
     p.energy -= dt * moveCost * costMul;
     p.energy = Math.max(0, p.energy);
   }

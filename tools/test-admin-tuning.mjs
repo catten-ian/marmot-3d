@@ -32,8 +32,21 @@ test('后台 schema 包含唯一 id、合法范围与要求覆盖的关键常量
     'player.speed', 'wheel.lunge.distance', 'fox.windRange', 'fox.dashSpeed',
     'foxAtk.normal.dashTime', 'smart.pounce.maxDistance', 'smart.pounce.maxAngle',
     'strike.halfAngle', 'strike.lunge.lower', 'strike.lunge.upper',
-    'beta.lungeLockRange', 'smart.weight.pounceBase',
+    'beta.lungeLockRange', 'beta.sprintMoveCost', 'beta.runMoveCost',
+    'beta.mouthCapacity', 'beta.grazeImmediateShare', 'beta.grazeMoveSpeedMul',
+    'beta.chewPerSec', 'beta.mainBurrowChewPerSec', 'beta.temporaryBurrowChewPerSec',
+    'beta.staminaFatThreshold', 'beta.flowerHpTotal', 'beta.flowerStaminaTotal',
+    'beta.flowerRecoverySeconds', 'beta.grazeConeHalfAngle', 'smart.weight.pounceBase',
   ]) assert.ok(byId.has(id), `缺少必需调节项 ${id}`);
+});
+
+test('beta tuning 面板新条目默认值与百分比/角度单位换算正确', () => {
+  assert.equal(byId.get('beta.runMoveCost').def, 0.8);
+  assert.equal(byId.get('beta.mouthCapacity').def, 120);
+  assert.equal(byId.get('beta.grazeImmediateShare').viewDef, 35);
+  assert.equal(byId.get('beta.grazeImmediateShare').unit, '%');
+  assert.ok(Math.abs(byId.get('beta.grazeConeHalfAngle').viewDef - 60) < 1e-10);
+  assert.equal(byId.get('beta.staminaFatThreshold').viewDef, 60);
 });
 
 test('数值钳制处理越界、非数与弧度/角度显示换算', () => {

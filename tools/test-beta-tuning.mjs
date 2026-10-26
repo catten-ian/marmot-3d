@@ -15,6 +15,9 @@ const near = (actual, expected, epsilon = 1e-9) => assert.ok(
 test('beta tuning constants exceed or match the requested balance thresholds', () => {
   assert.ok(BETA_TUNE.moveSpeedMul > 1);
   assert.ok(BETA_TUNE.sprintMoveCost > 3.4);
+  assert.equal(BETA_TUNE.runMoveCost, 0.8);
+  assert.equal(BETA_TUNE.grazeImmediateShare, 0.35);
+  assert.equal(BETA_TUNE.mouthCapacity, 120);
   assert.equal(BETA_TUNE.flowerCount, 4);
   assert.ok(BETA_TUNE.companionFollowSpeed > 7.2);
   assert.ok(BETA_TUNE.companionFollowGap < 1.5);

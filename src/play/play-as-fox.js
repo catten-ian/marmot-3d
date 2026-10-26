@@ -33,7 +33,7 @@ import {
   nearestTarget, leadTarget, windLeadTime, retargetWindYaw,
 } from '../core/predator-prey.js';
 import {
-  mapPafJoystick, isPafKey, pafKeyHeld, PafPounceCharge, PafInputRoute,
+  isPafKey, pafKeyHeld, PafPounceCharge,
 } from '../core/paf-input.js';
 
 /** 扮演藏狐模式全部可调平衡数值（后台滑块直接改这里的运行时副本）。 */
@@ -321,9 +321,6 @@ export function createPlayAsFox(ctx) {
   let running = true;
   const keys = new Set();
   const pounceCharge = new PafPounceCharge();
-  const touchRoute = new PafInputRoute(touchControls);
-  let touch = { throttle: 0, turn: 0, sprint: false, stalk: true, magnitude: 0 };
-  let touchUiSnapshot = null;
 
   // —— 视角：默认第三人称；V 键 / 触屏按钮切第一人称（FPV 视线与身体朝向解耦）——
   const viewMode = createViewModeState('tps');
@@ -513,7 +510,7 @@ export function createPlayAsFox(ctx) {
   window.addEventListener('resize', onResize);
 
   // —— 触屏：左下摇杆（上下=前后，左右=转向），右下扑击/冲刺 ——
-  const isTouch = (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
+  const isTouch = isTouchMode() || (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
   const touch = { throttle: 0, turn: 0, sprint: false };
   const stick = overlay.querySelector('#pafStick');
   const knob = overlay.querySelector('#pafKnob');
@@ -590,10 +587,8 @@ export function createPlayAsFox(ctx) {
   function update(dt) {
     if (!running) return;
     elapsed += dt;
-    const axes = touchControls?.controller?.touchAxes;
-    touch = mapPafJoystick(axes, touchControls?.sprintThreshold);
     const keyboardSprint = sprintHeld();
-    fox.sprint = keyboardSprint || (touchControls?.controller?.touchEnabled ? touch.sprint : false);
+    fox.sprint = keyboardSprint || touch.sprint;
     fox.stalk = !fox.sprint;
 
     // 相位推进
@@ -757,7 +752,7 @@ export function createPlayAsFox(ctx) {
     get phase() { return fox.phase; },
     get sprint() { return fox.sprint; },
     get stalk() { return !fox.sprint; },
-    get input() { return { touch: { ...touch }, charging: pounceCharge.active, chargeHeld: pounceCharge.held, routeActive: touchRoute.active, crouchScale: foxVisual.group.scale.y }; },
+    get input() { return { touch: { ...touch }, charging: pounceCharge.active, chargeHeld: pounceCharge.held, crouchScale: foxVisual.group.scale.y }; },
     get pos() { return { x: fox.x, y: fox.y, z: fox.z, yaw: fox.yaw, airY: fox.airY }; },
     get prey() { return prey; },
     get bounds() { return { hw: bounds.hw, hh: bounds.hh }; },

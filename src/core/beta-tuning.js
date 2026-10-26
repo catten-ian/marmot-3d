@@ -7,6 +7,7 @@ export const BETA_ACTIVE = IS_BETA;
 export const BETA_TUNE = {
   moveSpeedMul: 1.07, // 普通移速略降；stable/dev 不经过此倍率。
   sprintMoveCost: 5.0,
+  runMoveCost: 0.8, // 普通奔跑（非疾跑）移动消耗；stable/dev 保持既有常量。
   flowerCount: 4,
   flowerInstant: true,
   grassSeconds: 0.6,        // 一轮啃食动作（HUD 进度条）所需秒数；只驱动动作节奏/飘字，不直接给能量
@@ -18,8 +19,8 @@ export const BETA_TUNE = {
   grazeRegenPerSec: 8.0,    // 满密度时每秒入口的草料单位；实际按前方锥内真实吃量连续折算
   grazeConeHalfAngle: Math.PI / 3, // 以身体 yaw 为中心的 120° 前方采食锥；身后草不参与
   grazeMoveSpeedMul: 0.16,
-  grazeImmediateShare: 0.12, // 仅少量草料立即转化，其余进入有限口腔缓冲
-  mouthCapacity: 36,
+  grazeImmediateShare: 0.35, // 35% 草料立即转化，其余进入有限口腔缓冲
+  mouthCapacity: 120,
   chewPerSec: 5,
   mainBurrowChewPerSec: 12,
   temporaryBurrowChewPerSec: 7.5,

@@ -28,18 +28,19 @@ test('fat curve is 0 through 60%, increasing above 60%, and 100% at full', () =>
   near(crossing.stamina, 100); near(crossing.fat, 40);
 });
 
-test('mouth is finite, immediate share is small, overflow is explicit, chewing only works standing', () => {
+test('mouth capacity and immediate conversion use beta defaults; overflow is explicit and chewing only works standing', () => {
   let s = ingestGraze({ stamina: 50, fat: 0, mouth: 0 }, 10);
-  near(s.stamina, 51.2); near(s.mouth, 8.8); near(s.spilled, 0);
-  assert.ok(BETA_TUNE.grazeImmediateShare < 0.2);
-  s = ingestGraze({ stamina: 50, fat: 0, mouth: 35 }, 10);
-  near(s.mouth, 36); near(s.spilled, 7.8);
+  near(s.stamina, 53.5); near(s.mouth, 6.5); near(s.spilled, 0);
+  assert.equal(BETA_TUNE.grazeImmediateShare, 0.35);
+  assert.equal(BETA_TUNE.mouthCapacity, 120);
+  s = ingestGraze({ stamina: 50, fat: 0, mouth: 118 }, 10);
+  near(s.mouth, 120); near(s.spilled, 4.5);
   const moving = chewMouth(s, 1, { running: true });
-  assert.equal(moving.chewed, 0); near(moving.mouth, 36);
+  assert.equal(moving.chewed, 0); near(moving.mouth, 120);
   const grazing = chewMouth(s, 1, { grazing: true });
-  assert.equal(grazing.chewed, 0); near(grazing.mouth, 36);
+  assert.equal(grazing.chewed, 0); near(grazing.mouth, 120);
   const chewed = chewMouth(s, 1);
-  near(chewed.chewed, BETA_TUNE.chewPerSec); near(chewed.mouth, 36 - BETA_TUNE.chewPerSec);
+  near(chewed.chewed, BETA_TUNE.chewPerSec); near(chewed.mouth, 120 - BETA_TUNE.chewPerSec);
   assert.ok(chewed.stamina > s.stamina);
 });
 

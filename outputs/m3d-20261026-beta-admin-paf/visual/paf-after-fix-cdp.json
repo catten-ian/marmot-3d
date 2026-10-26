@@ -1,0 +1,19 @@
+{
+  "entry": {
+    "active": false,
+    "mode": "play",
+    "hud": false,
+    "body": false,
+    "foxMeshes": 0,
+    "consoleErrs": 0
+  },
+  "phaseAfterSpace": "wind",
+  "exit": {
+    "active": false,
+    "hud": false,
+    "body": false,
+    "mode": "title",
+    "overlay": true
+  },
+  "errors": []
+}

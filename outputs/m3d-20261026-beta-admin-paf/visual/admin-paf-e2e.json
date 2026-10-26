@@ -1,0 +1,54 @@
+{
+  "admin": {
+    "beta": "Beta 通道 · rev34",
+    "count": "共 578 项可调数值",
+    "entries": [
+      "beta.moveSpeedMul",
+      "beta.sprintMoveCost",
+      "beta.runMoveCost",
+      "beta.flowerCount",
+      "beta.grassSeconds",
+      "beta.grazeCoreRadius",
+      "beta.grazeHaloRadius",
+      "beta.grazeRate",
+      "beta.grassRegrowPerSec",
+      "beta.grazeRegenPerSec",
+      "beta.grazeMoveSpeedMul",
+      "beta.mouthCapacity",
+      "beta.chewPerSec",
+      "beta.mainBurrowChewPerSec",
+      "beta.temporaryBurrowChewPerSec",
+      "beta.flowerHpTotal",
+      "beta.flowerStaminaTotal",
+      "beta.flowerRecoverySeconds",
+      "beta.companionFollowSpeed",
+      "beta.companionFollowGap",
+      "beta.grazeEyeDropExtra",
+      "beta.thirdPersonGrazeDrop",
+      "beta.lungeLockRange",
+      "beta.grazeImmediateShare",
+      "beta.staminaFatThreshold",
+      "beta.grazeConeHalfAngle",
+      "beta.lungeLockHalfAngle",
+      "beta.flowerInstant"
+    ],
+    "mouth": "120"
+  },
+  "set": {
+    "status": 200,
+    "body": {
+      "ok": true,
+      "name": "paf-e2e",
+      "updatedAt": "2026-10-26T11:05:07.086Z",
+      "size": 69
+    }
+  },
+  "runtime": {
+    "mouth": 240,
+    "active": true
+  },
+  "runtime2": {
+    "mouth": 240,
+    "run": 0.55
+  }
+}

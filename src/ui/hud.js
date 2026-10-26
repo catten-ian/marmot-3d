@@ -5,6 +5,7 @@
 import { LEVELS } from '../core/config.js';
 import { bindText } from '../core/key-hints.mjs';
 import { IS_BETA } from '../core/version.js';
+import { BETA_TUNE } from '../core/beta-tuning.js';
 import { interactionSemantics } from '../core/interaction-semantics.mjs';
 
 const CH_CIRCUMFERENCE = 2 * Math.PI * 18;
@@ -173,7 +174,7 @@ export class HUD {
     this.el.hpText.textContent = Math.round(p.hp) + '/100';
     this.el.energyText.textContent = Math.round(p.energy) + '/100';
     this.el.stressText.textContent = Math.round(p.stress) + (stats.overloaded ? ' · 过载' : '');
-    if (this.beta) this.el.betaReserves.textContent = `脂肪储备 ${Math.round(p.fat || 0)}/100 · 口中草料 ${Math.round(p.mouth || 0)}/${p.mouthCapacity || 36}`;
+    if (this.beta) this.el.betaReserves.textContent = `脂肪储备 ${Math.round(p.fat || 0)}/100 · 口中草料 ${Math.round(p.mouth || 0)}/${p.mouthCapacity || BETA_TUNE.mouthCapacity}`;
 
     // Keep only level identity and live status in the always-visible mission
     // chip. Instructional text lives in the always-visible objective card.
