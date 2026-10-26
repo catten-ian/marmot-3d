@@ -7,11 +7,14 @@ const root = path.join(__dirname, '..');
 const paf = fs.readFileSync(path.join(root, 'src/play/play-as-fox.js'), 'utf8');
 const main = fs.readFileSync(path.join(root, 'src/main.js'), 'utf8');
 
-test('PAF module owns one stable touch state and no merged duplicate/shared route remains', () => {
-  assert.equal((paf.match(/\b(?:const|let)\s+touch\s*=/g) || []).length, 1);
-  assert.match(paf, /const touch = \{ throttle: 0, turn: 0, sprint: false \}/);
-  assert.match(paf, /fox\.sprint = keyboardSprint \|\| touch\.sprint/);
-  assert.doesNotMatch(paf, /touch\s*=\s*mapPafJoystick|mapPafJoystick|PafInputRoute|touchRoute/);
+test('PAF reuses the shared TouchControls route and has no independent touch DOM', () => {
+  assert.match(paf, /new PafInputRoute\(touchControls\)/);
+  assert.match(paf, /pafRoute\.activate/);
+  assert.match(paf, /pafRoute\.restore/);
+  assert.doesNotMatch(paf, /id=\"pafTouch\"|pafStick|pafPounce|pafSprint|pafLook/);
+  assert.match(paf, /data-touch-action=\"attack\"/);
+  assert.match(paf, /data-touch-action=\"dodge\"/);
+  assert.match(paf, /data-touch-action=\"jump\"/);
 });
 
 test('Beta entry hands off to the independent PAF update loop and exit callback returns to title', () => {

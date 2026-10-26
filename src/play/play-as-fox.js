@@ -34,6 +34,7 @@ import {
 } from '../core/predator-prey.js';
 import {
   isPafKey, pafKeyHeld, PafPounceCharge,
+  PafInputRoute,
 } from '../core/paf-input.js';
 
 /** 扮演藏狐模式全部可调平衡数值（后台滑块直接改这里的运行时副本）。 */
@@ -356,26 +357,6 @@ export function createPlayAsFox(ctx) {
       body.play-as-fox #minimap,
       body.play-as-fox .minimap { display:none !important; }
       body.play-as-fox #overlay.overlay.on { display:none !important; }
-      #playAsFoxHud #pafTouch { position:absolute;inset:0;pointer-events:none;display:none }
-      #playAsFoxHud.paf-touch #pafTouch { display:block }
-      #pafStick { position:absolute;left:34px;bottom:46px;width:132px;height:132px;border-radius:50%;
-        background:rgba(30,40,28,.32);border:2px solid rgba(220,235,205,.35);pointer-events:auto;touch-action:none }
-      #pafKnob { position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;
-        background:rgba(225,238,205,.55);border:2px solid rgba(255,255,255,.5);pointer-events:none }
-      #pafBtns { position:absolute;right:26px;bottom:46px;display:flex;flex-direction:column;gap:16px;align-items:center;pointer-events:none }
-      #pafBtns button { pointer-events:auto;touch-action:none;border:none;cursor:pointer;color:#f4f3e6;
-        font-weight:800;font-size:16px;border-radius:50%;box-shadow:0 3px 10px rgba(0,0,0,.35) }
-      #pafPounce { width:92px;height:92px;background:radial-gradient(circle at 35% 30%,#d98a4a,#9c5320) }
-      #pafSprint { width:68px;height:68px;background:radial-gradient(circle at 35% 30%,#7c8f63,#48552f);font-size:14px }
-      #pafSprint.paf-on { outline:3px solid #ffe08a }
-      #pafView { width:68px;height:68px;background:radial-gradient(circle at 35% 30%,#6f86a8,#3d4c66);font-size:14px }
-      #pafView.paf-on { outline:3px solid #9fd0ff }
-      #pafViewTag { position:absolute;top:12px;left:14px;padding:4px 10px;border-radius:8px;
-        background:rgba(20,28,20,.62);color:#cfe0bd;border:1px solid #55654a;font-size:12px;
-        font-weight:700;letter-spacing:.05em }
-      #playAsFoxHud.paf-fpv #pafViewTag { color:#9fd0ff;border-color:#5b7391 }
-      #pafLook { position:absolute;right:0;top:0;bottom:0;width:52%;pointer-events:none;touch-action:none }
-      #playAsFoxHud.paf-fpv.paf-touch #pafLook { pointer-events:auto }
       body.play-as-fox.touch-playing #touchControls { display:block; }
       body.play-as-fox #touchLookZone span { font-size:0; }
       body.play-as-fox #touchLookZone span::after { content:'右侧拖动转向';font-size:10px; }
@@ -393,15 +374,7 @@ export function createPlayAsFox(ctx) {
     <div id="pafCenter" style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);color:#ffd24a;font-size:30px;font-weight:900;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .15s"></div>
     <button id="pafExit" style="position:absolute;top:12px;right:14px;pointer-events:auto;padding:8px 14px;border-radius:10px;border:1px solid #6f7d5f;background:rgba(20,28,20,.72);color:#e7eedf;font-size:13px;cursor:pointer">退出扮演 (Esc)</button>
     <div id="pafViewTag">第三人称</div>
-    <div id="pafTouch">
-      <div id="pafLook"></div>
-      <div id="pafStick"><div id="pafKnob"></div></div>
-      <div id="pafBtns">
-        <button id="pafView" type="button">视角</button>
-        <button id="pafSprint" type="button">冲刺</button>
-        <button id="pafPounce" type="button">扑击</button>
-      </div>
-    </div>`;
+`;
   document.body.appendChild(overlay);
   const elTop = overlay.querySelector('#pafTop');
   const elTip = overlay.querySelector('#pafTip');
@@ -426,7 +399,7 @@ export function createPlayAsFox(ctx) {
 
   // 视角切换：进入 FPV 时视线从当前身体朝向出发；退出无任何残留状态。
   const elViewTag = overlay.querySelector('#pafViewTag');
-  const viewBtn = overlay.querySelector('#pafView');
+  const viewBtn = null;
   function setViewMode(mode, silent = false) {
     const m = viewMode.set(mode);
     if (m === 'fpv') {
@@ -509,68 +482,43 @@ export function createPlayAsFox(ctx) {
   renderer.domElement.addEventListener('click', onCanvasClick);
   window.addEventListener('resize', onResize);
 
-  // —— 触屏：左下摇杆（上下=前后，左右=转向），右下扑击/冲刺 ——
-  const isTouch = isTouchMode() || (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
+  // —— 触屏：复用主场景 TouchControls；PAF 仅接管共享事件输出 ——
+  const isTouch = isTouchMode();
   const touch = { throttle: 0, turn: 0, sprint: false };
-  const stick = overlay.querySelector('#pafStick');
-  const knob = overlay.querySelector('#pafKnob');
-  const sprintBtn = overlay.querySelector('#pafSprint');
-  const pounceBtn = overlay.querySelector('#pafPounce');
-  if (isTouch) overlay.classList.add('paf-touch');
-  let stickId = null;
-  const setKnob = (dx = 0, dy = 0) => { knob.style.transform = `translate(${dx}px,${dy}px)`; };
-  const stickVec = (clientX, clientY) => {
-    const r = stick.getBoundingClientRect();
-    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    let dx = clientX - cx, dy = clientY - cy;
-    const max = r.width * 0.36, len = Math.hypot(dx, dy);
-    if (len > max) { dx = dx / len * max; dy = dy / len * max; }
-    setKnob(dx, dy);
-    const nx = dx / max, ny = dy / max;      // 屏幕上为负 y
-    const dead = 0.18;
-    touch.turn = Math.abs(nx) > dead ? -nx : 0;     // 向右拖→顺时针右转
-    touch.throttle = Math.abs(ny) > dead ? -ny : 0; // 向上拖→前进
+  const pafRoute = new PafInputRoute(touchControls);
+  const touchAction = (action, pressed) => {
+    if (action === 'attack') {
+      if (pressed) startPounce(true);
+      else pounceCharge.release();
+    } else if (action === 'dodge') {
+      touch.sprint = pressed;
+    } else if (action === 'jump' && pressed) {
+      toggleView();
+    }
   };
-  const onStickDown = (e) => { e.preventDefault(); stickId = e.pointerId; stick.setPointerCapture?.(e.pointerId); stickVec(e.clientX, e.clientY); };
-  const onStickMove = (e) => { if (stickId !== e.pointerId) return; e.preventDefault(); stickVec(e.clientX, e.clientY); };
-  const onStickUp = (e) => { if (stickId !== null && e.pointerId !== stickId) return; stickId = null; touch.throttle = 0; touch.turn = 0; setKnob(0, 0); };
-  const setSprint = (on) => { touch.sprint = on; sprintBtn?.classList.toggle('paf-on', on); };
-  stick?.addEventListener('pointerdown', onStickDown);
-  stick?.addEventListener('pointermove', onStickMove);
-  stick?.addEventListener('pointerup', onStickUp);
-  stick?.addEventListener('pointercancel', onStickUp);
-  // 触屏 FPV 自由视角：右半屏拖拽（#pafLook 仅 FPV+触屏时接管指针）
-  const lookArea = overlay.querySelector('#pafLook');
-  let lookId = null, lookLast = null;
-  const onLookDown = (e) => {
-    if (viewMode.mode !== 'fpv') return;
-    e.preventDefault(); lookId = e.pointerId; lookLast = { x: e.clientX, y: e.clientY };
-    lookArea.setPointerCapture?.(e.pointerId);
+  const onTouchLook = (delta) => {
+    if (viewMode.mode === 'fpv') look.yaw += delta;
+    else fox.yaw += delta;
   };
-  const onLookMove = (e) => {
-    if (lookId !== e.pointerId || !lookLast) return;
-    e.preventDefault();
-    applyLookDelta(look, e.clientX - lookLast.x, e.clientY - lookLast.y, {
-      sensitivity: cfg.fpvTouchLook, pitchMinDeg: cfg.fpvPitchMin, pitchMaxDeg: cfg.fpvPitchMax,
+  const pafTouchLabelSnapshot = isTouch ? ['attack', 'dodge', 'jump'].map((action) => {
+    const el = document.querySelector(`[data-touch-action="${action}"]`);
+    return el ? { el, aria: el.getAttribute('aria-label'), b: el.querySelector('b')?.textContent || '', small: el.querySelector('small')?.textContent || '' } : null;
+  }).filter(Boolean) : [];
+  if (isTouch) {
+    touchControls?.activate?.();
+    pafRoute.activate({
+      onAction: touchAction,
+      onLook: onTouchLook,
+      lookSensitivity: cfg.fpvTouchLook,
     });
-    lookLast = { x: e.clientX, y: e.clientY };
-  };
-  const onLookUp = (e) => { if (e.pointerId === lookId) { lookId = null; lookLast = null; } };
-  lookArea?.addEventListener('pointerdown', onLookDown);
-  lookArea?.addEventListener('pointermove', onLookMove);
-  lookArea?.addEventListener('pointerup', onLookUp);
-  lookArea?.addEventListener('pointercancel', onLookUp);
-  viewBtn?.addEventListener('click', (e) => { e.preventDefault(); toggleView(); });
-
-  let pafPouncePid = null;
-  pounceBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); if (startPounce(true)) pafPouncePid = e.pointerId; });
-  sprintBtn?.addEventListener('pointerdown', (e) => { e.preventDefault(); setSprint(true); });
-  sprintBtn?.addEventListener('pointerup', () => setSprint(false));
-  sprintBtn?.addEventListener('pointercancel', () => setSprint(false));
-  sprintBtn?.addEventListener('pointerleave', () => setSprint(false));
-  // Stage2 蓄力接入：扑击按钮按住蓄力、松手扑出（蓄力逻辑见 PafPounceCharge）
-  pounceBtn?.addEventListener('pointerup', (e) => { if (pafPouncePid === e.pointerId) { pafPouncePid = null; pounceCharge.release(); } });
-  pounceBtn?.addEventListener('pointercancel', (e) => { if (pafPouncePid === e.pointerId) { pafPouncePid = null; pounceCharge.release(); } });
+    document.body.classList.add('paf-touch-route');
+    const attack = document.querySelector('[data-touch-action="attack"]');
+    const sprint = document.querySelector('[data-touch-action="dodge"]');
+    const view = document.querySelector('[data-touch-action="jump"]');
+    if (attack) { attack.dataset.pafLabel = 'attack'; attack.setAttribute('aria-label', '扑击：按住蓄力，松手扑出'); attack.querySelector('b')?.replaceChildren('爪'); attack.querySelector('small')?.replaceChildren('扑击'); }
+    if (sprint) { sprint.dataset.pafLabel = 'sprint'; sprint.setAttribute('aria-label', '冲刺：按住冲刺'); sprint.querySelector('b')?.replaceChildren('⚡'); sprint.querySelector('small')?.replaceChildren('冲刺'); }
+    if (view) { view.dataset.pafLabel = 'view'; view.setAttribute('aria-label', '视角：切换第一人称/第三人称'); view.querySelector('b')?.replaceChildren('◉'); view.querySelector('small')?.replaceChildren('视角'); }
+  }
 
   // 镜头先就位
   fox.y = terrainHeight(fox.x, fox.z);
@@ -588,7 +536,10 @@ export function createPlayAsFox(ctx) {
     if (!running) return;
     elapsed += dt;
     const keyboardSprint = sprintHeld();
-    fox.sprint = keyboardSprint || touch.sprint;
+    const axes = pafRoute.controller?.touchAxes || { x: 0, y: 0 };
+    touch.turn = -axes.x;
+    touch.throttle = axes.y;
+    fox.sprint = keyboardSprint || touch.sprint || !!pafRoute.controller?.touchSprint;
     fox.stalk = !fox.sprint;
 
     // 相位推进
@@ -714,16 +665,10 @@ export function createPlayAsFox(ctx) {
     renderer.domElement.removeEventListener('mousedown', onMouseDown);
     renderer.domElement.removeEventListener('click', onCanvasClick);
     window.removeEventListener('resize', onResize);
-    stick?.removeEventListener('pointerdown', onStickDown);
-    stick?.removeEventListener('pointermove', onStickMove);
-    stick?.removeEventListener('pointerup', onStickUp);
-    stick?.removeEventListener('pointercancel', onStickUp);
-    lookArea?.removeEventListener('pointerdown', onLookDown);
-    lookArea?.removeEventListener('pointermove', onLookMove);
-    lookArea?.removeEventListener('pointerup', onLookUp);
-    lookArea?.removeEventListener('pointercancel', onLookUp);
     pounceCharge.reset();
-    pafPouncePid = null;
+    pafRoute.restore();
+    for (const item of pafTouchLabelSnapshot) { item.el.setAttribute('aria-label', item.aria || ''); if (item.el.querySelector('b')) item.el.querySelector('b').textContent = item.b; if (item.el.querySelector('small')) item.el.querySelector('small').textContent = item.small; delete item.el.dataset.pafLabel; }
+    document.body.classList.remove('paf-touch-route');
     touch.throttle = 0; touch.turn = 0; touch.sprint = false;
     keys.clear();
     for (const p of prey) p.dispose(scene);
