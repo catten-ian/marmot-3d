@@ -1,0 +1,228 @@
+{
+  "startedAt": "2026-10-25T12:52:40.997Z",
+  "target": "http://127.0.0.1:8331/index.html?webgl=1&play-as-fox=1&pafqa=1&t=1792932761977",
+  "renderer": {
+    "backend": "WebGL2",
+    "gpu": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
+    "acceleration": "硬件加速",
+    "rawGl": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
+    "webgpuAvailable": true
+  },
+  "scenarios": {
+    "freeze": {
+      "seenStates": [
+        "wander",
+        "alert",
+        "freeze",
+        "flee",
+        "wander"
+      ],
+      "freezeDurationsMs": [
+        266.6666666666667
+      ],
+      "suspicionRose": true,
+      "maxSuspicion": 1.007,
+      "maxFreezeMoveM": 0,
+      "facingErrorDeg": 0,
+      "driver": "qa.step(1/60)"
+    },
+    "freezeScreenshotState": "freeze",
+    "zigzag": {
+      "flips": 4,
+      "medianSpeed": 3.58,
+      "tailSamples": [
+        {
+          "x": 0.5,
+          "z": 11.54,
+          "s": 2.14
+        },
+        {
+          "x": 0.5,
+          "z": 11.57,
+          "s": 2.06
+        },
+        {
+          "x": 0.51,
+          "z": 11.6,
+          "s": 1.98
+        },
+        {
+          "x": 0.51,
+          "z": 11.64,
+          "s": 1.91
+        },
+        {
+          "x": 0.51,
+          "z": 11.67,
+          "s": 1.84
+        },
+        {
+          "x": 0.52,
+          "z": 11.7,
+          "s": 1.78
+        }
+      ],
+      "driver": "qa.step(1/60)"
+    },
+    "landingEvasion": {
+      "expectedYaw": -0.09177597528288228,
+      "actualYaw": -0.1127374914957806,
+      "errorDeg": 1.2010064111941228,
+      "differsFromRadialDeg": 4.944129340266079,
+      "land": {
+        "x": 0.4656005257524519,
+        "z": 3.9415957619242286
+      },
+      "prey": {
+        "x": -0.0400607629237801,
+        "z": 7.304100867291018
+      },
+      "driver": "qa.step(1/60)"
+    },
+    "leadPounce": {
+      "trials": 16,
+      "lateralTrials": 14,
+      "catches": 16,
+      "catchRate": 1,
+      "maxRetargetDeg": 8.26,
+      "capDeg": 12,
+      "retargetsWithinCap": true,
+      "retargeted": true,
+      "driver": "qa.step(1/60)"
+    },
+    "verticalWindow": {
+      "pure": {
+        "apexMiss": true,
+        "lowArcHit": true,
+        "groundHit": true,
+        "terrainBlock": true,
+        "horizontalMiss": true
+      },
+      "highArcCatchRadius": 1,
+      "highArcCaptureEnabled": true,
+      "terrainDelta": 0.0025,
+      "neverCaughtHighArc": true,
+      "overshootDeniedAtApex": true,
+      "closePounceCatch": true,
+      "apexFrames": [
+        {
+          "d": 0.82,
+          "airY": 0.95,
+          "caught": false
+        },
+        {
+          "d": 0.6,
+          "airY": 1,
+          "caught": false
+        },
+        {
+          "d": 0.37,
+          "airY": 1.03,
+          "caught": false
+        },
+        {
+          "d": 0.15,
+          "airY": 1.05,
+          "caught": false
+        },
+        {
+          "d": 0.08,
+          "airY": 1.05,
+          "caught": false
+        },
+        {
+          "d": 0.3,
+          "airY": 1.03,
+          "caught": false
+        },
+        {
+          "d": 0.53,
+          "airY": 1,
+          "caught": false
+        },
+        {
+          "d": 0.75,
+          "airY": 0.96,
+          "caught": false
+        },
+        {
+          "d": 0.98,
+          "airY": 0.9,
+          "caught": false
+        }
+      ],
+      "driver": "qa.step(1/60)"
+    },
+    "respawn": {
+      "trials": 60,
+      "strictOk": 60,
+      "minDist": 18.1,
+      "minViewAngleDeg": 37.2
+    },
+    "narrow": {
+      "width": 390,
+      "touchClass": true,
+      "stickVisible": true
+    },
+    "refresh": true,
+    "exitReenter": {
+      "exited": true,
+      "reentered": true
+    },
+    "storageFailure": {
+      "enterOk": true,
+      "err": null,
+      "phaseAfterPounce": "lunge"
+    },
+    "offline": {
+      "active": true,
+      "phase": "recover"
+    },
+    "debugGui": {
+      "exists": true,
+      "handle": true,
+      "newParamsAllPresent": true,
+      "visibleLabels": 0,
+      "paramCount": 92,
+      "missing": []
+    },
+    "normalPlayer": {
+      "active": true,
+      "noQaStep": true,
+      "noDebugGui": true,
+      "noDebugGeometry": true
+    }
+  },
+  "errors": [],
+  "screenshots": [
+    "01-paf-freeze-desktop.png",
+    "02-zigzag-field.png",
+    "03-pounce.png",
+    "04-narrow-touch.png",
+    "05-after-refresh.png",
+    "06-paf-debug.png"
+  ],
+  "cdp": {
+    "managed": true,
+    "endpoint": "http://127.0.0.1:18800",
+    "browser": "Chrome/147.0.7727.137"
+  },
+  "checks": {
+    "freezeSequence": true,
+    "freezeStillFacing": true,
+    "zigzag": true,
+    "landingEvasion": true,
+    "leadPounce": true,
+    "verticalWindow": true,
+    "respawn": true,
+    "narrow": true,
+    "refresh": true,
+    "exitReenter": true,
+    "storageFailure": true,
+    "offline": true,
+    "debugGui": true,
+    "normalPlayer": true
+  },
+  "pass": true,
+  "finishedAt": "2026-10-25T12:53:01.146Z"
+}
