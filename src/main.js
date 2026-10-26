@@ -25,7 +25,7 @@ import {
 } from './core/combat-wheel.mjs';
 import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
-import { preloadModels } from './models/loader.js';
+import { preloadModels, instantiate, normalizeModel } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
 import { getRenderProfile, hasRealTouch, isTouchPrimary } from './core/performance.js';
@@ -351,7 +351,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
   verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
   scene.add(world.group); setHeightField(world.heightAt, { resolveGround: world.resolveGround, solidCollider: true });
-  setPointScale(0.88, 0, 0); setPlayableBounds(world.bounds); setUndergroundCavesEnabled(false);
+  setPointScale(0.88, 0, 0); setPlayableBounds(world.bounds); setUndergroundCavesEnabled(devOn('scannedBurrows') ? true : false);
   sky.terrain.visible = false; sky.hills.visible = false; sky.dome.visible = true; sky.setVerdantMood?.(); publishVerdantField(world);
   hud.say('DEV · 一套 Verdant Trail 场景已加载', 3.2); return world;
 }
@@ -429,7 +429,7 @@ async function switchVerdantTier(preference, forceReload = false) {
   publishVerdantField(loaded);
   setHeightField(loaded.heightAt, { resolveGround: loaded.resolveGround, solidCollider: true });
   setPlayableBounds(loaded.bounds);
-  setUndergroundCavesEnabled(false);
+  setUndergroundCavesEnabled(devOn('scannedBurrows') ? true : false);
   // 新高度场生效后立即吸附并同步 _lastGround，首帧不会从旧高度积分重力。
   controller.setVerdantSafety(createVerdantSafetyProfile(loaded));
   controller.syncVerdantGround(pose.x, pose.z);
@@ -578,6 +578,22 @@ const playerBody = buildMarmotMesh();
 playerModel.add(playerBody);
 scene.add(playerModel);
 playerModel.visible = false;
+let playerRealBody = null;
+if (devOn('screamingMarmot') && USE_REAL_MODELS) {
+  instantiate('./assets/models/marmot-screaming.glb', 'marmotScream').then((inst) => {
+    if (!inst) return;
+    const norm = normalizeModel(inst, 0.9, { upAxis: 'z' });
+    norm.wrap.traverse((o) => {
+      if (!o.isMesh) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m) => { if (m?.color && m.color.r < 0.08 && m.color.g < 0.08 && m.color.b < 0.08) m.color.set(0xa9834e); });
+      o.castShadow = true; o.receiveShadow = true;
+    });
+    norm.wrap.visible = true;
+    playerModel.add(norm.wrap); playerRealBody = norm.wrap;
+    playerBody.visible = false;
+  }).catch((e) => console.warn('[player] screaming marmot fallback:', e));
+}
 
 const VIEW_MODE_KEY = 'marmot3d.viewMode.v1';
 let thirdPerson = false;
@@ -1718,6 +1734,11 @@ function update(dt) {
   game.currentBurrow = burrowVolumeAt(p.x, controller.position.y, p.z, burrowDefs);
   game.inBurrow = !!game.currentBurrow;
   game.inBaseBurrow = game.currentBurrow?.type === 'base';
+  for (const b of burrowSet.objects) {
+    const near = Math.hypot(p.x - b.pos.x, p.z - b.pos.z) < 18;
+    if (near) b.ensureInterior?.();
+    if (b.interiorGroup) b.interiorGroup.visible = game.inBurrow && game.currentBurrow === b.pos;
+  }
   // 移动可能在本帧跨过洞口；立刻切换天气可见性/听感，避免沙尘雾留在洞内，
   // 同时保留普通关卡雾和洞内照明的独立语义。
   if (game.inBurrow !== weatherInBurrow) updateEnvNotice(updateEnv(0, game.inBurrow));
@@ -1922,6 +1943,7 @@ function update(dt) {
   playerBody.rotation.x = -controller.crouch * 0.28;
   playerBody.position.y = controller.crouch * -0.12 + (controller.grounded ? 0 : 0.08);
   playerBody.scale.set(1, 1 - controller.crouch * 0.12, 1 + controller.crouch * 0.18);
+  if (playerRealBody) { playerRealBody.rotation.x = playerBody.rotation.x; playerRealBody.position.y = playerBody.position.y; playerRealBody.scale.set(1, 1 - controller.crouch * 0.12, 1 + controller.crouch * 0.18); }
   // 第三人称攻击/翻滚动作（前肢 + 身体姿态）。
   const arms = playerBody.userData.frontArms;
   const atkK = playerAttackT > 0 ? Math.sin(Math.min(1, 1 - playerAttackT / 0.46) * Math.PI) : 0;
