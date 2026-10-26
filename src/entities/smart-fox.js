@@ -2,6 +2,8 @@ import { Fox } from './fox.js';
 import { FOX, ROCKS, BURROWS, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { SANDBOX_DIFFICULTIES } from '../sandbox/state.js';
 import { clamp, terrainHeight } from '../core/utils.js';
+import { BETA_TUNE } from '../core/beta-tuning.js';
+import { IS_BETA } from '../core/version.js';
 import { canSprint, stepStamina, shouldRetreat } from '../core/fox-motion.js';
 import {
   utilityScores,
@@ -12,7 +14,7 @@ import {
   isSegmentReachable,
   smartPounceDistance, smartPounceDashDistance, cancelSmartPounce, SMART_POUNCE_TUNE,
   updateSmartMemory, habituateDecayRate, stepInterruptionTimes,  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK,
-  flankSlots, assignFlankSlot, assignRoles, forcedRetreat,
+  flankSlots, assignFlankSlot, assignRoles, forcedRetreat, assembleSmartAim,
 } from './smart-fox-core.mjs';
 
 /**
@@ -41,6 +43,7 @@ export class SmartFox extends Fox {
     this._smartState = {
       x, z, vx: 0, vz: 0, yaw: this.yaw,
       maxTurnRate: 2.8, acceleration: 18, pounceCooldown: 0, telegraphT: 0, phase: 'observe', phaseTime: 0, cooldown: 0, pounceTime: 0,
+      ...(IS_BETA ? { pounceMinDistance: BETA_TUNE.smartPounceMinDistance, pounceMaxDistance: BETA_TUNE.smartPounceMaxDistance } : {}),
     };
     this.smartDifficulty = 'standard';
     this.applySmartDifficulty(opts.difficulty || 'standard');
@@ -209,7 +212,8 @@ export class SmartFox extends Fox {
     const toP = Math.atan2(dx, dz);          // 狐→玩家 方位角
     const dn = distance || 1;
     const ux = -dx / dn, uz = -dz / dn;      // 玩家→狐 单位向量（身后方向）
-    let aimX = p.x + separation.x * 2.2, aimZ = p.z + separation.z * 2.2;
+    const initialTacticalScale = (IS_BETA && intent === 'pounce') ? BETA_TUNE.smartPounceAimOffsetScale : 1;
+    let aimX = p.x + separation.x * 2.2 * initialTacticalScale, aimZ = p.z + separation.z * 2.2 * initialTacticalScale;
     if (!this.pounceCommitted) {
       if (intent === 'recover' || intent === 'abandon') {
         const R = STAND[intent];
@@ -256,8 +260,14 @@ export class SmartFox extends Fox {
     const peers = packContext?.smartFoxes || [];
     const sep = foxSeparation(this, peers);
     const bias = flankBias(this, peers, p, this._smartState.coordination);
-    aimX += sep.x + Math.cos(toP) * bias * 2;
-    aimZ += sep.z - Math.sin(toP) * bias * 2;
+    const tacticalScale = (IS_BETA && intent === 'pounce') ? BETA_TUNE.smartPounceAimOffsetScale : 1;
+    aimX += (sep.x + Math.cos(toP) * bias * 2) * tacticalScale;
+    aimZ += (sep.z - Math.sin(toP) * bias * 2) * tacticalScale;
+    // Beta 提交态最终锁点只取玩家当前坐标；包抄/分离只影响接近阶段。
+    if (IS_BETA && intent === 'pounce') {
+      const lockedAim = assembleSmartAim({ player: p, self: this, intent, separation: sep, flank: bias, pounceOffsetScale: BETA_TUNE.smartPounceAimOffsetScale });
+      aimX = lockedAim.x; aimZ = lockedAim.z;
+    }
     const ground = !this.pounceCommitted ? this._groundSteer(aimX - this.x, aimZ - this.z, this._smartState.approachSpeed, burrows) : null;
     if (ground) { aimX = this.x + ground.x * 100; aimZ = this.z + ground.z * 100; }
     const next = stepSmartMotion(

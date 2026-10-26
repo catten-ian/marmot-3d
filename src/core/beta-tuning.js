@@ -34,6 +34,11 @@ export const BETA_TUNE = {
   thirdPersonGrazeDrop: 1.05,
   lungeLockRange: 9.0,
   lungeLockHalfAngle: Math.PI / 2.2,
+  // —— 智能狐扑击命中校准（仅 Beta）——
+  smartPounceAimOffsetScale: 0, // 提交态不把分离/包抄偏移带入最终瞄准点
+  smartPounceMinDistance: 4.2,
+  smartPounceMaxDistance: 6.2,
+  smartPounceHitRadius: 1.3, // Beta 扑击水平命中半径上限，避免冲穿后仍判定过宽
   // —— 眩晕递减（仅 Beta）——
   stunDiminishWindow: 3.0,       // 上次施加/结束后，窗口内再次命中会递减
   stunDiminishFactor: 0.55,      // 每层眩晕时长倍率

@@ -1970,7 +1970,10 @@ function update(dt) {
     const smartCanHit = f.type !== 'smart' || (f.pounceCommitted && f.pounceStriking);
     if (f.alive && !game.inBurrow && p.invuln <= 0 && (f.contactCd ?? 0) <= 0 && smartCanHit) {
       const d = Math.hypot(f.x - p.x, f.z - p.z);
-      const reach = (PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal));
+      const reachBase = PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal);
+      const reach = f.type === 'smart' && IS_BETA
+        ? Math.min(reachBase, BETA_TUNE.smartPounceHitRadius)
+        : reachBase;
       // 水平接触仍受原半径限制；高度则比较双方碰撞区间，
       // 避免地面玩家被从头顶跃过的狐狸击中。
       const foxBottom = terrainHeight(f.x, f.z) + f.leap;
