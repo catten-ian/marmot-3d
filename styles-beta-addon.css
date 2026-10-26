@@ -28,3 +28,7 @@ body.beta-version.touch-layout-editing .view-btn.layout-dragging { cursor: grabb
 .config-io-status.ok { color: #9fe8b0; }
 .config-io-status.warn { color: #ffcf6b; }
 .config-io-status.error { color: #ff9d8a; }
+
+/* 标题/暂停/结算等整页面板（#overlay）打开期间：视角切换按钮在半透明遮罩后透出来，
+   层级上属于游戏内控件、此时无任何意义，隐藏；面板关闭即自动恢复。纯 CSS 零 JS 状态。 */
+#overlay:not([hidden]) ~ .view-btn { display: none !important; }

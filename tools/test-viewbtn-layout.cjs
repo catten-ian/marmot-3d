@@ -206,6 +206,8 @@ function installDom({ width = 1280, height = 720, store = {} } = {}) {
     assert.match(addonCss, /@media \(min-width: 861px\)\s*\{\s*body\.beta-version \.view-btn\s*\{[^}]*right:\s*132px/s);
     // 开始/暂停 overlay 为 z-index:40；实玩按钮须在其上，编辑态仍由拖动层接管。
     assert.match(addonCss, /body\.beta-version:not\(\.touch-layout-editing\) \.view-btn\s*\{[^}]*z-index:\s*50/s);
+    // 但 overlay 真正打开（标题/暂停/结算）期间按钮必须隐藏，不能透出遮罩。
+    assert.match(addonCss, /#overlay:not\(\[hidden\]\) ~ \.view-btn\s*\{[^}]*display:\s*none/s);
   });
 
   test('重复件 view-mode-card 已物理删除，main.js/全仓无 hudViewMode 残留', () => {
