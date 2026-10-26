@@ -34,7 +34,51 @@ export const BETA_TUNE = {
   thirdPersonGrazeDrop: 1.05,
   lungeLockRange: 9.0,
   lungeLockHalfAngle: Math.PI / 2.2,
+  // —— 眩晕递减（仅 Beta）——
+  stunDiminishWindow: 3.0,       // 上次施加/结束后，窗口内再次命中会递减
+  stunDiminishFactor: 0.55,      // 每层眩晕时长倍率
+  stunDiminishFloor: 0.15,       // 递减后的最短眩晕时长（秒）
+  stunDiminishResetSeconds: 4.0, // 停止被晕后超过此时长，递减层数清零
 };
+
+/** 空闲达到清零时间后，立即清掉实例上的递减层与时间戳。 */
+export function expireStunDiminution(state = {}, now = 0, resetSeconds = BETA_TUNE.stunDiminishResetSeconds) {
+  const lastAppliedAt = Number.isFinite(state.lastAppliedAt) ? state.lastAppliedAt : -Infinity;
+  const lastEndedAt = Number.isFinite(state.lastEndedAt) ? state.lastEndedAt : -Infinity;
+  const eventAt = Math.max(lastAppliedAt, lastEndedAt);
+  if (!Number.isFinite(eventAt) || now - eventAt < Math.max(0, Number(resetSeconds) || 0)) return state;
+  return { ...state, level: 0, lastAppliedAt: -Infinity, lastEndedAt: -Infinity };
+}
+
+/**
+ * 计算 Beta 眩晕递减后的时长。
+ * `state` 可直接保存在狐狸实例上，返回值包含下一层级和事件时间，便于下一次命中继续计算。
+ * stable/dev 调用方不应进入此函数；传 betaOn=false 时保持原始时长。
+ */
+export function stepStunDiminution(baseDuration, state = {}, { betaOn = BETA_ACTIVE, now = 0, tune = BETA_TUNE } = {}) {
+  const base = Math.max(0, Number(baseDuration) || 0);
+  if (!betaOn) return { duration: base, level: 0, lastAppliedAt: now, lastEndedAt: state.lastEndedAt ?? -Infinity };
+  const previousLevel = Math.max(0, Math.floor(Number(state.level) || 0));
+  const lastAppliedAt = Number.isFinite(state.lastAppliedAt) ? state.lastAppliedAt : -Infinity;
+  const lastEndedAt = Number.isFinite(state.lastEndedAt) ? state.lastEndedAt : -Infinity;
+  const eventAt = Math.max(lastAppliedAt, lastEndedAt);
+  const elapsed = now - eventAt;
+  const reset = Math.max(0, Number(tune.stunDiminishResetSeconds) || 0);
+  const window = Math.max(0, Number(tune.stunDiminishWindow) || 0);
+  const active = Number(state.currentStun) > 0;
+  let level = 0;
+  const hasHistory = Number.isFinite(lastAppliedAt) || Number.isFinite(lastEndedAt);
+  if (active) level = previousLevel + 1;
+  else if (elapsed < reset) {
+    if (elapsed <= window) level = hasHistory ? previousLevel + 1 : 0; // 首次眩晕不打折
+    else level = previousLevel; // 窗口外不再叠层，但保留旧层直到清零时间
+  }
+  const factor = Math.max(0, Number(tune.stunDiminishFactor) || 0);
+  const floor = Math.max(0, Number(tune.stunDiminishFloor) || 0);
+  const duration = level > 0 ? Math.min(base, Math.max(floor, base * (factor ** level))) : base;
+  return { duration, level, lastAppliedAt: now, lastEndedAt };
+}
+
 
 /**
  * 扑击(lunge)自动锁敌：选前方半角内距离最近的有效目标，返回其朝向 yaw。

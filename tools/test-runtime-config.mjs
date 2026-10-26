@@ -44,6 +44,10 @@ test('schema-added beta values traverse admin projection, active endpoint fetch,
     'beta.flowerStaminaTotal': 32,
     'beta.flowerRecoverySeconds': 9,
     'beta.grazeConeHalfAngle': Math.PI / 4,
+    'beta.stunDiminishWindow': 2.7,
+    'beta.stunDiminishFactor': 0.6,
+    'beta.stunDiminishFloor': 0.12,
+    'beta.stunDiminishResetSeconds': 4.5,
   };
   const payload = runtimePayloadFromAdminConfig({ values: override });
   const active = await fetchActiveBetaConfig({

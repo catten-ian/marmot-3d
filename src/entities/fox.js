@@ -17,7 +17,7 @@
 import * as THREE from 'three';
 import { FOX, ROCKS, BURROW_AI, roamBounds, scalePoint, scaleRadius } from '../core/config.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
-import { IS_DEV, USE_REAL_FOX_MODEL } from '../core/version.js';
+import { IS_DEV, IS_BETA, USE_REAL_FOX_MODEL } from '../core/version.js';
 import { clamp } from '../core/utils.js';
 import { createProceduralFox } from './procedural-fox.js';
 import { createTibetanFox } from './tibetan-fox.js';
@@ -27,6 +27,7 @@ import {
   shouldRetreat, chooseRestPoint, enterRestSafe, stepRestSafe, exitRestSafe, defeatFate, stepDefeatCooldown,
 } from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
+import { BETA_TUNE, expireStunDiminution, stepStunDiminution } from '../core/beta-tuning.js';
 import { advanceDrillState, sampleWalkableGround, stepGroundY } from './smart-fox-core.mjs';
 /** 手搓程序化狐狸：config 开关，或 beta 用 ?procfox=1 临时启用对比；默认仍走现有模型 */
 const USE_PROCEDURAL_FOX = FOX.useProcedural
@@ -133,6 +134,10 @@ export class Fox {
     this.timer = 0;
     this.yaw = Math.random() * Math.PI * 2;
     this.stun = 0;
+    if (IS_BETA) {
+      this._stunDiminish = { level: 0, lastAppliedAt: -Infinity, lastEndedAt: -Infinity };
+      this._stunClock = 0;
+    }
     this.respawn = 0;
     this.phase = slot * 1.6 + 0.5;
     this._runCycle = Math.random() * Math.PI * 2;
@@ -505,6 +510,10 @@ export class Fox {
 
     const allBurrows = Array.isArray(burrows) ? burrows : (burrows ? [burrows] : []);
     this._stateAge += dt;
+    if (IS_BETA) {
+      this._stunClock += Math.max(0, dt);
+      if (this.stun <= 0) this._stunDiminish = expireStunDiminution(this._stunDiminish, this._stunClock, BETA_TUNE.stunDiminishResetSeconds);
+    }
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     this.contactCd = Math.max(0, (this.contactCd ?? 0) - dt);
     const previousX = this.x, previousZ = this.z;
@@ -557,7 +566,12 @@ export class Fox {
     }
 
     if (this.stun > 0) {
+      const wasStunned = this.stun;
       this.stun -= dt;
+      if (this.stun <= 0 && wasStunned > 0 && IS_BETA) {
+        this.stun = 0;
+        this._stunDiminish.lastEndedAt = this._stunClock;
+      }
       this.mesh.rotation.z = Math.sin(performance.now() * 0.03) * 0.22;
       this._updateSegmentedFox(dt, 0);
       this._applyTransform(dt, terrainAt);
@@ -1299,7 +1313,14 @@ export class Fox {
     const impulse = knockback * (FOX.types[this.type]?.knockbackMul ?? 1);
     this.knockbackVX = clamp(this.knockbackVX + (dx / d) * impulse, -8, 8);
     this.knockbackVZ = clamp(this.knockbackVZ + (dz / d) * impulse, -8, 8);
-    this.stun = stun * (this.type === 'boss' ? 0.45 : 1);
+    const rawStun = stun * (this.type === 'boss' ? 0.45 : 1);
+    if (IS_BETA && rawStun > 0) {
+      const diminished = stepStunDiminution(rawStun, { ...this._stunDiminish, currentStun: this.stun }, { betaOn: true, now: this._stunClock });
+      this.stun = diminished.duration;
+      this._stunDiminish = diminished;
+    } else {
+      this.stun = rawStun;
+    }
     // 血量归零：交给 main.startFleeing 做可见的夹尾逃跑（普通狐会增援，首领不回来）。
     if (this.hp <= 0) return true;
     // 撤退/安全休息中的狐狸被打不退出撤退、不重置 repelCounted（撤退不受打断）。
@@ -1324,6 +1345,10 @@ export class Fox {
     this.staminaLocked = 0;
     this.state = 'roam';
     this.stun = 0;
+    if (IS_BETA) {
+      this._stunClock = 0;
+      this._stunDiminish = { level: 0, lastAppliedAt: -Infinity, lastEndedAt: -Infinity };
+    }
     this.timer = 0;
     this.fleeing = false;
     this.fleeTime = 0;

@@ -682,7 +682,7 @@ function spawnSandboxSmartFox(slot = foxes.filter((f) => !f.isSandboxDummy).leng
   const angle = controller.yaw;
   const x = controller.position.x + Math.sin(angle) * distance;
   const z = controller.position.z + Math.cos(angle) * distance;
-  const fox = wireRepelCallback(new SmartFox(scene, x, z, 0, slot, { lureBias: 1.15 }));
+  const fox = wireRepelCallback(new SmartFox(scene, x, z, 0, slot, { lureBias: 1.15, ...(IS_BETA ? { hp: 4 } : {}) }));
   fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
   fox.sandboxSpeedMul = sandboxState.speedMultiplier;
   fox.sandboxAlertMul = sandboxState.alertMultiplier;

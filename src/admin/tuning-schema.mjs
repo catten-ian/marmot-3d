@@ -196,6 +196,10 @@ export function buildTuningEntries() {
     ['grazeEyeDropExtra', '啃食视高额外下降', 0, 1, 'm'],
     ['thirdPersonGrazeDrop', '第三人称啃食视高下降', 0, 2, 'm'],
     ['lungeLockRange', '扑击锁敌距离', 1, 20, 'm'],
+    ['stunDiminishWindow', '眩晕递减窗口', 0, 20, 's'],
+    ['stunDiminishFactor', '眩晕递减倍率', 0, 1, '×'],
+    ['stunDiminishFloor', '眩晕递减下限', 0, 5, 's'],
+    ['stunDiminishResetSeconds', '眩晕递减清零时间', 0, 30, 's'],
   ]) e.push(num(`beta.${k}`, G_BETA, label, F_BETA, `BETA_TUNE.${k}`, BETA_TUNE[k], { min, max, unit }));
   e.push(num('beta.grazeImmediateShare', G_BETA, '吃草即时转化率', F_BETA, 'BETA_TUNE.grazeImmediateShare', BETA_TUNE.grazeImmediateShare, { min: 0, max: 1, toView: (v) => v * 100, toStore: (v) => v / 100, unit: '%' }));
   e.push(num('beta.staminaFatThreshold', G_BETA, '体力转储备阈值', F_BETA, 'BETA_TUNE.staminaFatThreshold', BETA_TUNE.staminaFatThreshold, { min: 0, max: 0.99, toView: (v) => v * 100, toStore: (v) => v / 100, unit: '%' }));

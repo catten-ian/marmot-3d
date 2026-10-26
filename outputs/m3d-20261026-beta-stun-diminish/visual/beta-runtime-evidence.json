@@ -1,0 +1,101 @@
+{
+  "setup": {
+    "url": "http://127.0.0.1:8324/?version=beta&sandbox=1&webgl=1&hififox=off&stunqa=1793029772894",
+    "beta": true,
+    "mode": "play",
+    "sandbox": true
+  },
+  "smart": {
+    "type": "smart",
+    "hp": 4,
+    "maxHp": 4
+  },
+  "killCheck": {
+    "startHp": 4,
+    "hits": [
+      {
+        "hit": 1,
+        "hp": 3,
+        "dead": false
+      },
+      {
+        "hit": 2,
+        "hp": 2,
+        "dead": false
+      },
+      {
+        "hit": 3,
+        "hp": 1,
+        "dead": false
+      },
+      {
+        "hit": 4,
+        "hp": 0,
+        "dead": true
+      }
+    ],
+    "deadAtFour": true
+  },
+  "stun": {
+    "method": "CDP 沙盒运行时模拟：combatStats().stun + production Fox.hit；按 60Hz production Fox.update 推进每次基础平A间隔；damage=0/knockback=0 隔离眩晕机制",
+    "first": {
+      "elapsed": 0,
+      "raw": 0.6,
+      "stun": 0.6,
+      "level": 0,
+      "hp": 6,
+      "maxHp": 6,
+      "x": -10,
+      "z": -1.8
+    },
+    "sequence": [
+      {
+        "elapsed": 0.624,
+        "raw": 0.6,
+        "stun": 0.33,
+        "level": 1,
+        "hp": 6,
+        "state": "roam",
+        "gapSincePriorStun": 0.024,
+        "distance": 1.8,
+        "x": -10,
+        "z": -1.8
+      },
+      {
+        "elapsed": 1.248,
+        "raw": 0.6,
+        "stun": 0.1815,
+        "level": 2,
+        "hp": 6,
+        "state": "roam",
+        "gapSincePriorStun": 0.294,
+        "distance": 1.8,
+        "x": -10,
+        "z": -1.8
+      },
+      {
+        "elapsed": 1.872,
+        "raw": 0.6,
+        "stun": 0.15,
+        "level": 3,
+        "hp": 6,
+        "state": "roam",
+        "gapSincePriorStun": 0.443,
+        "distance": 1.8,
+        "x": -10,
+        "z": -1.8
+      }
+    ],
+    "stopReason": "fox entered retreat/disengaged",
+    "end": {
+      "stun": 0,
+      "state": "retreat",
+      "retreating": true,
+      "repelled": true,
+      "x": -20.622,
+      "z": -2.702,
+      "distance": 10.961
+    }
+  },
+  "errors": []
+}

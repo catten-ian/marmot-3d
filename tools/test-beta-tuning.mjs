@@ -22,6 +22,10 @@ test('beta tuning constants exceed or match the requested balance thresholds', (
   assert.ok(BETA_TUNE.companionFollowSpeed > 7.2);
   assert.ok(BETA_TUNE.companionFollowGap < 1.5);
   assert.ok(BETA_TUNE.lungeLockRange > 0);
+  assert.equal(BETA_TUNE.stunDiminishWindow, 3);
+  assert.equal(BETA_TUNE.stunDiminishFactor, 0.55);
+  assert.equal(BETA_TUNE.stunDiminishFloor, 0.15);
+  assert.equal(BETA_TUNE.stunDiminishResetSeconds, 4);
   // 吃草耗时必须比正式版短（用户需求：吃草时间缩短）
   assert.ok(BETA_TUNE.grassSeconds > 0 && BETA_TUNE.grassSeconds < FORAGE.grassSeconds);
 });
