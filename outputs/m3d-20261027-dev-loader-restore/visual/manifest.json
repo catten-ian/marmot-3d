@@ -1,0 +1,39 @@
+{
+  "task": "m3d-20261027-dev-loader-restore",
+  "method": "headless chrome CLI (--headless=old --screenshot/--dump-dom) 脚本渲染，无 CDP",
+  "sizes": [
+    [
+      1440,
+      900
+    ],
+    [
+      390,
+      844
+    ]
+  ],
+  "shots": [
+    "outputs/m3d-20261027-dev-loader-restore/visual/fixed__1440x900.png",
+    "outputs/m3d-20261027-dev-loader-restore/visual/broken__1440x900.png",
+    "outputs/m3d-20261027-dev-loader-restore/visual/fixed__390x844.png",
+    "outputs/m3d-20261027-dev-loader-restore/visual/broken__390x844.png"
+  ],
+  "pixelResults": [
+    {
+      "size": "1440x900",
+      "whiteBlockPixels": 475,
+      "bbox": {
+        "x0": 1088,
+        "y0": 650,
+        "x1": 1111,
+        "y1": 763
+      },
+      "blockHeight": 114
+    },
+    {
+      "size": "390x844",
+      "whiteBlockPixels": 0,
+      "bbox": null,
+      "blockHeight": 0
+    }
+  ]
+}
