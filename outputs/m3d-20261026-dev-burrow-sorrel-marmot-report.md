@@ -1,43 +1,118 @@
-# m3d-20261026-dev-burrow-sorrel-marmot
+# m3d-20261026-dev-burrow-sorrel-marmot — 交付与部署报告
 
-- 分支：`feat/dev-burrow-sorrel-marmot-20261026`
-- 基线：`d266ce6`
-- 通道：dev（`?version=dev`），stable/beta 通过 `IS_DEV` 保持原路径
-- commit：`bb4f5a3`
-- push/deploy：未 push，未部署
+- 任务：`m3d-20261026-dev-burrow-sorrel-marmot`
+- 通道：**dev**（`?version=dev`）
+- feature 分支：`feat/dev-burrow-sorrel-marmot-20261026`（worktree `m3d-dev-burrow-assets-20261026`）
+- dev 集成树：`/home/fame/code/marmot3d/_int_dev_verdant`（分支 `dev-verdant-tier-snapshot-20261026`）
+- 最终 commit：`528e5ee`
+- 状态：**已合并、已 push、已部署**
 
-## 完成的代码行为
+## 一、交付内容（用户可见行为）
 
-- dev 洞口配置缩小为主洞 `openingRadius=1.3 / slopeRadius=2.4`、临时洞 `0.75 / 1.35`；dev 洞口保留低矮挖土环、暗洞口和悬浮文字，移除光柱、顶环、地面亮盘、临时洞 beacon/sbeam 和夸张洞内光。
-- dev 首次靠近洞口时懒加载 `burrow-main-interior.glb` / `burrow-shelter-interior.glb`；扫描材质通过 loader 强制双面，加载失败保留程序化洞穴回退。
-- Verdant dev 进洞的地面解析现在允许从高度场地表下降到洞内平底，并在洞内使用地下 floor 查询，避免被 Verdant 安全回收逻辑吸回地表；天气、HUD、攻击限制和回储备继续使用既有 `game.inBurrow` 语义。
-- dev 玩家第三人称模型和同伴使用 `marmot-screaming.glb`，黑色身体材质染为土拨鼠棕；加载失败或 `?models=off` 回退程序化土拨鼠。稳定版仍使用原 `marmot.glb`/程序化路径。
-- dev 可采集草本异步替换为 `shrub-sorrel.glb`，目标高度约 0.4m；采食隐藏、reset 恢复和食性数值逻辑未改，加载失败回退原草本。
-- 新增纯逻辑测试覆盖 dev 洞口尺寸、洞口触发区和 dev/stable 开关门控。
+1. **主洞 / 临时洞扫描内景**：首次靠近时懒加载 `burrow-main-interior.glb`（20.5MB / 171k 面）与
+   `burrow-shelter-interior.glb`（25.9MB / 215k 面），扫描材质强制双面；加载失败保留程序化洞穴回退。
+2. **dev 洞口更朴素**：洞口缩小为主洞 `openingRadius 1.3 / slopeRadius 2.4`、临时洞 `0.75 / 1.35`；
+   移除光柱、顶环、地面亮盘、临时洞 beacon/sbeam 与夸张洞内光，只保留土堆 + 暗洞口 + 悬浮文字。
+3. **Verdant dev 可进洞**：地面解析允许从高度场地表下降到洞内平底，洞内改用地下 floor 查询，
+   不再被 Verdant 安全回收逻辑吸回地表。洞内语义（不能攻击 / 回储备 / 天气抑制）沿用既有 `game.inBurrow`。
+4. **尖叫土拨鼠**：第三人称玩家与同伴改用 `marmot-screaming.glb`（带骨骼站姿），黑色身体材质运行时
+   染为土拨鼠棕；加载失败或 `?models=off` 回退程序化土拨鼠。
+5. **sorrel 灌木**：可采集草本异步替换为 `shrub-sorrel.glb`（目标高度约 0.4m）；采食隐藏、reset 恢复、
+   食性数值逻辑未改。
+6. **stable / beta 零影响**：三个新开关全部 `IS_DEV` 守卫 —— `scannedBurrows` / `screamingMarmot` /
+   `sorrelFood`；stable 保留原光柱 + 顶环地标，且无扫描内景容器。
 
-## 修改文件
+## 二、主控合并前修掉的两个 P0（本次部署的关键价值）
 
-`src/core/controls.js`, `src/core/version.js`, `src/entities/props_entities.js`, `src/main.js`, `src/world/props.js`, `src/world/underground.js`, `tools/test-dev-burrow.cjs`。
+### P0-1：feature 分支 dev 页面模块加载失败（`bddaa93`）
 
-## 验证
+- 现象：`src/main.js:582` 使用 `USE_REAL_MODELS`，但第 82 行的 import **未包含该符号**，
+  导致 dev 整个模块加载失败，页面显示「模块加载失败 USE_REAL_MODELS is not defined」。
+- 为什么上一轮没发现：`node --check` 只做语法解析，查不出未定义标识符，因此上一轮
+  37 项 Node 测试全绿、报告写「只差截图」也照样漏掉。
+- 修复：import 补入 `USE_REAL_MODELS`；并新增 `tools/scan-undefined-refs.cjs`
+  静态扫描「模块级常量未导入」这一类缺陷（全树扫描 64 文件，收敛后真缺陷仅此一处）。
 
-- `node --check`：7 个改动的 `.js/.cjs` 文件全部通过。
-- `node tools/test-dev-burrow.cjs`：2/2 通过。
-- `node tools/run-node-tests.cjs`：基线已知 `tools/test-beta-contract.cjs` 失败 1 项；其余 37 项通过，浏览器/CDP 测试按入口规则跳过。未修改该测试或版本戳。
-- `git diff --check`：通过。
+### P0-2：线上 dev 当时已经崩溃（`2f53249`）
 
-## 截图矩阵
+- 现象：dev 集成树 `src/world/verdant-fall-safety.mjs` 里 `resolveGroundedY` **导出了两次**
+  （L82 / L121），ES 模块同名导出是 SyntaxError；`src/core/controls.js` 正好 import 该模块。
+- 线上实测（部署前）：`https://www.catten.cyou/marmot3d/?version=dev` 显示
+  「模块加载失败 Identifier 'resolveGroundedY' has already been declared」，`__game` 未定义。
+- 来源：`b3a60d5` 快照合并时把该函数追加了两次（`e6c51be` 已加过一次）。
+- 修复：删掉重复的第二个定义。全树 `node --check` 体检确认无其他语法失败文件。
+- **本次部署同时修复了线上已存在的崩溃。**
 
-截图目录：`outputs/m3d-20261026-dev-burrow-sorrel-marmot/visual/`。
+## 三、验证证据
 
-已保存 `dev-desktop-overview.png` 与 `dev-desktop-loaded.png`，但当前共享 Chrome 使用的网络命名空间拒绝本工作树新启动的本地端口（`ERR_CONNECTION_REFUSED`）；已有共享端口指向另一工作树。因此主洞/临时洞近远景、进出洞第一/第三人称、sorrel 采食、尖叫土拨鼠和 stable 隔离截图未能在本轮得到可信画面证据，不能标记为通过。截图后端原计划为 Chrome SwiftShader/WebGL；实际 dev 页面未能越过本地连接阻塞。
+### 截图验收（`tools/qa-dev-burrow-managed.cjs`，托管 Chrome CDP 18800）—— 25/25 PASS
 
-## 未完成项与已知问题
+证据目录：`outputs/m3d-20261026-dev-burrow-sorrel-marmot/visual/`
 
-- 需要在能访问本工作树静态服的 Chrome/CDP 环境补齐验收矩阵截图，尤其验证扫描内景的实际尺度、朝向和玩家走出洞口的观感。
-- 当前报告中的截图证据只证明启动页可被捕获，不证明视觉验收项。
-- stable/beta 的素材路径和地标分支未改；仍需在可用浏览器环境做一次对照截图确认。
+| 证据 | 内容 |
+| --- | --- |
+| `01-base-mouth-third.png` | 主洞第三人称外观（朴素土堆 + 小洞口 + 文字） |
+| `02-base-mouth-fpv.png` | 主洞第一人称外观 |
+| `03-base-mouth-topdown.png` | 主洞俯视（确认无光柱/顶环/亮盘） |
+| `04-base-interior.png` | 主洞扫描内景 |
+| `05-shelter-mouth-third.png` | 临时洞外观 |
+| `06-shelter-interior.png` | 临时洞扫描内景 |
+| `07-third-person-screaming-marmot.png` | 第三人称尖叫土拨鼠 |
+| `08-stable-isolation.png` | stable 通道隔离对照（保留原地标） |
+| `qa-result.json` | 25 项断言结果 + 网络请求 + 控制台错误采样 |
 
-## 自评
+断言覆盖：dev 通道生效、洞口无 beam/cap/beacon/sbeam、保留 labelSprite、具备 interiorGroup、
+主洞/临时洞均可进入（`inBurrow=true`）、内景 GLB 已请求且容器非空、可退出（`inBurrow=false`）、
+sorrel 替换率 12/12、同伴真模型（`geometry-only`）、第三人称玩家真模型接管
+（`playerBody.visible=false`）、stable `IS_DEV=false` 且保留光柱/顶环、stable 无内景容器、
+页面无未捕获异常。
 
-代码集成、dev 门控、进洞地面逻辑、懒加载和 Node 回归已完成；视觉验收因共享浏览器网络隔离阻塞，完成度 7/10。
+### 回归
+
+- `node tools/run-node-tests.cjs`：**OK 40/41**。唯一失败 `test-beta-contract.cjs`
+  （`Unconverted relative beta resource path remains in index.html`）为**基线既有**：
+  `origin/dev` 与合并基点 `d266ce6` 的 `index.html` 同样含相对 beta 资源路径，
+  本次合并未改 `index.html`（除 dev 戳）与 `index-public.html`。未修改该测试或放宽断言。
+- `node --check`：`src/` + `tools/` 全树语法体检通过（除基线既有的 `tools/test-attacks.cjs`，
+  其在 `d266ce6` 与 `origin/dev` 中同样失败，与本次无关）。
+- 合并预演 `git merge-tree` exit=0，**零冲突**。
+
+## 四、合并与发布
+
+- 合并：`15474d8`（`--no-ff`）把 feature 分支并入 dev 集成树；零冲突。
+- 版本戳：`528e5ee` 把 dev 入口 `index.html` 的戳从 `m20261026verdant1` bump 到 `m20261026burrow1`。
+  **未改** `index-public.html` / `tools/public-shell.cjs`（beta public shell 不受影响）。
+- push：`b3a60d5..528e5ee` → `origin/dev-verdant-tier-snapshot-20261026`。
+  直连 GitHub 两次 TLS 断连 / 连接超时，改用已实测可用的 mihomo 代理（`http://127.0.0.1:7890`，
+  实测 github HTTP 200 / 2.2s）后一次成功。
+- 部署目录：`/var/www/m3d-releases/dev-burrow-sorrel-202610262343`
+- 原子切换：`/var/www/marmot3d` → `dev-burrow-sorrel-202610262343`；
+  回滚点 `/var/www/m3d-releases/.last-dev-link` 已写入同路径。
+- 磁盘：服务器仅剩 826M，发布目录 2.8G。沿用上次 dev 发布的做法 ——
+  先 `cp -al` 硬链接复制上一版（**0.015 秒、零额外磁盘**），再按路径 rsync 覆盖改动文件。
+  部署后服务器剩余 775M。
+
+### 部署过程踩坑（已修正）
+
+首次 rsync 命令写成多源 + 尾部斜杠：
+
+```
+rsync -az index.html src/ assets/models/ tools/ outputs/.../ $NEW/
+```
+
+rsync 会把每个源的**内容平铺**进目标根 —— `src/main.js` 落到 `$NEW/main.js`、
+`assets/models/*.glb` 落到 `$NEW/*.glb`、`tools/` 落到 `$NEW/*.cjs`，
+而 `$NEW/src/` 仍是旧版（硬链接原件）。服务器端校验（戳已更新但 `src/main.js` 仍旧、
+`resolveGroundedY` 仍为 2）及时发现，**未造成线上影响**（软链尚未切换）。
+修正：改用 `rsync -azR ./src/ ./assets/models/ ...`（`-R` 保留目录结构），重建目录后重传，
+复核通过才切换软链。
+
+## 五、遗留与建议
+
+1. `tools/test-beta-contract.cjs` 基线失败（beta public shell 相对路径）——与本任务无关，
+   建议单独立项修复，否则 dev 线上回归永远是 40/41。
+2. `tools/test-attacks.cjs` 语法错误（基线既有）——同样建议单独立项。
+3. `node --check` 查不出未定义标识符，建议把 `tools/scan-undefined-refs.cjs` 纳入常规门禁。
+4. 服务器磁盘 97%（775M 可用），后续 dev 发布前建议先清理旧 `m3d-releases` 目录。
+5. `dev-verdant-tier-snapshot-20261026` 已是 dev 实际发布线（`origin/dev` 落后于它），
+   建议后续把该快照分支同步回 `origin/dev`，避免长期分叉。
