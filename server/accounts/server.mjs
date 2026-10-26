@@ -148,7 +148,7 @@ function createStore(dataDir) {
       try {
         const r = JSON.parse(s);
         // 同名以最后一行生效（与账号文件同策略）；损坏行跳过。
-        if (r && typeof r.name === 'string' && CONFIG_NAME_RE.test(r.name) && isObj(r.config)) {
+        if (r && typeof r.name === 'string' && (CONFIG_NAME_RE.test(r.name) || r.name === '__active__') && isObj(r.config)) {
           configs.set(r.name, {
             name: r.name, config: r.config,
             updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : new Date(0).toISOString(),
@@ -478,9 +478,31 @@ export function createAccountsServer(options = {}) {
       // ---------- 命名调参配置（Beta 后台；公开读，写按 IP 限流）----------
       if (route === '/configs' && req.method === 'GET') {
         const configs = [...store.configs.values()]
+          .filter((r) => r.name !== '__active__')
           .map((r) => ({ name: r.name, updatedAt: r.updatedAt, size: r.size }))
           .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.name.localeCompare(b.name));
         return sendJson(res, 200, { configs });
+      }
+
+      if (route === '/configs/active' && (req.method === 'GET' || req.method === 'POST')) {
+        if (req.method === 'GET') {
+          const rec = store.configs.get('__active__');
+          if (!rec) return sendJson(res, 404, { error: '当前没有生效配置', code: 'active_config_missing' });
+          return sendJson(res, 200, { name: rec.config?.sourceName || '', updatedAt: rec.updatedAt, size: rec.size, config: rec.config });
+        }
+        if (!limiter('cfg:' + clientIp(req))) return sendJson(res, 429, { error: '操作过于频繁，请稍后再试' });
+        const read = await readBody(req, CONFIG_MAX_BYTES + CONFIG_ENVELOPE_SLACK);
+        if (read.tooLarge) return sendJson(res, 413, { error: '请求体过大（配置上限 100KB）' });
+        let body; try { body = JSON.parse(read.raw.toString('utf8') || '{}'); } catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+        const sourceName = typeof body.name === 'string' ? body.name.trim() : '';
+        if (!CONFIG_NAME_RE.test(sourceName)) return sendJson(res, 400, { error: '配置名非法' });
+        if (!isObj(body.config)) return sendJson(res, 400, { error: 'config 必须是对象' });
+        let size; try { size = Buffer.byteLength(JSON.stringify(body.config)); } catch { return sendJson(res, 400, { error: 'config 无法序列化' }); }
+        if (size > CONFIG_MAX_BYTES) return sendJson(res, 413, { error: `配置过大（${size} 字节），上限 100KB` });
+        const rec = { name: '__active__', config: { ...body.config, sourceName }, updatedAt: new Date().toISOString(), size };
+        const previous = store.configs.get('__active__') || null; store.configs.set('__active__', rec);
+        try { await store.rewriteConfigs(); } catch (e) { if (previous) store.configs.set('__active__', previous); else store.configs.delete('__active__'); throw e; }
+        return sendJson(res, 200, { ok: true, name: sourceName, updatedAt: rec.updatedAt, size });
       }
 
       if (route === '/configs' && req.method === 'POST') {

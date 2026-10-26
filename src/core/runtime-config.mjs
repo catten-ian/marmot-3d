@@ -75,6 +75,22 @@ export function readRuntimePayload(locationLike, storageLike = null, base = BETA
   catch { return { ok: false, error: '运行时配置存储内容不是有效 JSON' }; }
 }
 
+export async function fetchActiveBetaConfig({ locationLike = globalThis.location, fetchFn = globalThis.fetch, timeoutMs = 1500 } = {}) {
+  if (typeof fetchFn !== 'function') return { ok: false, error: 'fetch 不可用' };
+  const pathname = String(locationLike?.pathname || '/');
+  const base = pathname.includes('/marmot3d-beta/') ? '/marmot3d-beta/api' : pathname.replace(/\/[^/]*$/u, '') + '/api';
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = setTimeout(() => controller?.abort(), Math.min(2000, Math.max(50, Number(timeoutMs) || 1500)));
+  try {
+    const response = await fetchFn(`${base}/configs/active`, { headers: { Accept: 'application/json' }, ...(controller ? { signal: controller.signal } : {}) });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data?.config) return { ok: false, absent: response.status === 404, error: data?.error || `HTTP ${response.status}` };
+    const payload = data.config;
+    return validateRuntimePayload(payload);
+  } catch (error) { return { ok: false, error: error?.name === 'AbortError' ? '账号服务请求超时' : '账号服务不可用' }; }
+  finally { clearTimeout(timer); }
+}
+
 export function applyRuntimeConfigFromLocation(locationLike = globalThis.location, storageLike = globalThis.sessionStorage, target = BETA_TUNE) {
   const result = readRuntimePayload(locationLike, storageLike, target);
   if (!result.ok) return result;

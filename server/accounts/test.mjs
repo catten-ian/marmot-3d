@@ -266,6 +266,16 @@ describe('命名调参配置 /configs', () => {
     assert.deepEqual(r2.json.configs, []);
   });
 
+  test('当前生效配置独立槽位读写，不出现在命名列表', async () => {
+    assert.equal((await req('GET', '/configs/active')).status, 404);
+    const set = await req('POST', '/configs/active', { body: { name: '方案-active', config: { schemaVersion: 1, values: { moveSpeedMul: 1.2 } } } });
+    assert.equal(set.status, 200);
+    const active = await req('GET', '/configs/active');
+    assert.equal(active.status, 200);
+    assert.equal(active.json.config.values.moveSpeedMul, 1.2);
+    assert.equal((await req('GET', '/configs')).json.configs.some((x) => x.name === '__active__'), false);
+  });
+
   test('保存→列表→读取往返；中文名字走 URL 编码', async () => {
     const config = { schemaVersion: 1, app: 'marmot3d-beta-admin', values: { 'player.speed': 8.5, 'beta.flowerInstant': false } };
     const saved = await req('POST', '/configs', { body: { name: '  啃草方案_v1  ', config } });

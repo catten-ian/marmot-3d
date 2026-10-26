@@ -86,14 +86,18 @@ import { hpDamageMultiplier } from './core/fox-motion.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION, VERSION_LABEL } from './core/version.js';
 import { BETA_TUNE, betaFlowerCompletesImmediately, resolveLungeLockYaw } from './core/beta-tuning.js';
-import { applyRuntimeConfigFromLocation } from './core/runtime-config.mjs';
+import { applyRuntimeConfigFromLocation, fetchActiveBetaConfig, applyRuntimeValues } from './core/runtime-config.mjs';
 import { betaInteractionSkillState, interactionSemantics } from './core/interaction-semantics.mjs';
 import { documentTitleFor } from './core/version-mode.mjs';
 
 // Admin's “应用” button hands Beta tuning through a signed-by-schema query payload.
 // Invalid/absent payloads are ignored, preserving the shipped defaults.
 if (IS_BETA) {
-  try { applyRuntimeConfigFromLocation(); } catch (_) { /* fail-soft: defaults remain */ }
+  try {
+    const active = await fetchActiveBetaConfig({ locationLike: location, timeoutMs: 1500 });
+    if (active.ok) applyRuntimeValues(active.payload.values, BETA_TUNE);
+    else applyRuntimeConfigFromLocation(); // query remains an explicit debug fallback
+  } catch (_) { try { applyRuntimeConfigFromLocation(); } catch (_) { /* fail-soft */ } }
 }
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {

@@ -9,7 +9,7 @@ import {
   needsOverwriteConfirm, serializeSavedConfig, parseSavedConfig,
   formatConfigSize, formatConfigTime,
 } from './tuning-schema.mjs';
-import { buildGameUrl, runtimePayloadFromAdminConfig } from '../core/runtime-config.mjs';
+import { runtimePayloadFromAdminConfig } from '../core/runtime-config.mjs';
 
 const fmt = (v) => {
   if (typeof v === 'boolean') return v ? '开' : '关';
@@ -398,21 +398,19 @@ export class TuningPanel {
   }
 
   async _applyConfig(name, btn) {
-    const old = btn.textContent; btn.disabled = true; btn.textContent = '读取中…';
+    const old = btn.textContent; btn.disabled = true; btn.textContent = '保存中…';
     try {
       if (typeof fetch !== 'function') throw new Error('fetch 不可用');
       const res = await fetch(configItemUrl(this.apiBase, name), { headers: { Accept: 'application/json' } });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data && data.error ? data.error : `HTTP ${res.status}`);
-      const url = buildGameUrl(typeof location !== 'undefined' ? location.pathname : '/admin.html', runtimePayloadFromAdminConfig(data.config));
-      // Assigning location preserves the server/API origin and makes the payload
-      // observable/testable as URLSearchParams on the game page.
-      location.assign(url);
-    } catch (e) {
-      const msg = `应用失败：${e && e.message ? e.message : e}`;
-      this._cloudStatus(msg, 'error'); this.toast(msg, 'error');
-      btn.disabled = false; btn.textContent = old;
-    }
+      const payload = runtimePayloadFromAdminConfig(data.config);
+      const active = await fetch(`${this.apiBase}/configs/active`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ name, config: payload }) });
+      const activeData = await active.json().catch(() => null);
+      if (!active.ok || !activeData || activeData.ok !== true) throw new Error(activeData?.error || `HTTP ${active.status}`);
+      this._cloudStatus(`已应用「${name}」到全部 Beta 网站`, 'ok'); this.toast(`已应用「${name}」到全部 Beta 网站`, 'ok');
+    } catch (e) { const msg = `应用失败：${e && e.message ? e.message : e}`; this._cloudStatus(msg, 'error'); this.toast(msg, 'error'); }
+    finally { btn.disabled = false; btn.textContent = old; }
   }
 
   async _loadConfig(name) {
