@@ -136,10 +136,11 @@ test('startup prefetch runs without a gesture and gesture decodes cached menu by
   });
   await audio.preload();
   assert.equal(audio.ctx, null, 'prefetch must not create AudioContext');
+  // 进场阶段预取全部 BGM 槽位（不再只 menu），保证切状态不临时下载。
   assert.deepEqual(calls, [
     `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/manifest.json`,
     `${mod.TOS_AUDIO_BASE}elevenlabs/sfx/manifest.json`,
-    `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/menu.mp3`,
+    ...mod.BGM_SLOTS.map((slot) => `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/${slot}.mp3`),
   ]);
 
   const listeners = new Map();

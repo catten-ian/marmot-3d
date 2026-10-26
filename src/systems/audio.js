@@ -297,9 +297,11 @@ export class Audio {
   bindUserGesture(target = globalThis.window) {
     if (!this.isBeta || !target?.addEventListener || this._gestureHandler) return;
     this._gestureHandler = () => {
-      this.updateBgmState({ mode: 'title' });
+      // 先建 AudioContext 再切 BGM：此前顺序相反，首次更新时 ctx 为 null，
+      // _loadBuffer 直接返回 null 走程序合成兜底，且槽位去重导致整局不再重试。
       this.ensure();
       this._resumeContext();
+      this.updateBgmState({ mode: 'title' });
       target.removeEventListener('pointerdown', this._gestureHandler, true);
       target.removeEventListener('keydown', this._gestureHandler, true);
       target.removeEventListener('touchstart', this._gestureHandler, true);
@@ -316,7 +318,9 @@ export class Audio {
     const jobs = [
       this._readManifest('bgm'),
       this._readManifest('sfx'),
-      this._prefetchAsset(BGM_ASSETS.menu, AUDIO_TIMEOUTS.bgm),
+      // 进场加载阶段预取全部 BGM 字节（解码仍等首个手势后的 AudioContext），
+      // 避免进入游戏后切槽位才临时下载导致长时间程序合成兜底。
+      ...Object.values(BGM_ASSETS).map((path) => this._prefetchAsset(path, AUDIO_TIMEOUTS.bgm)),
     ];
     return Promise.allSettled(jobs).catch(() => []);
   }
@@ -524,6 +528,8 @@ export class Audio {
   _fetchBetaBytes(url, timeoutMs) {
     if (this._audioBytesCache.has(url)) return this._audioBytesCache.get(url);
     const promise = this._requestBetaUrl(url, timeoutMs, 'arrayBuffer').catch(() => null);
+    // 失败结果不缓存：一次性网络抖动不应让整个会话永久回退到程序合成。
+    promise.then((bytes) => { if (!bytes) this._audioBytesCache.delete(url); });
     this._audioBytesCache.set(url, promise);
     return promise;
   }
@@ -555,6 +561,8 @@ export class Audio {
       }
       return null;
     })().catch(() => null);
+    // 解码/取数失败不缓存，下一次切换槽位时允许重试真实文件。
+    promise.then((buf) => { if (!buf) cache.delete(path); });
     cache.set(path, promise);
     return promise;
   }
