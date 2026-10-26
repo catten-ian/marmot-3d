@@ -1,0 +1,247 @@
+{
+  "blendDump": "outputs/scene-assembly-qa/blender-transforms.json",
+  "glb": "assets/verdant/verdant-trail.glb",
+  "rows": [
+    {
+      "name": "main_dead_tree_trunk",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        -15.46172,
+        7.74951,
+        -13.37077
+      ],
+      "glbWorldTranslation": [
+        -15.46172,
+        7.74951,
+        -13.37077
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "tree_small_02_a",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        -27.61086,
+        2.96653,
+        -5.43147
+      ],
+      "glbWorldTranslation": [
+        -27.61086,
+        2.96653,
+        -5.43147
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "island_tree_01_b",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        11.10331,
+        17.36749,
+        -27.4002
+      ],
+      "glbWorldTranslation": [
+        11.10331,
+        17.36749,
+        -27.4002
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "island_tree_01_a",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        28.58305,
+        32.30854,
+        -6.59861
+      ],
+      "glbWorldTranslation": [
+        28.58305,
+        32.30854,
+        -6.59861
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "dead_tree_trunk_02",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        -38.72557,
+        3.00189,
+        -21.72376
+      ],
+      "glbWorldTranslation": [
+        -38.72557,
+        3.00189,
+        -21.72376
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "dead_tree_trunk_02.002",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        -28.48428,
+        1.79262,
+        -23.93989
+      ],
+      "glbWorldTranslation": [
+        -28.48428,
+        1.79262,
+        -23.93989
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "dead_tree_trunk.001",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        5.46747,
+        4.55708,
+        3.28706
+      ],
+      "glbWorldTranslation": [
+        5.46747,
+        4.55708,
+        3.28706
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "coastal_cliff_02_LOD1.002",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        5.66738,
+        7.42886,
+        -25.53695
+      ],
+      "glbWorldTranslation": [
+        5.66738,
+        7.42886,
+        -25.53695
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "coastal_cliff_02_LOD1.001",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        14.78758,
+        13.88794,
+        17.1592
+      ],
+      "glbWorldTranslation": [
+        14.78758,
+        13.88794,
+        17.1592
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "coastal_cliff_04_LOD1.001",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        24.24305,
+        8.6292,
+        -0.89026
+      ],
+      "glbWorldTranslation": [
+        24.24305,
+        8.6292,
+        -0.89026
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "coastal_cliff_04_LOD1.002",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        17.33207,
+        5.43683,
+        -5.29475
+      ],
+      "glbWorldTranslation": [
+        17.33207,
+        5.43683,
+        -5.29475
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "tree_small_02_c",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        36.28104,
+        6.37715,
+        24.38153
+      ],
+      "glbWorldTranslation": [
+        36.28104,
+        6.37715,
+        24.38153
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "jacaranda_tree_branches",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        54.66789,
+        13.46554,
+        9.01961
+      ],
+      "glbWorldTranslation": [
+        54.66789,
+        13.46554,
+        9.01961
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "jacaranda_tree_trunk",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        54.66789,
+        13.46554,
+        9.0196
+      ],
+      "glbWorldTranslation": [
+        54.66789,
+        13.46554,
+        9.0196
+      ],
+      "translationError": 0.0,
+      "match": true
+    },
+    {
+      "name": "tree_small_02_b",
+      "parent": null,
+      "blendMappedGlbTranslation": [
+        38.38662,
+        1.06374,
+        24.79832
+      ],
+      "glbWorldTranslation": [
+        38.38662,
+        1.06374,
+        24.79832
+      ],
+      "translationError": 0.0,
+      "match": true
+    }
+  ],
+  "allTranslationsMatch": true
+}

@@ -18,6 +18,14 @@
     "three/addons/": "/marmot3d-beta/vendor/addons/"
 } }
 </script>
+<script>
+  // 公共只读 TOS 资源基址（仅匿名 GET，不含任何密钥）。DEV Verdant 素材三级回退：
+  // 本地资源包 → 火山 TOS（大文件/ultra）→ 同源服务器。stable/beta 不加载 verdant 代码，此配置对它们无效。
+  // QA/离线调试可用 ?tos=0 关闭 TOS 候选，强制同源资源（避免跨源缓存干扰真机审计）。
+  window.__VERDANT_TOS__ = /(?:[?&])tos=0(?:&|$)/.test(location.search)
+    ? null
+    : { baseUrl: 'https://marmot.tos-cn-shanghai.volces.com', version: '20261022' };
+</script>
 </head>
 <body>
 
@@ -104,6 +112,9 @@
 <!-- ========== 大字横幅 ========== -->
 <div id="banner" class="banner"></div>
 
+<!-- 沙盒入口模板：标题面板由 main.js 按需渲染并绑定。 -->
+<template id="sandboxEntryTemplate"><button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button></template>
+
 <!-- ========== 覆盖面板 ========== -->
 <div id="overlay" class="overlay">
   <div class="panel" id="panel"></div>
@@ -150,6 +161,7 @@
   <header><strong>测试工具</strong><button id="testPanelClose" type="button" aria-label="关闭测试工具">×</button></header>
   <label class="test-toggle"><input id="testGodMode" type="checkbox"> 永远不死</label>
   <label class="test-toggle"><input id="testFreezeTimer" type="checkbox"> 冻结倒计时</label>
+  <label class="test-toggle dev-smart-toggle"><input id="testSmartFox" type="checkbox" hidden> DEV 沙盒：启用一只智能狐</label>
   <div class="test-actions">
     <button type="button" data-test-action="heal25">加血 +25</button>
     <button type="button" data-test-action="heal100">回满生命</button>
@@ -227,6 +239,7 @@
 <script type="module">
 import { devOn, FORCE_WEBGL, GS_OVERRIDE } from '/marmot3d-beta/src/core/version.js?v=rev9';
 import { probeWebGPU } from '/marmot3d-beta/src/core/renderer.js?v=rev9';
+import { createLoadingActivityTracker } from '/marmot3d-beta/src/world/verdant-watchdog.mjs?v=rev9';
 
 const boot = {
   gsWorld: false,      // 是否要用 GS 作为全部场景
@@ -255,7 +268,64 @@ if (boot.gsWorld) {
 }
 
 window.__boot = boot;
-await import('/marmot3d-beta/src/main.js?v=rev9');
+
+// 加载看门狗：模块图链接失败或静默挂起时给出明确提示，
+// 而不是永远停在「正在筑巢…」。曾因 CDN 缓存陈旧子模块导致。
+// dev 首屏需下载场景包，故下方采用「进度推进即续命」的活动看门狗。
+let bootSettled = false;
+const loaderTextEl = document.querySelector('.loader-text');
+const loaderTrackEl = document.querySelector('.loader-track');
+const params = new URLSearchParams(location.search);
+
+function bootFail(title, detail) {
+  if (bootSettled) return;
+  bootSettled = true;
+  const bust = params.get('t') ? '' : `&t=${Date.now()}`;
+  if (loaderTrackEl) loaderTrackEl.style.display = 'none';
+  if (loaderTextEl) {
+    loaderTextEl.innerHTML =
+      `<div style="color:#e8735a;font-weight:600;margin-bottom:6px">${title}</div>` +
+      `<div style="font-size:11px;opacity:.75;max-width:280px;margin:0 auto 10px;line-height:1.5">${detail}</div>` +
+      `<button id="bootRetry" type="button" style="cursor:pointer;background:#2b3b30;color:#e0c46c;border:1px solid #3d5142;border-radius:6px;padding:7px 16px;font-size:12px">重新加载</button>`;
+    const retry = document.getElementById('bootRetry');
+    if (retry) retry.onclick = () => location.replace(`${location.pathname}?${params.toString()}${bust}`);
+  }
+}
+
+// 活动看门狗：百分比只是 UI，网络活动以底层字节心跳为准。
+// Verdant GLB 的 GLTFLoader 会把每个收到的字节块注入这个回调；即使百分比
+// 在一整个大文件期间不变，只要字节仍在流入就不会误报。仍保留真停滞与 180s 硬上限。
+const STALL_MS = 25000;
+const HARD_LIMIT_MS = 180000;
+const activity = createLoadingActivityTracker({ stallMs: STALL_MS, hardLimitMs: HARD_LIMIT_MS });
+window.__m3dByteHeartbeat = (payload) => activity.noteBytes(payload);
+const fillEl = document.getElementById('loaderFill');
+let lastFillPct = -1;
+const watchdog = setInterval(() => {
+  const pct = fillEl ? (parseFloat(fillEl.style.width) || 0) : 0;
+  if (pct > lastFillPct) lastFillPct = pct;
+  const failure = activity.failure();
+  if (failure === 'hard-timeout') {
+    clearInterval(watchdog);
+    bootFail('加载超时',
+      `超过 ${HARD_LIMIT_MS / 1000} 秒仍未进入游戏。网络可能过慢或中断，请重试或切换网络（手机建议在设置里选“低”画质档）。`);
+  } else if (failure === 'byte-stall') {
+    clearInterval(watchdog);
+    bootFail('加载停滞',
+      `连续 ${STALL_MS / 1000} 秒没有收到资源字节（当前约 ${Math.max(0, Math.round(lastFillPct))}%）。可能是网络中断，或 CDN 缓存了不匹配的旧模块。`);
+  }
+}, 1000);
+
+try {
+  await import('/marmot3d-beta/src/main.js?v=rev9');
+  // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
+  bootSettled = true;
+  clearInterval(watchdog);
+} catch (err) {
+  clearInterval(watchdog);
+  console.error('[boot] 模块图加载失败', err);
+  bootFail('模块加载失败', String((err && err.message) || err));
+}
 </script>
 <script src="/marmot3d-beta/version-switch.js?v=mvs2" data-current="beta"></script>
 </body>
