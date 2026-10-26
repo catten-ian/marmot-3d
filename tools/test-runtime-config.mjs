@@ -18,7 +18,7 @@ test('validated runtime override changes actual tuning object, defaults stay int
   assert.deepEqual(r.applied, ['moveSpeedMul', 'sprintMoveCost', 'grazeRate', 'grassRegrowPerSec', 'grazeRegenPerSec', 'grassSeconds']);
   assert.equal(target.moveSpeedMul, 1.7); assert.equal(target.grazeRate, 0.9); assert.equal(target.grassSeconds, 0.4);
   assert.notEqual(original, target.moveSpeedMul);
-  assert.equal(BETA_TUNE.moveSpeedMul, 1.12);
+  assert.equal(BETA_TUNE.moveSpeedMul, 1.07);
 });
 
 test('URL payload roundtrip and admin beta-only projection', () => {

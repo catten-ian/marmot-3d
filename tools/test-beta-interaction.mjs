@@ -39,8 +39,8 @@ test('main beta input exits before companion actions while automatic rescue rema
     'beta key/touch interact cannot emit rescue or companion toasts');
   assert.match(main, /if \(IS_BETA && !game\.friend\.rescued && !game\.friend\.saved/,
     'the separate beta proximity-rescue path is preserved');
-  assert.match(main, /if \(IS_BETA\) \{\s+if \(forage\.index === -2\) prompt/,
-    'contextual HUD prompt is sourced from available forage in beta');
+  assert.match(main, /if \(IS_BETA\) \{\s+if \(game\.gatherAvailable\) prompt[\s\S]*?else if \(forage\.index === -2\) prompt/,
+    'contextual HUD prompt is sourced from gather/forage availability in beta');
   assert.match(main, /betaInteractionSkillState\(\{/, 'keyboard status uses centralized beta forage semantics');
   assert.match(hud, /this\.el\.socialStatus\.innerHTML = IS_BETA/, 'HUD status is beta gated');
 });
