@@ -65,7 +65,7 @@ test('beta audio buses, percent clamp, settings persistence round trip', async (
 test('all 17 legacy SFX names map and file/failure/offline decision is pure', async () => {
   const mod = await import('../src/systems/audio.js');
   assert.equal(mod.SFX_EVENT_NAMES.length, 17);
-  for (const event of mod.SFX_EVENT_NAMES) assert.match(mod.SFX_ASSETS[event], /^assets\/audio\/sfx\/.+\.mp3$/);
+  for (const event of mod.SFX_EVENT_NAMES) assert.match(mod.SFX_ASSETS[event], /^assets\/audio\/(elevenlabs\/)?sfx\/.+\.mp3$/);
   assert.equal(mod.SFX_ASSETS.kill, mod.SFX_ASSETS.repel, 'legacy kill alias reuses non-lethal repel asset');
   assert.equal(mod.selectSfxPlayback({ isBeta: true, enabled: true, fileAvailable: true }), 'file');
   assert.equal(mod.selectSfxPlayback({ isBeta: true, enabled: true, fileAvailable: false }), 'procedural');
@@ -94,8 +94,8 @@ test('static SFX file wins; missing/failing audio silently calls procedural fall
   fileAudio.hit();
   await sleep(10);
   assert.equal(fileFallbacks, 0);
-  assert.ok(urls.includes(`${mod.TOS_AUDIO_BASE}sfx/manifest.json`));
-  assert.ok(urls.includes(`${mod.TOS_AUDIO_BASE}sfx/hit.mp3`));
+  assert.ok(urls.includes(`${mod.TOS_AUDIO_BASE}elevenlabs/sfx/manifest.json`));
+  assert.ok(urls.includes(`${mod.TOS_AUDIO_BASE}elevenlabs/sfx/hit.mp3`));
   assert.ok(fileAudio.ctx.sources.some((source) => source.started.length === 1));
 
   const missingAudio = new mod.Audio({
@@ -114,9 +114,9 @@ test('static SFX file wins; missing/failing audio silently calls procedural fall
   assert.equal(missingFallbacks, 1);
 });
 
-test('BGM slots cover all six moods and switch through a timed crossfade', async () => {
+test('BGM slots cover all seven moods and switch through a timed crossfade', async () => {
   const mod = await import('../src/systems/audio.js');
-  assert.deepEqual(mod.BGM_SLOTS, ['menu', 'explore', 'tension', 'combat', 'victory', 'defeat']);
+  assert.deepEqual(mod.BGM_SLOTS, ['menu', 'explore', 'tension', 'combat', 'cave', 'victory', 'defeat']);
   const states = [
     [{ mode: 'title' }, 'menu'],
     [{ mode: 'play', hp: 100, threats: 0, stress: 10 }, 'explore'],
@@ -124,6 +124,8 @@ test('BGM slots cover all six moods and switch through a timed crossfade', async
     [{ mode: 'play', hp: 100, threats: 1, combat: true }, 'combat'],
     [{ mode: 'levelclear' }, 'victory'],
     [{ mode: 'lost' }, 'defeat'],
+    [{ mode: 'play', hp: 100, threats: 0, stress: 10, inBurrow: true }, 'cave'],
+    [{ mode: 'play', hp: 20, threats: 0, stress: 10 }, 'defeat'],
   ];
   for (const [state, expected] of states) assert.equal(mod.selectBgmSlot(state), expected);
 

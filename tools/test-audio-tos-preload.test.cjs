@@ -70,7 +70,7 @@ test('network errors fall back from TOS to local bytes', async () => {
   audio.ctx = new FakeContext();
   assert.ok(await audio._loadBuffer(mod.SFX_ASSETS.hit, audio._sfxCache));
   assert.deepEqual(calls, [
-    `${mod.TOS_AUDIO_BASE}sfx/hit.mp3`,
+    `${mod.TOS_AUDIO_BASE}elevenlabs/sfx/hit.mp3`,
     mod.SFX_ASSETS.hit,
   ]);
 });
@@ -86,8 +86,8 @@ test('non-2xx manifest responses fall back to the local manifest', async () => {
   });
   assert.equal(await audio._readManifest('bgm'), expected);
   assert.deepEqual(calls, [
-    `${mod.TOS_AUDIO_BASE}bgm/manifest.json`,
-    'assets/audio/bgm/manifest.json',
+    `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/manifest.json`,
+    'assets/audio/elevenlabs/bgm/manifest.json',
   ]);
 });
 
@@ -105,7 +105,7 @@ test('decodeAudioData failure retries with local bytes', async () => {
   };
   const buffer = await audio._loadBuffer(mod.SFX_ASSETS.hit, audio._sfxCache);
   assert.equal(buffer.local, true);
-  assert.deepEqual(calls, [`${mod.TOS_AUDIO_BASE}sfx/hit.mp3`, mod.SFX_ASSETS.hit]);
+  assert.deepEqual(calls, [`${mod.TOS_AUDIO_BASE}elevenlabs/sfx/hit.mp3`, mod.SFX_ASSETS.hit]);
 });
 
 test('request timeout falls back to local bytes', async () => {
@@ -120,7 +120,7 @@ test('request timeout falls back to local bytes', async () => {
   });
   audio.ctx = new FakeContext();
   assert.ok(await audio._loadBetaBuffer(mod.SFX_ASSETS.hit, audio._sfxCache, 5));
-  assert.deepEqual(calls, [`${mod.TOS_AUDIO_BASE}sfx/hit.mp3`, mod.SFX_ASSETS.hit]);
+  assert.deepEqual(calls, [`${mod.TOS_AUDIO_BASE}elevenlabs/sfx/hit.mp3`, mod.SFX_ASSETS.hit]);
 });
 
 test('startup prefetch runs without a gesture and gesture decodes cached menu bytes', async () => {
@@ -137,9 +137,9 @@ test('startup prefetch runs without a gesture and gesture decodes cached menu by
   await audio.preload();
   assert.equal(audio.ctx, null, 'prefetch must not create AudioContext');
   assert.deepEqual(calls, [
-    `${mod.TOS_AUDIO_BASE}bgm/manifest.json`,
-    `${mod.TOS_AUDIO_BASE}sfx/manifest.json`,
-    `${mod.TOS_AUDIO_BASE}bgm/menu.mp3`,
+    `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/manifest.json`,
+    `${mod.TOS_AUDIO_BASE}elevenlabs/sfx/manifest.json`,
+    `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/menu.mp3`,
   ]);
 
   const listeners = new Map();
