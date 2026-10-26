@@ -12,6 +12,8 @@
  */
 import * as THREE from 'three';
 import { GUI } from '../../vendor/lil-gui/lil-gui.esm.js';
+import { buildTuningEntries, toView, toStored, clampStored } from '../admin/tuning-schema.mjs';
+import { createAdminSync, apiBaseFromLocation } from './paf-admin-sync.mjs';
 
 const QUEUE_KEY = 'm3d_feedback_queue';
 
@@ -138,6 +140,98 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
   gui.width = 300;
   const controllers = [];
   const track = (c) => { controllers.push(c); return c; };
+
+  // —— admin 全参数（直接复用 admin tuning-schema，避免参数清单分叉） ——
+  const adminEntries = buildTuningEntries();
+  const adminSync = createAdminSync(adminEntries);
+  const adminFolder = gui.addFolder('admin 全参数 / Admin tuning');
+  const adminModels = new Map();
+  const adminControllers = [];
+  const adminFolders = new Map();
+  for (const entry of adminEntries) {
+    const folder = adminFolders.get(entry.group) || adminFolders.set(entry.group, adminFolder.addFolder(entry.group)).get(entry.group);
+    const model = {};
+    const key = entry.id;
+    const initial = adminSync.read(entry);
+    model[key] = toView(entry, initial);
+    adminModels.set(key, model);
+    let controller;
+    if (entry.kind === 'enum') controller = folder.add(model, key, entry.options);
+    else if (entry.kind === 'boolean') controller = folder.add(model, key);
+    else controller = folder.add(model, key, entry.min, entry.max, entry.step);
+    controller.name(`${entry.label}${entry.unit ? ` (${entry.unit})` : ''}`);
+    controller.onChange((value) => {
+      const stored = toStored(entry, value);
+      adminSync.write(entry, stored);
+      model[key] = toView(entry, adminSync.read(entry));
+      controller.updateDisplay();
+    });
+    adminControllers.push(controller);
+  }
+  adminFolder.close();
+
+  // —— 服务器命名配置 ——
+  const serverFolder = gui.addFolder('服务器配置 / Server');
+  const serverUi = {
+    配置名: '',
+    从服务器拉取: async () => { await refreshServer(); },
+    推送到服务器: async () => { await pushServer(); },
+  };
+  track(serverFolder.add(serverUi, '配置名').name('命名配置'));
+  track(serverFolder.add(serverUi, '从服务器拉取'));
+  track(serverFolder.add(serverUi, '推送到服务器'));
+  const serverNote = document.createElement('div');
+  serverNote.style.cssText = 'padding:6px 10px;color:#f6a4a4;font:12px/1.4 sans-serif;max-width:280px;white-space:pre-wrap';
+  serverFolder.domElement.appendChild(serverNote);
+  const serverSelect = document.createElement('select');
+  serverSelect.style.cssText = 'margin:4px 10px 8px;width:calc(100% - 20px);background:#202020;color:#eee;border:1px solid #555;padding:4px';
+  serverFolder.domElement.appendChild(serverSelect);
+  serverSelect.addEventListener('change', async () => { if (serverSelect.value) await loadServer(serverSelect.value); });
+  function note(text, error = false) { serverNote.textContent = text || ''; serverNote.style.color = error ? '#f6a4a4' : '#b8d7b3'; }
+  function renderServerList(items) {
+    serverSelect.innerHTML = '<option value="">选择命名配置或 active…</option><option value="__active__">当前 active</option>';
+    for (const item of items) { const o = document.createElement('option'); o.value = item.name; o.textContent = item.name; serverSelect.appendChild(o); }
+  }
+  async function fetchJson(url, options) {
+    if (typeof fetch !== 'function') throw new Error('fetch 不可用');
+    const res = await fetch(url, options); const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`); return data;
+  }
+  async function refreshServer() {
+    try { const data = await fetchJson(`${apiBaseFromLocation()}/configs`, { headers: { Accept: 'application/json' } }); renderServerList(Array.isArray(data?.configs) ? data.configs : []); note(`已读取 ${data?.configs?.length || 0} 个命名配置`); }
+    catch (error) { note(`读取失败：${error.message || error}`, true); }
+  }
+  function applyAdminValues(values) {
+    const result = adminSync.apply(values);
+    for (const entry of adminEntries) { const model = adminModels.get(entry.id); if (model) model[entry.id] = toView(entry, adminSync.read(entry)); }
+    adminControllers.forEach((c) => c.updateDisplay());
+    return result;
+  }
+  async function loadServer(name) {
+    try {
+      const data = await fetchJson(name === '__active__' ? `${apiBaseFromLocation()}/configs/active` : `${apiBaseFromLocation()}/configs/${encodeURIComponent(name)}`, { headers: { Accept: 'application/json' } });
+      const rawValues = data?.config?.values || data?.values || {};
+      const activeValues = name === '__active__' ? Object.fromEntries(Object.entries(rawValues).map(([id, value]) => [id.includes('.') ? id : `beta.${id}`, value])) : rawValues;
+      const result = applyAdminValues(activeValues);
+      note(`已应用 ${name}：${result.applied.length} 项${result.ignored.length ? `，跳过非法/未知 ${result.ignored.length} 项` : ''}${result.clamped.length ? `，钳制 ${result.clamped.length} 项` : ''}`);
+    } catch (error) { note(`拉取失败：${error.message || error}`, true); }
+  }
+  async function pushServer() {
+    const name = String(serverUi.配置名 || '').trim();
+    const valid = /^[\p{L}\p{N}_\-]{1,50}$/u.test(name);
+    if (!valid) { note('推送失败：配置名限 1-50 位，可用中英文/数字/连字符/下划线', true); return; }
+    try {
+      const base = apiBaseFromLocation();
+      const list = await fetchJson(`${base}/configs`, { headers: { Accept: 'application/json' } });
+      const exists = (list?.configs || []).some((item) => item.name === name);
+      if (exists && !window.confirm(`服务器已有「${name}」，是否覆盖？`)) { note('已取消覆盖'); return; }
+      const payload = { name, config: { schemaVersion: 1, app: 'marmot3d-beta-admin', savedAt: new Date().toISOString(), values: adminSync.collect() } };
+      await fetchJson(`${base}/configs`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(payload) });
+      note(`已推送「${name}」`); await refreshServer();
+    } catch (error) { note(`推送失败：${error.message || error}`, true); }
+  }
+  serverFolder.close();
+  refreshServer();
 
   // —— 实时状态（只读显示） ——
   const status = {
