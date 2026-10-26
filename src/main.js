@@ -79,7 +79,7 @@ import { burrowVolumeAt, setUndergroundCavesEnabled } from './world/underground.
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX, USE_DEV_WOLF_MODEL, VERSION_LABEL, STABLE_VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, IS_BETA, USE_REAL_MODELS, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX, USE_DEV_WOLF_MODEL, VERSION_LABEL, STABLE_VERSION_LABEL } from './core/version.js';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
