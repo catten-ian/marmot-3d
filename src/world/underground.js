@@ -1,4 +1,5 @@
 import { BURROWS, scalePoint, scaleRadius } from '../core/config.js';
+import { IS_DEV } from '../core/version.js';
 import { terrainHeight, baseTerrainHeight, heightFieldActive, depressionAt } from '../core/utils.js';
 
 let _defs = [];
@@ -11,10 +12,11 @@ export function undergroundDefs() { return _defs; }
 
 export function undergroundProfile(def) {
   const base = def.type === 'base' ? 1 : 0;
+  const dev = IS_DEV;
   return {
-    openingRadius: def.openingRadius ?? (base ? 2.2 : 1.05),
-    slopeRadius: def.slopeRadius ?? (base ? 3.6 : 1.9),
-    chamberRadius: def.chamberRadius ?? (base ? 3.0 : 1.5),
+    openingRadius: def.openingRadius ?? (base ? (dev ? 1.3 : 2.2) : (dev ? 0.75 : 1.05)),
+    slopeRadius: def.slopeRadius ?? (base ? (dev ? 2.4 : 3.6) : (dev ? 1.35 : 1.9)),
+    chamberRadius: def.chamberRadius ?? (base ? (dev ? 2.2 : 3.0) : (dev ? 1.2 : 1.5)),
     chamberDepth: def.chamberDepth ?? (base ? 3.8 : 2),
   };
 }
@@ -32,6 +34,16 @@ export function undergroundFloorY(x, z, defs = _defs) {
     y = Math.min(y, surface - p.chamberDepth * depressionAt(d, p));
   }
   return y;
+}
+
+
+/** Return the nearest dev cave trigger when a point is within its sloped mouth. */
+export function burrowTriggerAt(x, z, defs = _defs) {
+  for (const b of defs || []) {
+    const p = undergroundProfile(b);
+    if (Math.hypot(x - b.x, z - b.z) <= p.slopeRadius) return { def: b, profile: p };
+  }
+  return null;
 }
 
 export function burrowVolumeAt(x, y, z, defs = _defs) {
