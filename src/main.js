@@ -348,7 +348,8 @@ function showVerdantFailure(error, tier = autoVerdantTier()) {
 async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   window.__verdantLastDownloadStats = null;
   hud.setLoading(46, '读取 Verdant 场景模块');
-  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js');
+  // 版本戳：CF 对 .js 走 4 小时浏览器缓存，场景加载器改动必须换 URL 才能立即生效。
+  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261027loader1');
   loadVerdantWorldFn = mod.loadVerdantWorld;
   const world = await loadVerdantWorldFn({ tier, signal: attempt?.controller.signal || null, onProgress: (p, label, stats) => { if (attempt) { attempt.lastProgressAt = Date.now(); if (stats?.doneBytes > 0) attempt.receivedBytes = true; } if (!attempt?.cancelled) hud.setLoading(46 + Math.max(0, Math.min(1, p)) * 24, label, stats); }, renderer });
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
