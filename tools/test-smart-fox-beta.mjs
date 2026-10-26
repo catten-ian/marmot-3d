@@ -9,7 +9,7 @@ import {
   smartPounceDistance,
   habituateDecayRate,
   updateSmartMemory, stepInterruptionTimes, debounceIntent, createSmartPack, foxSeparation,
-  trackFeint, RECOVER_LOCK,
+  trackFeint, RECOVER_LOCK, assembleSmartAim,
 } from '../src/entities/smart-fox-core.mjs';
 import { stepFoxLocomotion, foxMaxTurnRate, steerGroundDirection } from '../src/core/fox-motion.js';
 
@@ -188,4 +188,33 @@ test('steerGroundDirection 直冲岩石转为切向且零速返回 null', () => 
   assert.ok(Math.abs(steer.x) > .05 || steer.z < .95);
   assert.equal(steerGroundDirection(1, 0, 0, { x: 0, z: 0 }, [], { hw: 20, hh: 20 }), null);
   console.log('ASSERT ground-steer/zero-speed-null OK');
+});
+
+
+test('Beta 扑击瞄准纯函数在提交态剔除包抄与分离偏移', () => {
+  const aim = assembleSmartAim({ player: { x: 0, z: 0 }, self: { x: 1, z: -5 }, intent: 'pounce', separation: { x: 2, z: -1 }, flank: 1, pounceOffsetScale: 0 });
+  assert.deepEqual({ x: aim.x, z: aim.z }, { x: 0, z: 0 });
+  const approach = assembleSmartAim({ player: { x: 0, z: 0 }, self: { x: 1, z: -5 }, intent: 'observe', separation: { x: 0, z: 0 }, flank: 0, observeRadius: 7.2 });
+  assert.ok(Math.hypot(approach.x, approach.z) > 0, '非扑击仍应生成战术目标');
+});
+
+test('站立玩家扑击命中率模拟处于可命中但非必中区间', () => {
+  const N = 1000, reach = 1.3;
+  let hits = 0;
+  for (let i = 0; i < N; i++) {
+    const distance = 4.2 + ((i + 0.5) / N) * 2;
+    let s = { x: 0, z: -distance, vx: 0, vz: 0, yaw: 0, pounceCooldown: 0,
+      pounceMinDistance: 4.2, pounceMaxDistance: 6.2, pounceSpeed: 10.6,
+      pounceDashSpeedMul: 1.18, pounceStrikeSpeed: 13.5, pounceDashDuration: 0.42,
+      pounceCooldownDuration: 1 };
+    let hit = false;
+    for (let frame = 0; frame < 80; frame++) {
+      s = stepSmartMotion(s, { x: 0, z: 0 }, 1 / 60, 'pounce');
+      if (s.pounceCommitted && s.pounceStriking && Math.hypot(s.x, s.z) < reach) hit = true;
+    }
+    if (hit) hits++;
+  }
+  const rate = hits / N;
+  assert.ok(rate >= 0.6 && rate <= 0.95, `expected 60-95% hit rate, got ${rate}`);
+  console.log(JSON.stringify({ kind: 'standing-pounce-simulation', attempts: N, hits, rate }));
 });

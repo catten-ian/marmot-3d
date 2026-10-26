@@ -110,6 +110,27 @@ export function flankBias(self, peers, player, coordination = 0) {
   const side = others.reduce((sum, p) => sum + Math.sign((p.x-player.x)*(self.z-player.z)-(p.z-player.z)*(self.x-player.x)), 0);
   return (side > 0 ? -1 : 1) * .55 * coordination;
 }
+/**
+ * 组装智能狐的运动目标点。提交扑击时可单独衰减战术偏移，
+ * 使最终锁定点仍以玩家当前位置为准；非扑击意图保留包抄/分离行为。
+ */
+export function assembleSmartAim({ player, self, intent, separation = { x: 0, z: 0 }, flank = 0, offsetScale = 1, pounceOffsetScale = 1, observeRadius = 7.2 } = {}) {
+  const p = player || { x: 0, z: 0 };
+  const me = self || { x: 0, z: 0 };
+  const dx = p.x - me.x, dz = p.z - me.z;
+  const distance = Math.hypot(dx, dz) || 1;
+  const toP = Math.atan2(dx, dz);
+  const ux = -dx / distance, uz = -dz / distance;
+  let x = p.x, z = p.z;
+  if (intent === 'observe') { x += ux * observeRadius; z += uz * observeRadius; }
+  const scale = intent === 'pounce' ? pounceOffsetScale : offsetScale;
+  return {
+    x: x + (separation.x + Math.cos(toP) * flank * 2) * scale,
+    z: z + (separation.z - Math.sin(toP) * flank * 2) * scale,
+    distance, toP,
+  };
+}
+
 export function foxSeparation(self, peers, range = 1.8) {
   let x = 0, z = 0;
   for (const p of peers || []) { if (p === self) continue; const dx=self.x-p.x,dz=self.z-p.z,d=Math.hypot(dx,dz); if (d>0 && d<range) { x+=dx/d*(range-d); z+=dz/d*(range-d); } }

@@ -1,0 +1,1 @@
+{"version":"stable","checks":["IS_BETA false leaves smartPounceMinDistance/MaxDistance unset","pounce aim tactical offsets remain scale 1","smart hit radius uses existing reach"],"result":"unchanged-by-beta-guards"}
