@@ -238,7 +238,7 @@ export class Food {
  * 被救后跟随玩家，带回洞穴才算完成救援目标。
  */
 export class Companion {
-  constructor(scene) {
+  constructor(scene, { resolvePlacement = null } = {}) {
     // 与藏狐同样的三层结构：容器 / 程序化 / 真实模型是**兄弟**。
     // 早期版本把 mesh 直接当程序化模型，再把真实模型 add 成它的子节点，
     // 然后 `mesh.visible = false` —— 结果连真实模型一起隐藏，伙伴凭空消失。
@@ -250,6 +250,7 @@ export class Companion {
     this.group.add(this.mesh);
     scene.add(this.group);
     this.scene = scene;
+    this.resolvePlacement = typeof resolvePlacement === 'function' ? resolvePlacement : null;
     this.x = 0; this.z = 0;
     this.rescued = false;
     this.saved = false;
@@ -307,17 +308,17 @@ export class Companion {
     }
   }
 
-  placeAt(x, z) {
+  placeAt(x, z, y = null) {
     this.x = x; this.z = z;
     this.rescued = false;
     this.saved = false;
     this._restoreVisibility();
     this.emote = null;
-    this.sync();
+    this.sync(y);
   }
 
   /**
-   * 按当前模型级别恢复可见性。
+   * 按当前模型级别恢复可见性.
    *
    * 不能简单地 `mesh.visible = true` —— 那会把"是否该显示真实模型"
    * 和"是否该显示程序化版本"两件事混在一个开关上，
@@ -331,8 +332,11 @@ export class Companion {
     if (this.realModel) this.realModel.visible = useReal;
   }
 
-  sync() {
-    this.group.position.set(this.x, terrainHeight(this.x, this.z), this.z);
+  sync(y = null) {
+    const ground = this.resolvePlacement?.(this.x, this.z);
+    const groundY = Number.isFinite(y) ? y : Number.isFinite(ground?.y) ? ground.y : terrainHeight(this.x, this.z);
+    if (ground) { this.x = ground.x; this.z = ground.z; }
+    this.group.position.set(this.x, groundY, this.z);
   }
 
   showEmote(kind) {
@@ -341,6 +345,7 @@ export class Companion {
   }
 
   update(dt, playerPos, safe) {
+    const prevX = this.x, prevZ = this.z;
     this._t += dt;
     if (this.emoteTimer > 0) {
       this.emoteTimer -= dt;
@@ -359,7 +364,10 @@ export class Companion {
       this.mesh.rotation.y = Math.atan2(playerPos.x - this.x, playerPos.z - this.z);
     }
 
-    const y = terrainHeight(this.x, this.z);
+    let ground = this.resolvePlacement?.(this.x, this.z);
+    if (this.resolvePlacement && !ground) { this.x = prevX; this.z = prevZ; ground = this.resolvePlacement(this.x, this.z); }
+    else if (ground) { this.x = ground.x; this.z = ground.z; }
+    const y = Number.isFinite(ground?.y) ? ground.y : terrainHeight(this.x, this.z);
     const bob = this.rescued && !this.saved
       ? Math.abs(Math.sin(this._t * 7)) * 0.09
       : Math.sin(this._t * 2) * 0.03;

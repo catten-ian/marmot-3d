@@ -19,16 +19,16 @@ import { DEV_VERSION_LABEL, STABLE_VERSION_LABEL, versionBadgeLabel } from './ve
 export const VERSION = (() => {
   try {
     const q = new URLSearchParams(location.search).get('version');
-    const normalized = q?.replace(/\/+$/, '');
-    return normalized === 'dev' ? 'dev' : 'stable';
-  } catch (e) {
-    return 'stable';
-  }
+    const pathname = typeof location.pathname === 'string' ? location.pathname : '';
+    const betaPath = pathname === '/marmot3d-beta' || pathname.startsWith('/marmot3d-beta/');
+    if (q === 'beta' || betaPath) return 'beta';
+    return q?.replace(/\/+$/, '') === 'dev' ? 'dev' : 'stable';
+  } catch (e) { return 'stable'; }
 })();
 
 export const IS_DEV = VERSION === 'dev';
 // This tree exposes stable and dev only; no beta query is a dev trigger.
-export const IS_BETA = false;
+export const IS_BETA = VERSION === 'beta';
 
 /** 供 UI、分析和测试记录使用的当前版本标识。页面底部的产品描述保留在 index.html。 */
 export const VERSION_LABEL = versionBadgeLabel(VERSION);

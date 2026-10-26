@@ -9,7 +9,7 @@
 <link rel="icon" href="./assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="./assets/favicon-192.png">
 <meta name="theme-color" content="#101a15">
-<link rel="stylesheet" href="./styles.css?v=m20261025webgpu1">
+<link rel="stylesheet" href="./styles.css?v=m20261026verdant1">
 <script type="importmap">
 { "imports": {
     "three": "./vendor/three.module.js",
@@ -21,7 +21,10 @@
 <script>
   // 公共只读 TOS 资源基址（仅匿名 GET，不含任何密钥）。DEV Verdant 素材三级回退：
   // 本地资源包 → 火山 TOS（大文件/ultra）→ 同源服务器。stable/beta 不加载 verdant 代码，此配置对它们无效。
-  window.__VERDANT_TOS__ = { baseUrl: 'https://marmot.tos-cn-shanghai.volces.com', version: '20261022' };
+  // QA/离线调试可用 ?tos=0 关闭 TOS 候选，强制同源资源（避免跨源缓存干扰真机审计）。
+  window.__VERDANT_TOS__ = /(?:[?&])tos=0(?:&|$)/.test(location.search)
+    ? null
+    : { baseUrl: 'https://marmot.tos-cn-shanghai.volces.com', version: '20261022' };
 </script>
 </head>
 <body>
@@ -287,6 +290,7 @@
 <script type="module">
 import { devOn, FORCE_WEBGL, GS_OVERRIDE } from './src/core/version.js';
 import { probeWebGPU } from './src/core/renderer.js';
+import { createLoadingActivityTracker } from './src/world/verdant-watchdog.mjs';
 
 const boot = {
   gsWorld: false,      // 是否要用 GS 作为全部场景
@@ -339,35 +343,35 @@ function bootFail(title, detail) {
   }
 }
 
-// 活动看门狗：dev 版首屏需下载 Verdant 场景包（low 档约 50MB，慢网耗时较长），
-// 旧的固定 15s 死看门狗会在下载仍正常进行时就误报「加载超时」。改为：只要加载条还在
-// 推进就持续续命；仅当进度长时间停滞（网络中断/模块挂起）或超过总硬上限时才判失败。
-const STALL_MS = 25000;        // 加载进度 25s 无任何增长 → 判定卡死/断网
-const HARD_LIMIT_MS = 180000;  // 绝对上限 3 分钟，兜底极端慢网
-const bootStartedAt = Date.now();
+// 活动看门狗：百分比只是 UI，网络活动以底层字节心跳为准。
+// Verdant GLB 的 GLTFLoader 会把每个收到的字节块注入这个回调；即使百分比
+// 在一整个大文件期间不变，只要字节仍在流入就不会误报。仍保留真停滞与 180s 硬上限。
+const STALL_MS = 25000;
+const HARD_LIMIT_MS = 180000;
+const activity = createLoadingActivityTracker({ stallMs: STALL_MS, hardLimitMs: HARD_LIMIT_MS });
+window.__m3dByteHeartbeat = (payload) => activity.noteBytes(payload);
 const fillEl = document.getElementById('loaderFill');
 let lastFillPct = -1;
-let lastProgressAt = Date.now();
 const watchdog = setInterval(() => {
-  const now = Date.now();
   const pct = fillEl ? (parseFloat(fillEl.style.width) || 0) : 0;
-  if (pct > lastFillPct) { lastFillPct = pct; lastProgressAt = now; }
-  if (now - bootStartedAt > HARD_LIMIT_MS) {
+  if (pct > lastFillPct) lastFillPct = pct;
+  const failure = activity.failure();
+  if (failure === 'hard-timeout') {
     clearInterval(watchdog);
     if (typeof window.__verdantBootFailure === 'function' && params.get('version') === 'dev') { window.__verdantBootFailure(new Error('下载超过 180 秒仍未完成')); return; }
     bootFail('加载超时',
       `超过 ${HARD_LIMIT_MS / 1000} 秒仍未进入游戏。网络可能过慢或中断，请重试或切换网络（手机建议在设置里选“低”画质档）。`);
-  } else if (now - lastProgressAt > STALL_MS) {
+  } else if (failure === 'byte-stall') {
     clearInterval(watchdog);
     if (typeof window.__verdantBootFailure === 'function' && params.get('version') === 'dev') { window.__verdantBootFailure(new Error(`加载进度已 ${STALL_MS / 1000} 秒没有变化`)); return; }
     bootFail('加载停滞',
-      `加载进度已 ${STALL_MS / 1000} 秒没有变化（当前约 ${Math.max(0, Math.round(lastFillPct))}%）。可能是网络中断，或 CDN 缓存了不匹配的旧模块。`);
+      `连续 ${STALL_MS / 1000} 秒没有收到资源字节（当前约 ${Math.max(0, Math.round(lastFillPct))}%）。可能是网络中断，或 CDN 缓存了不匹配的旧模块。`);
   }
 }, 1000);
 window.__bootWatchdogPause = () => { clearInterval(watchdog); };
 
 try {
-  await import('./src/main.js?v=m20261025webgpu1');
+  await import('./src/main.js?v=m20261026verdant1');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
   clearInterval(watchdog);

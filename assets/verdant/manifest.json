@@ -7,28 +7,31 @@
       "manifest": "tiers/high/manifest-high.json",
       "scene": "tiers/high/verdant-trail-high.glb",
       "height": "verdant-trail-height.json",
-      "faces": 413074,
-      "bytes": 95181916,
-      "sha256": "36cda44f62075f8ba7db45134232a6fbed044cddab6b5ce1b9502cc2550c2daa",
-      "packBytes": 187331026
+      "faces": 536392,
+      "bytes": 169872804,
+      "sha256": "ce2e6a0ad3b7bb47eb36c6dcf8ea8f2e6e00838ced61e27c6c1249d6c27b23fc",
+      "packBytes": 343708113,
+      "files": 127
     },
     "low": {
       "manifest": "tiers/low/manifest-low.json",
       "scene": "tiers/low/verdant-trail-low.glb",
       "height": "verdant-trail-height.json",
       "faces": 347580,
-      "bytes": 52817932,
-      "sha256": "92d73f3744332bb835dde5c072d53efd02f93b21dd49af4c3cb707e46d1daa9e",
-      "packBytes": 95378399
+      "bytes": 38941216,
+      "sha256": "eab638d28609f1f7780cafe163284675ba1c79b09642936fe93e161729e3aa59",
+      "packBytes": 64801162,
+      "files": 127
     },
     "medium": {
       "manifest": "tiers/medium/manifest-medium.json",
       "scene": "tiers/medium/verdant-trail-medium.glb",
       "height": "verdant-trail-height.json",
-      "faces": 372551,
-      "bytes": 88088716,
-      "sha256": "333a9cc8de916c7d50f4380a0ca318ff95b28def217316a5e1661042693b064c",
-      "packBytes": 176790693
+      "faces": 392945,
+      "bytes": 55838932,
+      "sha256": "3f8f72b5198a9a2a5c3ac3c0ad3e721051decbc9a09dd4def40a7416f632184a",
+      "packBytes": 100533206,
+      "files": 127
     },
     "ultra": {
       "manifest": "tiers/ultra/manifest-ultra.json",

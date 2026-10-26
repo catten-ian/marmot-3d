@@ -1,0 +1,8 @@
+{
+  "date": "2026-10-23",
+  "node": "node tools/run-node-tests.cjs",
+  "result": "OK 36/36",
+  "browserCdp": "unavailable in managed sandbox; no screenshots claimed",
+  "devStamp": "m20261023p2fix1",
+  "proxyDefault": false
+}
