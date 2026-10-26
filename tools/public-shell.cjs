@@ -16,8 +16,11 @@ function replaceOnce(source, pattern, replacement, label) {
 function generatePublicShell(source) {
   let html = source;
   html = html.replace(/((?:href|src)=")\.\/assets\//g, `$1${PUBLIC_BASE}/assets/`);
+  // JS 字符串里的相对资源路径（如 video.setAttribute('poster', './assets/video/x.jpg')）
+  // 同样必须转成 beta 绝对路径，否则 beta 页面会把这些请求打到 /marmot3d-beta/ 之外的相对位置。
+  html = html.replace(/(['"])\.\/assets\//g, (_match, quote) => `${quote}${PUBLIC_BASE}/assets/`);
   html = replaceOnce(html, /href="\.\/styles\.css(?:\?[^"]*)?"/, `href="${PUBLIC_BASE}/styles.css?v=${VERSION_STAMP}"`, 'stylesheet URL');
-  html = html.replace(/"\.\/vendor\//g, `"${PUBLIC_BASE}/vendor/`);
+  html = html.replace(/(['"])\.\/vendor\//g, (_match, quote) => `${quote}${PUBLIC_BASE}/vendor/`);
   html = html.replace(/(['"])\.\/src\/([^'"]+)\1/g,
     (_match, quote, resource) => `${quote}${PUBLIC_BASE}/src/${resource.split('?')[0]}?v=${VERSION_STAMP}${quote}`);
 
