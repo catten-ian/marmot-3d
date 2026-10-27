@@ -1,0 +1,350 @@
+{
+  "format": 1,
+  "description": "GLB visual ground BVH vs regenerated height.json (257^2 raycast of the same ground mesh)",
+  "heightSha256": "caf28a11a80973d44e611c7d4e1f5c701a2c600ead7cb4af55cb13db7d6cc863",
+  "maxAbsVisualMinusHeightJsonMeters": 0.0152,
+  "samples": [
+    {
+      "name": "boulder_01.001",
+      "category": "grounded",
+      "x": -2.6589,
+      "z": 3.4393,
+      "visualGroundY": 2.0557,
+      "heightJsonY": 2.0553,
+      "visualMinusHeightJson": 0.0003
+    },
+    {
+      "name": "boulder_01.002",
+      "category": "grounded",
+      "x": -1.0762,
+      "z": 10.2223,
+      "visualGroundY": 1.8135,
+      "heightJsonY": 1.8143,
+      "visualMinusHeightJson": -0.0008
+    },
+    {
+      "name": "boulder_01.003",
+      "category": "grounded",
+      "x": -33.2339,
+      "z": -30.5303,
+      "visualGroundY": 1.7344,
+      "heightJsonY": 1.7342,
+      "visualMinusHeightJson": 0.0002
+    },
+    {
+      "name": "boulder_01.004",
+      "category": "grounded",
+      "x": -30.2416,
+      "z": -28.5324,
+      "visualGroundY": 1.7344,
+      "heightJsonY": 1.7345,
+      "visualMinusHeightJson": -0.0002
+    },
+    {
+      "name": "coastal_cliff_02_LOD1.002",
+      "category": "grounded",
+      "x": 4.5969,
+      "z": -29.5213,
+      "visualGroundY": 1.8027,
+      "heightJsonY": 1.8022,
+      "visualMinusHeightJson": 0.0005
+    },
+    {
+      "name": "coastal_cliff_04_LOD1.001",
+      "category": "grounded",
+      "x": 24.4241,
+      "z": -0.363,
+      "visualGroundY": 7.6924,
+      "heightJsonY": 7.6956,
+      "visualMinusHeightJson": -0.0032
+    },
+    {
+      "name": "coastal_cliff_04_LOD1.002",
+      "category": "grounded",
+      "x": 17.4606,
+      "z": -5.3115,
+      "visualGroundY": 5.7598,
+      "heightJsonY": 5.7538,
+      "visualMinusHeightJson": 0.006
+    },
+    {
+      "name": "dead_tree_trunk.001",
+      "category": "grounded",
+      "x": 5.5737,
+      "z": 3.1044,
+      "visualGroundY": 3.8691,
+      "heightJsonY": 3.8539,
+      "visualMinusHeightJson": 0.0152
+    },
+    {
+      "name": "dead_tree_trunk_02",
+      "category": "grounded",
+      "x": -37.8351,
+      "z": -21.4259,
+      "visualGroundY": 1.7275,
+      "heightJsonY": 1.7274,
+      "visualMinusHeightJson": 0.0001
+    },
+    {
+      "name": "dead_tree_trunk_02.002",
+      "category": "grounded",
+      "x": -29.6143,
+      "z": -24.0014,
+      "visualGroundY": 1.5947,
+      "heightJsonY": 1.594,
+      "visualMinusHeightJson": 0.0008
+    },
+    {
+      "name": "island_tree_01_a",
+      "category": "grounded",
+      "x": 24.8096,
+      "z": -3.7323,
+      "visualGroundY": 8.2139,
+      "heightJsonY": 8.2143,
+      "visualMinusHeightJson": -0.0005
+    },
+    {
+      "name": "island_tree_01_b",
+      "category": "grounded",
+      "x": 10.616,
+      "z": -22.24,
+      "visualGroundY": 2.4248,
+      "heightJsonY": 2.4243,
+      "visualMinusHeightJson": 0.0005
+    },
+    {
+      "name": "main_dead_tree_trunk",
+      "category": "grounded",
+      "x": -16.9426,
+      "z": -13.304,
+      "visualGroundY": 1.8672,
+      "heightJsonY": 1.8655,
+      "visualMinusHeightJson": 0.0017
+    },
+    {
+      "name": "root_cluster_01",
+      "category": "grounded",
+      "x": -32.2392,
+      "z": -7.4396,
+      "visualGroundY": 1.7773,
+      "heightJsonY": 1.7758,
+      "visualMinusHeightJson": 0.0016
+    },
+    {
+      "name": "root_cluster_01.001",
+      "category": "grounded",
+      "x": -27.6981,
+      "z": -7.1266,
+      "visualGroundY": 1.8711,
+      "heightJsonY": 1.8722,
+      "visualMinusHeightJson": -0.0011
+    },
+    {
+      "name": "root_cluster_2_01_lod0",
+      "category": "grounded",
+      "x": -20.9444,
+      "z": -19.118,
+      "visualGroundY": 0.6836,
+      "heightJsonY": 0.6857,
+      "visualMinusHeightJson": -0.0021
+    },
+    {
+      "name": "root_cluster_2_04_lod0",
+      "category": "grounded",
+      "x": -23.5655,
+      "z": -21.1044,
+      "visualGroundY": 0.752,
+      "heightJsonY": 0.7502,
+      "visualMinusHeightJson": 0.0017
+    },
+    {
+      "name": "root_cluster_2_06_lod0",
+      "category": "grounded",
+      "x": -22.6854,
+      "z": -17.3237,
+      "visualGroundY": 0.7285,
+      "heightJsonY": 0.7277,
+      "visualMinusHeightJson": 0.0008
+    },
+    {
+      "name": "root_cluster_2_07_lod0",
+      "category": "grounded",
+      "x": -26.1773,
+      "z": -17.5463,
+      "visualGroundY": 0.5059,
+      "heightJsonY": 0.5065,
+      "visualMinusHeightJson": -0.0007
+    },
+    {
+      "name": "sand",
+      "category": "grounded",
+      "x": 0.6136,
+      "z": -8.8302,
+      "visualGroundY": 2.79,
+      "heightJsonY": 2.7894,
+      "visualMinusHeightJson": 0.0007
+    },
+    {
+      "name": "shrub_02_a",
+      "category": "grounded",
+      "x": -13.0315,
+      "z": -20.4348,
+      "visualGroundY": 1.1865,
+      "heightJsonY": 1.1865,
+      "visualMinusHeightJson": 0.0
+    },
+    {
+      "name": "shrub_02_b",
+      "category": "grounded",
+      "x": 3.3136,
+      "z": -13.8901,
+      "visualGroundY": 2.4238,
+      "heightJsonY": 2.4243,
+      "visualMinusHeightJson": -0.0004
+    },
+    {
+      "name": "shrub_02_c",
+      "category": "grounded",
+      "x": 28.6624,
+      "z": 15.8124,
+      "visualGroundY": 6.5156,
+      "heightJsonY": 6.5165,
+      "visualMinusHeightJson": -0.0008
+    },
+    {
+      "name": "shrub_02_d",
+      "category": "grounded",
+      "x": -17.743,
+      "z": -6.8157,
+      "visualGroundY": 2.1729,
+      "heightJsonY": 2.1718,
+      "visualMinusHeightJson": 0.0011
+    },
+    {
+      "name": "shrub_02_e",
+      "category": "grounded",
+      "x": 39.0654,
+      "z": 11.2826,
+      "visualGroundY": 10.3848,
+      "heightJsonY": 10.385,
+      "visualMinusHeightJson": -0.0002
+    },
+    {
+      "name": "shrub_02_f",
+      "category": "grounded",
+      "x": 0.4486,
+      "z": -18.7862,
+      "visualGroundY": 2.1719,
+      "heightJsonY": 2.1699,
+      "visualMinusHeightJson": 0.0019
+    },
+    {
+      "name": "shrub_02_g",
+      "category": "grounded",
+      "x": -17.1334,
+      "z": -21.6691,
+      "visualGroundY": 1.3018,
+      "heightJsonY": 1.2972,
+      "visualMinusHeightJson": 0.0046
+    },
+    {
+      "name": "shrub_02_h",
+      "category": "grounded",
+      "x": 1.5055,
+      "z": -17.0184,
+      "visualGroundY": 2.0996,
+      "heightJsonY": 2.0996,
+      "visualMinusHeightJson": -0.0
+    },
+    {
+      "name": "shrub_02_i",
+      "category": "grounded",
+      "x": 26.659,
+      "z": 13.9209,
+      "visualGroundY": 6.2256,
+      "heightJsonY": 6.227,
+      "visualMinusHeightJson": -0.0014
+    },
+    {
+      "name": "shrub_02_j",
+      "category": "grounded",
+      "x": 37.2293,
+      "z": 10.3883,
+      "visualGroundY": 10.8682,
+      "heightJsonY": 10.8626,
+      "visualMinusHeightJson": 0.0055
+    },
+    {
+      "name": "shrub_02_k",
+      "category": "grounded",
+      "x": -18.9494,
+      "z": -21.9188,
+      "visualGroundY": 1.0068,
+      "heightJsonY": 1.0106,
+      "visualMinusHeightJson": -0.0038
+    },
+    {
+      "name": "shrub_02_l",
+      "category": "grounded",
+      "x": -9.0719,
+      "z": 0.3924,
+      "visualGroundY": 2.1768,
+      "heightJsonY": 2.1776,
+      "visualMinusHeightJson": -0.0008
+    },
+    {
+      "name": "shrub_02_m",
+      "category": "grounded",
+      "x": -9.604,
+      "z": -21.0334,
+      "visualGroundY": 2.0977,
+      "heightJsonY": 2.1055,
+      "visualMinusHeightJson": -0.0079
+    },
+    {
+      "name": "shrub_02_n",
+      "category": "grounded",
+      "x": 24.9619,
+      "z": 8.3608,
+      "visualGroundY": 7.1904,
+      "heightJsonY": 7.1911,
+      "visualMinusHeightJson": -0.0007
+    },
+    {
+      "name": "shrub_02_o",
+      "category": "grounded",
+      "x": 37.283,
+      "z": 5.1174,
+      "visualGroundY": 10.8477,
+      "heightJsonY": 10.8459,
+      "visualMinusHeightJson": 0.0017
+    },
+    {
+      "name": "shrub_02_p",
+      "category": "grounded",
+      "x": -7.2196,
+      "z": 1.1702,
+      "visualGroundY": 2.167,
+      "heightJsonY": 2.1677,
+      "visualMinusHeightJson": -0.0007
+    },
+    {
+      "name": "single_root_LOD0",
+      "category": "grounded",
+      "x": -11.0843,
+      "z": -13.9958,
+      "visualGroundY": 2.0762,
+      "heightJsonY": 2.0758,
+      "visualMinusHeightJson": 0.0004
+    },
+    {
+      "name": "tree_small_02_a",
+      "category": "grounded",
+      "x": -28.8492,
+      "z": -6.9904,
+      "visualGroundY": 1.8428,
+      "heightJsonY": 1.8421,
+      "visualMinusHeightJson": 0.0007
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+// Standalone static server for dev QA on a fixed port.
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+const ROOT=path.resolve(process.argv[2]||process.cwd()), PORT=+(process.argv[3]||'8351');
+const MIME={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.glb':'model/gltf-binary','.bin':'application/octet-stream','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.css':'text/css','.svg':'image/svg+xml','.wasm':'application/wasm','.mp3':'audio/mpeg'};
+http.createServer((req,res)=>{let rel=decodeURIComponent(req.url.split('?')[0]);if(rel==='/')rel='/index.html';const f=path.join(ROOT,path.normalize(rel).replace(/^(\.\.[\/\\])+/,''));if(!f.startsWith(ROOT))return res.writeHead(403).end();fs.readFile(f,(e,d)=>{if(e)return res.writeHead(404).end('404');res.writeHead(200,{'Content-Type':MIME[path.extname(f).toLowerCase()]||'application/octet-stream','Cache-Control':'no-store'});res.end(d);});}).listen(PORT,'127.0.0.1',()=>console.log('static',PORT,ROOT));

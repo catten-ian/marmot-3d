@@ -1,0 +1,9 @@
+{
+  "startedAt": "2026-10-23T16:04:49.647Z",
+  "readyAt": -1,
+  "probe": null,
+  "failed": [],
+  "errors": [],
+  "closed": false,
+  "fatal": "Error: {\"code\":-32001,\"message\":\"Session with given id not found.\"}\n    at WebSocket.<anonymous> (/home/fame/code/marmot3d/m3d-dev-scene-assembly/tools/fresh-boot.cjs:11:199)\n    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:856:20)\n    at WebSocket.dispatchEvent (node:internal/event_target:789:26)\n    at fireEvent (node:internal/deps/undici/undici:14403:14)\n    at #onMessage (node:internal/deps/undici/undici:15726:9)\n    at Object.onMessage (node:internal/deps/undici/undici:1"
+}

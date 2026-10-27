@@ -14,7 +14,8 @@ import { instantiate, normalizeModel } from '../models/loader.js';
 import { USE_REAL_MODELS } from '../core/version.js';
 
 /** 真实土拨鼠模型（与藏狐同一套分级回退，见 models/loader.js） */
-const instantiateMarmot = () => instantiate('./assets/models/marmot.glb', 'marmot');
+const instantiateMarmot = (dev = false) => instantiate(`./assets/models/${dev ? 'marmot-screaming.glb' : 'marmot.glb'}`, dev ? 'marmotScream' : 'marmot');
+const tintMarmot = (root) => root?.traverse?.((o) => { if (!o.isMesh || /eye|tongue|teeth|mouth/i.test(o.name || '')) return; const mats = Array.isArray(o.material) ? o.material : [o.material]; mats.forEach((m) => { if (!m) return; const c = m.color; if (c && c.r < 0.08 && c.g < 0.08 && c.b < 0.08) c.set(0xa9834e); }); });
 import { devOn } from '../core/version.js';
 
 export class Food {
@@ -29,7 +30,7 @@ export class Food {
     this.group = new THREE.Group();
     this.group.position.set(x, terrainHeight(x, z) + 0.52, z);
 
-    if (this.herbivore) this._buildHerb();
+    if (this.herbivore) { this._buildHerb(); if (devOn('sorrelFood')) this._loadSorrel(); }
     else this._buildBerry();
 
     scene.add(this.group);
@@ -189,12 +190,26 @@ export class Food {
     }
   }
 
+  async _loadSorrel() {
+    try {
+      const inst = await instantiate('./assets/models/shrub-sorrel.glb', 'sorrel');
+      if (!inst || !this.group) return;
+      const norm = normalizeModel(inst, 0.4, { upAxis: 'z' });
+      norm.wrap.position.y = -0.52;
+      norm.wrap.rotation.y = this.index * 0.73;
+      for (const child of this.group.children) child.visible = false;
+      this.group.add(norm.wrap);
+      this.realModel = norm.wrap;
+      if (this.halo) this.halo.material.opacity = 0.035;
+    } catch (e) { console.warn('[food] sorrel fallback:', e); }
+  }
+
   update(dt) {
     if (this.taken) return;
     this._t += dt;
     const bob = Math.sin(this._t * 2.2) * (this.herbivore ? 0.035 : 0.06);
     this.group.position.y = terrainHeight(this.x, this.z) + 0.52 + bob;
-    this.halo.material.opacity = (this.herbivore ? 0.1 : 0.08) + Math.sin(this._t * 2.6) * (this.herbivore ? 0.04 : 0.04);
+    if (this.halo) this.halo.material.opacity = (this.herbivore ? 0.1 : 0.08) + Math.sin(this._t * 2.6) * (this.herbivore ? 0.04 : 0.04);
     this.group.rotation.y += dt * (this.herbivore ? 0.18 : 0.35);
     if (this.linoleicRing) {
       this.linoleicRing.material.opacity = 0.22 + Math.sin(this._t * 2.8) * 0.1;
@@ -238,7 +253,7 @@ export class Food {
  * 被救后跟随玩家，带回洞穴才算完成救援目标。
  */
 export class Companion {
-  constructor(scene) {
+  constructor(scene, { resolvePlacement = null } = {}) {
     // 与藏狐同样的三层结构：容器 / 程序化 / 真实模型是**兄弟**。
     // 早期版本把 mesh 直接当程序化模型，再把真实模型 add 成它的子节点，
     // 然后 `mesh.visible = false` —— 结果连真实模型一起隐藏，伙伴凭空消失。
@@ -250,6 +265,7 @@ export class Companion {
     this.group.add(this.mesh);
     scene.add(this.group);
     this.scene = scene;
+    this.resolvePlacement = typeof resolvePlacement === 'function' ? resolvePlacement : null;
     this.x = 0; this.z = 0;
     this.rescued = false;
     this.saved = false;
@@ -273,7 +289,7 @@ export class Companion {
     // 早期写成 `=== 'off'` 恒为 false，导致该开关对伙伴完全失效。
     if (!USE_REAL_MODELS) return;
     try {
-      const inst = await instantiateMarmot();
+      const inst = await instantiateMarmot(devOn('screamingMarmot'));
       if (!inst) { this.modelLevel = 'procedural'; return; }
 
       // 归一化姿态：脚底贴地、面朝 +Z。
@@ -281,6 +297,7 @@ export class Companion {
       // Y 就是最大轴，说明土拨鼠**本来就是正立的**，不能像藏狐那样绕 Z 转 90°。
       // 目标高度 0.75 与程序化版本（head.y=0.62 + 头高）对齐，避免切换时跳变。
       const norm = normalizeModel(inst, 0.75, { upAxis: 'z' });
+      if (devOn('screamingMarmot')) tintMarmot(norm.wrap);
       this.mesh.add(norm.wrap);
       this.realModel = norm.wrap;
       this.modelLevel = inst.userData.level || 'full';
@@ -307,17 +324,17 @@ export class Companion {
     }
   }
 
-  placeAt(x, z) {
+  placeAt(x, z, y = null) {
     this.x = x; this.z = z;
     this.rescued = false;
     this.saved = false;
     this._restoreVisibility();
     this.emote = null;
-    this.sync();
+    this.sync(y);
   }
 
   /**
-   * 按当前模型级别恢复可见性。
+   * 按当前模型级别恢复可见性.
    *
    * 不能简单地 `mesh.visible = true` —— 那会把"是否该显示真实模型"
    * 和"是否该显示程序化版本"两件事混在一个开关上，
@@ -331,8 +348,11 @@ export class Companion {
     if (this.realModel) this.realModel.visible = useReal;
   }
 
-  sync() {
-    this.group.position.set(this.x, terrainHeight(this.x, this.z), this.z);
+  sync(y = null) {
+    const ground = this.resolvePlacement?.(this.x, this.z);
+    const groundY = Number.isFinite(y) ? y : Number.isFinite(ground?.y) ? ground.y : terrainHeight(this.x, this.z);
+    if (ground) { this.x = ground.x; this.z = ground.z; }
+    this.group.position.set(this.x, groundY, this.z);
   }
 
   showEmote(kind) {
@@ -341,6 +361,7 @@ export class Companion {
   }
 
   update(dt, playerPos, safe) {
+    const prevX = this.x, prevZ = this.z;
     this._t += dt;
     if (this.emoteTimer > 0) {
       this.emoteTimer -= dt;
@@ -359,7 +380,10 @@ export class Companion {
       this.mesh.rotation.y = Math.atan2(playerPos.x - this.x, playerPos.z - this.z);
     }
 
-    const y = terrainHeight(this.x, this.z);
+    let ground = this.resolvePlacement?.(this.x, this.z);
+    if (this.resolvePlacement && !ground) { this.x = prevX; this.z = prevZ; ground = this.resolvePlacement(this.x, this.z); }
+    else if (ground) { this.x = ground.x; this.z = ground.z; }
+    const y = Number.isFinite(ground?.y) ? ground.y : terrainHeight(this.x, this.z);
     const bob = this.rescued && !this.saved
       ? Math.abs(Math.sin(this._t * 7)) * 0.09
       : Math.sin(this._t * 2) * 0.03;

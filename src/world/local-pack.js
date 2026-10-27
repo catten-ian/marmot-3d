@@ -1,4 +1,19 @@
 function normalizePath(path) { return String(path || '').replaceAll('\\', '/').split('/').filter((part) => part && part !== '.').join('/'); }
+
+function md5Hex(input) {
+  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  const paddedLength = Math.ceil((bytes.length + 9) / 64) * 64, padded = new Uint8Array(paddedLength);
+  padded.set(bytes); padded[bytes.length] = 0x80; new DataView(padded.buffer).setBigUint64(paddedLength - 8, BigInt(bytes.length) * 8n, true);
+  const k = Uint32Array.from({ length: 64 }, (_, i) => Math.floor(Math.abs(Math.sin(i + 1)) * 0x100000000) >>> 0), shifts = [7,12,17,22,5,9,14,20,4,11,16,23,6,10,15,21], rol = (x,n) => (x << n) | (x >>> (32 - n));
+  const view = new DataView(padded.buffer); let a0=0x67452301,b0=0xefcdab89,c0=0x98badcfe,d0=0x10325476;
+  for(let off=0;off<paddedLength;off+=64){let a=a0,b=b0,c=c0,d=d0;for(let i=0;i<64;i++){let f,g,sh;if(i<16){f=(b&c)|(~b&d);g=i;sh=shifts[i%4]}else if(i<32){f=(d&b)|(~d&c);g=(5*i+1)%16;sh=shifts[4+i%4]}else if(i<48){f=b^c^d;g=(3*i+5)%16;sh=shifts[8+i%4]}else{f=c^(b|~d);g=7*i%16;sh=shifts[12+i%4]}const t=(a+f+k[i]+view.getUint32(off+4*g,true))>>>0;a=d;d=c;c=b;b=(b+rol(t,sh))>>>0}a0=(a0+a)>>>0;b0=(b0+b)>>>0;c0=(c0+c)>>>0;d0=(d0+d)>>>0}
+  return [a0,b0,c0,d0].flatMap(v=>[v&255,v>>>8&255,v>>>16&255,v>>>24&255]).map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+function shouldSkipPackFile({ existingSize, existingHash, record }) { const expected = record?.md5 || record?.sha256; return Number.isSafeInteger(existingSize) && existingSize === record?.size && typeof existingHash === 'string' && typeof expected === 'string' && existingHash.toLowerCase() === expected.toLowerCase(); }
+function createByteProgress(records) { return { total: records.reduce((n,r)=>n+(Number.isSafeInteger(r?.size)&&r.size>0?r.size:0),0), done:0, skipped:0, filesDone:0 }; }
+function recordPackFileDone(progress, size, { skipped = false } = {}) { progress.done = Math.min(progress.total, progress.done + (Number.isSafeInteger(size)&&size>0?size:0)); progress.filesDone++; if(skipped) progress.skipped++; return progress; }
+function byteProgressFraction(progress, inFlight = 0) { return progress.total ? Math.max(0, Math.min(1, (progress.done + Math.max(0,inFlight))/progress.total)) : 1; }
+
 /** Dev-only Verdant package picker, integrity validator and tier download hooks. */
 const DB_NAME = 'marmot3d-local-pack';
 const STORE = 'handles';
@@ -95,7 +110,7 @@ async function validate(root, entries, onProgress = null, verifyHashes = true) {
   }
   let checked = 0, totalBytes = 0;
   for (const rec of packManifest.files) {
-    if (!safeRelative(rec.path) || !Number.isSafeInteger(rec.size) || rec.size < 0 || !/^[a-f0-9]{64}$/i.test(rec.sha256 || '')) {
+    if (!safeRelative(rec.path) || !Number.isSafeInteger(rec.size) || rec.size < 0 || (!/^[a-f0-9]{64}$/i.test(rec.sha256 || '') && !/^[a-f0-9]{32}$/i.test(rec.md5 || ''))) {
       status = { state: 'error', found, missing: [], message: `pack-manifest.json 条目无效：${rec.path || '(empty)'}` }; active = null; return status;
     }
     const entry = normalized.get(normalizeInputPath(rec.path));
@@ -165,7 +180,7 @@ export function getLocalPackAssetInfo(path) { const url = resolveLocalAsset(path
 
 function tosConfig() {
   let cfg = typeof window !== 'undefined' ? window.__VERDANT_TOS__ : null;
-  if (!cfg?.baseUrl && typeof localStorage !== 'undefined') { const saved = localStorage.getItem('verdant-tos-base'); if (saved) cfg = { ...(cfg || {}), baseUrl: saved, version: '20261022' }; }
+  if (!cfg?.baseUrl && typeof localStorage !== 'undefined') { const saved = localStorage.getItem('verdant-tos-base'); if (saved) cfg = { ...(cfg || {}), baseUrl: saved, version: '20261027' }; }
   return cfg && typeof cfg === 'object' && (cfg.baseUrl || cfg.packRoots) ? cfg : null;
 }
 export function getTosBaseUrl() {
@@ -188,7 +203,7 @@ export function setTosBaseUrl(value) {
   if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('TOS URL 仅接受 HTTP(S)');
   const normalized = parsed.href.replace(/\/+$/, '');
   try { localStorage.setItem('verdant-tos-base', normalized); } catch (_) {}
-  if (typeof window !== 'undefined') window.__VERDANT_TOS__ = { ...(window.__VERDANT_TOS__ || {}), baseUrl: normalized, version: '20261022' };
+  if (typeof window !== 'undefined') window.__VERDANT_TOS__ = { ...(window.__VERDANT_TOS__ || {}), baseUrl: normalized, version: '20261027' };
   renderLocalPackUi();
   return normalized;
 }
@@ -198,7 +213,7 @@ function packRoot(tier) {
   if (direct) return new URL(String(direct).endsWith('/') ? direct : `${direct}/`, location.href).href;
   if (!cfg.baseUrl) return null;
   const base = String(cfg.baseUrl).endsWith('/') ? cfg.baseUrl : `${cfg.baseUrl}/`;
-  const version = encodeURIComponent(String(cfg.version || '20261022'));
+  const version = encodeURIComponent(String(cfg.version || '20261027'));
   return new URL(`m3d-dev/${version}/${encodeURIComponent(tier)}/`, base).href;
 }
 function logicalAssetPath(url) {
@@ -230,6 +245,8 @@ function setDownloadUi(message, state = 'working', fraction = 0) {
   downloadState = { state, message, fraction };
   const box = document.getElementById('verdantDownloadStatus');
   if (box) box.textContent = message;
+  const progress = document.getElementById('verdantDownloadProgress');
+  if (progress) { progress.value = Math.max(0, Math.min(1, Number(fraction) || 0)); progress.setAttribute('aria-valuenow', String(Math.round(progress.value * 100))); }
   try { window.__game?.verdantQuality && (window.__game.verdantQuality.downloadState = { ...downloadState }); } catch (_) {}
 }
 async function fetchOk(url) {
@@ -262,6 +279,26 @@ async function readExistingPath(root, path) {
     const handle = await dir.getFileHandle(parts.at(-1)); return await handle.getFile();
   } catch (_) { return null; }
 }
+async function readResponseBytes(response, onProgress) {
+  if (!response.body?.getReader) {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    onProgress?.(bytes.byteLength);
+    return bytes;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let loaded = 0;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (!value?.byteLength) continue;
+    chunks.push(value); loaded += value.byteLength; onProgress?.(loaded);
+  }
+  const bytes = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes;
+}
 export async function downloadVerdantFolder(tier) {
   if (!canFS) throw new Error('当前浏览器不支持文件夹下载 API');
   const base = packRoot(tier); if (!base) throw new Error('TOS 未配置，文件夹下载暂不可用');
@@ -272,26 +309,42 @@ export async function downloadVerdantFolder(tier) {
   const manifestBytes = await manifestResponse.arrayBuffer();
   const manifest = JSON.parse(new TextDecoder().decode(manifestBytes));
   if (manifest.tier !== tier || !Array.isArray(manifest.files) || manifest.files.length !== manifest.fileCount) throw new Error('TOS pack-manifest 与所选档位不匹配');
-  const total = manifest.totalBytes || manifest.files.reduce((n, f) => n + f.size, 0);
-  let done = 0, reused = 0;
+  const progress = createByteProgress(manifest.files);
+  let reused = 0;
+  setDownloadUi(`${tier} 字节进度：0/${progress.total} B（已跳过 0）`, 'working', 0);
   for (let i = 0; i < manifest.files.length; i++) {
     const rec = manifest.files[i];
-    if (!safeRelative(rec.path) || !Number.isSafeInteger(rec.size) || !/^[a-f0-9]{64}$/i.test(rec.sha256 || '')) throw new Error(`非法 manifest 路径/校验值：${rec.path}`);
-    const existing = await readExistingPath(target, rec.path);
-    if (existing && existing.size === rec.size && await sha256(existing) === rec.sha256.toLowerCase()) {
-      done += rec.size; reused++;
-    } else {
-      const response = await fetchOk(new URL(rec.path, base).href);
-      const bytes = await response.arrayBuffer();
-      if (bytes.byteLength !== rec.size || await hashArrayBuffer(bytes) !== rec.sha256.toLowerCase()) throw new Error(`下载完整性校验失败：${rec.path}`);
-      await writePath(target, rec.path, bytes); done += bytes.byteLength;
+    if (!safeRelative(rec.path) || !Number.isSafeInteger(rec.size) || rec.size < 0
+      || !/^[a-f0-9]{64}$/i.test(rec.sha256 || '') || (rec.md5 && !/^[a-f0-9]{32}$/i.test(rec.md5))) {
+      throw new Error(`非法 manifest 路径/校验值：${rec.path}`);
     }
-    setDownloadUi(`${tier} 文件夹：${i + 1}/${manifest.fileCount}，${(done / 1e9).toFixed(2)}/${(total / 1e9).toFixed(2)} GB；复用 ${reused} 个已校验文件`, 'working', done / Math.max(1, total));
+    const existing = await readExistingPath(target, rec.path);
+    let existingHash = '';
+    if (existing && existing.size === rec.size) {
+      existingHash = rec.md5 ? await md5Hex(new Uint8Array(await existing.arrayBuffer())) : await sha256(existing);
+    }
+    if (shouldSkipPackFile({ existingSize: existing?.size, existingHash, record: rec })) {
+      recordPackFileDone(progress, rec.size, { skipped: true }); reused++;
+      setDownloadUi(`${tier} 字节进度：${progress.done}/${progress.total} B；命中跳过 ${reused} 个；文件 ${i + 1}/${manifest.fileCount}`, 'working', byteProgressFraction(progress));
+      continue;
+    }
+    const response = await fetchOk(new URL(rec.path, base).href);
+    let inFlight = 0;
+    const bytes = await readResponseBytes(response, (loaded) => {
+      inFlight = Math.min(rec.size, loaded);
+      setDownloadUi(`${tier} 字节进度：${progress.done + inFlight}/${progress.total} B；当前 ${rec.path}；命中跳过 ${reused} 个`, 'working', byteProgressFraction(progress, inFlight));
+    });
+    const shaOk = bytes.byteLength === rec.size && await hashArrayBuffer(bytes.buffer);
+    const md5Ok = !rec.md5 || md5Hex(bytes) === rec.md5.toLowerCase();
+    if (bytes.byteLength !== rec.size || shaOk !== rec.sha256.toLowerCase() || !md5Ok) throw new Error(`下载完整性校验失败：${rec.path}`);
+    await writePath(target, rec.path, bytes);
+    recordPackFileDone(progress, bytes.byteLength);
+    setDownloadUi(`${tier} 字节进度：${progress.done}/${progress.total} B；文件 ${i + 1}/${manifest.fileCount}；命中跳过 ${reused} 个`, 'working', byteProgressFraction(progress));
   }
   await writePath(target, 'pack-manifest.json', manifestBytes);
   await saveHandle(target);
   await validate(target, null, null, false);
-  setDownloadUi(`${tier} 文件夹完成：${manifest.fileCount} 个文件逐项 SHA-256 已校验，可直接使用该目录。`, 'complete', 1);
+  setDownloadUi(`${tier} 文件夹完成：${manifest.fileCount} 个文件已校验；跳过 ${reused} 个（${progress.done}/${progress.total} B），可直接使用该目录。`, 'complete', 1);
 }
 function renderLocalPackUi() {
   const box = document.getElementById('localPackStatus'); if (!box) return;
@@ -307,6 +360,8 @@ function renderLocalPackUi() {
   if (tstatus) tstatus.textContent = tos ? `TOS 已配置（档位：${tier}）` : 'TOS 尚未配置；当前只使用本地资源包与同源服务器资源，不会尝试外网。';
   const downloadBox = document.getElementById('verdantDownloadStatus');
   if (downloadBox && downloadState.state !== 'idle') downloadBox.textContent = downloadState.message;
+  const progress = document.getElementById('verdantDownloadProgress');
+  if (progress && downloadState.state !== 'idle') progress.value = Math.max(0, Math.min(1, downloadState.fraction || 0));
 }
 export function installLocalPackUI({ onChange } = {}) {
   if (uiInstalled) return;
