@@ -9,7 +9,7 @@
 <link rel="icon" href="./assets/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="./assets/favicon-192.png">
 <meta name="theme-color" content="#101a15">
-<link rel="stylesheet" href="./styles.css?v=m20261028boot5">
+<link rel="stylesheet" href="./styles.css?v=m20261028boot6">
 <script type="importmap">
 { "imports": {
     "three": "./vendor/three.module.js",
@@ -160,7 +160,7 @@
     </div>
     <div class="loader-track"><div class="loader-fill" id="loaderFill"></div><i class="loader-shine"></i></div>
     <div class="loader-meta">
-      <span class="loader-text">正在筑巢… [boot5]</span>
+      <span class="loader-text">正在筑巢… [boot6]</span>
       <span class="loader-bytes" id="loaderBytes" hidden></span>
       <span class="loader-pct" id="loaderPct">0%</span>
     </div>
@@ -385,7 +385,7 @@ const firstFrameWatchdog = setInterval(() => {
 }, 1000);
 
 try {
-  await import('./src/main.js?v=m20261028boot5');
+  await import('./src/main.js?v=m20261028boot6');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
   clearInterval(watchdog);

@@ -279,6 +279,7 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   const field = buildWalkableField({ scene, heightJson: height, bounds: manifest.mapping.playableBounds, precomputed });
   console.info('[verdant] 可行走高度场:', field.stats);
   onProgress?.(1, precomputed ? '光栅化：地形数据就绪 1/1' : '光栅化可行走地形 1/1', { phase: 'rasterize', doneItems: 1, totalItems: 1 });
+  onProgress?.(1, '就绪：等待主线程空闲', { phase: 'rasterize', doneItems: 1, totalItems: 1 });
   await new Promise((resolve) => setTimeout(resolve, 0));
   onProgress?.(1, 'Verdant 就绪：收尾', { phase: 'ready' });
   return {

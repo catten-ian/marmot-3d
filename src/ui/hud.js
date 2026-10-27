@@ -40,6 +40,17 @@ export class HUD {
       loaderVideo: document.querySelector('.loader-video'),
     };
     this._loadingMax = -1;
+    // 心跳秒表：诊断加载屏是真冻结（进程挂起，秒表停）还是逻辑卡住（秒表继续跳）。
+    this._loadStartAt = Date.now();
+    const tickEl = document.createElement('span');
+    tickEl.id = 'loaderTick';
+    tickEl.style.opacity = '.55';
+    tickEl.style.marginLeft = '8px';
+    document.querySelector('.loader-meta')?.appendChild(tickEl);
+    this._loaderTickTimer = setInterval(() => {
+      if (this.el.loader?.classList.contains('gone')) { clearInterval(this._loaderTickTimer); tickEl.remove(); return; }
+      tickEl.textContent = `${Math.floor((Date.now() - this._loadStartAt) / 1000)}s`;
+    }, 500);
 
     this.toastTimer = 0;
     this.bannerTimer = 0;
