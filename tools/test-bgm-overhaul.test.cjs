@@ -11,7 +11,10 @@ test('BGM metadata decisions cover intro exceptions and combat selection', async
   const a = tracks.chooseCombatVariant({ variants: ['combat', 'combat-b', 'combat-c'], previous: 'combat', rng: () => 0 });
   assert.equal(a, 'combat-b');
   assert.notEqual(a, 'combat');
-  assert.equal(tracks.BGM_TRACK_META.combat.gain, 1);
+  // 归一化增益取实测响度（-16 LUFS 目标）：combat 0.56 / combat-b 0.68 / combat-c 0.62
+  assert.equal(tracks.BGM_TRACK_META.combat.gain, 0.56);
+  assert.equal(tracks.BGM_TRACK_META['combat-b'].gain, 0.68);
+  assert.equal(tracks.BGM_TRACK_META['combat-c'].gain, 0.62);
 });
 
 test('beta slot mapping replaces cave and includes PAF', async () => {
@@ -23,10 +26,15 @@ test('beta slot mapping replaces cave and includes PAF', async () => {
 
 test('crossfade target multiplies normalized track gain', async () => {
   const audio = await import('../src/systems/audio.js');
-  const param = { value: 0, cancelScheduledValues() {}, setValueAtTime(v) { this.value = v; }, linearRampToValueAtTime(v) { this.value = v; } };
-  const manager = new audio.BgmManager({ ctx: { currentTime: 0, createBufferSource() { return { connect(){}, start(){}, stop(){}, disconnect(){}, loop: false }; }, createGain() { return { gain: param, connect(){}, disconnect(){} }; } }, buses: { bgm: {} }, settings: { bgmEnabled: true } });
+  // 每个增益节点独立的 param：交叉淡入会同时写新轨与旧轨，共享 param 会互相覆盖。
+  const params = [];
+  const makeParam = () => { const p = { value: 0, cancelScheduledValues() {}, setValueAtTime(v) { this.value = v; }, linearRampToValueAtTime(v) { this.value = v; } }; params.push(p); return p; };
+  const manager = new audio.BgmManager({ ctx: { currentTime: 0, createBufferSource() { return { connect(){}, start(){}, stop(){}, disconnect(){}, loop: false }; }, createGain() { return { gain: makeParam(), connect(){}, disconnect(){} }; } }, buses: { bgm: {} }, settings: { bgmEnabled: true } });
   manager._crossfadeTo('combat', { duration: 45 }, { startOffset: 3 });
-  assert.equal(param.value, 0.42);
+  assert.equal(params[params.length - 1].value, 0.42 * 0.56);
+  // 变体按 assetKey 取各自增益，不共用 combat 的增益
+  manager._crossfadeTo('combat', { duration: 45 }, { startOffset: 3, assetKey: 'combat-b' });
+  assert.equal(params[params.length - 1].value, 0.42 * 0.68);
 });
 
 test('PAF priority survives normal state updates and preload excludes paf', async () => {

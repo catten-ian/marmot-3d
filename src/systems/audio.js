@@ -266,7 +266,8 @@ export class BgmManager {
     if (procedural) source.start(now);
     else source.start(now, startOffset);
     const track = { slot, assetKey, source, gain, fade: null, procedural };
-    const normalizedGain = Number(getBgmTrackMeta(slot).gain) || 1;
+    // 增益按实际播放的 assetKey 取（combat / combat-b / combat-c 实测响度不同），缺省回退到槽位。
+    const normalizedGain = Number(getBgmTrackMeta(assetKey).gain) || Number(getBgmTrackMeta(slot).gain) || 1;
     this._fade(track, 0.42 * normalizedGain, now, this.crossfadeSeconds);
     const previous = this.current;
     this.current = track;

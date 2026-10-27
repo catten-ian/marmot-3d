@@ -1,49 +1,88 @@
 {
-  "version": 1,
+  "version": 2,
   "provider": "ElevenLabs",
-  "generatedAt": "2026-10-26T16:07:44.536004+00:00",
+  "generatedAt": "2026-10-27T14:35:00+00:00",
+  "loudnessTargetLufs": -16,
   "assets": {
-    "cave": {
-      "file": "assets/audio/elevenlabs/bgm/cave.mp3",
-      "durationSeconds": 120.033,
-      "bytes": 1920566,
-      "sha256": "3393c325eb2e2a07008815f13e6409261b8e51c4a804f25125f301d7f88a61a3"
-    },
-    "combat": {
-      "file": "assets/audio/elevenlabs/bgm/combat.mp3",
+    "menu": {
+      "file": "assets/audio/elevenlabs/bgm/menu.mp3",
       "durationSeconds": 120.085,
       "bytes": 1921402,
-      "sha256": "87907b2edda8a3f68f0322584a91e9c88e7bfa7586fd59aad42eb15a192e70be"
-    },
-    "defeat": {
-      "file": "assets/audio/elevenlabs/bgm/defeat.mp3",
-      "durationSeconds": 12.016,
-      "bytes": 192305,
-      "sha256": "3ec753d006a3ee656b49024d9e42b82163d187af5aa2185d82e422433d2f6a54"
+      "sha256": "4fec489b5a35af610f9a28d3be1858c0ed7e39d5b67df9833c63cac9241e7302",
+      "measuredLufs": -18.7,
+      "normalizationGain": 1.36
     },
     "explore": {
       "file": "assets/audio/elevenlabs/bgm/explore.mp3",
       "durationSeconds": 120.137,
       "bytes": 1922238,
-      "sha256": "a2cdbeaecfd1326f024eb63d453e1d00d813ba3b8a99463b8b4e8dc381f1f429"
-    },
-    "menu": {
-      "file": "assets/audio/elevenlabs/bgm/menu.mp3",
-      "durationSeconds": 120.085,
-      "bytes": 1921402,
-      "sha256": "4fec489b5a35af610f9a28d3be1858c0ed7e39d5b67df9833c63cac9241e7302"
+      "sha256": "a2cdbeaecfd1326f024eb63d453e1d00d813ba3b8a99463b8b4e8dc381f1f429",
+      "measuredLufs": -17.7,
+      "normalizationGain": 1.22
     },
     "tension": {
       "file": "assets/audio/elevenlabs/bgm/tension.mp3",
       "durationSeconds": 119.98,
       "bytes": 1919730,
-      "sha256": "f722a79f4e64f13346b843e0d977a4ade5c4de9da878d53241e600dd9f2a8dcf"
+      "sha256": "f722a79f4e64f13346b843e0d977a4ade5c4de9da878d53241e600dd9f2a8dcf",
+      "measuredLufs": -21.5,
+      "normalizationGain": 1.88
+    },
+    "combat": {
+      "file": "assets/audio/elevenlabs/bgm/combat.mp3",
+      "durationSeconds": 45.035,
+      "bytes": 720605,
+      "sha256": "b63cdac1e7ca8b6c5c3f2e2a559475556cbedbd7c3644a3793460a3814e87551",
+      "measuredLufs": -11.0,
+      "normalizationGain": 0.56
+    },
+    "combat-b": {
+      "file": "assets/audio/elevenlabs/bgm/combat-b.mp3",
+      "durationSeconds": 45.035,
+      "bytes": 720605,
+      "sha256": "04913e2215ba9e0d0b900613ac9d8d2c5ea544b5f333d048312fc4b4cde2e35d",
+      "measuredLufs": -12.7,
+      "normalizationGain": 0.68
+    },
+    "combat-c": {
+      "file": "assets/audio/elevenlabs/bgm/combat-c.mp3",
+      "durationSeconds": 45.035,
+      "bytes": 720605,
+      "sha256": "6b1e3851c4742c05b648b32d95cb872c8db8736b2aa4504529037e020976a238",
+      "measuredLufs": -11.8,
+      "normalizationGain": 0.62
+    },
+    "night": {
+      "file": "assets/audio/elevenlabs/bgm/night.mp3",
+      "durationSeconds": 90.096,
+      "bytes": 1441585,
+      "sha256": "a84a7880a0ff893443a659c1fcf3013a4dfc8f1184e424aa7374c646501d69c2",
+      "measuredLufs": -20.1,
+      "normalizationGain": 1.6
     },
     "victory": {
       "file": "assets/audio/elevenlabs/bgm/victory.mp3",
       "durationSeconds": 120.033,
       "bytes": 1920566,
-      "sha256": "76b6b6b58a1dfe6f3e445e740d874d10a60307bd317d941cb454d36ebf92fb3a"
+      "sha256": "76b6b6b58a1dfe6f3e445e740d874d10a60307bd317d941cb454d36ebf92fb3a",
+      "measuredLufs": -13.7,
+      "normalizationGain": 0.77
+    },
+    "defeat": {
+      "file": "assets/audio/elevenlabs/bgm/defeat.mp3",
+      "durationSeconds": 12.016,
+      "bytes": 192305,
+      "sha256": "3ec753d006a3ee656b49024d9e42b82163d187af5aa2185d82e422433d2f6a54",
+      "measuredLufs": -15.8,
+      "normalizationGain": 0.98
+    },
+    "paf": {
+      "file": "assets/audio/elevenlabs/bgm/paf.mp3",
+      "durationSeconds": 60.029,
+      "bytes": 960514,
+      "sha256": "f1a9008b81932ed05120857a7f06593414e8a4539a55018d25a54f4cbe4a7fc0",
+      "measuredLufs": -14.6,
+      "normalizationGain": 0.85
     }
   }
 }

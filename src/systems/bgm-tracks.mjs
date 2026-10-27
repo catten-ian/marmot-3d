@@ -1,13 +1,17 @@
 /** Pure beta BGM metadata and selection decisions. */
+// gain = 10^((targetLufs - measuredLufs) / 20)，把各曲目实测响度归一到 -16 LUFS。
+// combat 的三个变体实测响度不同，增益按 assetKey（combat / combat-b / combat-c）分别取值。
 export const BGM_TRACK_META = Object.freeze({
-  menu: Object.freeze({ introSec: 4, gain: 1.0 }),
-  explore: Object.freeze({ introSec: 6, gain: 1.0 }),
-  tension: Object.freeze({ introSec: 5, gain: 1.0 }),
-  combat: Object.freeze({ variants: Object.freeze(['combat', 'combat-b', 'combat-c']), introSec: 5, gain: 1.0 }),
-  night: Object.freeze({ introSec: 5, gain: 1.0 }),
-  victory: Object.freeze({ introSec: 0, gain: 1.0 }),
-  defeat: Object.freeze({ introSec: 4, gain: 1.0 }),
-  paf: Object.freeze({ introSec: 6, gain: 1.0 }),
+  menu: Object.freeze({ introSec: 4, gain: 1.36 }),
+  explore: Object.freeze({ introSec: 6, gain: 1.22 }),
+  tension: Object.freeze({ introSec: 5, gain: 1.88 }),
+  combat: Object.freeze({ variants: Object.freeze(['combat', 'combat-b', 'combat-c']), introSec: 5, gain: 0.56 }),
+  'combat-b': Object.freeze({ introSec: 5, gain: 0.68 }),
+  'combat-c': Object.freeze({ introSec: 5, gain: 0.62 }),
+  night: Object.freeze({ introSec: 5, gain: 1.60 }),
+  victory: Object.freeze({ introSec: 0, gain: 0.77 }),
+  defeat: Object.freeze({ introSec: 4, gain: 0.98 }),
+  paf: Object.freeze({ introSec: 6, gain: 0.85 }),
 });
 
 export function resolveBgmStartOffset({ slot, prevMode = null, transition = 'switch', introSec } = {}) {
