@@ -1,0 +1,484 @@
+{
+  "task": "m3d-20261027-dev-burrow-offline-closure",
+  "renderer": "tools/lib/glb-offline.cjs（纯 CPU 软件光栅化，无 WebGPU/WebGL/浏览器/CDP）",
+  "total": 95,
+  "passed": 95,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "dev 模式路由正确",
+      "ok": true,
+      "detail": "VERSION=dev"
+    },
+    {
+      "name": "stable 模式路由正确",
+      "ok": true,
+      "detail": "VERSION=stable"
+    },
+    {
+      "name": "dev 开关 scannedBurrows",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "stable 开关 scannedBurrows",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "dev 开关 screamingMarmot",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "stable 开关 screamingMarmot",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "dev 开关 sorrelFood",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "stable 开关 sorrelFood",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "主洞 dev profile 真实返回",
+      "ok": true,
+      "detail": "{\"openingRadius\":1.3,\"slopeRadius\":2.4,\"chamberRadius\":2.2,\"chamberDepth\":3.8}"
+    },
+    {
+      "name": "临时洞 dev profile 真实返回",
+      "ok": true,
+      "detail": "{\"openingRadius\":0.75,\"slopeRadius\":1.35,\"chamberRadius\":1.2,\"chamberDepth\":2}"
+    },
+    {
+      "name": "洞穴布局经真实 scaledBurrows()",
+      "ok": true,
+      "detail": "base:-52.00,0.00,r=8.20 | shelter-a:-12.00,-25.00,r=3.15 | shelter-b:18.00,13.00,r=3.15 | shelter-c:40.00,32.00,r=3.00 | shelter-d:-34.00,28.00,r=3.00"
+    },
+    {
+      "name": "dev 分支保留稳定版地标隔离",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "内景后置变换与深度偏移接线",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "死属性不再作为外部 API 暴露",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "全背景图被强断言拦截",
+      "ok": true,
+      "detail": "弱断言会放行(tris=0)，强断言 coverage=0 uniqueColors=1 => FAIL"
+    },
+    {
+      "name": "burrow-main-interior 390x844 尺寸",
+      "ok": true,
+      "detail": "390x844"
+    },
+    {
+      "name": "burrow-main-interior 390x844 coverage",
+      "ok": true,
+      "detail": "coverage=0.9838"
+    },
+    {
+      "name": "burrow-main-interior 390x844 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=16949"
+    },
+    {
+      "name": "burrow-main-interior 390x844 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.0725"
+    },
+    {
+      "name": "burrow-main-interior 768x1024 尺寸",
+      "ok": true,
+      "detail": "768x1024"
+    },
+    {
+      "name": "burrow-main-interior 768x1024 coverage",
+      "ok": true,
+      "detail": "coverage=0.9782"
+    },
+    {
+      "name": "burrow-main-interior 768x1024 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=26298"
+    },
+    {
+      "name": "burrow-main-interior 768x1024 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.0546"
+    },
+    {
+      "name": "burrow-main-interior 1280x720 尺寸",
+      "ok": true,
+      "detail": "1280x720"
+    },
+    {
+      "name": "burrow-main-interior 1280x720 coverage",
+      "ok": true,
+      "detail": "coverage=0.9630"
+    },
+    {
+      "name": "burrow-main-interior 1280x720 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=20755"
+    },
+    {
+      "name": "burrow-main-interior 1280x720 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.0254"
+    },
+    {
+      "name": "burrow-main-interior 1440x900 尺寸",
+      "ok": true,
+      "detail": "1440x900"
+    },
+    {
+      "name": "burrow-main-interior 1440x900 coverage",
+      "ok": true,
+      "detail": "coverage=0.9591"
+    },
+    {
+      "name": "burrow-main-interior 1440x900 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=25652"
+    },
+    {
+      "name": "burrow-main-interior 1440x900 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.0257"
+    },
+    {
+      "name": "burrow-shelter-interior 390x844 尺寸",
+      "ok": true,
+      "detail": "390x844"
+    },
+    {
+      "name": "burrow-shelter-interior 390x844 coverage",
+      "ok": true,
+      "detail": "coverage=1.0000"
+    },
+    {
+      "name": "burrow-shelter-interior 390x844 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=4091"
+    },
+    {
+      "name": "burrow-shelter-interior 390x844 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.9837"
+    },
+    {
+      "name": "burrow-shelter-interior 768x1024 尺寸",
+      "ok": true,
+      "detail": "768x1024"
+    },
+    {
+      "name": "burrow-shelter-interior 768x1024 coverage",
+      "ok": true,
+      "detail": "coverage=0.9998"
+    },
+    {
+      "name": "burrow-shelter-interior 768x1024 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=8961"
+    },
+    {
+      "name": "burrow-shelter-interior 768x1024 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.9687"
+    },
+    {
+      "name": "burrow-shelter-interior 1280x720 尺寸",
+      "ok": true,
+      "detail": "1280x720"
+    },
+    {
+      "name": "burrow-shelter-interior 1280x720 coverage",
+      "ok": true,
+      "detail": "coverage=0.9986"
+    },
+    {
+      "name": "burrow-shelter-interior 1280x720 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=19486"
+    },
+    {
+      "name": "burrow-shelter-interior 1280x720 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.8950"
+    },
+    {
+      "name": "burrow-shelter-interior 1440x900 尺寸",
+      "ok": true,
+      "detail": "1440x900"
+    },
+    {
+      "name": "burrow-shelter-interior 1440x900 coverage",
+      "ok": true,
+      "detail": "coverage=0.9985"
+    },
+    {
+      "name": "burrow-shelter-interior 1440x900 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=22934"
+    },
+    {
+      "name": "burrow-shelter-interior 1440x900 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.9139"
+    },
+    {
+      "name": "burrow-mouth 390x844 尺寸",
+      "ok": true,
+      "detail": "390x844"
+    },
+    {
+      "name": "burrow-mouth 390x844 coverage",
+      "ok": true,
+      "detail": "coverage=0.2023"
+    },
+    {
+      "name": "burrow-mouth 390x844 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=5"
+    },
+    {
+      "name": "burrow-mouth 390x844 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.0044"
+    },
+    {
+      "name": "burrow-mouth 768x1024 尺寸",
+      "ok": true,
+      "detail": "768x1024"
+    },
+    {
+      "name": "burrow-mouth 768x1024 coverage",
+      "ok": true,
+      "detail": "coverage=0.1246"
+    },
+    {
+      "name": "burrow-mouth 768x1024 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=5"
+    },
+    {
+      "name": "burrow-mouth 768x1024 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.0027"
+    },
+    {
+      "name": "burrow-mouth 1280x720 尺寸",
+      "ok": true,
+      "detail": "1280x720"
+    },
+    {
+      "name": "burrow-mouth 1280x720 coverage",
+      "ok": true,
+      "detail": "coverage=0.0526"
+    },
+    {
+      "name": "burrow-mouth 1280x720 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=5"
+    },
+    {
+      "name": "burrow-mouth 1280x720 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.0011"
+    },
+    {
+      "name": "burrow-mouth 1440x900 尺寸",
+      "ok": true,
+      "detail": "1440x900"
+    },
+    {
+      "name": "burrow-mouth 1440x900 coverage",
+      "ok": true,
+      "detail": "coverage=0.0584"
+    },
+    {
+      "name": "burrow-mouth 1440x900 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=5"
+    },
+    {
+      "name": "burrow-mouth 1440x900 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.0013"
+    },
+    {
+      "name": "marmot-screaming 390x844 尺寸",
+      "ok": true,
+      "detail": "390x844"
+    },
+    {
+      "name": "marmot-screaming 390x844 coverage",
+      "ok": true,
+      "detail": "coverage=0.2032"
+    },
+    {
+      "name": "marmot-screaming 390x844 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=4"
+    },
+    {
+      "name": "marmot-screaming 390x844 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=1.0000"
+    },
+    {
+      "name": "marmot-screaming 768x1024 尺寸",
+      "ok": true,
+      "detail": "768x1024"
+    },
+    {
+      "name": "marmot-screaming 768x1024 coverage",
+      "ok": true,
+      "detail": "coverage=0.1252"
+    },
+    {
+      "name": "marmot-screaming 768x1024 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=4"
+    },
+    {
+      "name": "marmot-screaming 768x1024 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=1.0000"
+    },
+    {
+      "name": "marmot-screaming 1280x720 尺寸",
+      "ok": true,
+      "detail": "1280x720"
+    },
+    {
+      "name": "marmot-screaming 1280x720 coverage",
+      "ok": true,
+      "detail": "coverage=0.0528"
+    },
+    {
+      "name": "marmot-screaming 1280x720 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=4"
+    },
+    {
+      "name": "marmot-screaming 1280x720 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=1.0000"
+    },
+    {
+      "name": "marmot-screaming 1440x900 尺寸",
+      "ok": true,
+      "detail": "1440x900"
+    },
+    {
+      "name": "marmot-screaming 1440x900 coverage",
+      "ok": true,
+      "detail": "coverage=0.0587"
+    },
+    {
+      "name": "marmot-screaming 1440x900 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=4"
+    },
+    {
+      "name": "marmot-screaming 1440x900 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=1.0000"
+    },
+    {
+      "name": "shrub-sorrel 390x844 尺寸",
+      "ok": true,
+      "detail": "390x844"
+    },
+    {
+      "name": "shrub-sorrel 390x844 coverage",
+      "ok": true,
+      "detail": "coverage=0.0225"
+    },
+    {
+      "name": "shrub-sorrel 390x844 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=5616"
+    },
+    {
+      "name": "shrub-sorrel 390x844 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.9982"
+    },
+    {
+      "name": "shrub-sorrel 768x1024 尺寸",
+      "ok": true,
+      "detail": "768x1024"
+    },
+    {
+      "name": "shrub-sorrel 768x1024 coverage",
+      "ok": true,
+      "detail": "coverage=0.0165"
+    },
+    {
+      "name": "shrub-sorrel 768x1024 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=8699"
+    },
+    {
+      "name": "shrub-sorrel 768x1024 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.9986"
+    },
+    {
+      "name": "shrub-sorrel 1280x720 尺寸",
+      "ok": true,
+      "detail": "1280x720"
+    },
+    {
+      "name": "shrub-sorrel 1280x720 coverage",
+      "ok": true,
+      "detail": "coverage=0.0069"
+    },
+    {
+      "name": "shrub-sorrel 1280x720 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=5026"
+    },
+    {
+      "name": "shrub-sorrel 1280x720 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.9994"
+    },
+    {
+      "name": "shrub-sorrel 1440x900 尺寸",
+      "ok": true,
+      "detail": "1440x900"
+    },
+    {
+      "name": "shrub-sorrel 1440x900 coverage",
+      "ok": true,
+      "detail": "coverage=0.0077"
+    },
+    {
+      "name": "shrub-sorrel 1440x900 uniqueColors",
+      "ok": true,
+      "detail": "uniqueColors=7138"
+    },
+    {
+      "name": "shrub-sorrel 1440x900 非背景占比",
+      "ok": true,
+      "detail": "nonBackground=0.9994"
+    }
+  ]
+}
