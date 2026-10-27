@@ -49,7 +49,7 @@ test('beta audio buses, percent clamp, settings persistence round trip', async (
   assert.deepEqual(audio.buses.sfx.connections, [audio.buses.master]);
   assert.deepEqual(audio.buses.bgm.connections, [audio.buses.master]);
   assert.deepEqual(audio.buses.master.connections, [audio.ctx.destination]);
-  assert.deepEqual(audio.getBusLevels(), { master: 0.32, sfx: 1, bgm: 0.38 });
+  assert.deepEqual(audio.getBusLevels(), { master: 0.32, sfx: 1, bgm: 0.61 });
   const stored = audio.setSettings({ masterVolume: 180, sfxVolume: -20, bgmVolume: 62, sfxEnabled: false });
   assert.equal(stored.masterVolume, 100);
   assert.equal(stored.sfxVolume, 0);
@@ -116,7 +116,7 @@ test('static SFX file wins; missing/failing audio silently calls procedural fall
 
 test('BGM slots cover all seven moods and switch through a timed crossfade', async () => {
   const mod = await import('../src/systems/audio.js');
-  assert.deepEqual(mod.BGM_SLOTS, ['menu', 'explore', 'tension', 'combat', 'cave', 'victory', 'defeat']);
+  assert.deepEqual(mod.BGM_SLOTS, ['menu', 'explore', 'tension', 'combat', 'night', 'victory', 'defeat', 'paf']);
   const states = [
     [{ mode: 'title' }, 'menu'],
     [{ mode: 'play', hp: 100, threats: 0, stress: 10 }, 'explore'],
@@ -124,7 +124,7 @@ test('BGM slots cover all seven moods and switch through a timed crossfade', asy
     [{ mode: 'play', hp: 100, threats: 1, combat: true }, 'combat'],
     [{ mode: 'levelclear' }, 'victory'],
     [{ mode: 'lost' }, 'defeat'],
-    [{ mode: 'play', hp: 100, threats: 0, stress: 10, inBurrow: true }, 'cave'],
+    [{ mode: 'play', hp: 100, threats: 0, stress: 10, inBurrow: true }, 'night'],
     [{ mode: 'play', hp: 20, threats: 0, stress: 10 }, 'defeat'],
   ];
   for (const [state, expected] of states) assert.equal(mod.selectBgmSlot(state), expected);

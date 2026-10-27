@@ -294,6 +294,7 @@ class Prey {
 
 export function createPlayAsFox(ctx) {
   const { scene, camera, renderer, canvas, sky, onExit } = ctx;
+  ctx.audio?.setPafActive?.(true);
   const binds = ctx.binds;
   const touchControls = ctx.touchControls;
   const isTouchMode = () => !!ctx.isTouchMode?.();
@@ -674,6 +675,7 @@ export function createPlayAsFox(ctx) {
 
   function exit() {
     if (!running) return;
+    ctx.audio?.setPafActive?.(false);
     running = false;
     if (typeof window !== 'undefined' && window.__playAsFox === qa) window.__playAsFox = null;
     window.removeEventListener('keydown', onKeyDown, true);

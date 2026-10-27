@@ -879,7 +879,7 @@ async function enterPlayAsFox() {
   const { createPlayAsFox } = await import('./play/play-as-fox.js');
   if (playAsFox) return; // 防重入
   playAsFox = createPlayAsFox({
-    scene, camera, renderer, canvas, sky,
+    scene, camera, renderer, canvas, sky, audio,
     playerModel, companion,
     touchControls, binds, scenery,
     isTouchMode: () => TOUCH_DEVICE,

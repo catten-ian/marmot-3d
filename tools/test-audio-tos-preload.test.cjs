@@ -140,7 +140,7 @@ test('startup prefetch runs without a gesture and gesture decodes cached menu by
   assert.deepEqual(calls, [
     `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/manifest.json`,
     `${mod.TOS_AUDIO_BASE}elevenlabs/sfx/manifest.json`,
-    ...mod.BGM_SLOTS.map((slot) => `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/${slot}.mp3`),
+    ...['menu', 'explore', 'tension', audio._preloadCombatVariant, 'night', 'victory', 'defeat'].map((slot) => `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/${slot}.mp3`),
   ]);
 
   const listeners = new Map();

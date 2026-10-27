@@ -3,7 +3,11 @@
  * Stable/dev keep their original 0.32 master level and procedural synth path.
  * No provider SDK or API key is present in this runtime module.
  */
-import { IS_BETA } from '../core/version.js';
+import { IS_BETA as VERSION_IS_BETA } from '../core/version.js'; import { BGM_TRACK_META as META, chooseCombatVariant as pickVariant, getBgmTrackMeta as trackMeta, resolveBgmStartOffset as startOffsetFor } from './bgm-tracks.mjs';
+const IS_BETA = typeof VERSION_IS_BETA !== 'undefined' ? VERSION_IS_BETA : false;
+const chooseCombatVariant = (...args) => typeof pickVariant === 'function' ? pickVariant(...args) : 'combat';
+const getBgmTrackMeta = (slot) => typeof trackMeta === 'function' ? trackMeta(slot) : { introSec: 0, gain: 1 };
+const resolveBgmStartOffset = (options = {}) => typeof startOffsetFor === 'function' ? startOffsetFor(options) : 0;
 
 export const AUDIO_SETTINGS_KEY = 'marmot3d.audio.beta.v1';
 export const TOS_AUDIO_BASE = 'https://marmot.tos-cn-shanghai.volces.com/audio/';
@@ -11,7 +15,7 @@ export const AUDIO_TIMEOUTS = Object.freeze({ bgm: 15000, sfx: 8000 });
 export const AUDIO_DEFAULTS = Object.freeze({
   masterVolume: 100,
   sfxVolume: 100,
-  bgmVolume: 38,
+  bgmVolume: 61,
   sfxEnabled: true,
   bgmEnabled: true,
 });
@@ -46,7 +50,7 @@ export const SFX_EVENT_NAMES = Object.freeze([
   'swing', 'hit', 'repel', 'kill', 'berry', 'burst', 'ultimate', 'hurt', 'foxWind',
   'jump', 'foxDash', 'rescue', 'helpCry', 'levelUp', 'win', 'lose', 'lowHealth',
 ]);
-export const BGM_SLOTS = Object.freeze(['menu', 'explore', 'tension', 'combat', 'cave', 'victory', 'defeat']);
+export const BGM_SLOTS = Object.freeze(['menu', 'explore', 'tension', 'combat', 'night', 'victory', 'defeat', 'paf']);
 export const BGM_ASSETS = Object.freeze(Object.fromEntries(
   BGM_SLOTS.map((slot) => [slot, `assets/audio/elevenlabs/bgm/${slot}.mp3`]),
 ));
@@ -120,7 +124,7 @@ export function selectBgmSlot({ mode = 'title', hp = 100, stress = 0, threats = 
   if (mode === 'lost') return 'defeat';
   if (mode === 'pause') return null;
   if (mode !== 'play') return 'menu';
-  if (inBurrow) return 'cave';
+  if (inBurrow) return 'night';
   if (Number(hp) <= 25) return 'defeat';
   if (combat || Number(overdrive) > 0) return 'combat';
   if (winding || Number(threats) > 0 || Number(stress) >= 55) return 'tension';
@@ -178,6 +182,7 @@ export class BgmManager {
     this.desiredSlot = null;
     this.generation = 0;
     this.enabled = true;
+    this._combatVariant = null;
   }
 
   setEnabled(enabled) {
@@ -188,7 +193,7 @@ export class BgmManager {
     else this._fadeOut(this.current);
   }
 
-  request(slot, force = false) {
+  request(slot, force = false, { prevMode = null, transition = 'switch' } = {}) {
     const next = BGM_SLOTS.includes(slot) ? slot : null;
     if (!force && next === this.desiredSlot) return;
     this.desiredSlot = next;
@@ -198,20 +203,25 @@ export class BgmManager {
       return;
     }
     if (this.current?.slot === next) return;
-    this.audio._hasManifestAsset('bgm', next, BGM_ASSETS[next]).then((available) => {
+    let assetKey = next;
+    if (next === 'combat') {
+      this._combatVariant = chooseCombatVariant({ previous: this._combatVariant });
+      assetKey = this._combatVariant;
+    }
+    const path = `assets/audio/elevenlabs/bgm/${assetKey}.mp3`;
+    const startOffset = resolveBgmStartOffset({ slot: next, prevMode, transition });
+    this.audio._hasManifestAsset('bgm', assetKey, path).then((available) => {
       if (!available) return null;
-      return this.audio._loadBuffer(BGM_ASSETS[next], this.audio._bgmCache);
+      return this.audio._loadBuffer(path, this.audio._bgmCache);
     }).then((buffer) => {
       if (generation !== this.generation) return;
-      // beta 资源缺失/404/解码失败时仍给出程序化氛围音，避免 BGM 静默无声。
-      // 有文件时优先文件；仅在 buffer 为空才走这一回退。
       const procedural = buffer || this.audio._createProceduralBgm?.(next);
       if (!procedural) { this._fadeOut(this.current); return; }
-      this._crossfadeTo(next, procedural);
+      this._crossfadeTo(next, procedural, { startOffset, assetKey });
     }).catch(() => {
       if (generation !== this.generation) return;
       const procedural = this.audio._createProceduralBgm?.(next);
-      if (procedural) this._crossfadeTo(next, procedural);
+      if (procedural) this._crossfadeTo(next, procedural, { startOffset, assetKey });
       else this._fadeOut(this.current);
     });
   }
@@ -240,7 +250,7 @@ export class BgmManager {
     this._fade(track, 0, this.audio.ctx.currentTime, this.crossfadeSeconds);
   }
 
-  _crossfadeTo(slot, bufferOrProcedural) {
+  _crossfadeTo(slot, bufferOrProcedural, { startOffset = 0, assetKey = slot } = {}) {
     const ctx = this.audio.ctx;
     const now = ctx.currentTime;
     const procedural = bufferOrProcedural?.__proceduralBgm === true;
@@ -253,9 +263,11 @@ export class BgmManager {
     source.connect(gain);
     gain.connect(this.audio.buses.bgm);
     paramValue(gain.gain, 0, now);
-    source.start(now);
-    const track = { slot, source, gain, fade: null, procedural };
-    this._fade(track, 0.42, now, this.crossfadeSeconds);
+    if (procedural) source.start(now);
+    else source.start(now, startOffset);
+    const track = { slot, assetKey, source, gain, fade: null, procedural };
+    const normalizedGain = Number(getBgmTrackMeta(slot).gain) || 1;
+    this._fade(track, 0.42 * normalizedGain, now, this.crossfadeSeconds);
     const previous = this.current;
     this.current = track;
     this._fade(previous, 0, now, this.crossfadeSeconds);
@@ -287,6 +299,8 @@ export class Audio {
     this._reservations = new Map();
     this._bgmManager = null;
     this._desiredBgmSlot = null;
+    this._pafActive = false;
+    this._lastBgmMode = null;
     this._gestureHandler = null;
   }
 
@@ -315,7 +329,10 @@ export class Audio {
   /** Start network work before the first gesture; decoding still waits for AudioContext. */
   preload({ onProgress } = {}) {
     if (!this.isBeta || !this.fetchFn) return Promise.resolve([]);
-    const paths = Object.values(BGM_ASSETS);
+    const combatVariant = chooseCombatVariant({ previous: null });
+    this._preloadCombatVariant = combatVariant;
+    const preloadSlots = ['menu', 'explore', 'tension', combatVariant, 'night', 'victory', 'defeat'];
+    const paths = preloadSlots.map((slot) => `assets/audio/elevenlabs/bgm/${slot}.mp3`);
     const total = 2 + paths.length;
     let done = 0;
     const report = (label, result) => {
@@ -416,11 +433,28 @@ export class Audio {
     }
   }
 
+  setPafActive(active) {
+    if (!this.isBeta) return;
+    this._pafActive = !!active;
+    if (this._pafActive) {
+      this._desiredBgmSlot = 'paf';
+      this._bgmManager?.request('paf', true, { prevMode: this._lastBgmMode, transition: 'paf' });
+    }
+  }
+
   updateBgmState(state) {
     if (!this.isBeta) return null;
+    if (this._pafActive) {
+      this._desiredBgmSlot = 'paf';
+      this._bgmManager?.request('paf');
+      return 'paf';
+    }
+    const prevMode = this._lastBgmMode;
+    const transition = prevMode === 'title' && state?.mode === 'play' ? 'play' : 'switch';
     const slot = selectBgmSlot(state);
     this._desiredBgmSlot = slot;
-    if (this._bgmManager) this._bgmManager.request(slot);
+    this._lastBgmMode = state?.mode || null;
+    if (this._bgmManager) this._bgmManager.request(slot, false, { prevMode, transition });
     return slot;
   }
 
@@ -440,11 +474,11 @@ export class Audio {
   _createProceduralBgm(slot) {
     if (!this.ctx?.createOscillator || !this.ctx?.createGain) return null;
     try {
-      const roots = { menu: 220, explore: 196, tension: 174, combat: 146, victory: 262, defeat: 110 };
+      const roots = { menu: 220, explore: 196, tension: 174, combat: 146, night: 164, paf: 208, victory: 262, defeat: 110 };
       const scales = {
         menu: [0, 4, 7, 11, 7, 4], explore: [0, 3, 7, 10, 7, 3],
         tension: [0, 1, 6, 5, 1, 0], combat: [0, 3, 5, 7, 10, 7],
-        victory: [0, 4, 7, 12, 16, 12], defeat: [0, 3, 6, 8, 6, 3],
+        victory: [0, 4, 7, 12, 16, 12], defeat: [0, 3, 6, 8, 6, 3], night: [0, 2, 5, 9, 7, 4], paf: [0, 4, 7, 11, 9, 5],
       };
       const root = roots[slot] || roots.menu;
       const notes = scales[slot] || scales.menu;
