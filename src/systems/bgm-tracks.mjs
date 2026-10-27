@@ -11,7 +11,7 @@ export const BGM_TRACK_META = Object.freeze({
   night: Object.freeze({ introSec: 5, gain: 1.60 }),
   victory: Object.freeze({ introSec: 0, gain: 0.77 }),
   defeat: Object.freeze({ introSec: 4, gain: 0.98 }),
-  paf: Object.freeze({ introSec: 6, gain: 0.85 }),
+  paf: Object.freeze({ introSec: 6, gain: 1.0 }),
 });
 
 export function resolveBgmStartOffset({ slot, prevMode = null, transition = 'switch', introSec } = {}) {

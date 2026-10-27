@@ -1,7 +1,7 @@
 {
   "version": 2,
   "provider": "ElevenLabs",
-  "generatedAt": "2026-10-27T14:35:00+00:00",
+  "generatedAt": "2026-10-27T15:45:00+00:00",
   "loudnessTargetLufs": -16,
   "assets": {
     "menu": {
@@ -78,11 +78,11 @@
     },
     "paf": {
       "file": "assets/audio/elevenlabs/bgm/paf.mp3",
-      "durationSeconds": 60.029,
-      "bytes": 960514,
-      "sha256": "f1a9008b81932ed05120857a7f06593414e8a4539a55018d25a54f4cbe4a7fc0",
-      "measuredLufs": -14.6,
-      "normalizationGain": 0.85
+      "durationSeconds": 180.036,
+      "bytes": 2880618,
+      "sha256": "b70f5931cfe8ec1eb33fa420bd5a7a5d7b04f2fea397031a0aa22cf58b0137f7",
+      "measuredLufs": -16.0,
+      "normalizationGain": 1.0
     }
   }
 }
