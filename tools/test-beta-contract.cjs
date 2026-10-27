@@ -18,11 +18,10 @@ function ids(html) {
 }
 
 async function main() {
-  // The beta-only loader is intentionally allowed to diverge from the canonical
-  // stable/dev shell; all other generated markup must stay synchronized.
-  assert.equal(stripLoaderBlock(publicShell), stripLoaderBlock(generatePublicShell(canonical)), 'index-public.html must match its generated canonical shell outside the beta loader');
-  const loaderIds = new Set(['loaderVideo', 'loaderBytes', 'loaderPct']);
-  assert.deepEqual([...ids(publicShell)].filter((id) => !loaderIds.has(id)).sort(), [...ids(canonical)].sort(), 'canonical and public shell DOM id sets must match outside beta loader additions');
+  // index-public is generated from the canonical shell; cinematic loader 已入 index.html 源，
+  // 两侧严格同步（生成校验保证），另加 loader 结构断言防回归。
+  assert.equal(publicShell, generatePublicShell(canonical), 'index-public.html must match its generated canonical shell');
+  assert.deepEqual(ids(publicShell), ids(canonical), 'canonical and public shell DOM id sets must match');
   assert.match(loaderBlock(publicShell), /loader-video/);
   assert.match(loaderBlock(publicShell), /loader-title[^>]*>土拨鼠大作战 <em>BETA/);
   for (const id of [
