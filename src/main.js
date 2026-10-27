@@ -28,7 +28,7 @@ import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels, instantiate, normalizeModel } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
-import { getRenderProfile, hasRealTouch, isTouchPrimary, clampVerdantTierForDevice } from './core/performance.js?v=m20261028boot4';
+import { getRenderProfile, hasRealTouch, isTouchPrimary, clampVerdantTierForDevice } from './core/performance.js?v=m20261028boot5';
 import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
 import { TouchControls } from './core/touch-controls.js';
 
@@ -124,7 +124,7 @@ function markBootStage(stage, pct, text) {
   hud.setLoading(pct, text);
 }
 
-hud.setLoading(8, '正在启动');
+hud.setLoading(8, '正在启动 [boot5]');
 
 /**
  * 渲染器与 three 实例。
@@ -363,7 +363,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   loadInitialVerdant._lastProgress = 46;
   markBootStage('verdant-module', 46, '读取 Verdant 场景模块');
   // 版本戳：CF 对 .js 走 4 小时浏览器缓存，场景加载器改动必须换 URL 才能立即生效。
-  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261028boot4');
+  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261028boot5');
   loadVerdantWorldFn = mod.loadVerdantWorld;
   const world = await loadVerdantWorldFn({ tier, signal: attempt?.controller.signal || null, onProgress: (p, label, stats) => {
     if (attempt) { attempt.lastProgressAt = Date.now(); if (stats?.doneBytes > 0) attempt.receivedBytes = true; }
@@ -385,9 +385,16 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   }, renderer });
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
   verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
-  scene.add(world.group); setHeightField(world.heightAt, { resolveGround: world.resolveGround, solidCollider: true });
+  hud.setLoading(98.2, '就绪：挂载场景');
+  scene.add(world.group);
+  hud.setLoading(98.4, '就绪：设置高度场');
+  setHeightField(world.heightAt, { resolveGround: world.resolveGround, solidCollider: true });
   setPointScale(0.88, 0, 0); setPlayableBounds(world.bounds); setUndergroundCavesEnabled(devOn('scannedBurrows') ? true : false);
-  sky.terrain.visible = false; sky.hills.visible = false; sky.dome.visible = true; sky.setVerdantMood?.(); publishVerdantField(world);
+  hud.setLoading(98.6, '就绪：调整天空');
+  sky.terrain.visible = false; sky.hills.visible = false; sky.dome.visible = true; sky.setVerdantMood?.();
+  hud.setLoading(98.8, '就绪：发布地形数据');
+  publishVerdantField(world);
+  hud.setLoading(98.9, '就绪：进入场景构建');
   hud.say('DEV · 一套 Verdant Trail 场景已加载', 3.2); return world;
 }
 window.__verdantBootFailure = showVerdantFailure;
