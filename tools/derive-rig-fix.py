@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
-"""推导绑定骨架的"水平 90°"修正方案（数值原型，不改文件）。
+"""数值验证"只转骨骼轴 90°、网格不动"的修正方案。
 
-## 目标
-用户诉求：把土拨鼠 GLB 的**骨骼轴**水平逆时针转 90°，**网格实体不动**，
-让动画朝向与网格朝向一致（骨骼前向 +X vs 网格脸朝 -Z，差 90°）。
+## 方案（三步，全部只改 GLB 内的矩阵，不碰动画轨道）
+设 S = 绕世界 +Y 轴的 90° 旋转（水平旋转）。骨空间"前" = -X（ hips-tail = +X，
+尾巴在身后），网格实体"前" = -Z（渲染实测）。要让骨架轴对齐网格朝向，需 S(-X) = -Z，
+即 **S = R_y(-90°)**（俯视逆时针 90°）。
 
-## 原理
-glTF 蒙皮：顶点 = Σ w_i · (jointWorld_i · IBM_i) · v_mesh
-  - jointWorld_i：骨骼世界矩阵（节点层级连乘）
-  - IBM_i：逆绑定矩阵，bind 时 = jointWorld_bind_i^{-1}（mesh 节点为单位阵）
+  1. 场景根节点 MarmotRig 局部变换左乘 S
+     → 所有骨骼世界矩阵 J'_i(t) = S · J_i(t)（层级继承，动画轨道无需改动）
+  2. 网格节点 Marmot_GameMesh 局部变换左乘 S^{-1}
+     → 网格世界矩阵 = S · S^{-1} = I，网格朝向与位置完全不变
+  3. 每个 joint 的 inverseBindMatrix 右乘 S^{-1}：IBM'_i = IBM_i · S^{-1}
+     → 蒙皮矩阵 M'_i(t) = S·J_i(t)·IBM_i·S^{-1}
 
-要在**不移动网格**的前提下把骨架整体旋转 S：
-  1. 根骨骼局部旋转左乘 S：  rootLocal' = T_root · (S·R_root) · S_root
-     → 所有骨骼世界矩阵变成 jointWorld_i' = S · jointWorld_i
-  2. 动画里 root 的旋转轨道也要左乘 S（否则播放时被轨道覆盖回原值）
-  3. 逆绑定矩阵补偿：IBM_i' = (S · jointWorld_bind_i)^{-1}
-     = jointWorld_bind_i^{-1} · S^{-1}  ⇒ bind 姿态仍完全不动（v' = v）
-  4. 动画姿态的蒙皮变换变成 S · Δ · S^{-1}（Δ = 关节相对 bind 的刚体增量）
-     ⇒ 动画的旋转轴被 S 旋转，而网格保持原位 → 这正是"只转骨骼轴"
+## 验证项
+  A. bind 姿态逐顶点偏差必须为 0（网格纹丝不动）
+  B. 动画姿态的蒙皮矩阵 = S · M_i(t) · S^{-1}（骨骼相对 bind 的旋转被 S 旋转）
+  C. 骨架水平前向与网格前向的夹角从 90° 收敛到 0°
+  D. 各 clip 身体 up 轴与 +Y 的夹角（不应因修正而恶化）
 
-## 用法
-python3 tools/derive-rig-fix.py            # 评估候选 S 并给指标
+用法：python3 tools/derive-rig-fix.py [model.glb]
 """
 import json
 import struct
@@ -83,43 +82,27 @@ def slerp(q0, q1, t):
     return q0 * np.cos(th) + q2 * np.sin(th)
 
 
-def mat2quat(R):
-    tr = R[0, 0] + R[1, 1] + R[2, 2]
-    if tr > 0:
-        s = np.sqrt(tr + 1.0) * 2
-        w = 0.25 * s
-        x = (R[2, 1] - R[1, 2]) / s
-        y = (R[0, 2] - R[2, 0]) / s
-        z = (R[1, 0] - R[0, 1]) / s
-    elif R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
-        s = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2
-        w = (R[2, 1] - R[1, 2]) / s
-        x = 0.25 * s
-        y = (R[0, 1] + R[1, 0]) / s
-        z = (R[0, 2] + R[2, 0]) / s
-    elif R[1, 1] > R[2, 2]:
-        s = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2
-        w = (R[0, 2] - R[2, 0]) / s
-        x = (R[0, 1] + R[1, 0]) / s
-        y = 0.25 * s
-        z = (R[1, 2] + R[2, 1]) / s
-    else:
-        s = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2
-        w = (R[1, 0] - R[0, 1]) / s
-        x = (R[0, 2] + R[2, 0]) / s
-        y = (R[1, 2] + R[2, 1]) / s
-        z = 0.25 * s
-    q = np.array([x, y, z, w])
-    return q / np.linalg.norm(q)
+def rot_y(deg):
+    a = np.radians(deg)
+    c, s = np.cos(a), np.sin(a)
+    R = np.eye(3)
+    R[0, 0], R[0, 2] = c, s
+    R[2, 0], R[2, 2] = -s, c
+    return R
 
 
 def rot_axis(axis, deg):
-    """绕任意轴旋转（右手定则）。"""
     n = np.array(axis, float)
     n = n / np.linalg.norm(n)
     a = np.radians(deg)
     K = np.array([[0, -n[2], n[1]], [n[2], 0, -n[0]], [-n[1], n[0], 0]])
     return np.eye(3) + np.sin(a) * K + (1 - np.cos(a)) * (K @ K)
+
+
+def emb4(R3):
+    M = np.eye(4)
+    M[:3, :3] = R3
+    return M
 
 
 def main(path):
@@ -156,82 +139,93 @@ def main(path):
         M[:3, 3] = st['t']
         return M
 
-    def world(states, S=None):
-        """S: 施加在骨架根上的世界旋转（None = 不施加）。"""
+    def world(states):
         W = {}
         for i in order:
-            M = local(states, i)
             p = parent.get(i)
-            W[i] = W[p] @ M if p is not None else M
-            if S is not None and p is None and i == root_idx:
-                W[i] = W[i] @ S  # 根骨骼局部右乘 S（等价于整体左乘，见备注）
+            W[i] = W[p] @ local(states, i) if p is not None else local(states, i)
         return W
 
-    root_idx = names.index('root')
-    hips_idx = names.index('hips')
-    head_idx = names.index('head')
-    tail_idx = names.index('tail')
+    rig_i = names.index('MarmotRig')
+    mesh_i = names.index('Marmot_GameMesh')
+    hips_i = names.index('hips')
+    head_i = names.index('head')
+    tail_i = names.index('tail')
 
-    # ---- bind 姿态下的几何参考 ----
+    prim = J['meshes'][0]['primitives'][0]
+    POS = comp(J, BIN, accs[prim['attributes']['POSITION']])
+    JO = comp(J, BIN, accs[prim['attributes']['JOINTS_0']]).astype(int)
+    WE = comp(J, BIN, accs[prim['attributes']['WEIGHTS_0']])
+
+    def skin_points(W, ibms):
+        pts = np.zeros_like(POS)
+        for c in range(4):
+            w = WE[:, c]
+            M = np.array([W[joints[i]] @ ibms[i] for i in JO[:, c]])
+            pts += (w[:, None] * np.einsum('nij,nj->ni', M[:, :3, :3], POS)
+                    + w[:, None] * M[:, :3, 3])
+        return pts
+
     Wb = world(base)
-    hips_p = Wb[hips_idx][:3, 3]
-    head_p = Wb[head_idx][:3, 3]
-    tail_p = Wb[tail_idx][:3, 3]
+    base_pts = skin_points(Wb, ibm0)
+    hips_p = Wb[hips_i][:3, 3]
+    head_p = Wb[head_i][:3, 3]
+    tail_p = Wb[tail_i][:3, 3]
     up = head_p - hips_p
     up /= np.linalg.norm(up)
-    back = hips_p - tail_p
-    back[1] = 0
-    back /= np.linalg.norm(back)
-    print('=== bind 姿态（未改动）参考 ===')
-    print(f'  站立轴 up = {np.round(up, 4)}')
-    print(f'  躯干水平轴 (hips-tail) = {np.round(back, 4)}')
-    print(f'  → 躯干指向 = {np.round(-back, 4)}  (骨架空间的"前")')
-    print(f'  → 网格实体实测脸朝 -Z（渲染验证）')
+    bone_fwd = hips_p - tail_p          # 骨空间"前"（头在 -tail 侧）
+    bone_fwd[1] = 0
+    bone_fwd /= np.linalg.norm(bone_fwd)
+    MESH_FWD = np.array([0.0, 0.0, -1.0])   # 渲染实测：网格实体脸朝 -Z
+    print('=== bind 姿态基线 ===')
+    print(f'  站立轴 up       = {np.round(up, 4)}')
+    print(f'  骨架水平前向    = {np.round(bone_fwd, 4)}')
+    print(f'  网格实体朝向    = {np.round(MESH_FWD, 4)}  (渲染实测)')
+    ang = np.degrees(np.arccos(np.clip(np.dot(bone_fwd, MESH_FWD), -1, 1)))
+    print(f'  → 两者夹角 = {ang:.1f}°  ← 用户指出的病灶')
 
-    # ---- 候选 S ----
     cands = [
-        ('恒等(不转)', np.eye(3)),
-        ('绕 +Y 轴 +90° (俯视逆时针)', rot_axis([0, 1, 0], 90)),
-        ('绕 +Y 轴 -90° (俯视顺时针)', rot_axis([0, 1, 0], -90)),
-        ('绕 +X 轴 +90°', rot_axis([1, 0, 0], 90)),
-        ('绕 +X 轴 -90°', rot_axis([1, 0, 0], -90)),
-        ('绕 +Z 轴 +90°', rot_axis([0, 0, 1], 90)),
-        ('绕 +Z 轴 -90°', rot_axis([0, 0, 1], -90)),
+        ('R_y(-90°)  俯视逆时针 90°  ← 目标', rot_y(-90)),
+        ('R_y(+90°)  俯视顺时针 90°', rot_y(90)),
+        ('R_x(+90°)', rot_axis([1, 0, 0], 90)),
+        ('R_x(-90°)', rot_axis([1, 0, 0], -90)),
     ]
 
-    # 几何：从顶点算 bind 姿态下的"网格实体的脸朝哪"（用头/尾两端顶点差不可靠，
-    # 改用：bind 姿态下网格的前后不对称性 → 用骨骼 torso 轴与网格渲染实测的 -Z 对齐校验）
-    print('\n=== 候选 S 评估 ===')
-    print('（骨架整体旋转 S 后：bind 姿态网格不变；动画的旋转轴被 S 旋转）')
-
-    for label, S in cands:
-        # bind 姿态：世界矩阵整体左乘 S，IBM 补偿 = jointWorld_bind^{-1} · S^{-1}
-        WbS = {}
+    for label, S3 in cands:
+        S4 = emb4(S3)
+        Sinv4 = emb4(S3.T)
+        # 步骤 1+2：MarmotRig 左乘 S，网格左乘 S^{-1}
+        Wn = {}
         for i in order:
-            WbS[i] = (S @ Wb[i]) if parent.get(i) is None else (WbS[parent[i]] @ local(base, i))
-        # 蒙皮（bind）：jointWorld' · IBM' ， IBM' = Wb^{-1} · S^{-1}
-        ibmS = [np.linalg.inv(WbS[j]) @ np.linalg.inv(S) for j in joints]
-        # 验证 bind 姿态下网格顶点不动
-        prim = J['meshes'][0]['primitives'][0]
-        pos = comp(J, BIN, accs[prim['attributes']['POSITION']])
-        jo = comp(J, BIN, accs[prim['attributes']['JOINTS_0']]).astype(int)
-        we = comp(J, BIN, accs[prim['attributes']['WEIGHTS_0']])
-        dev = 0.0
-        for c in range(4):
-            w = we[:, c]
-            M = np.array([WbS[joints[i]] @ ibmS[i] for i in jo[:, c]])
-            v = np.einsum('nij,nj->ni', M[:, :3, :3], pos) + M[:, :3, 3]
-            dev = max(dev, float(np.abs(w[:, None] * v - w[:, None] * pos).max()))
-        # 动画：root 的旋转轨道左乘 S（世界轴左乘 → 轨道四元数右乘 S 的共轭）
-        Sq = mat2quat(S)
+            M = local(base, i)
+            if i == rig_i:
+                M = S4 @ M
+            elif i == mesh_i:
+                M = Sinv4 @ M
+            p = parent.get(i)
+            Wn[i] = Wn[p] @ M if p is not None else M
+        # 步骤 3：IBM 右乘 S^{-1}
+        ibmN = [ibm0[k] @ Sinv4 for k in range(len(joints))]
+        ptsN = skin_points(Wn, ibmN)
+        dev = float(np.abs(ptsN - base_pts).max())
+
+        # 修正后的骨架前向
+        hp = Wn[hips_i][:3, 3]
+        tp = Wn[tail_i][:3, 3]
+        fwd = hp - tp
+        fwd[1] = 0
+        fwd /= np.linalg.norm(fwd)
+        angN = np.degrees(np.arccos(np.clip(np.dot(fwd, MESH_FWD), -1, 1)))
+
+        # 动画姿态：J'(t) = S·J(t)，M' = S·J(t)·IBM·S^{-1}
         rows = []
         for anim in J['animations']:
             tracks = []
             for ch in anim['channels']:
                 smp = anim['samplers'][ch['sampler']]
-                times = comp(J, BIN, accs[smp['input']]).reshape(-1)
-                vals = comp(J, BIN, accs[smp['output']])
-                tracks.append((ch['target']['node'], ch['target']['path'], times, vals))
+                tracks.append((ch['target']['node'], ch['target']['path'],
+                               comp(J, BIN, accs[smp['input']]).reshape(-1),
+                               comp(J, BIN, accs[smp['output']])))
             dur = max(t[-1] for _, _, t, _ in tracks)
 
             def sample(t):
@@ -246,19 +240,9 @@ def main(path):
                     if pth == 'rotation':
                         if k + 1 < len(times):
                             f = (t - times[k]) / (times[k + 1] - times[k])
-                            q = slerp(vals[k], vals[k + 1], f)
+                            states[ni]['r'] = slerp(vals[k], vals[k + 1], f)
                         else:
-                            q = vals[k]
-                        if ni == root_idx:
-                            # 世界左乘 S ⇒ 局部旋转右乘 S：q' = q ⊗ Sq
-                            q = np.array([
-                                q[3] * Sq[0] + q[0] * Sq[3] + q[1] * Sq[2] - q[2] * Sq[1],
-                                q[3] * Sq[1] - q[0] * Sq[2] + q[1] * Sq[3] + q[2] * Sq[0],
-                                q[3] * Sq[2] + q[0] * Sq[1] - q[1] * Sq[0] + q[2] * Sq[3],
-                                q[3] * Sq[3] - q[0] * Sq[0] - q[1] * Sq[1] - q[2] * Sq[2],
-                            ])
-                            q = q / np.linalg.norm(q)
-                        states[ni]['r'] = q
+                            states[ni]['r'] = vals[k]
                     elif pth == 'translation':
                         states[ni]['t'] = vals[k]
                     elif pth == 'scale':
@@ -268,22 +252,23 @@ def main(path):
             tilts = []
             for frac in (0.0, 0.25, 0.5, 0.75):
                 st = sample(dur * frac)
-                W = {}
-                for i in order:
-                    W[i] = (S @ local(st, i)) if parent.get(i) is None else (W[parent[i]] @ local(st, i))
-                hp = W[hips_idx][:3, 3]
-                hd = W[head_idx][:3, 3]
-                u = hd - hp
+                W = world(st)
+                h2 = W[hips_i][:3, 3]
+                h3 = W[head_i][:3, 3]
+                u = h3 - h2
                 u /= np.linalg.norm(u)
                 tilts.append(float(np.degrees(np.arccos(np.clip(np.dot(u, up), -1, 1)))))
             rows.append((anim['name'], float(np.mean(tilts)), float(np.max(tilts))))
 
         worst = max(r[2] for r in rows)
-        avg = float(np.mean([r[1] for r in rows]))
-        flag = '✅ 全部直立' if worst < 25 else ('⚠️ 部分倾斜' if worst < 50 else '❌ 仍横躺')
-        print(f'\n  【{label}】bind 网格偏移={dev:.2e}  平均倾角={avg:5.1f}° 最大={worst:5.1f}°  {flag}')
+        ok = dev < 1e-9 and angN < 5
+        print(f'\n【{label}】')
+        print(f'   bind 顶点最大偏差 = {dev:.3e}   {"✅ 网格纹丝不动" if dev < 1e-9 else "❌"}')
+        print(f'   骨架前向 vs 网格朝向 = {angN:5.1f}°  {"✅ 已对齐" if angN < 5 else "❌ 未对齐"}')
+        print(f'   动画 up 轴倾角 最大 = {worst:5.1f}°')
         for nm, a, m in rows:
             print(f'      {nm:8s} 平均{a:5.1f}° 最大{m:5.1f}°')
+        print(f'   → {"✅ 方案成立" if ok else "❌ 不满足验收"}')
 
 
 if __name__ == '__main__':
