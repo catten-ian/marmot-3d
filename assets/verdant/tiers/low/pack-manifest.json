@@ -2,9 +2,9 @@
   "format": 1,
   "pack": "m3d-dev/20261027/low",
   "tier": "low",
-  "generatedAt": "2026-10-26",
-  "totalBytes": 64801181,
-  "fileCount": 127,
+  "generatedAt": "2026-10-28",
+  "totalBytes": 68052558,
+  "fileCount": 128,
   "files": [
     {
       "path": "boulder_01_diff_768.jpg",
@@ -429,8 +429,8 @@
     {
       "path": "manifest-low.json",
       "size": 39028,
-      "sha256": "73c476848cbddeb37ee06481fefb8854443c1ecc1e667d754aaf1a59a5296e9a",
-      "md5": "2e534d644df0f53b33885b09cef36ca8",
+      "sha256": "382786d139fc97316bd40679779e2613ffbc9133b7f5349fe072e555f0048faa",
+      "md5": "3294851666b2c3230724b8c7d87b8ad3",
       "contentType": "application/json"
     },
     {
@@ -893,6 +893,13 @@
       "size": 38941216,
       "sha256": "eab638d28609f1f7780cafe163284675ba1c79b09642936fe93e161729e3aa59",
       "md5": "86edbc8ec10e51b05120e9bbbc332f7d",
+      "contentType": "application/octet-stream"
+    },
+    {
+      "path": "walkable-field.bin",
+      "size": 3251377,
+      "sha256": "78f755f27e19e8dafc3f88d257f1e8b65e5c5c47122ab424b4eaca5c06465740",
+      "md5": "65e2863222d20b8130bd7f37167f555d",
       "contentType": "application/octet-stream"
     }
   ]

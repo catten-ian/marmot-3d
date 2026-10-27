@@ -1016,8 +1016,8 @@
     "fileBytes": 38941216,
     "heightBytes": 788347,
     "textureBytes": 25277527,
-    "packBytes": 64801181,
-    "packFileCount": 127,
+    "packBytes": 68052558,
+    "packFileCount": 128,
     "fileSha256": "eab638d28609f1f7780cafe163284675ba1c79b09642936fe93e161729e3aa59"
   },
   "packManifest": "pack-manifest.json"

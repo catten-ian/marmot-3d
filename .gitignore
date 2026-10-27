@@ -38,6 +38,9 @@ Thumbs.db
 assets/verdant/tiers/ultra/verdant-trail-ultra.bin
 assets/verdant/tiers/ultra/textures/rock_07_nor_gl.png
 
+# 预计算可行走地形（构建期产物，~3.3MB/档）：经火山 TOS 分发，随低档位打包版一起下发，不入库
+assets/verdant/tiers/*/walkable-field.bin
+
 # 本地依赖与临时验证探针（不入库）
 node_modules/
 __*.html
