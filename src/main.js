@@ -362,7 +362,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   window.__verdantLastDownloadStats = null;
   markBootStage('verdant-module', 46, '读取 Verdant 场景模块');
   // 版本戳：CF 对 .js 走 4 小时浏览器缓存，场景加载器改动必须换 URL 才能立即生效。
-  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261027loader1');
+  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261027boot1');
   loadVerdantWorldFn = mod.loadVerdantWorld;
   const world = await loadVerdantWorldFn({ tier, signal: attempt?.controller.signal || null, onProgress: (p, label, stats) => {
     if (attempt) { attempt.lastProgressAt = Date.now(); if (stats?.doneBytes > 0) attempt.receivedBytes = true; }
