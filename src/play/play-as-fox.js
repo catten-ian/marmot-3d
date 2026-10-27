@@ -31,6 +31,7 @@ import {
   CUE_MODE, deg2rad, yawTo, inViewCone, stepPreyMind, stepZigzag, zigzagActive,
   predictLandingPoint, evadeVector, canCatch, pickRespawnPoint,
   nearestTarget, leadTarget, windLeadTime, retargetWindYaw,
+  pushOutCircles,
 } from '../core/predator-prey.js';
 import {
   isPafKey, pafKeyHeld, PafPounceCharge,
@@ -150,7 +151,8 @@ function damp(cur, target, lambda, dt) { return THREE.MathUtils.lerp(cur, target
 
 /** 猎物（AI 土拨鼠）。 */
 class Prey {
-  constructor(scene, x, z) {
+  constructor(scene, x, z, colliders = null) {
+    this.colliders = colliders;   // 岩石碰撞体 [{x,z,r}]，null 跳过推出
     this.mesh = createPafMoleModel({ color: 0xb3925a });
     this.x = x; this.z = z; this.vx = 0; this.vz = 0;
     this.yaw = Math.random() * Math.PI * 2;
@@ -190,6 +192,7 @@ class Prey {
     const f = fox || { x: 0, z: 0, yaw: 0 };
     const pick = pickRespawnPoint(bounds, f, cfg || PAF_DEFAULTS, Math.random);
     this.x = pick.x; this.z = pick.z;
+    pushOutCircles(this, (cfg || PAF_DEFAULTS).preyRadius ?? 0.4, this.colliders);
     this.vx = this.vz = 0;
     this.state = 'wander'; this.suspicion = 0; this.timer = Math.random() * 2;
     this.zz = { active: false, sign: 0, angle: 0, timer: 0 };
@@ -258,6 +261,7 @@ class Prey {
       this.x = clamp(this.x, -bounds.hw + 1.5, bounds.hw - 1.5);
       this.z = clamp(this.z, -bounds.hh + 1.5, bounds.hh - 1.5);
     }
+    pushOutCircles(this, cfg.preyRadius ?? 0.4, this.colliders);
     const y = terrainHeight(this.x, this.z);
     this._place(y);
     this.mesh.rotation.y = this.yaw;
@@ -293,6 +297,7 @@ export function createPlayAsFox(ctx) {
   const binds = ctx.binds;
   const touchControls = ctx.touchControls;
   const isTouchMode = () => !!ctx.isTouchMode?.();
+  const rockColliders = ctx.scenery?.rockColliders || null;
   const bounds = moveBounds(6);
 
   // 仅在后台模式下读取已保存的调参；普通玩家永远默认值。
@@ -334,7 +339,7 @@ export function createPlayAsFox(ctx) {
   }
   function addPrey() {
     const { x, z } = spawnPoint();
-    const p = new Prey(scene, x, z);
+    const p = new Prey(scene, x, z, rockColliders);
     p.show(overlay);
     prey.push(p);
     return p;
@@ -471,11 +476,12 @@ export function createPlayAsFox(ctx) {
     if (document.pointerLockElement !== canvas) return;
     if (viewMode.mode === 'fpv') {
       // FPV：鼠标自由视角（pitch 夹紧），不动身体朝向
-      applyLookDelta(look, e.movementX, e.movementY, {
+      // 鼠标右移 = 向右转（与正常模式 controls.js 的 yaw -= movementX 同号约定）
+      applyLookDelta(look, -e.movementX, e.movementY, {
         sensitivity: cfg.fpvMouseLook, pitchMinDeg: cfg.fpvPitchMin, pitchMaxDeg: cfg.fpvPitchMax,
       });
     } else {
-      fox.yaw += e.movementX * cfg.mouseTurn * mouseSensitivityScale;
+      fox.yaw -= e.movementX * cfg.mouseTurn * mouseSensitivityScale;
     }
   };
   const onMouseDown = (e) => {
@@ -604,6 +610,7 @@ export function createPlayAsFox(ctx) {
     }
     fox.x = clamp(fox.x, -bounds.hw, bounds.hw);
     fox.z = clamp(fox.z, -bounds.hh, bounds.hh);
+    pushOutCircles(fox, cfg.foxRadius ?? 0.5, rockColliders);
 
     const groundY = terrainHeight(fox.x, fox.z);
     fox.y = groundY + fox.airY;

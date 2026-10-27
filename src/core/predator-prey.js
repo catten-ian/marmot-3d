@@ -375,3 +375,25 @@ export function pickRespawnPoint(bounds, fox, p, rng = Math.random) {
   }
   return { x: best.x, z: best.z, ok: false, attempts, dist: bestD };
 }
+
+/**
+ * 圆形障碍推出（岩石等）：pos 若进入任一 collider 的 (r + bodyR) 范围，
+ * 沿径向推出到边界。原地修改 pos，返回是否发生过推出。
+ * colliders: [{x, z, r}]，null/空数组直接跳过。
+ */
+export function pushOutCircles(pos, bodyR, colliders) {
+  if (!colliders || !colliders.length) return false;
+  let pushed = false;
+  for (const c of colliders) {
+    const dx = pos.x - c.x, dz = pos.z - c.z;
+    const rr = c.r + bodyR;
+    const d2 = dx * dx + dz * dz;
+    if (d2 >= rr * rr) continue;
+    pushed = true;
+    if (d2 < 1e-8) { pos.x = c.x + rr; continue; } // 恰在圆心：沿 +x 推出
+    const d = Math.sqrt(d2);
+    pos.x = c.x + (dx / d) * rr;
+    pos.z = c.z + (dz / d) * rr;
+  }
+  return pushed;
+}

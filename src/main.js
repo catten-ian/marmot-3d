@@ -875,7 +875,7 @@ async function enterPlayAsFox() {
   playAsFox = createPlayAsFox({
     scene, camera, renderer, canvas, sky,
     playerModel, companion,
-    touchControls, binds,
+    touchControls, binds, scenery,
     isTouchMode: () => TOUCH_DEVICE,
     mouseSensitivity: controller.sensitivity,
     touchLookSensitivity: controller.touchLookSensitivity,
