@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getAssetCandidates } from './local-pack.js';
 import { buildWalkableField } from './verdant-collision.js';
 import { createProgressReporter, fetchWithFailover, parseGltfReferences, sourceLabelOf } from './verdant-progress.mjs';
+import { exceedsMemoryBudget, getMemorySnapshot } from '../core/memory-budget.mjs';
 
 /** 单个下载源首字节无响应的上限：超过即判定该源故障，切下一个源。 */
 const SOURCE_STALL_MS = 8000;
@@ -81,6 +82,25 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
   });
 
   const manager = new THREE.LoadingManager();
+  let parseItems = 0;
+  let parseDone = 0;
+  let parseReject = null;
+  let parseMemoryError = null;
+  const checkMemory = (extraBytes = 0) => exceedsMemoryBudget({ snapshot: getMemorySnapshot(), extraBytes });
+  const stopForMemory = (extraBytes = 0) => {
+    if (!checkMemory(extraBytes) || parseMemoryError) return;
+    parseMemoryError = new Error('Verdant 解析触及内存保留线，已主动停止以保护浏览器');
+    parseReject?.(parseMemoryError);
+  };
+  const reportParse = (text = '解析 Verdant 场景素材') => {
+    const total = Math.max(parseItems, parseDone);
+    const fraction = total ? Math.min(1, parseDone / total) : 0;
+    onProgress?.(fraction, `${text} ${parseDone}/${total || '?'}${total ? '' : ''}`, { phase: 'parse', doneItems: parseDone, totalItems: total });
+  };
+  manager.onStart = (_url, itemsLoaded, itemsTotal) => { parseItems = Math.max(parseItems, itemsTotal || 0); reportParse(); };
+  manager.onProgress = (_url, itemsLoaded, itemsTotal) => { parseItems = Math.max(parseItems, itemsTotal || 0); parseDone = Math.max(parseDone, itemsLoaded || 0); stopForMemory(); reportParse(); };
+  manager.onLoad = () => { parseDone = Math.max(parseDone, parseItems); reportParse(); };
+  manager.onError = () => {};
   manager.setURLModifier((resourceUrl) => {
     if (/^(data:|blob:)/i.test(resourceUrl)) return resourceUrl;
     try {
@@ -91,17 +111,40 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
   const loader = new GLTFLoader(manager);
 
   const parseScene = (data, path) => new Promise((resolve, reject) => {
-    manager.onError = (resourceUrl) => reject(new Error(`外置资源读取失败：${resourceUrl}`));
-    onProgress?.(1, '解析 Verdant 场景模型');
-    loader.parse(data, path, (gltf) => resolve(gltf.scene), reject);
+    parseItems = 0; parseDone = 0; parseMemoryError = null; parseReject = reject; reportParse();
+    if (checkMemory(data?.byteLength || 0)) { stopForMemory(data?.byteLength || 0); return; }
+    const originalCreateImageBitmap = globalThis.createImageBitmap;
+    let activeDecodes = 0; const decodeQueue = [];
+    const restoreDecodeLimit = () => { if (globalThis.createImageBitmap === limitedCreateImageBitmap) globalThis.createImageBitmap = originalCreateImageBitmap; };
+    const drain = () => {
+      while (activeDecodes < 3 && decodeQueue.length) {
+        const { args, resolve: ok, reject: fail } = decodeQueue.shift(); activeDecodes++;
+        Promise.resolve().then(() => originalCreateImageBitmap(...args)).then(ok, fail).finally(() => { activeDecodes--; drain(); });
+      }
+    };
+    const limitedCreateImageBitmap = (...args) => new Promise((resolve, reject) => { decodeQueue.push({ args, resolve, reject }); drain(); });
+    if (typeof originalCreateImageBitmap === 'function') { try { globalThis.createImageBitmap = limitedCreateImageBitmap; } catch (_) {} }
+    try {
+      loader.parse(data, path, (gltf) => {
+        restoreDecodeLimit(); parseReject = null;
+        if (parseMemoryError) { reject(parseMemoryError); return; }
+        stopForMemory(); if (parseMemoryError) { reject(parseMemoryError); return; }
+        reportParse('解析 Verdant 场景素材'); resolve(gltf.scene);
+      }, (error) => { restoreDecodeLimit(); parseReject = null; reject(error); });
+    } catch (error) { restoreDecodeLimit(); parseReject = null; reject(error); }
   });
 
   if (!isGltf) {
     // GLB 自包含：一次流式下载即可拿到全部进度。
     const result = await downloadAsset(sceneUrl, { tier, signal, size: sceneSize, reporter });
     reporter.publish({ cached: result.cached, sourceLabel: sourceLabelOf(result.url) });
-    const arrayBuffer = result.bytes.buffer.slice(result.bytes.byteOffset, result.bytes.byteOffset + result.bytes.byteLength);
-    return await parseScene(arrayBuffer, new URL('.', sceneUrl).href);
+    const bytes = result.bytes;
+    // streamUrl 已在需要时拼成紧凑 Uint8Array；仅在存在偏移/尾部空间时复制，避免常态峰值翻倍。
+    const arrayBuffer = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+      ? bytes.buffer : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const scene = await parseScene(arrayBuffer, new URL('.', sceneUrl).href);
+    // 解析器接管 GLB 数据后不再保留下载缓冲引用。
+    return scene;
   }
 
   // glTF：先取清单（小文件，单独统计），再按引用下载外部资源。
@@ -168,9 +211,11 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   const scene = await loadSceneAsset({ scenePath, tier: activeTier, packManifest, onProgress, signal });
   scene.name = 'VerdantTrailWorld';
   scene.userData.verdantTier = activeTier;
-  onProgress?.(1, '准备 Verdant 材质与贴图');
-  scene.traverse((obj) => {
-    if (!obj.isMesh) return;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const materialMeshes = []; scene.traverse((obj) => { if (obj.isMesh) materialMeshes.push(obj); });
+  const materialTotal = materialMeshes.length;
+  for (let index = 0; index < materialTotal; index++) {
+    const obj = materialMeshes[index];
     obj.castShadow = false; obj.receiveShadow = true;
     const apply = (material) => {
       const m = material.clone(); m.roughness = 0.94; m.metalness = 0;
@@ -183,10 +228,13 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
       return m;
     };
     obj.material = Array.isArray(obj.material) ? obj.material.map(apply) : apply(obj.material);
-  });
+    onProgress?.((index + 1) / Math.max(1, materialTotal), `准备 Verdant 材质与贴图 ${index + 1}/${materialTotal}`, { phase: 'materials', doneItems: index + 1, totalItems: materialTotal });
+    if ((index & 3) === 3) await new Promise((resolve) => setTimeout(resolve, 0));
+  }
   const group = new THREE.Group(); group.name = 'VerdantTrailEnvironment'; group.add(scene);
   group.userData.verdantManifest = manifest; group.userData.packManifest = packManifest;
-  onProgress?.(0.99, '光栅化可行走地形');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  onProgress?.(0, '光栅化可行走地形 0/1', { phase: 'rasterize', doneItems: 0, totalItems: 1 });
   // 这里的回调值刻意保持在 1 以内：主进度条 70% 之后仍要区分
   // “解析模型 / 准备贴图 / 光栅化”三个同步阶段，便于定位低端设备卡死点。
   // JSON 由渲染 ground 直接射线生成，是玩家支撑高度的权威数据源；
@@ -194,7 +242,9 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   // 岩石/悬崖保持独立实体，不得把它们的顶面混成同一竖列的地形高度。
   const field = buildWalkableField({ scene, heightJson: height, bounds: manifest.mapping.playableBounds });
   console.info('[verdant] 可行走高度场:', field.stats);
-  onProgress?.(1, 'Verdant 场景就绪');
+  onProgress?.(1, '光栅化可行走地形 1/1', { phase: 'rasterize', doneItems: 1, totalItems: 1 });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  onProgress?.(1, 'Verdant 场景就绪', { phase: 'ready' });
   return {
     group, manifest, packManifest, tier: activeTier, height,
     heightAt: field.heightAt, resolveGround: field.resolveGround,
