@@ -28,7 +28,7 @@ import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels, instantiate, normalizeModel } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
-import { getRenderProfile, hasRealTouch, isTouchPrimary } from './core/performance.js';
+import { getRenderProfile, hasRealTouch, isTouchPrimary, clampVerdantTierForDevice } from './core/performance.js';
 import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
 import { TouchControls } from './core/touch-controls.js';
 
@@ -116,6 +116,13 @@ const audio = new Audio();
 const localPackStatus = IS_DEV ? await restoreLocalPack() : null;
 if (IS_DEV && localPackStatus?.state === 'ready') setAssetResolver((url) => getLocalPackAssetInfo(url));
 if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => getLocalPackAssetInfo(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
+
+window.__m3dMainStartedAt = Date.now();
+window.__m3dBootStage = 'renderer';
+function markBootStage(stage, pct, text) {
+  window.__m3dBootStage = stage;
+  hud.setLoading(pct, text);
+}
 
 hud.setLoading(8, '正在启动');
 
@@ -254,7 +261,13 @@ let loadVerdantWorldFn = null;
 let verdantTierLoadRequest = 0;
 let verdantQualityState = null;
 function autoVerdantTier() {
-  if (verdantTierPreference !== 'auto') return verdantTierPreference;
+  const mobile = isTouchPrimary();
+  const requested = verdantTierPreference === 'auto' ? null : verdantTierPreference;
+  const guarded = clampVerdantTierForDevice(requested || 'auto', {
+    mobile, backend: rendererStatus.backend,
+    deviceMemory: navigator.deviceMemory, hardwareConcurrency: navigator.hardwareConcurrency,
+  });
+  if (requested) return guarded;
   // 移动端（手机/平板，含微信/QQ 等谎报 pointer 的内置浏览器）auto 一律锁 low 档。
   // 旧逻辑只看 deviceMemory/hardwareConcurrency：安卓 Chrome 普遍上报 8GB/8 核（deviceMemory
   // 上限就是 8），会被误分到 medium/high。
@@ -291,7 +304,7 @@ function disposeVerdantGroup(group) {
   }
 }
 
-hud.setLoading(22, '初始化渲染器');
+markBootStage('renderer-ready', 22, '初始化渲染器完成');
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -300,7 +313,7 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const sky = new Sky(scene, renderer);
-hud.setLoading(45, '生成天空与光照');
+markBootStage('lighting', 45, '生成天空与光照');
 
 // —— Verdant Trail 全环境（dev-only）——
 // The loader is dynamically imported so stable/beta never fetch or evaluate any Verdant code.
@@ -347,7 +360,7 @@ function showVerdantFailure(error, tier = autoVerdantTier()) {
 }
 async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   window.__verdantLastDownloadStats = null;
-  hud.setLoading(46, '读取 Verdant 场景模块');
+  markBootStage('verdant-module', 46, '读取 Verdant 场景模块');
   // 版本戳：CF 对 .js 走 4 小时浏览器缓存，场景加载器改动必须换 URL 才能立即生效。
   const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261027loader1');
   loadVerdantWorldFn = mod.loadVerdantWorld;
@@ -362,6 +375,15 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
 window.__verdantBootFailure = showVerdantFailure;
 async function ensureVerdantBootGate() {
   if (!devOn('verdantWorld') || verdantBootOverride) return true;
+  // 移动端无 WebGPU 且内存预算低时，GLB 解码/纹理上传会在主线程同步占满，
+  // 表现为字节已到 70% 但页面没有首帧。直接使用程序化地形，避免把浏览器渲染进程推入崩溃边缘。
+  const mobileMemory = Number(navigator.deviceMemory) || 4;
+  if (isTouchPrimary() && rendererStatus.backend !== 'webgpu' && mobileMemory <= 4) {
+    verdantBootOverride = true;
+    hud.setLoading(70, '移动端 GPU/内存预算不足，切换简化地图');
+    hud.say('移动端资源预算不足，已启用简化地图；可在支持 WebGPU 的设备上重试 Verdant 场景', 6);
+    return true;
+  }
   // main.js 已开始执行后由此门控负责下载停滞与总耗时；关掉 index.html 的并行 watchdog。
   try { window.__bootWatchdogPause?.(); } catch (_) {}
   let tier = autoVerdantTier(), attempts = 0;
@@ -568,7 +590,7 @@ const BURROW_X = baseBurrow.x;
 const BURROW_Z = baseBurrow.z;
 const burrow = burrowSet.baseObject;
 const scenery = new Scenery(scene, { verdant: !!verdantWorld });
-hud.setLoading(72, '布置场景与植被');
+markBootStage('scenery', 74, '布置场景与植被完成');
 
 // GS 全场景下，程序化布景必须让位：
 //  · 程序化地形（会和 GS 地面重叠）
@@ -603,13 +625,15 @@ function buildFoods(levelIndex) {
   return berries;
 }
 berries = buildFoods(0);
+markBootStage('props', 78, '生成采食点与伙伴');
 const companion = new Companion(scene, { resolvePlacement: resolveVerdantCompanion });
 const minimap = new Minimap();
 let debugVolumes = null;
 let foxes = [];
-hud.setLoading(86, '生成实体与模型');
+markBootStage('entities', 86, '生成实体与模型');
 
 // —— 系统 ——
+markBootStage('controls', 83, '初始化移动控制');
 const controller = new FirstPersonController(camera, canvas);
 if (IS_DEV && verdantWorld) controller.setVerdantSafety(createVerdantSafetyProfile(verdantWorld));
 if (IS_DEV && window.__verdantField) {
@@ -635,6 +659,7 @@ if (new URLSearchParams(location.search).get('debugvolumes') === '1') {
   }).catch((error) => console.warn('[debugvolumes] disabled:', error));
 }
 
+markBootStage('player', 87, '生成玩家模型');
 const playerModel = new THREE.Group();
 const playerBody = buildMarmotMesh();
 playerModel.add(playerBody);
@@ -724,10 +749,11 @@ if (!verdantWorld) buildBackdrop().then((root) => {
   }
 });
 
+markBootStage('world', 94, '完成实体与场景挂载');
 const keys = new Set();
 controller.keys = keys;
 
-hud.setLoading(96, '编译着色器 / 生成远景');
+markBootStage('shader-world', 96, '编译着色器 / 生成远景');
 
 // —— 版本角标 ——
 // 正式版右下角不显示任何版本标识（干净发布）；仅 dev 实验版显示角标以便对照。
@@ -2868,6 +2894,7 @@ let playerBodyYaw = controller.yaw;
 let fpsAcc = 0, fpsCount = 0, fpsTimer = 0;
 
 function frame(now) {
+  if (!window.__m3dFirstFrameAt) { window.__m3dFirstFrameAt = Date.now(); window.__m3dBootStage = 'first-frame'; }
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
 
@@ -2922,7 +2949,7 @@ function frame(now) {
 //=====================================================
 // 启动
 //=====================================================
-hud.setLoading(100, '完成');
+markBootStage('ready', 100, '完成');
 loadLevel(0, false);
 // 标题状态下相机也需要正确落位，否则会渲染在场景原点（地下）
 controller.update(0.016, new Set(), 1);

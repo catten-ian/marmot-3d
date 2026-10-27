@@ -16,7 +16,7 @@ export function isTouchPrimary() {
     ? 'Mobile' : (globalThis.navigator?.userAgent || ''));
   const isMobileUA = /Android|iPhone|iPod|iPad|HarmonyOS|Mobile|MicroMessenger|MQQBrowser|TBS\/|X5\//i.test(ua)
     || (navigator.userAgentData && navigator.userAgentData.mobile === true);
-  if (touches && isMobileUA) return true;
+  if (isMobileUA) return true;
   return false;
 }
 
@@ -59,4 +59,25 @@ export function getRenderProfile(touchOverride) {
     shadowMapSize: lowPower ? 512 : 1024,
     antialias: false,
   };
+}
+
+/** Dev Verdant 档位保护：移动端禁止 high/ultra；低内存或无 WebGPU 时收敛到可行档。
+ * 纯函数，便于 Node 测试；stable/beta 不调用。
+ */
+export function clampVerdantTierForDevice(preference, {
+  mobile = false,
+  backend = 'webgl2',
+  deviceMemory = 4,
+  hardwareConcurrency = 4,
+} = {}) {
+  const requested = ['auto', 'low', 'medium', 'high', 'ultra'].includes(preference) ? preference : 'auto';
+  const mem = Number(deviceMemory) || 4;
+  const cores = Number(hardwareConcurrency) || 4;
+  if (mobile) {
+    if (requested === 'high' || requested === 'ultra') return 'low';
+    if (requested === 'medium' && (mem <= 4 || cores <= 4 || backend !== 'webgpu')) return 'low';
+  }
+  if (backend !== 'webgpu' && requested === 'ultra') return mobile ? 'low' : 'high';
+  if (mem <= 2 || cores <= 2) return 'low';
+  return requested;
 }
