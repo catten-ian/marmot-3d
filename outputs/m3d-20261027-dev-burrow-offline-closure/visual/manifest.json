@@ -1,5 +1,10 @@
 {
   "renderer": "CPU software rasterizer",
+  "thresholds": {
+    "coverage": 0.01,
+    "uniqueColors": 8,
+    "nonBackground": 0.005
+  },
   "shots": [
     {
       "scene": "burrow-main-interior",
@@ -11,9 +16,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-main-interior__390x844.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.9838,
-        "uniqueColors": 16949,
-        "nonBackground": 0.0725
+        "coverage": 0.9004,
+        "uniqueColors": 7556,
+        "nonBackground": 0.0423
       },
       "pass": true
     },
@@ -27,9 +32,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-main-interior__768x1024.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.9782,
-        "uniqueColors": 26298,
-        "nonBackground": 0.0546
+        "coverage": 0.8927,
+        "uniqueColors": 11098,
+        "nonBackground": 0.0297
       },
       "pass": true
     },
@@ -43,9 +48,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-main-interior__1280x720.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.963,
-        "uniqueColors": 20755,
-        "nonBackground": 0.0254
+        "coverage": 0.9149,
+        "uniqueColors": 9422,
+        "nonBackground": 0.0147
       },
       "pass": true
     },
@@ -59,9 +64,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-main-interior__1440x900.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.9591,
-        "uniqueColors": 25652,
-        "nonBackground": 0.0257
+        "coverage": 0.9055,
+        "uniqueColors": 10984,
+        "nonBackground": 0.0139
       },
       "pass": true
     },
@@ -75,9 +80,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-shelter-interior__390x844.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 1,
-        "uniqueColors": 4091,
-        "nonBackground": 0.9837
+        "coverage": 0.9808,
+        "uniqueColors": 1926,
+        "nonBackground": 0.7997
       },
       "pass": true
     },
@@ -91,9 +96,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-shelter-interior__768x1024.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.9998,
-        "uniqueColors": 8961,
-        "nonBackground": 0.9687
+        "coverage": 0.9742,
+        "uniqueColors": 4437,
+        "nonBackground": 0.7412
       },
       "pass": true
     },
@@ -107,9 +112,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-shelter-interior__1280x720.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.9986,
-        "uniqueColors": 19486,
-        "nonBackground": 0.895
+        "coverage": 0.9414,
+        "uniqueColors": 8638,
+        "nonBackground": 0.5546
       },
       "pass": true
     },
@@ -123,9 +128,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-shelter-interior__1440x900.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.9985,
-        "uniqueColors": 22934,
-        "nonBackground": 0.9139
+        "coverage": 0.9537,
+        "uniqueColors": 9654,
+        "nonBackground": 0.5798
       },
       "pass": true
     },
@@ -139,9 +144,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-mouth__390x844.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.2023,
-        "uniqueColors": 5,
-        "nonBackground": 0.0044
+        "coverage": 0.6008,
+        "uniqueColors": 9,
+        "nonBackground": 0.0261
       },
       "pass": true
     },
@@ -155,9 +160,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-mouth__768x1024.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.1246,
-        "uniqueColors": 5,
-        "nonBackground": 0.0027
+        "coverage": 0.5697,
+        "uniqueColors": 9,
+        "nonBackground": 0.0161
       },
       "pass": true
     },
@@ -171,9 +176,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-mouth__1280x720.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.0526,
-        "uniqueColors": 5,
-        "nonBackground": 0.0011
+        "coverage": 0.2562,
+        "uniqueColors": 9,
+        "nonBackground": 0.0068
       },
       "pass": true
     },
@@ -187,9 +192,9 @@
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/burrow-mouth__1440x900.png",
       "expected": "可见井壁/地板/洞口/灯光/标签",
       "observed": {
-        "coverage": 0.0584,
-        "uniqueColors": 5,
-        "nonBackground": 0.0013
+        "coverage": 0.2847,
+        "uniqueColors": 9,
+        "nonBackground": 0.0075
       },
       "pass": true
     },
@@ -201,11 +206,11 @@
       ],
       "command": "node tools/qa-dev-burrow-offline.cjs",
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/marmot-screaming__390x844.png",
-      "expected": "可见模型轮廓与材质",
+      "expected": "主体轮廓、法线明暗和材质色块",
       "observed": {
-        "coverage": 0.2032,
-        "uniqueColors": 4,
-        "nonBackground": 1
+        "coverage": 0.6646,
+        "uniqueColors": 2875,
+        "nonBackground": 0.6641
       },
       "pass": true
     },
@@ -217,11 +222,11 @@
       ],
       "command": "node tools/qa-dev-burrow-offline.cjs",
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/marmot-screaming__768x1024.png",
-      "expected": "可见模型轮廓与材质",
+      "expected": "主体轮廓、法线明暗和材质色块",
       "observed": {
-        "coverage": 0.1252,
-        "uniqueColors": 4,
-        "nonBackground": 1
+        "coverage": 0.4757,
+        "uniqueColors": 3122,
+        "nonBackground": 0.4754
       },
       "pass": true
     },
@@ -233,11 +238,11 @@
       ],
       "command": "node tools/qa-dev-burrow-offline.cjs",
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/marmot-screaming__1280x720.png",
-      "expected": "可见模型轮廓与材质",
+      "expected": "主体轮廓、法线明暗和材质色块",
       "observed": {
-        "coverage": 0.0528,
-        "uniqueColors": 4,
-        "nonBackground": 1
+        "coverage": 0.2019,
+        "uniqueColors": 2787,
+        "nonBackground": 0.2018
       },
       "pass": true
     },
@@ -249,11 +254,11 @@
       ],
       "command": "node tools/qa-dev-burrow-offline.cjs",
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/marmot-screaming__1440x900.png",
-      "expected": "可见模型轮廓与材质",
+      "expected": "主体轮廓、法线明暗和材质色块",
       "observed": {
-        "coverage": 0.0587,
-        "uniqueColors": 4,
-        "nonBackground": 1
+        "coverage": 0.2244,
+        "uniqueColors": 3016,
+        "nonBackground": 0.2243
       },
       "pass": true
     },
@@ -265,11 +270,11 @@
       ],
       "command": "node tools/qa-dev-burrow-offline.cjs",
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/shrub-sorrel__390x844.png",
-      "expected": "可见模型轮廓与材质",
+      "expected": "主体轮廓、法线明暗和材质色块",
       "observed": {
-        "coverage": 0.0225,
-        "uniqueColors": 5616,
-        "nonBackground": 0.9982
+        "coverage": 0.0513,
+        "uniqueColors": 9324,
+        "nonBackground": 0.0301
       },
       "pass": true
     },
@@ -281,11 +286,11 @@
       ],
       "command": "node tools/qa-dev-burrow-offline.cjs",
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/shrub-sorrel__768x1024.png",
-      "expected": "可见模型轮廓与材质",
+      "expected": "主体轮廓、法线明暗和材质色块",
       "observed": {
-        "coverage": 0.0165,
-        "uniqueColors": 8699,
-        "nonBackground": 0.9986
+        "coverage": 0.0543,
+        "uniqueColors": 19308,
+        "nonBackground": 0.0338
       },
       "pass": true
     },
@@ -297,11 +302,11 @@
       ],
       "command": "node tools/qa-dev-burrow-offline.cjs",
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/shrub-sorrel__1280x720.png",
-      "expected": "可见模型轮廓与材质",
+      "expected": "主体轮廓、法线明暗和材质色块",
       "observed": {
-        "coverage": 0.0069,
-        "uniqueColors": 5026,
-        "nonBackground": 0.9994
+        "coverage": 0.0317,
+        "uniqueColors": 16347,
+        "nonBackground": 0.0201
       },
       "pass": true
     },
@@ -313,11 +318,27 @@
       ],
       "command": "node tools/qa-dev-burrow-offline.cjs",
       "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/shrub-sorrel__1440x900.png",
-      "expected": "可见模型轮廓与材质",
+      "expected": "主体轮廓、法线明暗和材质色块",
       "observed": {
-        "coverage": 0.0077,
-        "uniqueColors": 7138,
-        "nonBackground": 0.9994
+        "coverage": 0.0353,
+        "uniqueColors": 21794,
+        "nonBackground": 0.0224
+      },
+      "pass": true
+    },
+    {
+      "scene": "marmot-screaming-skin-comparison",
+      "viewport": [
+        720,
+        540
+      ],
+      "command": "node tools/qa-dev-burrow-offline.cjs",
+      "path": "outputs/m3d-20261027-dev-burrow-offline-closure/visual/marmot-screaming__skin-on__720x540.png + marmot-screaming__skin-off__720x540.png",
+      "expected": "同视角蒙皮开关对照",
+      "observed": {
+        "differentChannels": 11231,
+        "diffRatio": 0.0096,
+        "maxDelta": 224
       },
       "pass": true
     }

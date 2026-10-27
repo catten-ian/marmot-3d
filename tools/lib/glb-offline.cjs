@@ -167,6 +167,11 @@ function transformPoint(m, p) {
 
 function transformDir(m, p) {
   const [x, y, z] = p;
+  if (m.length === 9) return [
+    m[0] * x + m[1] * y + m[2] * z,
+    m[3] * x + m[4] * y + m[5] * z,
+    m[6] * x + m[7] * y + m[8] * z,
+  ];
   return [
     m[0] * x + m[1] * y + m[2] * z,
     m[4] * x + m[5] * y + m[6] * z,
@@ -688,22 +693,22 @@ function renderPrimitives(prims, camera, opts = {}) {
     rgb[i] = v;
   }
 
-  // 像素内容统计：用来判定"到底画没画出东西"。
-  // 之前只统计"处理了多少三角形"，导致纯背景图也能报 PASS —— 那是无效验收。
-  let covered = 0;
+  const measured = measureImage(rgb, width, height, bg);
+  return { rgb, width, height, drawn, culled, ...measured };
+}
+
+/** 与 QA 共用的截图指标：背景差异覆盖率、精确 RGB 颜色数、非背景且非近黑占比。 */
+function measureImage(rgb, width, height, bg = [0.10, 0.12, 0.14]) {
+  let covered = 0, nonBackground = 0;
   const colors = new Set();
+  const br = bg[0] * 255, bgc = bg[1] * 255, bb = bg[2] * 255;
   for (let i = 0; i < width * height; i++) {
     const r = rgb[i * 3], g = rgb[i * 3 + 1], b = rgb[i * 3 + 2];
-    if (Math.max(Math.abs(r - bg[0] * 255), Math.abs(g - bg[1] * 255), Math.abs(b - bg[2] * 255)) > 8) {
-      covered++;
-    }
+    if (Math.max(Math.abs(r - br), Math.abs(g - bgc), Math.abs(b - bb)) > 8) covered++;
+    if (r > 0.08 * 255 && g > 0.08 * 255 && b > 0.08 * 255 && Math.max(Math.abs(r - br), Math.abs(g - bgc), Math.abs(b - bb)) > 8) nonBackground++;
     colors.add((r << 16) | (g << 8) | b);
   }
-  return {
-    rgb, width, height, drawn, culled,
-    coverage: covered / (width * height),
-    uniqueColors: colors.size,
-  };
+  return { coverage: covered / (width * height), uniqueColors: colors.size, nonBackgroundRatio: nonBackground / (width * height) };
 }
 
 /** 近平面裁剪：保留视空间 z <= -near 的部分，属性随位置线性插值。 */
@@ -803,6 +808,10 @@ function rasterizeTriangle(v0, v1, v2, prim, proj, camera, width, height,
       }
 
       let lr = ambient * cr, lg = ambient * cg, lb = ambient * cb;
+      // CPU fallback has no normal maps or soft shadowing. Preserve readable form by
+      // adding a restrained hemisphere term from the transformed normal; this is
+      // deliberately geometry-only and keeps the renderer deterministic.
+      const hemisphere = 0.58 + 0.42 * Math.max(0, Math.min(1, 0.5 + 0.5 * n[1]));
       for (const light of lights) {
         // 双面材质用 |N·L|：扫描内景是从内部看的，反面法线朝外，
         // 只取 max(0,·) 会让整个内景糊成一片环境色，看不出形状。
@@ -814,9 +823,9 @@ function rasterizeTriangle(v0, v1, v2, prim, proj, camera, width, height,
         lb += cb * ndl * light.intensity * light.color[2];
       }
       depthBuf[di] = depth;
-      colorBuf[di * 3] = lr;
-      colorBuf[di * 3 + 1] = lg;
-      colorBuf[di * 3 + 2] = lb;
+      colorBuf[di * 3] = lr * hemisphere;
+      colorBuf[di * 3 + 1] = lg * hemisphere;
+      colorBuf[di * 3 + 2] = lb * hemisphere;
     }
   }
 }
@@ -848,6 +857,7 @@ module.exports = {
   applyNormalization,
   worldBounds,
   renderPrimitives,
+  measureImage,
   encodePNG,
   decodePNG,
   frameCamera,
