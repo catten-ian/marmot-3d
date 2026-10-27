@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>绑定角色探针 · Rig Probe</title>
+<style>
+  body { margin: 0; background: #2f342c; color: #e8e2d0; overflow: hidden;
+         font-family: ui-monospace, Consolas, monospace; }
+  #view { display: block; width: 100vw; height: 100vh; }
+  #info { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,.72);
+          padding: 10px 14px; font: 12px/1.6 ui-monospace, monospace; white-space: pre; z-index: 10; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "../vendor/three.module.js", "three/addons/": "../vendor/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="info">加载中…</div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const params = new URLSearchParams(location.search);
+const MODEL = params.get('model') || '/assets/models/marmot-rig.glb';
+const CLIP = params.get('clip') || '';
+const T = parseFloat(params.get('t') || '0');
+
+const canvas = document.getElementById('view');
+const info = document.getElementById('info');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2f342c);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
+scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x40382c, 1.4));
+const k1 = new THREE.DirectionalLight(0xfff2dd, 2.4); k1.position.set(3, 5, 4); scene.add(k1);
+const k2 = new THREE.DirectionalLight(0xbfd4ff, 1.2); k2.position.set(-4, 2, -3); scene.add(k2);
+const grid = new THREE.GridHelper(6, 24, 0x808080, 0x505050); scene.add(grid);
+
+// 环境光探针：GLB 的 ORM 贴图里 metallic=1，金属只反射环境贴图，
+// 没有环境贴图时**整个模型渲染成纯黑**（属性全正常、画面全黑）。
+// vendor/addons 没有 RoomEnvironment，所以自建一个简易摄影棚环境做 PMREM。
+function buildStudioEnv() {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envScene = new THREE.Scene();
+  envScene.background = new THREE.Color(0x3a3f36);
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(12, 12, 12),
+    new THREE.MeshBasicMaterial({ side: THREE.BackSide, color: 0x6a7060 })
+  );
+  envScene.add(box);
+  const lamp = (x, y, z, w, h, d, color, power) => {
+    const m = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(power) })
+    );
+    m.position.set(x, y, z);
+    envScene.add(m);
+  };
+  lamp(0, 6, 0, 6, 0.1, 6, 0xfff4e0, 3.0);      // 顶光
+  lamp(4, 2, 3, 0.1, 4, 4, 0xffe9c8, 1.6);      // 侧暖光
+  lamp(-4, 2, -3, 0.1, 4, 4, 0xcfe0ff, 1.1);    // 侧冷光
+  lamp(0, 1, -5, 5, 3, 0.1, 0xffffff, 0.8);     // 背景板
+  const tex = pmrem.fromScene(envScene, 0.03).texture;
+  pmrem.dispose();
+  return tex;
+}
+try {
+  scene.environment = buildStudioEnv();
+  if ('environmentIntensity' in scene) scene.environmentIntensity = 1.0;
+} catch (e) {
+  console.warn('[probe] 环境贴图失败', e);
+}
+
+// mat=flat → 用 MeshNormalMaterial 覆盖所有材质：
+// 完全不依赖灯光/环境/贴图，任何光照条件下都能看清形体与朝向（验收兜底）。
+const FLAT = params.get('mat') === 'flat';
+
+const loader = new GLTFLoader();
+loader.load(MODEL, (gltf) => {
+  const root = gltf.scene;
+  // **必须入场景**：不入场景就只剩包围盒数据，画面上什么都没有
+  scene.add(root);
+  root.updateMatrixWorld(true);
+
+  if (FLAT) {
+    const flatMat = new THREE.MeshNormalMaterial({ flatShading: false });
+    root.traverse((o) => { if (o.isMesh) o.material = flatMat; });
+  }
+
+  // 动画：建 mixer，把 clip 播到指定时间
+  const clips = (gltf.animations || []).map((c) => ({
+    name: c.name, duration: c.duration, tracks: c.tracks.length,
+  }));
+  const mixer = new THREE.AnimationMixer(root);
+  let action = null;
+  if (CLIP) {
+    const clip = gltf.animations.find((c) => c.name === CLIP);
+    if (clip) { action = mixer.clipAction(clip); action.play(); mixer.setTime(T); }
+  }
+  mixer.update(0);
+  root.updateMatrixWorld(true);
+
+  // 骨骼
+  const bones = [];
+  root.traverse((o) => { if (o.isBone) bones.push(o.name); });
+
+  // 蒙皮网格：真实世界包围盒（three 的 SkinnedMesh 会应用骨骼变换）
+  let skinMesh = null;
+  root.traverse((o) => { if (o.isSkinnedMesh && !skinMesh) skinMesh = o; });
+
+  const rawBox = new THREE.Box3().setFromObject(root);
+  const rawSize = rawBox.getSize(new THREE.Vector3());
+
+  // 蒙皮后的精确顶点包围盒：直接取 SkinnedMesh 的 boneTransform 顶点
+  let posed = null;
+  if (skinMesh) {
+    const g = skinMesh.geometry;
+    const pos = g.attributes.position;
+    const sk = skinMesh.skeleton;
+    const v = new THREE.Vector3();
+    const pts = [];
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i);
+      skinMesh.applyBoneTransform(i, v);
+      pts.push(v.clone().applyMatrix4(skinMesh.matrixWorld));
+    }
+    const b = new THREE.Box3().setFromPoints(pts);
+    posed = { min: b.min.toArray().map((v) => +v.toFixed(4)), max: b.max.toArray().map((v) => +v.toFixed(4)),
+              size: b.getSize(new THREE.Vector3()).toArray().map((v) => +v.toFixed(4)) };
+  }
+
+  // 关节朝向探针：head/hips 在世界空间的位置，判断"脸朝哪"
+  const jpos = {};
+  root.traverse((o) => {
+    if (o.isBone && (o.name === 'head' || o.name === 'hips' || o.name === 'root' || o.name === 'chest')) {
+      const p = new THREE.Vector3();
+      o.getWorldPosition(p);
+      jpos[o.name] = p.toArray().map((v) => +v.toFixed(4));
+    }
+  });
+
+  let tris = 0;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const i = o.geometry.index;
+    tris += (i ? i.count : o.geometry.attributes.position.count) / 3;
+  });
+
+  // 归一化到目标高度后的尺寸（模拟游戏里 normalizeModel 的效果）
+  const targetH = parseFloat(params.get('h') || '0.75');
+  let normSize = null;
+  if (posed) {
+    const sy = posed.size[1];
+    const s = sy > 0.0001 ? targetH / sy : 1;
+    normSize = posed.size.map((v) => +(v * s).toFixed(4));
+  }
+
+  info.textContent = '模型: ' + MODEL + '\n' +
+    'clip: ' + (CLIP || '(无)') + '  t=' + T + '\n' +
+    '骨骼 ' + bones.length + '  动画 ' + clips.length + '  面 ' + Math.round(tris) + '\n' +
+    'raw  ' + rawSize.toArray().map((v) => v.toFixed(3)).join(' × ') + '\n' +
+    'posed ' + (posed ? posed.size.join(' × ') : 'n/a') + '\n' +
+    'norm@' + targetH + ' ' + (normSize ? normSize.join(' × ') : 'n/a') + '\n' +
+    'joints ' + JSON.stringify(jpos);
+
+  window.__probe = {
+    ready: true,
+    model: MODEL,
+    clips, bones, jpos, posed, normSize,
+    rawSize: rawSize.toArray(),
+    tris: Math.round(tris),
+    isSkinned: !!skinMesh,
+    materials: (() => {
+      const out = [];
+      root.traverse((o) => {
+        if (!o.isMesh) return;
+        const m = Array.isArray(o.material) ? o.material[0] : o.material;
+        out.push({ type: m?.type, map: m?.map ? [m.map.image?.width, m.map.image?.height] : null,
+                   normalMap: m?.normalMap ? [m.normalMap.image?.width, m.normalMap.image?.height] : null,
+                   roughness: m?.roughness, metalness: m?.metalness, side: m?.side });
+      });
+      return out;
+    })(),
+    setClip: (name, t) => {
+      if (action) { action.stop(); action = null; }
+      mixer.stopAllAction();
+      const clip = (window.__gltfAnims || []).find((c) => c.name === name);
+      if (clip) { action = mixer.clipAction(clip); action.play(); mixer.setTime(t); }
+      mixer.update(0);
+      root.updateMatrixWorld(true);
+    },
+    setView: (theta, phi, r, ty, tx) => {
+      ctrl.theta = theta; ctrl.phi = phi; ctrl.r = r;
+      if (ty !== undefined) ctrl.ty = ty;
+      if (tx !== undefined) ctrl.tx = tx;
+    },
+  };
+  window.__gltfAnims = gltf.animations;
+  window.__mixer = mixer;
+
+  const ctrl = { theta: 0.6, phi: 1.05, r: 4.6, tx: 0, ty: 1.25 };
+  function frame() {
+    requestAnimationFrame(frame);
+    const r = ctrl.r;
+    camera.position.set(
+      ctrl.tx + r * Math.sin(ctrl.phi) * Math.sin(ctrl.theta),
+      ctrl.ty + r * Math.cos(ctrl.phi),
+      ctrl.tx + r * Math.sin(ctrl.phi) * Math.cos(ctrl.theta)
+    );
+    camera.lookAt(ctrl.tx, ctrl.ty, 0);
+    renderer.render(scene, camera);
+  }
+  frame();
+}, undefined, (e) => {
+  info.textContent = '加载失败: ' + (e.message || e);
+  window.__probe = { ready: false, error: String(e.message || e) };
+});
+</script>
+</body>
+</html>
