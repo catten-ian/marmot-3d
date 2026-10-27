@@ -1,6 +1,7 @@
 # m3d-20261027 beta loading progress sync report
 
-- Commit: `aad46a69ae31a17bce1029a82a48075425ab2e05` (`feat(beta): sync cinematic loading progress UI`)
+- Implementation commit: `5b6c0f043f17b8c6076511eba7bce127d900b5` (`feat(beta): sync cinematic loading progress UI`)
+- This report is committed in a follow-up `feat(beta): finalize loading sync report` commit.
 - Baseline: `1762cb1` (beta rev40)
 - Branch: `feat/beta-loading-progress-sync`
 
