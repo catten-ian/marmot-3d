@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getAssetCandidates } from './local-pack.js';
 import { buildWalkableField } from './verdant-collision.js';
+import { parseWalkableFieldBin } from './verdant-walkable-bin.mjs';
 import { createProgressReporter, fetchWithFailover, parseGltfReferences, sourceLabelOf } from './verdant-progress.mjs';
 import { exceedsMemoryBudget, getMemorySnapshot } from '../core/memory-budget.mjs';
 
@@ -234,15 +235,50 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   const group = new THREE.Group(); group.name = 'VerdantTrailEnvironment'; group.add(scene);
   group.userData.verdantManifest = manifest; group.userData.packManifest = packManifest;
   await new Promise((resolve) => setTimeout(resolve, 0));
-  onProgress?.(0, '光栅化可行走地形 0/1', { phase: 'rasterize', doneItems: 0, totalItems: 1 });
-  // 这里的回调值刻意保持在 1 以内：主进度条 70% 之后仍要区分
-  // “解析模型 / 准备贴图 / 光栅化”三个同步阶段，便于定位低端设备卡死点。
-  // JSON 由渲染 ground 直接射线生成，是玩家支撑高度的权威数据源；
-  // ground / sand 三角形栅格提供可行走覆盖与连通性，并填补漏采掩膜。
-  // 岩石/悬崖保持独立实体，不得把它们的顶面混成同一竖列的地形高度。
-  const field = buildWalkableField({ scene, heightJson: height, bounds: manifest.mapping.playableBounds });
+  onProgress?.(0, '光栅化：下载地形数据 0 MB', { phase: 'rasterize', doneItems: 0, totalItems: 1 });
+  let precomputed = null;
+  const canUsePrecomputed = ['low', 'medium', 'high'].includes(activeTier);
+  const fieldPath = `${root}tiers/${activeTier}/walkable-field.bin`;
+  if (canUsePrecomputed) {
+    const fieldUrl = new URL(fieldPath, location.href).href;
+    const expectedBounds = manifest.mapping.playableBounds;
+    const expected = {
+      nx: Math.max(8, Math.ceil((expectedBounds.maxX - expectedBounds.minX) / 0.22)),
+      nz: Math.max(8, Math.ceil((expectedBounds.maxZ - expectedBounds.minZ) / 0.22)),
+      cellSize: 0.22, layerCount: 4, bounds: expectedBounds,
+    };
+    const failures = [];
+    for (const candidate of getAssetCandidates(fieldUrl, activeTier)) {
+      try {
+        const reporter = createProgressReporter({ onProgress: (stats) => {
+          const mb = (stats.doneBytes / 1048576).toFixed(2), total = stats.totalBytes ? `/${(stats.totalBytes / 1048576).toFixed(2)} MB` : ' MB';
+          onProgress?.(stats.totalBytes ? Math.min(0.9, stats.doneBytes / stats.totalBytes * 0.9) : 0, `光栅化：下载地形数据 ${mb}${total}`, { phase: 'rasterize', doneItems: stats.doneBytes, totalItems: stats.totalBytes || 1 });
+        }});
+        const result = await fetchWithFailover([candidate], {
+          signal, stallMs: SOURCE_STALL_MS, idleMs: SOURCE_IDLE_MS, cache: 'no-cache',
+          onOpen: ({ totalBytes }) => reporter.setTotal(totalBytes),
+          onChunk: (bytes) => {
+            reporter.addBytes(bytes); reporter.publish({ currentPath: fieldUrl });
+            globalThis.__m3dByteHeartbeat?.({ url: fieldUrl, loaded: reporter.doneBytes, total: reporter.totalBytes, lengthComputable: true });
+          },
+        });
+        const parsed = parseWalkableFieldBin(result.bytes, { expected });
+        precomputed = parsed;
+        console.info('[verdant] 预计算可行走地形:', { source: sourceLabelOf(candidate), url: candidate, bytes: result.bytes.byteLength, stats: parsed.stats });
+        break;
+      } catch (error) {
+        failures.push(`${candidate}: ${error?.message || error}`);
+      }
+    }
+    if (!precomputed) console.warn('[verdant] 预计算可行走地形候选全部不可用，回退设备端栅格化:', failures.join(' | '));
+  } else {
+    console.info('[verdant] ultra 档无离线可行走地形，使用设备端栅格化');
+  }
+  onProgress?.(0.92, precomputed ? '光栅化：重建可行走地形网格' : '光栅化可行走地形 0/1', { phase: 'rasterize', doneItems: precomputed ? 0.92 : 0, totalItems: 1 });
+  // JSON 由渲染 ground 直接射线生成，是玩家支撑高度的权威数据源；其余派生网格仍在运行时构建。
+  const field = buildWalkableField({ scene, heightJson: height, bounds: manifest.mapping.playableBounds, precomputed });
   console.info('[verdant] 可行走高度场:', field.stats);
-  onProgress?.(1, '光栅化可行走地形 1/1', { phase: 'rasterize', doneItems: 1, totalItems: 1 });
+  onProgress?.(1, precomputed ? '光栅化：地形数据就绪 1/1' : '光栅化可行走地形 1/1', { phase: 'rasterize', doneItems: 1, totalItems: 1 });
   await new Promise((resolve) => setTimeout(resolve, 0));
   onProgress?.(1, 'Verdant 场景就绪', { phase: 'ready' });
   return {

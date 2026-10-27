@@ -234,6 +234,13 @@ export function getAssetCandidates(url, tier, sourceOnly = false, overrideResolv
   const local = (typeof overrideResolver === 'function' ? overrideResolver(source) : null) || resolveLocalAsset(relative);
   if (local) candidates.push(local);
   const root = packRoot(tier);
+  // Walkable fields are build artifacts kept outside pack.zip/pack-manifest for now.
+  // Their dedicated TOS key is m3d-dev/20261028/<tier>/walkable-field.bin.
+  if (root && /(?:^|\/)walkable-field\.bin(?:$|[?#])/i.test(source)) {
+    const cfg = tosConfig();
+    const base = cfg?.baseUrl ? (String(cfg.baseUrl).endsWith('/') ? cfg.baseUrl : `${cfg.baseUrl}/`) : null;
+    if (base) candidates.push(new URL(`m3d-dev/20261028/${encodeURIComponent(tier)}/walkable-field.bin`, base).href);
+  }
   if (root) candidates.push(new URL(relative, root).href);
   candidates.push(source);
   return [...new Set(candidates)];

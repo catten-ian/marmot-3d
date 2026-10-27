@@ -73,3 +73,33 @@
 - `performance.memory` 只在 Chromium 特定环境可用，Safari/iOS 通常不可见；背压仍可限制图片解码并发，但无法直接读取 GPU 纹理显存。
 - `buildWalkableField` 的三角形光栅化尚未 Worker 化；如果真机仍在该阶段长时间无响应，下一步应把光栅化移到 Worker，并保持主线程只接收分块进度。
 - 未改版本戳、index-public.html、beta/stable 文件，也未部署。
+
+## 2026-10-28：Verdant 可行走地形离线预计算
+
+### 实现
+
+- 新增 `tools/verdant/precompute-walkable-field.mjs`。命令：`node tools/verdant/precompute-walkable-field.mjs low medium high`。脚本直接读取各档 GLB、档位 manifest 的 `mapping.playableBounds`，按运行时相同的 `cellSize=0.22`、2×2 子采样、4 层 surface 算法生成 `M3DWF01` 二进制；GLB accessor 支持交错 buffer，材质过滤与运行时 ground/sand 规则一致。
+- 新增 `src/world/verdant-walkable-bin.mjs`：JSON 头、Float32 `top`、4 层 `surfaceLayers`、SHA-256 校验、bounds/cellSize/nx/nz/layerCount 校验。此前骨架里的 SHA 常量索引错误已修正，往返测试逐字节相等。
+- `src/world/verdant.js` 在 `rasterize` 阶段用既有 `getAssetCandidates`/`fetchWithFailover` 下载 bin，报告真实字节进度（例如“下载地形数据 1.23/3.10 MB”），解析并重建派生网格；TOS/同源 404、校验失败或解析失败会 `console.warn` 并回到原有设备端 `rasterizeColumns`。
+- `src/world/verdant-collision.js` 接受预计算数组，仍运行 jsonfill、fillholes、mask、连通分量、障碍代理和 placement clearance。预计算 bin 不进入 pack.zip/pack-manifest；注释与代码保留了原因。
+- `src/world/local-pack.js` 为 bin 增加独立 TOS key 候选，TOS key 为 `m3d-dev/20261028/<tier>/walkable-field.bin`，同源仍是最后回退。未修改 index.html、版本戳或三档 GLB。
+
+### 生成、上传与校验
+
+| 档位 | bytes | 生成 stats (meshCount / triCount / usedCount) | 本地 SHA-256 | TOS key | HEAD Content-Length | HEAD ETag |
+|---|---:|---|---|---|---:|---|
+| low | 3,251,377 | 2 / 248,003 / 247,843 | `78f755f27e19e8dafc3f88d257f1e8b65e5c5c47122ab424b4eaca5c06465740` | `m3d-dev/20261028/low/walkable-field.bin` | 3,251,377 | `65e2863222d20b8130bd7f37167f555d` |
+| medium | 3,251,377 | 2 / 249,592 / 249,432 | `8522e778b994915d657608f9a071b6350d5e1cff5fb665b9896188aad3596c41` | `m3d-dev/20261028/medium/walkable-field.bin` | 3,251,377 | `b76fe748aef66fddddd1e0f9b9ff385e` |
+| high | 3,251,377 | 2 / 254,362 / 254,200 | `cb9601f2cd8e21c1867effcaed03e64769c764efc39dc1f2d4ad3f701472ccb3` | `m3d-dev/20261028/high/walkable-field.bin` | 3,251,377 | `1f620483c2619fb22ee69caf60c86993` |
+
+生成耗时约 0.64 秒（三档合计）。上传命令为：`python3 ~/.config/marmot-tos/tos.py put assets/verdant/tiers/<tier>/walkable-field.bin m3d-dev/20261028/<tier>/walkable-field.bin --acl public-read`；随后用 `python3 ~/.config/marmot-tos/tos.py head ...` 和匿名 HTTPS HEAD 复核，三档均返回 HTTP 200 与上述长度。
+
+### 测试与实测边界
+
+- `node --check`：所有本次改动的 `.js/.mjs` 通过。
+- `git diff --check`：通过。
+- 原有 Node 测试基线从 44/44 保持全绿；加入 `test-verdant-walkable-bin.cjs` 后总结果为 **45/45**（22 个浏览器/CDP 测试按 runner 规则跳过）。新测试覆盖头解析、checksum 失败、manifest 头不匹配回退条件、serialize→parse Float32 逐字节一致。
+- 在 headless Chrome 中用真实 vendored Three.js `GLTFLoader` 加载每档 GLB，并让运行时 `rasterizeColumns` 与下载 bin 对比：low/medium/high 的 `top` 与 `surfaceLayers` 均逐字节相等，且 stats 分别为 248003/247843、249592/249432、254362/254200。
+- Headless Chrome 18800 的可复现 smoke（临时 harness，测试后删除）成功走 TOS：`https://marmot.tos-cn-shanghai.volces.com/m3d-dev/20261028/low/walkable-field.bin`。`rasterize` 事件为 0 MB → 0.06/3.10 MB … 3.10/3.10 MB → 重建 → 就绪；本次 stage 从约 767 ms 到 1,024 ms（约 257 ms），console 明确记录 `source: TOS`，字段 stats 与离线 stats 一致。禁用 TOS 并让 bin 404 的对照回退在同一 headless Chrome 上为约 423–573 ms（约 150 ms），这是桌面软件渲染的快速结果，不能代表真机；此前真机基线已确认同步 `rasterizeColumns` 为分钟级/页面无响应，故没有在手机等价环境重复阻塞测试。
+- 代码路径的事件序列为：`光栅化：下载地形数据 0 MB` → 分块字节进度 → `光栅化：重建可行走地形网格` → `光栅化：地形数据就绪 1/1`；TOS 失败/404/校验失败/解析失败会继续候选链并最终 warning + 原设备端 raster fallback。
+- ultra 档仍不预计算：它是外置 glTF 约 2.3GB，当前离线脚本只处理静态 low/medium/high GLB；ultra 保留设备端路径，后续若需要应先拆分/压缩其外置资源再单独设计管线。

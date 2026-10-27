@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { findNearestWalkableCell } from './verdant-fall-safety.mjs';
 import { selectConnectedObstacleProxies } from './verdant-obstacles.mjs';
 import { buildSurfaceComponents } from './verdant-placement.mjs';
+import { resolveWalkableRaster } from './verdant-walkable-bin.mjs';
 
 const WALK_NORMAL_Y = 0.35;
 const TERRAIN_NAME_RE = /^(ground|sand)(?:[._]|$)/i;
@@ -234,10 +235,15 @@ export function buildObstacleProxies(sceneRoot, bounds, maxProxies = 24) {
  *   - resolveGround(x,z) → { y, walkable }（water/边缘 walkable=false）
  *   - nearestWalkable(x,z,radius)（出生点吸附）
  */
-export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22, edgeMargin = 0.7 }) {
+export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22, edgeMargin = 0.7, precomputed = null }) {
   const __t0 = Date.now();
   const __pt = (m) => console.info('PT ' + m + ' ' + (Date.now() - __t0) + 'ms');
-  const { top, surfaceLayers, layerCount, nx, nz, stats } = rasterizeColumns(scene, bounds, cellSize);
+  const raster = resolveWalkableRaster({
+    precomputed, bounds, cellSize, layerCount: 4,
+    rasterize: () => rasterizeColumns(scene, bounds, cellSize),
+    warn: (message) => console.warn(`[verdant] ${message}`),
+  });
+  const { top, surfaceLayers, layerCount, nx, nz, stats } = raster;
   const obstacleProxies = buildObstacleProxies(scene, bounds);
   __pt('rasterize');
 
