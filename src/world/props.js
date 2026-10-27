@@ -96,7 +96,6 @@ export class Burrow {
     floor.position.y = -underground.chamberDepth + 0.02;
     floor.receiveShadow = true;
     this.group.add(floor);
-    this.shaft = shaft;
 
     // 洞口内缘：一圈贴地的深色实环，圈出“开口”边界（不再悬空椭圆环）。
     const rimGeo = new THREE.RingGeometry(underground.openingRadius * 0.92, underground.slopeRadius * 0.98, 32);
@@ -121,7 +120,6 @@ export class Burrow {
     mouth.rotation.x = -Math.PI / 2;
     mouth.position.y = -0.06;
     this.group.add(mouth);
-    this.mouth = mouth;
 
     // 开口天光：洞口向下打的聚光灯，放宽光锥，照亮井壁上半部与地板。
     const shaftLight = new THREE.SpotLight(0xdfeaff, devBurrow ? (isBase ? 0.55 : 0.2) : (isBase ? 3.0 : 0.7), underground.chamberDepth + 4, 0.95, 0.9, 1.4);
