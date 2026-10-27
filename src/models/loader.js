@@ -20,6 +20,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { ModelLoadCache, loadWithRetry, requireUsableModel } from './model-load-retry.mjs';
 
 const loader = new GLTFLoader();
@@ -122,7 +123,7 @@ function stripTextures(root, label) {
  * 单次加载。明确失败/空几何时 reject，由上层执行有界退避重试。
  * 慢加载仍只是软超时，不会被取消；程序化实例在等待期间保持可见。
  *
- * @returns Promise<{scene: Object3D, level: string, textured: boolean}|null>
+ * @returns Promise<{scene: Object3D, animations: AnimationClip[], level: string, textured: boolean}|null>
  */
 function loadModelAttempt(url, key) {
   return new Promise((resolve, reject) => {
@@ -182,7 +183,7 @@ function loadModelAttempt(url, key) {
             STATUS[key].textured = textured;
           }
           console.info(`[models] ${key || url} 加载成功 [${level}] ${tris.toLocaleString()} 面`);
-          done(null, { scene: root, level, textured, tris, url });
+          done(null, { scene: root, animations: Array.isArray(gltf.animations) ? gltf.animations : [], level, textured, tris, url });
         } catch (error) {
           // A malformed material/graph is no more usable than a malformed GLB.
           done(error);
@@ -223,7 +224,8 @@ export function loadModel(url, key = '') {
 export async function instantiate(url, key = '') {
   const rec = await loadModel(url, key);
   if (!rec) return null;
-  const clone = rec.scene.clone(true);
+  // SkinnedMesh 克隆必须重绑 skeleton，否则动画仍会指向缓存实例的骨骼。
+  const clone = cloneSkeleton(rec.scene);
   clone.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true;
@@ -239,6 +241,7 @@ export async function instantiate(url, key = '') {
   });
   clone.userData.level = rec.level;
   clone.userData.textured = rec.textured;
+  clone.userData.animations = rec.animations || [];
   return clone;
 }
 
@@ -279,7 +282,7 @@ export async function revalidateTextures() {
       bad += stripped;
       rec.textured = false;
       rec.level = 'geometry-only';
-      const key = url.includes('marmot') ? 'marmot' : url.includes('fox') ? 'fox' : '';
+      const key = (rec.url || '').includes('marmot') ? 'marmot' : (rec.url || '').includes('fox') ? 'fox' : '';
       if (key && STATUS[key]) { STATUS[key].level = 'geometry-only'; STATUS[key].textured = false; }
     }
   }

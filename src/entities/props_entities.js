@@ -13,9 +13,11 @@ import { terrainHeight } from '../core/utils.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
 import { USE_REAL_MODELS, IS_BETA } from '../core/version.js';
 import { BETA_TUNE } from '../core/beta-tuning.js';
+import { MARMOT_CLIPS, marmotClipForState, animationTransition } from './marmot-rig.js';
 
 /** 真实土拨鼠模型（与藏狐同一套分级回退，见 models/loader.js） */
 const instantiateMarmot = () => instantiate('./assets/models/marmot.glb', 'marmot');
+const instantiateMarmotRig = () => instantiate('./assets/models/marmot-rig.glb', 'marmot');
 import { devOn } from '../core/version.js';
 import { FORAGE } from '../core/ecology.js';
 
@@ -292,6 +294,10 @@ export class Companion {
     this.emoteTimer = 0;
     // 模型加载级别：'procedural' | 'full' | 'geometry-only'
     this.modelLevel = 'procedural';
+    this.mixer = null;
+    this.actions = new Map();
+    this.activeClip = null;
+    this._lastFollowSpeed = 0;
     this._loadRealModel();
   }
 
@@ -303,42 +309,89 @@ export class Companion {
    * 关键同样是**验证真实模型可用后才隐藏程序化版本**。
    */
   async _loadRealModel() {
-    // USE_REAL_MODELS 是布尔（version.js 里由 ?models=off 解析），
-    // 早期写成 `=== 'off'` 恒为 false，导致该开关对伙伴完全失效。
     if (!USE_REAL_MODELS) return;
     try {
-      const inst = await instantiateMarmot();
+      let inst = null;
+      let rig = false;
+      // Beta 专属绑定模型；stable/dev 保持既有静态路径。
+      if (IS_BETA) {
+        const candidate = await instantiateMarmotRig();
+        const clips = candidate?.userData?.animations || [];
+        const complete = MARMOT_CLIPS.every((name) => clips.some((clip) => clip.name === name));
+        if (candidate && complete) { inst = candidate; rig = true; } else if (candidate) {
+          candidate.traverse((o) => { o.geometry?.dispose?.(); });
+        }
+      }
+      if (!inst) inst = await instantiateMarmot();
       if (!inst) { this.modelLevel = 'procedural'; return; }
-
-      // 归一化姿态：脚底贴地、面朝 +Z。
-      // **upAxis: 'z'** —— marmot.glb 的原始包围盒是 X=0.535 Y=0.897 Z=0.720，
-      // Y 就是最大轴，说明土拨鼠**本来就是正立的**，不能像藏狐那样绕 Z 转 90°。
-      // 目标高度 0.75 与程序化版本（head.y=0.62 + 头高）对齐，避免切换时跳变。
-      const norm = normalizeModel(inst, 0.75, { upAxis: 'z' });
+      const norm = normalizeModel(inst, 0.75, { upAxis: 'native' });
       this.mesh.add(norm.wrap);
       this.realModel = norm.wrap;
-      this.modelLevel = inst.userData.level || 'full';
-
-      // 验证可见性与尺寸，避免"显示了一个算错的模型"
+      this.modelLevel = rig ? 'rig' : (inst.userData.level || 'full');
+      this._rigRoot = inst;
+      if (rig) this._setupRig(inst, inst.userData.animations || []);
+      this._prepareMarmotMaterials(norm.wrap);
       this.realModel.updateMatrixWorld(true);
       const rb = new THREE.Box3().setFromObject(this.realModel);
       const rs = rb.getSize(new THREE.Vector3());
-      const ok = rs.x > 1e-3 && rs.y > 1e-3 && rs.z > 1e-3 && rs.y < 5;
-      if (!ok) {
-        console.warn('[companion] 真实模型尺寸异常，保留程序化版本:', rs.toArray().map((v) => v.toFixed(3)));
-        this.mesh.remove(norm.wrap);
-        this.realModel = null;
-        this.modelLevel = 'procedural';
+      if (!(rs.x > 1e-3 && rs.y > 1e-3 && rs.z > 1e-3 && rs.y < 5)) {
+        console.warn('[companion] 真实模型尺寸异常，回退:', rs.toArray().map((v) => v.toFixed(3)));
+        this._discardRealModel();
         return;
       }
-
-      // 只有验证通过才切换（两者是兄弟节点，互不影响）
       this._restoreVisibility();
     } catch (e) {
-      console.warn('[companion] 真实模型不可用，使用程序化建模', e);
-      this.modelLevel = 'procedural';
-      if (this.proceduralMesh) this.proceduralMesh.visible = true;
+      console.warn('[companion] 绑定/静态土拨鼠不可用，使用程序化建模', e);
+      this._discardRealModel();
     }
+  }
+
+  _prepareMarmotMaterials(root) {
+    root.traverse((o) => {
+      if (!o.isMesh) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) {
+        if (!m) continue;
+        // GLB 只有 ORM 且默认 metallicFactor=1；没有环境贴图时会反射黑色。
+        m.metalness = 0.08;
+        m.roughness = Math.max(0.72, m.roughness || 0);
+        m.needsUpdate = true;
+      }
+    });
+  }
+
+  _setupRig(root, clips) {
+    this.mixer = new THREE.AnimationMixer(root);
+    this.actions.clear();
+    for (const clip of clips) this.actions.set(clip.name, this.mixer.clipAction(clip));
+    this._setRigClip('Idle', true);
+  }
+
+  _setRigClip(name, immediate = false) {
+    if (!this.mixer || !this.actions.has(name)) return false;
+    const transition = animationTransition(this.activeClip, name, immediate ? 0.05 : 0.2);
+    if (!transition.changed) return true;
+    const next = this.actions.get(name);
+    const prev = this.activeClip && this.actions.get(this.activeClip);
+    if (prev) prev.fadeOut(transition.fade);
+    next.reset().setEffectiveWeight(1).fadeIn(transition.fade).play();
+    this.activeClip = name;
+    return true;
+  }
+
+  _discardRealModel() {
+    if (this.mixer) { this.mixer.stopAllAction(); this.mixer = null; }
+    this.actions.clear(); this.activeClip = null;
+    if (this.realModel) {
+      this.mesh.remove(this.realModel);
+      this.realModel.traverse((o) => {
+        if (o.geometry) o.geometry.dispose?.();
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) { m?.dispose?.(); }
+      });
+    }
+    this.realModel = null; this._rigRoot = null; this.modelLevel = 'procedural';
+    this._restoreVisibility();
   }
 
   placeAt(x, z) {
@@ -389,11 +442,24 @@ export class Companion {
         const speed = follow ? follow.companionFollowSpeed : 7.2;
         this.x += (dx / d) * speed * dt;
         this.z += (dz / d) * speed * dt;
+        this._lastFollowSpeed = speed;
       }
       this.mesh.rotation.y = Math.atan2(dx, dz);
     } else if (!this.rescued) {
+      this._lastFollowSpeed = 0;
       this.mesh.rotation.y = Math.atan2(playerPos.x - this.x, playerPos.z - this.z);
     }
+
+    const speed = this._lastFollowSpeed;
+    const clip = marmotClipForState({
+      safe: !!safe,
+      rest: !!this.saved,
+      emote: this.emote,
+      jump: this.emote === 'jump',
+      mode: this.rescued && !this.saved ? 'follow' : 'idle',
+    }, speed);
+    this._setRigClip(clip);
+    if (this.mixer) this.mixer.update(Math.max(0, dt));
 
     const y = terrainHeight(this.x, this.z);
     const bob = this.rescued && !this.saved
@@ -422,6 +488,18 @@ export class Companion {
     const c = this.emote === 'exclaim' ? 0xff6a5a : 0x8fe8b0;
     this.hintSprite.material.color.setHex(c);
     this.hintSprite.scale.setScalar(0.42 + Math.sin(this._t * 9) * 0.06);
+  }
+
+  dispose(scene = this.scene) {
+    if (this.mixer) { this.mixer.stopAllAction(); this.mixer.uncacheRoot(this._rigRoot || this.realModel); this.mixer = null; }
+    this.actions.clear();
+    if (scene && this.group) scene.remove(this.group);
+    for (const root of [this.realModel, this.proceduralMesh]) root?.traverse((o) => {
+      o.geometry?.dispose?.();
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) m?.dispose?.();
+    });
+    this.group = null; this.mesh = null; this.realModel = null; this.proceduralMesh = null; this.scene = null;
   }
 
   reset() {
