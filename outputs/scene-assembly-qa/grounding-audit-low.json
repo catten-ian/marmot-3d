@@ -1,0 +1,4949 @@
+{
+  "format": 4,
+  "algorithm": {
+    "version": "grounding-audit-v5",
+    "surface": "actual ground mesh triangles via Blender BVH; no heightJson fallback",
+    "gapDefinition": "AABB bottom-center bboxMinY minus actual terrain triangle Y below the footprint center; if center misses, median actual bottom-vertex hits are used and identified; corners and grid misses are explicit; negative means embedded",
+    "footprintGrid": "7x7 diagnostic samples; misses remain null and never become zero",
+    "gapThresholdMeters": 0.15,
+    "backdropDistanceThresholdMeters": 8.0,
+    "fogFarMeters": 175.0,
+    "sourceReadOnly": true
+  },
+  "input": "/home/fame/code/marmot3d/m3d-dev-scene-assembly/assets/verdant/tiers/low/verdant-trail-low.glb",
+  "mapping": {
+    "input": "glb",
+    "runtimeAxes": {
+      "x": "sourceY",
+      "y": "sourceZ",
+      "z": "sourceX"
+    },
+    "matrix": "GLB imported Blender Z-up -> runtime Y-up",
+    "verticalScale": 1.0,
+    "verticalOffset": 0.0
+  },
+  "playableBounds": {
+    "minX": -57.19999313354492,
+    "maxX": 57.20001220703125,
+    "minY": -1.1920928955078125e-07,
+    "maxY": 11.588808059692383,
+    "minZ": -34.31999588012695,
+    "maxZ": 34.319976806640625
+  },
+  "meshCount": 56,
+  "exportEligibleCount": 56,
+  "summary": {
+    "groundedTotal": 42,
+    "groundedPass": 18,
+    "groundedOverThreshold": 23,
+    "groundedNoHit": 1,
+    "backdropTotal": 5,
+    "backdropWithDistanceEvidence": 5,
+    "nearBackgroundTotal": 0,
+    "excludedArtifactTotal": 0
+  },
+  "meshes": [
+    {
+      "name": "Ivy",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 66963,
+      "polygons": 121056,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          0.75923752784729,
+          -0.17605651915073395,
+          -0.4233565032482147
+        ],
+        "max": [
+          2.864672899246216,
+          1.9294673204421997,
+          0.9378442168235779
+        ]
+      },
+      "bboxMinY": -0.17605651915073395,
+      "groundYBelow": 4.3603515625,
+      "gap": -4.536408081650734,
+      "gapBottomMin": -4.602814331650734,
+      "gapBottomMedian": -4.602417588233948,
+      "gapBottomMax": -4.6012687385082245,
+      "footprintRadius": 1.25356745963886,
+      "footprintCenter": {
+        "x": 1.811955213546753,
+        "y": 0.8767054006457329,
+        "z": 0.2572438567876816
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          1.811955213546753,
+          -0.17605651915073395,
+          0.2572438567876816
+        ],
+        "footprintCornersXZ": [
+          [
+            0.75923752784729,
+            -0.4233565032482147
+          ],
+          [
+            0.75923752784729,
+            0.9378442168235779
+          ],
+          [
+            2.864672899246216,
+            -0.4233565032482147
+          ],
+          [
+            2.864672899246216,
+            0.9378442168235779
+          ]
+        ],
+        "groundYAtBottomCenter": 4.3603515625,
+        "groundYBelowResolved": 4.3603515625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          3.091796875,
+          3.505859375,
+          4.5458984375,
+          4.4853515625
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -4.536408081650734,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 13,
+        "bottomHits": 13,
+        "bottomMisses": 0,
+        "gapBottomMin": -4.602814331650734,
+        "gapBottomMedian": -4.602417588233948,
+        "gapBottomMax": -4.6012687385082245,
+        "groundYBottomMedian": 4.4267578125
+      },
+      "category": "decorative_noncontact",
+      "classificationBasis": "canopy/leaf/branch component; trunk/root is the contact proxy",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 1.8301165110916715,
+      "backdropEvidence": null,
+      "groundingStatus": "not_applicable",
+      "deltaY": 0.0
+    },
+    {
+      "name": "IvyLeaves",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 2121,
+      "polygons": 717,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -17.648656845092773,
+          2.416849136352539,
+          -12.456708908081055
+        ],
+        "max": [
+          -13.228568077087402,
+          7.894547462463379,
+          -5.460627555847168
+        ]
+      },
+      "bboxMinY": 2.416849136352539,
+      "groundYBelow": 2.22265625,
+      "gap": 0.19419288635253906,
+      "gapBottomMin": 0.21958351135253906,
+      "gapBottomMedian": 0.22641944885253906,
+      "gapBottomMax": 0.22641944885253906,
+      "footprintRadius": 4.137702835031836,
+      "footprintCenter": {
+        "x": -15.438612461090088,
+        "y": 5.155698299407959,
+        "z": -8.958668231964111
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -15.438612461090088,
+          2.416849136352539,
+          -8.958668231964111
+        ],
+        "footprintCornersXZ": [
+          [
+            -17.648656845092773,
+            -12.456708908081055
+          ],
+          [
+            -17.648656845092773,
+            -5.460627555847168
+          ],
+          [
+            -13.228568077087402,
+            -12.456708908081055
+          ],
+          [
+            -13.228568077087402,
+            -5.460627555847168
+          ]
+        ],
+        "groundYAtBottomCenter": 2.22265625,
+        "groundYBelowResolved": 2.22265625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.9404296875,
+          2.1748046875,
+          2.2451171875,
+          2.255859375
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.19419288635253906,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 2,
+        "bottomHits": 2,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.21958351135253906,
+        "gapBottomMedian": 0.22641944885253906,
+        "gapBottomMax": 0.22641944885253906,
+        "groundYBottomMedian": 2.197265625
+      },
+      "category": "decorative_noncontact",
+      "classificationBasis": "canopy/leaf/branch component; trunk/root is the contact proxy",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 17.84961105485043,
+      "backdropEvidence": null,
+      "groundingStatus": "not_applicable",
+      "deltaY": 0.0
+    },
+    {
+      "name": "background_cliff_a",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 629,
+      "polygons": 1254,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          74.8467788696289,
+          33.95442581176758,
+          44.459224700927734
+        ],
+        "max": [
+          140.97164916992188,
+          102.5075454711914,
+          130.29989624023438
+        ]
+      },
+      "bboxMinY": 33.95442581176758,
+      "groundYBelow": null,
+      "gap": null,
+      "gapBottomMin": null,
+      "gapBottomMedian": null,
+      "gapBottomMax": null,
+      "footprintRadius": 54.178222937241344,
+      "footprintCenter": {
+        "x": 107.90921401977539,
+        "y": 68.23098564147949,
+        "z": 87.37956047058105
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          107.90921401977539,
+          33.95442581176758,
+          87.37956047058105
+        ],
+        "footprintCornersXZ": [
+          [
+            74.8467788696289,
+            44.459224700927734
+          ],
+          [
+            74.8467788696289,
+            130.29989624023438
+          ],
+          [
+            140.97164916992188,
+            44.459224700927734
+          ],
+          [
+            140.97164916992188,
+            130.29989624023438
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": null,
+        "groundSupportSource": "no_ground_triangle_hit",
+        "groundYAtFootprintCorners": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "cornerHits": 0,
+        "cornerMisses": 4,
+        "gap": null,
+        "gridSamples": 49,
+        "gridHits": 0,
+        "gridMisses": 49,
+        "bottomVertices": 3,
+        "bottomHits": 0,
+        "bottomMisses": 3,
+        "gapBottomMin": null,
+        "gapBottomMedian": null,
+        "gapBottomMax": null,
+        "groundYBottomMedian": null
+      },
+      "category": "backdrop",
+      "classificationBasis": "remote background mesh; horizontal distance outside playable bounds 20.35m, center distance 138.85m, fogFar 175.0m",
+      "distanceToPlayableMeters": 20.35221662389563,
+      "distanceToPlayableCenterMeters": 138.85094766268517,
+      "backdropEvidence": {
+        "distanceToPlayableBoundsMeters": 20.35221662389563,
+        "distanceToPlayableCenterMeters": 138.85094766268517,
+        "fogFarMeters": 175.0,
+        "behindFogFar": false,
+        "remoteDistanceThresholdMeters": 8.0
+      },
+      "groundingStatus": "remote_backdrop",
+      "deltaY": 0.0
+    },
+    {
+      "name": "background_cliff_b",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 629,
+      "polygons": 1254,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          118.67225646972656,
+          26.403209686279297,
+          -21.01003646850586
+        ],
+        "max": [
+          164.11154174804688,
+          79.4699935913086,
+          66.28602600097656
+        ]
+      },
+      "bboxMinY": 26.403209686279297,
+      "groundYBelow": null,
+      "gap": null,
+      "gapBottomMin": null,
+      "gapBottomMedian": null,
+      "gapBottomMax": null,
+      "footprintRadius": 49.207040068674004,
+      "footprintCenter": {
+        "x": 141.39189910888672,
+        "y": 52.936601638793945,
+        "z": 22.63799476623535
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          141.39189910888672,
+          26.403209686279297,
+          22.63799476623535
+        ],
+        "footprintCornersXZ": [
+          [
+            118.67225646972656,
+            -21.01003646850586
+          ],
+          [
+            118.67225646972656,
+            66.28602600097656
+          ],
+          [
+            164.11154174804688,
+            -21.01003646850586
+          ],
+          [
+            164.11154174804688,
+            66.28602600097656
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": null,
+        "groundSupportSource": "no_ground_triangle_hit",
+        "groundYAtFootprintCorners": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "cornerHits": 0,
+        "cornerMisses": 4,
+        "gap": null,
+        "gridSamples": 49,
+        "gridHits": 0,
+        "gridMisses": 49,
+        "bottomVertices": 1,
+        "bottomHits": 0,
+        "bottomMisses": 1,
+        "gapBottomMin": null,
+        "gapBottomMedian": null,
+        "gapBottomMax": null,
+        "groundYBottomMedian": null
+      },
+      "category": "backdrop",
+      "classificationBasis": "remote background mesh; horizontal distance outside playable bounds 61.47m, center distance 143.19m, fogFar 175.0m",
+      "distanceToPlayableMeters": 61.47224426269531,
+      "distanceToPlayableCenterMeters": 143.19268722809454,
+      "backdropEvidence": {
+        "distanceToPlayableBoundsMeters": 61.47224426269531,
+        "distanceToPlayableCenterMeters": 143.19268722809454,
+        "fogFarMeters": 175.0,
+        "behindFogFar": false,
+        "remoteDistanceThresholdMeters": 8.0
+      },
+      "groundingStatus": "remote_backdrop",
+      "deltaY": 0.0
+    },
+    {
+      "name": "background_cliff_c",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 629,
+      "polygons": 1254,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          75.6178207397461,
+          5.395354270935059,
+          52.50325393676758
+        ],
+        "max": [
+          141.74269104003906,
+          73.94847106933594,
+          138.14642333984375
+        ]
+      },
+      "bboxMinY": 5.395354270935059,
+      "groundYBelow": null,
+      "gap": null,
+      "gapBottomMin": null,
+      "gapBottomMedian": null,
+      "gapBottomMax": null,
+      "footprintRadius": 54.10002527179301,
+      "footprintCenter": {
+        "x": 108.68025588989258,
+        "y": 39.6719126701355,
+        "z": 95.32483863830566
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          108.68025588989258,
+          5.395354270935059,
+          95.32483863830566
+        ],
+        "footprintCornersXZ": [
+          [
+            75.6178207397461,
+            52.50325393676758
+          ],
+          [
+            75.6178207397461,
+            138.14642333984375
+          ],
+          [
+            141.74269104003906,
+            52.50325393676758
+          ],
+          [
+            141.74269104003906,
+            138.14642333984375
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": null,
+        "groundSupportSource": "no_ground_triangle_hit",
+        "groundYAtFootprintCorners": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "cornerHits": 0,
+        "cornerMisses": 4,
+        "gap": null,
+        "gridSamples": 49,
+        "gridHits": 0,
+        "gridMisses": 49,
+        "bottomVertices": 3,
+        "bottomHits": 0,
+        "bottomMisses": 3,
+        "gapBottomMin": null,
+        "gapBottomMedian": null,
+        "gapBottomMax": null,
+        "groundYBottomMedian": null
+      },
+      "category": "backdrop",
+      "classificationBasis": "remote background mesh; horizontal distance outside playable bounds 25.88m, center distance 144.56m, fogFar 175.0m",
+      "distanceToPlayableMeters": 25.881407193944103,
+      "distanceToPlayableCenterMeters": 144.56217564417517,
+      "backdropEvidence": {
+        "distanceToPlayableBoundsMeters": 25.881407193944103,
+        "distanceToPlayableCenterMeters": 144.56217564417517,
+        "fogFarMeters": 175.0,
+        "behindFogFar": false,
+        "remoteDistanceThresholdMeters": 8.0
+      },
+      "groundingStatus": "remote_backdrop",
+      "deltaY": 0.0
+    },
+    {
+      "name": "background_cliff_d",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 629,
+      "polygons": 1254,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          119.44329833984375,
+          -2.1558563709259033,
+          -13.156311988830566
+        ],
+        "max": [
+          164.88258361816406,
+          50.91092300415039,
+          74.13975524902344
+        ]
+      },
+      "bboxMinY": -2.1558563709259033,
+      "groundYBelow": null,
+      "gap": null,
+      "gapBottomMin": null,
+      "gapBottomMedian": null,
+      "gapBottomMax": null,
+      "footprintRadius": 49.207042183514,
+      "footprintCenter": {
+        "x": 142.1629409790039,
+        "y": 24.377533316612244,
+        "z": 30.491721630096436
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          142.1629409790039,
+          -2.1558563709259033,
+          30.491721630096436
+        ],
+        "footprintCornersXZ": [
+          [
+            119.44329833984375,
+            -13.156311988830566
+          ],
+          [
+            119.44329833984375,
+            74.13975524902344
+          ],
+          [
+            164.88258361816406,
+            -13.156311988830566
+          ],
+          [
+            164.88258361816406,
+            74.13975524902344
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": null,
+        "groundSupportSource": "no_ground_triangle_hit",
+        "groundYAtFootprintCorners": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "cornerHits": 0,
+        "cornerMisses": 4,
+        "gap": null,
+        "gridSamples": 49,
+        "gridHits": 0,
+        "gridMisses": 49,
+        "bottomVertices": 1,
+        "bottomHits": 0,
+        "bottomMisses": 1,
+        "gapBottomMin": null,
+        "gapBottomMedian": null,
+        "gapBottomMax": null,
+        "groundYBottomMedian": null
+      },
+      "category": "backdrop",
+      "classificationBasis": "remote background mesh; horizontal distance outside playable bounds 62.24m, center distance 145.40m, fogFar 175.0m",
+      "distanceToPlayableMeters": 62.2432861328125,
+      "distanceToPlayableCenterMeters": 145.3961648249628,
+      "backdropEvidence": {
+        "distanceToPlayableBoundsMeters": 62.2432861328125,
+        "distanceToPlayableCenterMeters": 145.3961648249628,
+        "fogFarMeters": 175.0,
+        "behindFogFar": false,
+        "remoteDistanceThresholdMeters": 8.0
+      },
+      "groundingStatus": "remote_backdrop",
+      "deltaY": 0.0
+    },
+    {
+      "name": "background_cliff_e",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 629,
+      "polygons": 1254,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          76.61248779296875,
+          8.935735702514648,
+          96.63233947753906
+        ],
+        "max": [
+          129.06491088867188,
+          43.4784049987793,
+          155.17129516601562
+        ]
+      },
+      "bboxMinY": 8.935735702514648,
+      "groundYBelow": null,
+      "gap": null,
+      "gapBottomMin": null,
+      "gapBottomMedian": null,
+      "gapBottomMax": null,
+      "footprintRadius": 39.300337217726494,
+      "footprintCenter": {
+        "x": 102.83869934082031,
+        "y": 26.207070350646973,
+        "z": 125.90181732177734
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          102.83869934082031,
+          8.935735702514648,
+          125.90181732177734
+        ],
+        "footprintCornersXZ": [
+          [
+            76.61248779296875,
+            96.63233947753906
+          ],
+          [
+            76.61248779296875,
+            155.17129516601562
+          ],
+          [
+            129.06491088867188,
+            96.63233947753906
+          ],
+          [
+            129.06491088867188,
+            155.17129516601562
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": null,
+        "groundSupportSource": "no_ground_triangle_hit",
+        "groundYAtFootprintCorners": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "cornerHits": 0,
+        "cornerMisses": 4,
+        "gap": null,
+        "gridSamples": 49,
+        "gridHits": 0,
+        "gridMisses": 49,
+        "bottomVertices": 2,
+        "bottomHits": 0,
+        "bottomMisses": 2,
+        "gapBottomMin": null,
+        "gapBottomMedian": null,
+        "gapBottomMax": null,
+        "groundYBottomMedian": null
+      },
+      "category": "backdrop",
+      "classificationBasis": "remote background mesh; horizontal distance outside playable bounds 65.27m, center distance 162.56m, fogFar 175.0m",
+      "distanceToPlayableMeters": 65.26618381676836,
+      "distanceToPlayableCenterMeters": 162.56403700367457,
+      "backdropEvidence": {
+        "distanceToPlayableBoundsMeters": 65.26618381676836,
+        "distanceToPlayableCenterMeters": 162.56403700367457,
+        "fogFarMeters": 175.0,
+        "behindFogFar": false,
+        "remoteDistanceThresholdMeters": 8.0
+      },
+      "groundingStatus": "remote_backdrop",
+      "deltaY": 0.0
+    },
+    {
+      "name": "boulder_01.001",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 3570,
+      "polygons": 1190,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -15.500285148620605,
+          2.1139533519744873,
+          -6.999067783355713
+        ],
+        "max": [
+          10.18241024017334,
+          19.266502380371094,
+          13.877655982971191
+        ]
+      },
+      "bboxMinY": 2.1139533519744873,
+      "groundYBelow": 2.0556640625,
+      "gap": 0.058289289474487305,
+      "gapBottomMin": -1.3001091480255127,
+      "gapBottomMedian": -1.3001091480255127,
+      "gapBottomMax": -1.3001091480255127,
+      "footprintRadius": 16.54870416112011,
+      "footprintCenter": {
+        "x": -2.658937454223633,
+        "y": 10.69022786617279,
+        "z": 3.4392940998077393
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -2.658937454223633,
+          2.1139533519744873,
+          3.4392940998077393
+        ],
+        "footprintCornersXZ": [
+          [
+            -15.500285148620605,
+            -6.999067783355713
+          ],
+          [
+            -15.500285148620605,
+            13.877655982971191
+          ],
+          [
+            10.18241024017334,
+            -6.999067783355713
+          ],
+          [
+            10.18241024017334,
+            13.877655982971191
+          ]
+        ],
+        "groundYAtBottomCenter": 2.0556640625,
+        "groundYBelowResolved": 2.0556640625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          2.2099609375,
+          null,
+          2.794921875,
+          2.357421875
+        ],
+        "cornerHits": 3,
+        "cornerMisses": 1,
+        "gap": 0.058289289474487305,
+        "gridSamples": 49,
+        "gridHits": 43,
+        "gridMisses": 6,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": -1.3001091480255127,
+        "gapBottomMedian": -1.3001091480255127,
+        "gapBottomMax": -1.3001091480255127,
+        "groundYBottomMedian": 3.4140625
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 4.3472759982733615,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "boulder_01.002",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 3570,
+      "polygons": 1190,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -7.9982171058654785,
+          1.607930302619934,
+          2.7762272357940674
+        ],
+        "max": [
+          5.845808982849121,
+          21.00505828857422,
+          17.66843605041504
+        ]
+      },
+      "bboxMinY": 1.607930302619934,
+      "groundYBelow": 1.8134765625,
+      "gap": -0.20554625988006592,
+      "gapBottomMin": -0.18503844738006592,
+      "gapBottomMedian": -0.18503844738006592,
+      "gapBottomMax": -0.18503844738006592,
+      "footprintRadius": 10.16654982925974,
+      "footprintCenter": {
+        "x": -1.0762040615081787,
+        "y": 11.306494295597076,
+        "z": 10.222331643104553
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -1.0762040615081787,
+          1.607930302619934,
+          10.222331643104553
+        ],
+        "footprintCornersXZ": [
+          [
+            -7.9982171058654785,
+            2.7762272357940674
+          ],
+          [
+            -7.9982171058654785,
+            17.66843605041504
+          ],
+          [
+            5.845808982849121,
+            2.7762272357940674
+          ],
+          [
+            5.845808982849121,
+            17.66843605041504
+          ]
+        ],
+        "groundYAtBottomCenter": 1.8134765625,
+        "groundYBelowResolved": 1.8134765625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          2.076171875,
+          null,
+          3.78515625,
+          null
+        ],
+        "cornerHits": 2,
+        "cornerMisses": 2,
+        "gap": -0.20554625988006592,
+        "gridSamples": 49,
+        "gridHits": 30,
+        "gridMisses": 19,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.18503844738006592,
+        "gapBottomMedian": -0.18503844738006592,
+        "gapBottomMax": -0.18503844738006592,
+        "groundYBottomMedian": 1.79296875
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 10.278837235128861,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "boulder_01.003",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 3570,
+      "polygons": 1190,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -37.47126770019531,
+          1.5485501289367676,
+          -35.25510787963867
+        ],
+        "max": [
+          -28.996475219726562,
+          14.186593055725098,
+          -25.805463790893555
+        ]
+      },
+      "bboxMinY": 1.5485501289367676,
+      "groundYBelow": 1.734375,
+      "gap": -0.18582487106323242,
+      "gapBottomMin": -0.18484830856323242,
+      "gapBottomMedian": -0.18484830856323242,
+      "gapBottomMax": -0.18484830856323242,
+      "footprintRadius": 6.346610926135405,
+      "footprintCenter": {
+        "x": -33.23387145996094,
+        "y": 7.867571592330933,
+        "z": -30.530285835266113
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -33.23387145996094,
+          1.5485501289367676,
+          -30.530285835266113
+        ],
+        "footprintCornersXZ": [
+          [
+            -37.47126770019531,
+            -35.25510787963867
+          ],
+          [
+            -37.47126770019531,
+            -25.805463790893555
+          ],
+          [
+            -28.996475219726562,
+            -35.25510787963867
+          ],
+          [
+            -28.996475219726562,
+            -25.805463790893555
+          ]
+        ],
+        "groundYAtBottomCenter": 1.734375,
+        "groundYBelowResolved": 1.734375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          null,
+          1.734375,
+          null,
+          1.513671875
+        ],
+        "cornerHits": 2,
+        "cornerMisses": 2,
+        "gap": -0.18582487106323242,
+        "gridSamples": 49,
+        "gridHits": 36,
+        "gridMisses": 13,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.18484830856323242,
+        "gapBottomMedian": -0.18484830856323242,
+        "gapBottomMax": -0.18484830856323242,
+        "groundYBottomMedian": 1.7333984375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 45.12857871645463,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "boulder_01.004",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 3570,
+      "polygons": 1190,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -33.91717529296875,
+          1.409519076347351,
+          -34.008548736572266
+        ],
+        "max": [
+          -26.56592559814453,
+          12.584174156188965,
+          -23.056344985961914
+        ]
+      },
+      "bboxMinY": 1.409519076347351,
+      "groundYBelow": 1.734375,
+      "gap": -0.3248559236526489,
+      "gapBottomMin": -0.3258324861526489,
+      "gapBottomMedian": -0.26530230045318604,
+      "gapBottomMax": -0.2220168113708496,
+      "footprintRadius": 6.595294517126143,
+      "footprintCenter": {
+        "x": -30.24155044555664,
+        "y": 6.996846616268158,
+        "z": -28.53244686126709
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -30.24155044555664,
+          1.409519076347351,
+          -28.53244686126709
+        ],
+        "footprintCornersXZ": [
+          [
+            -33.91717529296875,
+            -34.008548736572266
+          ],
+          [
+            -33.91717529296875,
+            -23.056344985961914
+          ],
+          [
+            -26.56592559814453,
+            -34.008548736572266
+          ],
+          [
+            -26.56592559814453,
+            -23.056344985961914
+          ]
+        ],
+        "groundYAtBottomCenter": 1.734375,
+        "groundYBelowResolved": 1.734375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          null,
+          1.64453125,
+          null,
+          1.310546875
+        ],
+        "cornerHits": 2,
+        "cornerMisses": 2,
+        "gap": -0.3248559236526489,
+        "gridSamples": 49,
+        "gridHits": 42,
+        "gridMisses": 7,
+        "bottomVertices": 19,
+        "bottomHits": 19,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.3258324861526489,
+        "gapBottomMedian": -0.26530230045318604,
+        "gapBottomMax": -0.2220168113708496,
+        "groundYBottomMedian": 1.734375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 41.57706013946781,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "coastal_cliff_02_LOD1.001",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 1252,
+      "polygons": 1728,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -6.589266777038574,
+          1.376646876335144,
+          7.220138072967529
+        ],
+        "max": [
+          30.24679183959961,
+          26.864715576171875,
+          40.55185317993164
+        ]
+      },
+      "bboxMinY": 1.376646876335144,
+      "groundYBelow": 1.841796875,
+      "gap": -0.46514999866485596,
+      "gapBottomMin": -0.48175156116485596,
+      "gapBottomMedian": -0.3395143747329712,
+      "gapBottomMax": -0.237839937210083,
+      "footprintRadius": 24.838973642142623,
+      "footprintCenter": {
+        "x": 11.828762531280518,
+        "y": 14.12068122625351,
+        "z": 23.885995626449585
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          11.828762531280518,
+          1.376646876335144,
+          23.885995626449585
+        ],
+        "footprintCornersXZ": [
+          [
+            -6.589266777038574,
+            7.220138072967529
+          ],
+          [
+            -6.589266777038574,
+            40.55185317993164
+          ],
+          [
+            30.24679183959961,
+            7.220138072967529
+          ],
+          [
+            30.24679183959961,
+            40.55185317993164
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": 1.841796875,
+        "groundSupportSource": "median_actual_bottom_vertex_hits",
+        "groundYAtFootprintCorners": [
+          1.9306640625,
+          null,
+          9.0078125,
+          null
+        ],
+        "cornerHits": 2,
+        "cornerMisses": 2,
+        "gap": -0.46514999866485596,
+        "gridSamples": 49,
+        "gridHits": 18,
+        "gridMisses": 31,
+        "bottomVertices": 5,
+        "bottomHits": 5,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.48175156116485596,
+        "gapBottomMedian": -0.3395143747329712,
+        "gapBottomMax": -0.237839937210083,
+        "groundYBottomMedian": 1.841796875
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 26.6544675441444,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "coastal_cliff_02_LOD1.002",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 1252,
+      "polygons": 1728,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -12.302141189575195,
+          -0.5098580121994019,
+          -36.11836624145508
+        ],
+        "max": [
+          21.49584197998047,
+          20.725189208984375,
+          -22.92417335510254
+        ]
+      },
+      "bboxMinY": -0.5098580121994019,
+      "groundYBelow": 1.802734375,
+      "gap": -2.312592387199402,
+      "gapBottomMin": -2.439611166715622,
+      "gapBottomMedian": -2.412008821964264,
+      "gapBottomMax": -2.1554187536239624,
+      "footprintRadius": 18.141047325415393,
+      "footprintCenter": {
+        "x": 4.596850395202637,
+        "y": 10.107665598392487,
+        "z": -29.52126979827881
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          4.596850395202637,
+          -0.5098580121994019,
+          -29.52126979827881
+        ],
+        "footprintCornersXZ": [
+          [
+            -12.302141189575195,
+            -36.11836624145508
+          ],
+          [
+            -12.302141189575195,
+            -22.92417335510254
+          ],
+          [
+            21.49584197998047,
+            -36.11836624145508
+          ],
+          [
+            21.49584197998047,
+            -22.92417335510254
+          ]
+        ],
+        "groundYAtBottomCenter": 1.802734375,
+        "groundYBelowResolved": 1.802734375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          null,
+          1.63671875,
+          null,
+          3.0849609375
+        ],
+        "cornerHits": 2,
+        "cornerMisses": 2,
+        "gap": -2.312592387199402,
+        "gridSamples": 49,
+        "gridHits": 31,
+        "gridMisses": 18,
+        "bottomVertices": 8,
+        "bottomHits": 8,
+        "bottomMisses": 0,
+        "gapBottomMin": -2.439611166715622,
+        "gapBottomMedian": -2.412008821964264,
+        "gapBottomMax": -2.1554187536239624,
+        "groundYBottomMedian": 1.953125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 29.877010447956906,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "coastal_cliff_04_LOD1.001",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 295,
+      "polygons": 516,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          19.991050720214844,
+          3.7570595741271973,
+          -7.703978061676025
+        ],
+        "max": [
+          28.85723304748535,
+          11.673101425170898,
+          6.978029727935791
+        ]
+      },
+      "bboxMinY": 3.7570595741271973,
+      "groundYBelow": 7.6923828125,
+      "gap": -3.9353232383728027,
+      "gapBottomMin": -3.250450611114502,
+      "gapBottomMedian": -3.1404013633728027,
+      "gapBottomMax": -3.1404013633728027,
+      "footprintRadius": 8.575700289110882,
+      "footprintCenter": {
+        "x": 24.424141883850098,
+        "y": 7.715080499649048,
+        "z": -0.3629741668701172
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          24.424141883850098,
+          3.7570595741271973,
+          -0.3629741668701172
+        ],
+        "footprintCornersXZ": [
+          [
+            19.991050720214844,
+            -7.703978061676025
+          ],
+          [
+            19.991050720214844,
+            6.978029727935791
+          ],
+          [
+            28.85723304748535,
+            -7.703978061676025
+          ],
+          [
+            28.85723304748535,
+            6.978029727935791
+          ]
+        ],
+        "groundYAtBottomCenter": 7.6923828125,
+        "groundYBelowResolved": 7.6923828125,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          5.71484375,
+          5.767578125,
+          8.4599609375,
+          8.6513671875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -3.9353232383728027,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 3,
+        "bottomHits": 3,
+        "bottomMisses": 0,
+        "gapBottomMin": -3.250450611114502,
+        "gapBottomMedian": -3.1404013633728027,
+        "gapBottomMax": -3.1404013633728027,
+        "groundYBottomMedian": 6.8974609375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 24.426829189064193,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "coastal_cliff_04_LOD1.002",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 211,
+      "polygons": 263,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          15.006444931030273,
+          3.8127472400665283,
+          -8.6609468460083
+        ],
+        "max": [
+          19.914663314819336,
+          6.708782196044922,
+          -1.9621087312698364
+        ]
+      },
+      "bboxMinY": 3.8127472400665283,
+      "groundYBelow": 5.759765625,
+      "gap": -1.9470183849334717,
+      "gapBottomMin": -1.5524871349334717,
+      "gapBottomMedian": -1.5524871349334717,
+      "gapBottomMax": -1.5524871349334717,
+      "footprintRadius": 4.152259619485447,
+      "footprintCenter": {
+        "x": 17.460554122924805,
+        "y": 5.260764718055725,
+        "z": -5.311527788639069
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          17.460554122924805,
+          3.8127472400665283,
+          -5.311527788639069
+        ],
+        "footprintCornersXZ": [
+          [
+            15.006444931030273,
+            -8.6609468460083
+          ],
+          [
+            15.006444931030273,
+            -1.9621087312698364
+          ],
+          [
+            19.914663314819336,
+            -8.6609468460083
+          ],
+          [
+            19.914663314819336,
+            -1.9621087312698364
+          ]
+        ],
+        "groundYAtBottomCenter": 5.759765625,
+        "groundYBelowResolved": 5.759765625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          4.2880859375,
+          4.767578125,
+          5.2705078125,
+          6.19140625
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -1.9470183849334717,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 1,
+        "bottomHits": 1,
+        "bottomMisses": 0,
+        "gapBottomMin": -1.5524871349334717,
+        "gapBottomMedian": -1.5524871349334717,
+        "gapBottomMax": -1.5524871349334717,
+        "groundYBottomMedian": 5.365234375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 18.250557344537736,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "dead_tree_trunk.001",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 617,
+      "polygons": 814,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          4.773758888244629,
+          3.7289175987243652,
+          -3.4611668586730957
+        ],
+        "max": [
+          6.3735551834106445,
+          6.992565631866455,
+          9.669950485229492
+        ]
+      },
+      "bboxMinY": 3.7289175987243652,
+      "groundYBelow": 3.869140625,
+      "gap": -0.14022302627563477,
+      "gapBottomMin": -0.3812239170074463,
+      "gapBottomMedian": -0.14608240127563477,
+      "gapBottomMax": 0.02932453155517578,
+      "footprintRadius": 6.61410596538501,
+      "footprintCenter": {
+        "x": 5.573657035827637,
+        "y": 5.36074161529541,
+        "z": 3.1043918132781982
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          5.573657035827637,
+          3.7289175987243652,
+          3.1043918132781982
+        ],
+        "footprintCornersXZ": [
+          [
+            4.773758888244629,
+            -3.4611668586730957
+          ],
+          [
+            4.773758888244629,
+            9.669950485229492
+          ],
+          [
+            6.3735551834106445,
+            -3.4611668586730957
+          ],
+          [
+            6.3735551834106445,
+            9.669950485229492
+          ]
+        ],
+        "groundYAtBottomCenter": 3.869140625,
+        "groundYBelowResolved": 3.869140625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          3.51171875,
+          1.9755859375,
+          3.25,
+          2.14453125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.14022302627563477,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 10,
+        "bottomHits": 10,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.3812239170074463,
+        "gapBottomMedian": -0.14608240127563477,
+        "gapBottomMax": 0.02932453155517578,
+        "groundYBottomMedian": 4.078125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 6.379878853557099,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "dead_tree_trunk_02",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 714,
+      "polygons": 664,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -39.12103271484375,
+          1.5409393310546875,
+          -25.782752990722656
+        ],
+        "max": [
+          -36.54920959472656,
+          5.953634262084961,
+          -17.069141387939453
+        ]
+      },
+      "bboxMinY": 1.5409393310546875,
+      "groundYBelow": 1.7275390625,
+      "gap": -0.1865997314453125,
+      "gapBottomMin": 0.9686737060546875,
+      "gapBottomMedian": 1.0236599445343018,
+      "gapBottomMax": 1.0236599445343018,
+      "footprintRadius": 4.542612170473267,
+      "footprintCenter": {
+        "x": -37.835121154785156,
+        "y": 3.747286796569824,
+        "z": -21.425947189331055
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -37.835121154785156,
+          1.5409393310546875,
+          -21.425947189331055
+        ],
+        "footprintCornersXZ": [
+          [
+            -39.12103271484375,
+            -25.782752990722656
+          ],
+          [
+            -39.12103271484375,
+            -17.069141387939453
+          ],
+          [
+            -36.54920959472656,
+            -25.782752990722656
+          ],
+          [
+            -36.54920959472656,
+            -17.069141387939453
+          ]
+        ],
+        "groundYAtBottomCenter": 1.7275390625,
+        "groundYBelowResolved": 1.7275390625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.732421875,
+          0.2470703125,
+          1.7353515625,
+          0.4091796875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.1865997314453125,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 5,
+        "bottomHits": 5,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.9686737060546875,
+        "gapBottomMedian": 1.0236599445343018,
+        "gapBottomMax": 1.0236599445343018,
+        "groundYBottomMedian": 0.5400390625
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 43.48066143399399,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "dead_tree_trunk_02.002",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 714,
+      "polygons": 664,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -31.211750030517578,
+          1.3330086469650269,
+          -28.285457611083984
+        ],
+        "max": [
+          -28.016874313354492,
+          10.025839805603027,
+          -19.71731948852539
+        ]
+      },
+      "bboxMinY": 1.3330086469650269,
+      "groundYBelow": 1.5947265625,
+      "gap": -0.26171791553497314,
+      "gapBottomMin": 0.6250008344650269,
+      "gapBottomMedian": 0.6250008344650269,
+      "gapBottomMax": 0.6250008344650269,
+      "footprintRadius": 4.572204657912861,
+      "footprintCenter": {
+        "x": -29.614312171936035,
+        "y": 5.679424226284027,
+        "z": -24.001388549804688
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -29.614312171936035,
+          1.3330086469650269,
+          -24.001388549804688
+        ],
+        "footprintCornersXZ": [
+          [
+            -31.211750030517578,
+            -28.285457611083984
+          ],
+          [
+            -31.211750030517578,
+            -19.71731948852539
+          ],
+          [
+            -28.016874313354492,
+            -28.285457611083984
+          ],
+          [
+            -28.016874313354492,
+            -19.71731948852539
+          ]
+        ],
+        "groundYAtBottomCenter": 1.5947265625,
+        "groundYBelowResolved": 1.5947265625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.7353515625,
+          0.7646484375,
+          1.6005859375,
+          0.6015625
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.26171791553497314,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.6250008344650269,
+        "gapBottomMedian": 0.6250008344650269,
+        "gapBottomMax": 0.6250008344650269,
+        "groundYBottomMedian": 0.7080078125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 38.11921096761813,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "ground",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 125949,
+      "polygons": 246944,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -57.19999313354492,
+          -1.1920928955078125e-07,
+          -34.31999588012695
+        ],
+        "max": [
+          57.20001220703125,
+          11.588808059692383,
+          34.319976806640625
+        ]
+      },
+      "bboxMinY": -1.1920928955078125e-07,
+      "groundYBelow": 2.4638671875,
+      "gap": -2.4638673067092896,
+      "gapBottomMin": -0.001450181007385254,
+      "gapBottomMedian": -1.1920928955078125e-07,
+      "gapBottomMax": 0.0004684925079345703,
+      "footprintRadius": 66.70608494051359,
+      "footprintCenter": {
+        "x": 9.5367431640625e-06,
+        "y": 5.794403970241547,
+        "z": -9.5367431640625e-06
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          9.5367431640625e-06,
+          -1.1920928955078125e-07,
+          -9.5367431640625e-06
+        ],
+        "footprintCornersXZ": [
+          [
+            -57.19999313354492,
+            -34.31999588012695
+          ],
+          [
+            -57.19999313354492,
+            34.319976806640625
+          ],
+          [
+            57.20001220703125,
+            -34.31999588012695
+          ],
+          [
+            57.20001220703125,
+            34.319976806640625
+          ]
+        ],
+        "groundYAtBottomCenter": 2.4638671875,
+        "groundYBelowResolved": 2.4638671875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "cornerHits": 0,
+        "cornerMisses": 4,
+        "gap": -2.4638673067092896,
+        "gridSamples": 49,
+        "gridHits": 18,
+        "gridMisses": 31,
+        "bottomVertices": 62,
+        "bottomHits": 62,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.001450181007385254,
+        "gapBottomMedian": -1.1920928955078125e-07,
+        "gapBottomMax": 0.0004684925079345703,
+        "groundYBottomMedian": 0.060546875
+      },
+      "category": "terrain",
+      "classificationBasis": "reference walkable ground mesh",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 0.0,
+      "backdropEvidence": null,
+      "groundingStatus": "not_applicable",
+      "deltaY": 0.0
+    },
+    {
+      "name": "island_tree_01_a",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 431,
+      "polygons": 416,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          19.54269027709961,
+          8.144783020019531,
+          -8.582537651062012
+        ],
+        "max": [
+          30.076574325561523,
+          21.134765625,
+          1.1178736686706543
+        ]
+      },
+      "bboxMinY": 8.144783020019531,
+      "groundYBelow": 8.2138671875,
+      "gap": -0.06908416748046875,
+      "gapBottomMin": -0.7526779174804688,
+      "gapBottomMedian": -0.7526779174804688,
+      "gapBottomMax": -0.7526779174804688,
+      "footprintRadius": 7.1599701975364045,
+      "footprintCenter": {
+        "x": 24.809632301330566,
+        "y": 14.639774322509766,
+        "z": -3.7323319911956787
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          24.809632301330566,
+          8.144783020019531,
+          -3.7323319911956787
+        ],
+        "footprintCornersXZ": [
+          [
+            19.54269027709961,
+            -8.582537651062012
+          ],
+          [
+            19.54269027709961,
+            1.1178736686706543
+          ],
+          [
+            30.076574325561523,
+            -8.582537651062012
+          ],
+          [
+            30.076574325561523,
+            1.1178736686706543
+          ]
+        ],
+        "groundYAtBottomCenter": 8.2138671875,
+        "groundYBelowResolved": 8.2138671875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          5.2001953125,
+          6.1103515625,
+          7.94921875,
+          8.857421875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.06908416748046875,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 2,
+        "bottomHits": 2,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.7526779174804688,
+        "gapBottomMedian": -0.7526779174804688,
+        "gapBottomMax": -0.7526779174804688,
+        "groundYBottomMedian": 8.8974609375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 25.08879456301446,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "island_tree_01_b",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 431,
+      "polygons": 416,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          5.783509254455566,
+          2.379892587661743,
+          -28.613285064697266
+        ],
+        "max": [
+          15.448421478271484,
+          16.949872970581055,
+          -15.866618156433105
+        ]
+      },
+      "bboxMinY": 2.379892587661743,
+      "groundYBelow": 2.4248046875,
+      "gap": -0.044912099838256836,
+      "gapBottomMin": 0.47950196266174316,
+      "gapBottomMedian": 0.47950196266174316,
+      "gapBottomMax": 0.47950196266174316,
+      "footprintRadius": 7.998250520649859,
+      "footprintCenter": {
+        "x": 10.615965366363525,
+        "y": 9.664882779121399,
+        "z": -22.239951610565186
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          10.615965366363525,
+          2.379892587661743,
+          -22.239951610565186
+        ],
+        "footprintCornersXZ": [
+          [
+            5.783509254455566,
+            -28.613285064697266
+          ],
+          [
+            5.783509254455566,
+            -15.866618156433105
+          ],
+          [
+            15.448421478271484,
+            -28.613285064697266
+          ],
+          [
+            15.448421478271484,
+            -15.866618156433105
+          ]
+        ],
+        "groundYAtBottomCenter": 2.4248046875,
+        "groundYBelowResolved": 2.4248046875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.83203125,
+          2.2705078125,
+          1.9404296875,
+          5.5205078125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.044912099838256836,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 3,
+        "bottomHits": 3,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.47950196266174316,
+        "gapBottomMedian": 0.47950196266174316,
+        "gapBottomMax": 0.47950196266174316,
+        "groundYBottomMedian": 1.900390625
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 24.643732298972278,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "island_tree_01_leaves_a",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 29,
+      "polygons": 12,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -96.23065185546875,
+          1.805236577987671,
+          -22.090089797973633
+        ],
+        "max": [
+          -95.91494750976562,
+          2.6101040840148926,
+          -21.6027889251709
+        ]
+      },
+      "bboxMinY": 1.805236577987671,
+      "groundYBelow": null,
+      "gap": null,
+      "gapBottomMin": null,
+      "gapBottomMedian": null,
+      "gapBottomMax": null,
+      "footprintRadius": 0.2903150764816327,
+      "footprintCenter": {
+        "x": -96.07279968261719,
+        "y": 2.2076703310012817,
+        "z": -21.846439361572266
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -96.07279968261719,
+          1.805236577987671,
+          -21.846439361572266
+        ],
+        "footprintCornersXZ": [
+          [
+            -96.23065185546875,
+            -22.090089797973633
+          ],
+          [
+            -96.23065185546875,
+            -21.6027889251709
+          ],
+          [
+            -95.91494750976562,
+            -22.090089797973633
+          ],
+          [
+            -95.91494750976562,
+            -21.6027889251709
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": null,
+        "groundSupportSource": "no_ground_triangle_hit",
+        "groundYAtFootprintCorners": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "cornerHits": 0,
+        "cornerMisses": 4,
+        "gap": null,
+        "gridSamples": 49,
+        "gridHits": 0,
+        "gridMisses": 49,
+        "bottomVertices": 2,
+        "bottomHits": 0,
+        "bottomMisses": 2,
+        "gapBottomMin": null,
+        "gapBottomMedian": null,
+        "gapBottomMax": null,
+        "groundYBottomMedian": null
+      },
+      "category": "decorative_noncontact",
+      "classificationBasis": "canopy/leaf/branch component; trunk/root is the contact proxy",
+      "distanceToPlayableMeters": 38.7149543762207,
+      "distanceToPlayableCenterMeters": 98.52538336586564,
+      "backdropEvidence": null,
+      "groundingStatus": "not_applicable",
+      "deltaY": 0.0
+    },
+    {
+      "name": "jacaranda_tree_branches",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 57849,
+      "polygons": 66233,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          37.413970947265625,
+          16.855663299560547,
+          -8.750231742858887
+        ],
+        "max": [
+          71.47896575927734,
+          49.67942428588867,
+          38.42366409301758
+        ]
+      },
+      "bboxMinY": 16.855663299560547,
+      "groundYBelow": null,
+      "gap": null,
+      "gapBottomMin": null,
+      "gapBottomMedian": null,
+      "gapBottomMax": null,
+      "footprintRadius": 29.093815149772418,
+      "footprintCenter": {
+        "x": 54.446468353271484,
+        "y": 33.26754379272461,
+        "z": 14.836716175079346
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          54.446468353271484,
+          16.855663299560547,
+          14.836716175079346
+        ],
+        "footprintCornersXZ": [
+          [
+            37.413970947265625,
+            -8.750231742858887
+          ],
+          [
+            37.413970947265625,
+            38.42366409301758
+          ],
+          [
+            71.47896575927734,
+            -8.750231742858887
+          ],
+          [
+            71.47896575927734,
+            38.42366409301758
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": null,
+        "groundSupportSource": "no_ground_triangle_hit",
+        "groundYAtFootprintCorners": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "cornerHits": 0,
+        "cornerMisses": 4,
+        "gap": null,
+        "gridSamples": 49,
+        "gridHits": 11,
+        "gridMisses": 38,
+        "bottomVertices": 30,
+        "bottomHits": 0,
+        "bottomMisses": 30,
+        "gapBottomMin": null,
+        "gapBottomMedian": null,
+        "gapBottomMax": null,
+        "groundYBottomMedian": null
+      },
+      "category": "decorative_noncontact",
+      "classificationBasis": "canopy/leaf/branch component; trunk/root is the contact proxy",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 56.43177568983427,
+      "backdropEvidence": null,
+      "groundingStatus": "not_applicable",
+      "deltaY": 0.0
+    },
+    {
+      "name": "jacaranda_tree_trunk",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 484,
+      "polygons": 460,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          49.558563232421875,
+          12.446481704711914,
+          5.380429267883301
+        ],
+        "max": [
+          61.80095672607422,
+          31.258665084838867,
+          24.251567840576172
+        ]
+      },
+      "bboxMinY": 12.446481704711914,
+      "groundYBelow": null,
+      "gap": null,
+      "gapBottomMin": null,
+      "gapBottomMedian": null,
+      "gapBottomMax": null,
+      "footprintRadius": 11.247178195920943,
+      "footprintCenter": {
+        "x": 55.67975997924805,
+        "y": 21.85257339477539,
+        "z": 14.815998554229736
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          55.67975997924805,
+          12.446481704711914,
+          14.815998554229736
+        ],
+        "footprintCornersXZ": [
+          [
+            49.558563232421875,
+            5.380429267883301
+          ],
+          [
+            49.558563232421875,
+            24.251567840576172
+          ],
+          [
+            61.80095672607422,
+            5.380429267883301
+          ],
+          [
+            61.80095672607422,
+            24.251567840576172
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": null,
+        "groundSupportSource": "no_ground_triangle_hit",
+        "groundYAtFootprintCorners": [
+          null,
+          6.623046875,
+          null,
+          null
+        ],
+        "cornerHits": 1,
+        "cornerMisses": 3,
+        "gap": null,
+        "gridSamples": 49,
+        "gridHits": 6,
+        "gridMisses": 43,
+        "bottomVertices": 3,
+        "bottomHits": 0,
+        "bottomMisses": 3,
+        "gapBottomMin": null,
+        "gapBottomMedian": null,
+        "gapBottomMax": null,
+        "groundYBottomMedian": null
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 57.617260478882514,
+      "backdropEvidence": null,
+      "groundingStatus": "no_ground_hit",
+      "deltaY": 0.0
+    },
+    {
+      "name": "main_dead_tree_trunk",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 1401,
+      "polygons": 1496,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -19.091665267944336,
+          2.0151052474975586,
+          -20.477712631225586
+        ],
+        "max": [
+          -14.793437004089355,
+          12.543634414672852,
+          -6.130287170410156
+        ]
+      },
+      "bboxMinY": 2.0151052474975586,
+      "groundYBelow": 1.8671875,
+      "gap": 0.1479177474975586,
+      "gapBottomMin": -0.2007150650024414,
+      "gapBottomMedian": -0.1641240119934082,
+      "gapBottomMax": -0.1641240119934082,
+      "footprintRadius": 7.488714568633536,
+      "footprintCenter": {
+        "x": -16.942551136016846,
+        "y": 7.279369831085205,
+        "z": -13.303999900817871
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -16.942551136016846,
+          2.0151052474975586,
+          -13.303999900817871
+        ],
+        "footprintCornersXZ": [
+          [
+            -19.091665267944336,
+            -20.477712631225586
+          ],
+          [
+            -19.091665267944336,
+            -6.130287170410156
+          ],
+          [
+            -14.793437004089355,
+            -20.477712631225586
+          ],
+          [
+            -14.793437004089355,
+            -6.130287170410156
+          ]
+        ],
+        "groundYAtBottomCenter": 1.8671875,
+        "groundYBelowResolved": 1.8671875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          0.9658203125,
+          2.138671875,
+          1.1474609375,
+          2.2236328125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.1479177474975586,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 6,
+        "bottomHits": 6,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.2007150650024414,
+        "gapBottomMedian": -0.1641240119934082,
+        "gapBottomMax": -0.1641240119934082,
+        "groundYBottomMedian": 2.2109375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 21.541739060659584,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "monster",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 26,
+      "polygons": 16,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          49.0703239440918,
+          6.4069013595581055,
+          75.531005859375
+        ],
+        "max": [
+          63.75990676879883,
+          19.42822265625,
+          88.2070083618164
+        ]
+      },
+      "bboxMinY": 6.4069013595581055,
+      "groundYBelow": null,
+      "gap": null,
+      "gapBottomMin": null,
+      "gapBottomMedian": null,
+      "gapBottomMax": null,
+      "footprintRadius": 9.701351490975737,
+      "footprintCenter": {
+        "x": 56.41511535644531,
+        "y": 12.917562007904053,
+        "z": 81.8690071105957
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          56.41511535644531,
+          6.4069013595581055,
+          81.8690071105957
+        ],
+        "footprintCornersXZ": [
+          [
+            49.0703239440918,
+            75.531005859375
+          ],
+          [
+            49.0703239440918,
+            88.2070083618164
+          ],
+          [
+            63.75990676879883,
+            75.531005859375
+          ],
+          [
+            63.75990676879883,
+            88.2070083618164
+          ]
+        ],
+        "groundYAtBottomCenter": null,
+        "groundYBelowResolved": null,
+        "groundSupportSource": "no_ground_triangle_hit",
+        "groundYAtFootprintCorners": [
+          null,
+          null,
+          null,
+          null
+        ],
+        "cornerHits": 0,
+        "cornerMisses": 4,
+        "gap": null,
+        "gridSamples": 49,
+        "gridHits": 0,
+        "gridMisses": 49,
+        "bottomVertices": 2,
+        "bottomHits": 0,
+        "bottomMisses": 2,
+        "gapBottomMin": null,
+        "gapBottomMedian": null,
+        "gapBottomMax": null,
+        "groundYBottomMedian": null
+      },
+      "category": "grounded_candidate",
+      "classificationBasis": "visible mesh requires contact-role review",
+      "distanceToPlayableMeters": 41.211029052734375,
+      "distanceToPlayableCenterMeters": 99.42434335438399,
+      "backdropEvidence": null,
+      "groundingStatus": "not_applicable",
+      "deltaY": 0.0
+    },
+    {
+      "name": "root_cluster_01",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 2858,
+      "polygons": 4054,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -35.53078842163086,
+          1.7454957962036133,
+          -9.725566864013672
+        ],
+        "max": [
+          -28.947614669799805,
+          3.965804100036621,
+          -5.153633117675781
+        ]
+      },
+      "bboxMinY": 1.7454957962036133,
+      "groundYBelow": 1.77734375,
+      "gap": -0.03184795379638672,
+      "gapBottomMin": -0.030164361000061035,
+      "gapBottomMedian": 9.751319885253906e-05,
+      "gapBottomMax": 0.01373136043548584,
+      "footprintRadius": 4.007516526095076,
+      "footprintCenter": {
+        "x": -32.23920154571533,
+        "y": 2.855649948120117,
+        "z": -7.439599990844727
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -32.23920154571533,
+          1.7454957962036133,
+          -7.439599990844727
+        ],
+        "footprintCornersXZ": [
+          [
+            -35.53078842163086,
+            -9.725566864013672
+          ],
+          [
+            -35.53078842163086,
+            -5.153633117675781
+          ],
+          [
+            -28.947614669799805,
+            -9.725566864013672
+          ],
+          [
+            -28.947614669799805,
+            -5.153633117675781
+          ]
+        ],
+        "groundYAtBottomCenter": 1.77734375,
+        "groundYBelowResolved": 1.77734375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.7421875,
+          1.7451171875,
+          1.8310546875,
+          1.841796875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.03184795379638672,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 20,
+        "bottomHits": 20,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.030164361000061035,
+        "gapBottomMedian": 9.751319885253906e-05,
+        "gapBottomMax": 0.01373136043548584,
+        "groundYBottomMedian": 1.7548828125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 33.08646607518055,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "root_cluster_01.001",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 2857,
+      "polygons": 4054,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -30.4300594329834,
+          1.8404017686843872,
+          -9.094436645507812
+        ],
+        "max": [
+          -24.966068267822266,
+          3.708920955657959,
+          -5.158729553222656
+        ]
+      },
+      "bboxMinY": 1.8404017686843872,
+      "groundYBelow": 1.87109375,
+      "gap": -0.030691981315612793,
+      "gapBottomMin": -0.07009291648864746,
+      "gapBottomMedian": -0.05266714096069336,
+      "gapBottomMax": 0.009371280670166016,
+      "footprintRadius": 3.366934427978313,
+      "footprintCenter": {
+        "x": -27.698063850402832,
+        "y": 2.774661362171173,
+        "z": -7.126583099365234
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -27.698063850402832,
+          1.8404017686843872,
+          -7.126583099365234
+        ],
+        "footprintCornersXZ": [
+          [
+            -30.4300594329834,
+            -9.094436645507812
+          ],
+          [
+            -30.4300594329834,
+            -5.158729553222656
+          ],
+          [
+            -24.966068267822266,
+            -9.094436645507812
+          ],
+          [
+            -24.966068267822266,
+            -5.158729553222656
+          ]
+        ],
+        "groundYAtBottomCenter": 1.87109375,
+        "groundYBelowResolved": 1.87109375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.8037109375,
+          1.806640625,
+          1.9453125,
+          1.9580078125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.030691981315612793,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 20,
+        "bottomHits": 20,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.07009291648864746,
+        "gapBottomMedian": -0.05266714096069336,
+        "gapBottomMax": 0.009371280670166016,
+        "groundYBottomMedian": 1.90625
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 28.600197903217193,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "root_cluster_2_01_lod0",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 452,
+      "polygons": 553,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -22.732328414916992,
+          0.6532487273216248,
+          -21.007387161254883
+        ],
+        "max": [
+          -19.15650177001953,
+          1.1819102764129639,
+          -17.22858428955078
+        ]
+      },
+      "bboxMinY": 0.6532487273216248,
+      "groundYBelow": 0.68359375,
+      "gap": -0.030345022678375244,
+      "gapBottomMin": 0.025562405586242676,
+      "gapBottomMedian": 0.07740026712417603,
+      "gapBottomMax": 0.08315068483352661,
+      "footprintRadius": 2.6012442857965974,
+      "footprintCenter": {
+        "x": -20.94441509246826,
+        "y": 0.9175795018672943,
+        "z": -19.117985725402832
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -20.94441509246826,
+          0.6532487273216248,
+          -19.117985725402832
+        ],
+        "footprintCornersXZ": [
+          [
+            -22.732328414916992,
+            -21.007387161254883
+          ],
+          [
+            -22.732328414916992,
+            -17.22858428955078
+          ],
+          [
+            -19.15650177001953,
+            -21.007387161254883
+          ],
+          [
+            -19.15650177001953,
+            -17.22858428955078
+          ]
+        ],
+        "groundYAtBottomCenter": 0.68359375,
+        "groundYBelowResolved": 0.68359375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          0.7353515625,
+          0.7431640625,
+          0.970703125,
+          0.9580078125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.030345022678375244,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.025562405586242676,
+        "gapBottomMedian": 0.07740026712417603,
+        "gapBottomMax": 0.08315068483352661,
+        "groundYBottomMedian": 0.5830078125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 28.357819672867592,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "root_cluster_2_04_lod0",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 154,
+      "polygons": 183,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -24.433469772338867,
+          0.7020366787910461,
+          -21.97220230102539
+        ],
+        "max": [
+          -22.69753074645996,
+          1.2792730331420898,
+          -20.236572265625
+        ]
+      },
+      "bboxMinY": 0.7020366787910461,
+      "groundYBelow": 0.751953125,
+      "gap": -0.04991644620895386,
+      "gapBottomMin": 0.04188042879104614,
+      "gapBottomMedian": 0.045932888984680176,
+      "gapBottomMax": 0.04749941825866699,
+      "footprintRadius": 1.227385017155718,
+      "footprintCenter": {
+        "x": -23.565500259399414,
+        "y": 0.990654855966568,
+        "z": -21.104387283325195
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -23.565500259399414,
+          0.7020366787910461,
+          -21.104387283325195
+        ],
+        "footprintCornersXZ": [
+          [
+            -24.433469772338867,
+            -21.97220230102539
+          ],
+          [
+            -24.433469772338867,
+            -20.236572265625
+          ],
+          [
+            -22.69753074645996,
+            -21.97220230102539
+          ],
+          [
+            -22.69753074645996,
+            -20.236572265625
+          ]
+        ],
+        "groundYAtBottomCenter": 0.751953125,
+        "groundYBelowResolved": 0.751953125,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          0.9150390625,
+          0.5966796875,
+          0.9384765625,
+          0.634765625
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.04991644620895386,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.04188042879104614,
+        "gapBottomMedian": 0.045932888984680176,
+        "gapBottomMax": 0.04749941825866699,
+        "groundYBottomMedian": 0.66015625
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 31.63428538820687,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "root_cluster_2_06_lod0",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 192,
+      "polygons": 224,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -23.292320251464844,
+          0.6664021611213684,
+          -18.982614517211914
+        ],
+        "max": [
+          -22.078502655029297,
+          1.335327386856079,
+          -15.664725303649902
+        ]
+      },
+      "bboxMinY": 0.6664021611213684,
+      "groundYBelow": 0.728515625,
+      "gap": -0.06211346387863159,
+      "gapBottomMin": 0.1026347279548645,
+      "gapBottomMedian": 0.11384868621826172,
+      "gapBottomMax": 0.12329655885696411,
+      "footprintRadius": 1.7664754449813131,
+      "footprintCenter": {
+        "x": -22.68541145324707,
+        "y": 1.0008647739887238,
+        "z": -17.323669910430908
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -22.68541145324707,
+          0.6664021611213684,
+          -17.323669910430908
+        ],
+        "footprintCornersXZ": [
+          [
+            -23.292320251464844,
+            -18.982614517211914
+          ],
+          [
+            -23.292320251464844,
+            -15.664725303649902
+          ],
+          [
+            -22.078502655029297,
+            -18.982614517211914
+          ],
+          [
+            -22.078502655029297,
+            -15.664725303649902
+          ]
+        ],
+        "groundYAtBottomCenter": 0.728515625,
+        "groundYBelowResolved": 0.728515625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          0.5341796875,
+          1.0849609375,
+          0.591796875,
+          1.1171875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.06211346387863159,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 7,
+        "bottomHits": 7,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.1026347279548645,
+        "gapBottomMedian": 0.11384868621826172,
+        "gapBottomMax": 0.12329655885696411,
+        "groundYBottomMedian": 0.560546875
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 28.54360758972083,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "root_cluster_2_07_lod0",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 256,
+      "polygons": 326,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -27.098167419433594,
+          0.45291659235954285,
+          -19.448095321655273
+        ],
+        "max": [
+          -25.25634002685547,
+          1.1171690225601196,
+          -15.644548416137695
+        ]
+      },
+      "bboxMinY": 0.45291659235954285,
+      "groundYBelow": 0.505859375,
+      "gap": -0.05294278264045715,
+      "gapBottomMin": -0.018256783485412598,
+      "gapBottomMedian": 0.0084056556224823,
+      "gapBottomMax": 0.046232908964157104,
+      "footprintRadius": 2.1130130860055907,
+      "footprintCenter": {
+        "x": -26.17725372314453,
+        "y": 0.7850428074598312,
+        "z": -17.546321868896484
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -26.17725372314453,
+          0.45291659235954285,
+          -17.546321868896484
+        ],
+        "footprintCornersXZ": [
+          [
+            -27.098167419433594,
+            -19.448095321655273
+          ],
+          [
+            -27.098167419433594,
+            -15.644548416137695
+          ],
+          [
+            -25.25634002685547,
+            -19.448095321655273
+          ],
+          [
+            -25.25634002685547,
+            -15.644548416137695
+          ]
+        ],
+        "groundYAtBottomCenter": 0.505859375,
+        "groundYBelowResolved": 0.505859375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          0.5361328125,
+          0.70703125,
+          0.4619140625,
+          0.953125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.05294278264045715,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 6,
+        "bottomHits": 6,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.018256783485412598,
+        "gapBottomMedian": 0.0084056556224823,
+        "gapBottomMax": 0.046232908964157104,
+        "groundYBottomMedian": 0.458984375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 31.513841216756518,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "sand",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 585,
+      "polygons": 1059,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -20.03289222717285,
+          -1.079016923904419,
+          -22.821348190307617
+        ],
+        "max": [
+          21.260099411010742,
+          4.947624206542969,
+          5.161027908325195
+        ]
+      },
+      "bboxMinY": -1.079016923904419,
+      "groundYBelow": 2.7900390625,
+      "gap": -3.869055986404419,
+      "gapBottomMin": -2.3310000896453857,
+      "gapBottomMedian": -2.330970048904419,
+      "gapBottomMax": -2.205702543258667,
+      "footprintRadius": 24.940551971420145,
+      "footprintCenter": {
+        "x": 0.6136035919189453,
+        "y": 1.934303641319275,
+        "z": -8.830160140991211
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          0.6136035919189453,
+          -1.079016923904419,
+          -8.830160140991211
+        ],
+        "footprintCornersXZ": [
+          [
+            -20.03289222717285,
+            -22.821348190307617
+          ],
+          [
+            -20.03289222717285,
+            5.161027908325195
+          ],
+          [
+            21.260099411010742,
+            -22.821348190307617
+          ],
+          [
+            21.260099411010742,
+            5.161027908325195
+          ]
+        ],
+        "groundYAtBottomCenter": 2.7900390625,
+        "groundYBelowResolved": 2.7900390625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.09375,
+          1.958984375,
+          3.0859375,
+          6.4365234375
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -3.869055986404419,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 3,
+        "bottomHits": 3,
+        "bottomMisses": 0,
+        "gapBottomMin": -2.3310000896453857,
+        "gapBottomMedian": -2.330970048904419,
+        "gapBottomMax": -2.205702543258667,
+        "groundYBottomMedian": 1.251953125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 8.851443800773364,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_a",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 119,
+      "polygons": 134,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -15.809532165527344,
+          2.063735008239746,
+          -23.323644638061523
+        ],
+        "max": [
+          -10.253486633300781,
+          8.53375244140625,
+          -17.545867919921875
+        ]
+      },
+      "bboxMinY": 2.063735008239746,
+      "groundYBelow": 1.1865234375,
+      "gap": 0.8772115707397461,
+      "gapBottomMin": 0.6262350082397461,
+      "gapBottomMedian": 0.6798927783966064,
+      "gapBottomMax": 0.697040319442749,
+      "footprintRadius": 4.007878047073392,
+      "footprintCenter": {
+        "x": -13.031509399414062,
+        "y": 5.298743724822998,
+        "z": -20.4347562789917
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -13.031509399414062,
+          2.063735008239746,
+          -20.4347562789917
+        ],
+        "footprintCornersXZ": [
+          [
+            -15.809532165527344,
+            -23.323644638061523
+          ],
+          [
+            -15.809532165527344,
+            -17.545867919921875
+          ],
+          [
+            -10.253486633300781,
+            -23.323644638061523
+          ],
+          [
+            -10.253486633300781,
+            -17.545867919921875
+          ]
+        ],
+        "groundYAtBottomCenter": 1.1865234375,
+        "groundYBelowResolved": 1.1865234375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          0.982421875,
+          1.1376953125,
+          2.09375,
+          0.849609375
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.8772115707397461,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 7,
+        "bottomHits": 7,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.6262350082397461,
+        "gapBottomMedian": 0.6798927783966064,
+        "gapBottomMax": 0.697040319442749,
+        "groundYBottomMedian": 1.4287109375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 24.236323157675166,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_b",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 119,
+      "polygons": 134,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          1.2540760040283203,
+          2.638479709625244,
+          -15.468439102172852
+        ],
+        "max": [
+          5.373129844665527,
+          7.172228813171387,
+          -12.31166934967041
+        ]
+      },
+      "bboxMinY": 2.638479709625244,
+      "groundYBelow": 2.423828125,
+      "gap": 0.21465158462524414,
+      "gapBottomMin": -0.12226247787475586,
+      "gapBottomMedian": -0.05625581741333008,
+      "gapBottomMax": -0.020059585571289062,
+      "footprintRadius": 2.594792853600382,
+      "footprintCenter": {
+        "x": 3.313602924346924,
+        "y": 4.905354261398315,
+        "z": -13.89005422592163
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          3.313602924346924,
+          2.638479709625244,
+          -13.89005422592163
+        ],
+        "footprintCornersXZ": [
+          [
+            1.2540760040283203,
+            -15.468439102172852
+          ],
+          [
+            1.2540760040283203,
+            -12.31166934967041
+          ],
+          [
+            5.373129844665527,
+            -15.468439102172852
+          ],
+          [
+            5.373129844665527,
+            -12.31166934967041
+          ]
+        ],
+        "groundYAtBottomCenter": 2.423828125,
+        "groundYBelowResolved": 2.423828125,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.9658203125,
+          1.92578125,
+          2.6435546875,
+          2.5947265625
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.21465158462524414,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.12226247787475586,
+        "gapBottomMedian": -0.05625581741333008,
+        "gapBottomMax": -0.020059585571289062,
+        "groundYBottomMedian": 2.7578125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 14.279819417826904,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_c",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 119,
+      "polygons": 134,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          26.62715721130371,
+          6.736006736755371,
+          14.240302085876465
+        ],
+        "max": [
+          30.697675704956055,
+          11.242560386657715,
+          17.384597778320312
+        ]
+      },
+      "bboxMinY": 6.736006736755371,
+      "groundYBelow": 6.515625,
+      "gap": 0.2203817367553711,
+      "gapBottomMin": -0.1321573257446289,
+      "gapBottomMedian": -0.053243160247802734,
+      "gapBottomMax": -0.018218517303466797,
+      "footprintRadius": 2.571756025009307,
+      "footprintCenter": {
+        "x": 28.662416458129883,
+        "y": 8.989283561706543,
+        "z": 15.812449932098389
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          28.662416458129883,
+          6.736006736755371,
+          15.812449932098389
+        ],
+        "footprintCornersXZ": [
+          [
+            26.62715721130371,
+            14.240302085876465
+          ],
+          [
+            26.62715721130371,
+            17.384597778320312
+          ],
+          [
+            30.697675704956055,
+            14.240302085876465
+          ],
+          [
+            30.697675704956055,
+            17.384597778320312
+          ]
+        ],
+        "groundYAtBottomCenter": 6.515625,
+        "groundYBelowResolved": 6.515625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          6.1318359375,
+          5.6513671875,
+          7.2802734375,
+          7.1923828125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.2203817367553711,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.1321573257446289,
+        "gapBottomMedian": -0.053243160247802734,
+        "gapBottomMax": -0.018218517303466797,
+        "groundYBottomMedian": 6.861328125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 32.73480479521627,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_d",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 119,
+      "polygons": 134,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -19.063688278198242,
+          2.1827316284179688,
+          -7.95220422744751
+        ],
+        "max": [
+          -16.422332763671875,
+          5.247986793518066,
+          -5.679132461547852
+        ]
+      },
+      "bboxMinY": 2.1827316284179688,
+      "groundYBelow": 2.1728515625,
+      "gap": 0.00988006591796875,
+      "gapBottomMin": -0.01062774658203125,
+      "gapBottomMedian": 0.0014641284942626953,
+      "gapBottomMax": 0.0014641284942626953,
+      "footprintRadius": 1.742384444306784,
+      "footprintCenter": {
+        "x": -17.74301052093506,
+        "y": 3.7153592109680176,
+        "z": -6.815668344497681
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -17.74301052093506,
+          2.1827316284179688,
+          -6.815668344497681
+        ],
+        "footprintCornersXZ": [
+          [
+            -19.063688278198242,
+            -7.95220422744751
+          ],
+          [
+            -19.063688278198242,
+            -5.679132461547852
+          ],
+          [
+            -16.422332763671875,
+            -7.95220422744751
+          ],
+          [
+            -16.422332763671875,
+            -5.679132461547852
+          ]
+        ],
+        "groundYAtBottomCenter": 2.1728515625,
+        "groundYBelowResolved": 2.1728515625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          2.189453125,
+          2.140625,
+          2.2080078125,
+          2.1982421875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.00988006591796875,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 2,
+        "bottomHits": 2,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.01062774658203125,
+        "gapBottomMedian": 0.0014641284942626953,
+        "gapBottomMax": 0.0014641284942626953,
+        "groundYBottomMedian": 2.193359375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 19.007050422169492,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_e",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 119,
+      "polygons": 134,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          37.378509521484375,
+          10.4207763671875,
+          9.696706771850586
+        ],
+        "max": [
+          40.75226593017578,
+          14.823274612426758,
+          12.868550300598145
+        ]
+      },
+      "bboxMinY": 10.4207763671875,
+      "groundYBelow": 10.384765625,
+      "gap": 0.0360107421875,
+      "gapBottomMin": -0.5059814453125,
+      "gapBottomMedian": -0.4794178009033203,
+      "gapBottomMax": -0.4794178009033203,
+      "footprintRadius": 2.315319830824896,
+      "footprintCenter": {
+        "x": 39.06538772583008,
+        "y": 12.622025489807129,
+        "z": 11.282628536224365
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          39.06538772583008,
+          10.4207763671875,
+          11.282628536224365
+        ],
+        "footprintCornersXZ": [
+          [
+            37.378509521484375,
+            9.696706771850586
+          ],
+          [
+            37.378509521484375,
+            12.868550300598145
+          ],
+          [
+            40.75226593017578,
+            9.696706771850586
+          ],
+          [
+            40.75226593017578,
+            12.868550300598145
+          ]
+        ],
+        "groundYAtBottomCenter": 10.384765625,
+        "groundYBelowResolved": 10.384765625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          11.2421875,
+          9.38671875,
+          11.0048828125,
+          10.0390625
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.0360107421875,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 2,
+        "bottomHits": 2,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.5059814453125,
+        "gapBottomMedian": -0.4794178009033203,
+        "gapBottomMax": -0.4794178009033203,
+        "groundYBottomMedian": 10.9267578125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 40.6620424344617,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_f",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 119,
+      "polygons": 134,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -1.7620010375976562,
+          2.6724486351013184,
+          -21.81515884399414
+        ],
+        "max": [
+          2.6591529846191406,
+          8.256954193115234,
+          -15.757170677185059
+        ]
+      },
+      "bboxMinY": 2.6724486351013184,
+      "groundYBelow": 2.171875,
+      "gap": 0.5005736351013184,
+      "gapBottomMin": 0.035201072692871094,
+      "gapBottomMedian": 0.13644981384277344,
+      "gapBottomMax": 0.17381024360656738,
+      "footprintRadius": 3.7498607813278424,
+      "footprintCenter": {
+        "x": 0.4485759735107422,
+        "y": 5.464701414108276,
+        "z": -18.7861647605896
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          0.4485759735107422,
+          2.6724486351013184,
+          -18.7861647605896
+        ],
+        "footprintCornersXZ": [
+          [
+            -1.7620010375976562,
+            -21.81515884399414
+          ],
+          [
+            -1.7620010375976562,
+            -15.757170677185059
+          ],
+          [
+            2.6591529846191406,
+            -21.81515884399414
+          ],
+          [
+            2.6591529846191406,
+            -15.757170677185059
+          ]
+        ],
+        "groundYAtBottomCenter": 2.171875,
+        "groundYBelowResolved": 2.171875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          2.7880859375,
+          1.6826171875,
+          2.380859375,
+          2.2861328125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.5005736351013184,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 8,
+        "bottomHits": 8,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.035201072692871094,
+        "gapBottomMedian": 0.13644981384277344,
+        "gapBottomMax": 0.17381024360656738,
+        "groundYBottomMedian": 2.546875
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 18.7915097834806,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_g",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 86,
+      "polygons": 98,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -19.25667381286621,
+          1.576468825340271,
+          -24.635147094726562
+        ],
+        "max": [
+          -15.010119438171387,
+          6.14463996887207,
+          -18.703126907348633
+        ]
+      },
+      "bboxMinY": 1.576468825340271,
+      "groundYBelow": 1.3017578125,
+      "gap": 0.274711012840271,
+      "gapBottomMin": 0.706351637840271,
+      "gapBottomMedian": 0.706351637840271,
+      "gapBottomMax": 0.706351637840271,
+      "footprintRadius": 3.6476734900720977,
+      "footprintCenter": {
+        "x": -17.1333966255188,
+        "y": 3.8605543971061707,
+        "z": -21.669137001037598
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -17.1333966255188,
+          1.576468825340271,
+          -21.669137001037598
+        ],
+        "footprintCornersXZ": [
+          [
+            -19.25667381286621,
+            -24.635147094726562
+          ],
+          [
+            -19.25667381286621,
+            -18.703126907348633
+          ],
+          [
+            -15.010119438171387,
+            -24.635147094726562
+          ],
+          [
+            -15.010119438171387,
+            -18.703126907348633
+          ]
+        ],
+        "groundYAtBottomCenter": 1.3017578125,
+        "groundYBelowResolved": 1.3017578125,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.23828125,
+          0.8564453125,
+          0.96484375,
+          1.0537109375
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.274711012840271,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 2,
+        "bottomHits": 2,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.706351637840271,
+        "gapBottomMedian": 0.706351637840271,
+        "gapBottomMax": 0.706351637840271,
+        "groundYBottomMedian": 0.8701171875
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 27.624349617409557,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_h",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 86,
+      "polygons": 98,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -0.8345121145248413,
+          2.580077648162842,
+          -19.83816909790039
+        ],
+        "max": [
+          3.8454248905181885,
+          5.562896728515625,
+          -14.198556900024414
+        ]
+      },
+      "bboxMinY": 2.580077648162842,
+      "groundYBelow": 2.099609375,
+      "gap": 0.4804682731628418,
+      "gapBottomMin": 0.6074213981628418,
+      "gapBottomMedian": 0.6074213981628418,
+      "gapBottomMax": 0.6074213981628418,
+      "footprintRadius": 3.6642542254053083,
+      "footprintCenter": {
+        "x": 1.5054563879966736,
+        "y": 4.071487188339233,
+        "z": -17.018362998962402
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          1.5054563879966736,
+          2.580077648162842,
+          -17.018362998962402
+        ],
+        "footprintCornersXZ": [
+          [
+            -0.8345121145248413,
+            -19.83816909790039
+          ],
+          [
+            -0.8345121145248413,
+            -14.198556900024414
+          ],
+          [
+            3.8454248905181885,
+            -19.83816909790039
+          ],
+          [
+            3.8454248905181885,
+            -14.198556900024414
+          ]
+        ],
+        "groundYAtBottomCenter": 2.099609375,
+        "groundYBelowResolved": 2.099609375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          2.4677734375,
+          1.630859375,
+          1.767578125,
+          2.5537109375
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.4804682731628418,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 2,
+        "bottomHits": 2,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.6074213981628418,
+        "gapBottomMedian": 0.6074213981628418,
+        "gapBottomMax": 0.6074213981628418,
+        "groundYBottomMedian": 1.97265625
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 17.0848097673629,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_i",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 86,
+      "polygons": 98,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          24.104270935058594,
+          6.5447516441345215,
+          10.873990058898926
+        ],
+        "max": [
+          29.213773727416992,
+          11.664461135864258,
+          16.967771530151367
+        ]
+      },
+      "bboxMinY": 6.5447516441345215,
+      "groundYBelow": 6.2255859375,
+      "gap": 0.3191657066345215,
+      "gapBottomMin": -0.6691155433654785,
+      "gapBottomMedian": -0.6691155433654785,
+      "gapBottomMax": -0.6691155433654785,
+      "footprintRadius": 3.97621652467826,
+      "footprintCenter": {
+        "x": 26.659022331237793,
+        "y": 9.10460638999939,
+        "z": 13.920880794525146
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          26.659022331237793,
+          6.5447516441345215,
+          13.920880794525146
+        ],
+        "footprintCornersXZ": [
+          [
+            24.104270935058594,
+            10.873990058898926
+          ],
+          [
+            24.104270935058594,
+            16.967771530151367
+          ],
+          [
+            29.213773727416992,
+            10.873990058898926
+          ],
+          [
+            29.213773727416992,
+            16.967771530151367
+          ]
+        ],
+        "groundYAtBottomCenter": 6.2255859375,
+        "groundYBelowResolved": 6.2255859375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          6.33203125,
+          4.66015625,
+          7.8603515625,
+          6.689453125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.3191657066345215,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 2,
+        "bottomHits": 2,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.6691155433654785,
+        "gapBottomMedian": -0.6691155433654785,
+        "gapBottomMax": -0.6691155433654785,
+        "groundYBottomMedian": 7.2138671875
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 30.07480923949856,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_j",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 86,
+      "polygons": 98,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          34.43439865112305,
+          11.193300247192383,
+          7.4418745040893555
+        ],
+        "max": [
+          40.024169921875,
+          16.993350982666016,
+          13.334701538085938
+        ]
+      },
+      "bboxMinY": 11.193300247192383,
+      "groundYBelow": 10.8681640625,
+      "gap": 0.3251361846923828,
+      "gapBottomMin": -0.3135356903076172,
+      "gapBottomMedian": -0.3135356903076172,
+      "gapBottomMax": -0.3135356903076172,
+      "footprintRadius": 4.06112525391439,
+      "footprintCenter": {
+        "x": 37.22928428649902,
+        "y": 14.0933256149292,
+        "z": 10.388288021087646
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          37.22928428649902,
+          11.193300247192383,
+          10.388288021087646
+        ],
+        "footprintCornersXZ": [
+          [
+            34.43439865112305,
+            7.4418745040893555
+          ],
+          [
+            34.43439865112305,
+            13.334701538085938
+          ],
+          [
+            40.024169921875,
+            7.4418745040893555
+          ],
+          [
+            40.024169921875,
+            13.334701538085938
+          ]
+        ],
+        "groundYAtBottomCenter": 10.8681640625,
+        "groundYBelowResolved": 10.8681640625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          10.966796875,
+          8.515625,
+          11.279296875,
+          9.744140625
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.3251361846923828,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 2,
+        "bottomHits": 2,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.3135356903076172,
+        "gapBottomMedian": -0.3135356903076172,
+        "gapBottomMax": -0.3135356903076172,
+        "groundYBottomMedian": 11.5068359375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 38.65146342045593,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_k",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 133,
+      "polygons": 140,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -22.546167373657227,
+          1.2048890590667725,
+          -24.146181106567383
+        ],
+        "max": [
+          -15.352618217468262,
+          5.080508232116699,
+          -19.691360473632812
+        ]
+      },
+      "bboxMinY": 1.2048890590667725,
+      "groundYBelow": 1.0068359375,
+      "gap": 0.19805312156677246,
+      "gapBottomMin": 0.34356093406677246,
+      "gapBottomMedian": 0.36338794231414795,
+      "gapBottomMax": 0.36367177963256836,
+      "footprintRadius": 4.2306198226183875,
+      "footprintCenter": {
+        "x": -18.949392795562744,
+        "y": 3.142698645591736,
+        "z": -21.918770790100098
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -18.949392795562744,
+          1.2048890590667725,
+          -21.918770790100098
+        ],
+        "footprintCornersXZ": [
+          [
+            -22.546167373657227,
+            -24.146181106567383
+          ],
+          [
+            -22.546167373657227,
+            -19.691360473632812
+          ],
+          [
+            -15.352618217468262,
+            -24.146181106567383
+          ],
+          [
+            -15.352618217468262,
+            -19.691360473632812
+          ]
+        ],
+        "groundYAtBottomCenter": 1.0068359375,
+        "groundYBelowResolved": 1.0068359375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.5986328125,
+          0.5888671875,
+          0.87109375,
+          1.1162109375
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.19805312156677246,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 3,
+        "bottomHits": 3,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.34356093406677246,
+        "gapBottomMedian": 0.36338794231414795,
+        "gapBottomMax": 0.36367177963256836,
+        "groundYBottomMedian": 0.861328125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 28.974332496767925,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_l",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 133,
+      "polygons": 140,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -11.681763648986816,
+          2.352004051208496,
+          -2.0233395099639893
+        ],
+        "max": [
+          -6.462018013000488,
+          5.298918724060059,
+          2.808209180831909
+        ]
+      },
+      "bboxMinY": 2.352004051208496,
+      "groundYBelow": 2.1767578125,
+      "gap": 0.1752462387084961,
+      "gapBottomMin": 0.1352071762084961,
+      "gapBottomMedian": 0.14176273345947266,
+      "gapBottomMax": 0.14821672439575195,
+      "footprintRadius": 3.5563185759971603,
+      "footprintCenter": {
+        "x": -9.071890830993652,
+        "y": 3.8254613876342773,
+        "z": 0.39243483543395996
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -9.071890830993652,
+          2.352004051208496,
+          0.39243483543395996
+        ],
+        "footprintCornersXZ": [
+          [
+            -11.681763648986816,
+            -2.0233395099639893
+          ],
+          [
+            -11.681763648986816,
+            2.808209180831909
+          ],
+          [
+            -6.462018013000488,
+            -2.0233395099639893
+          ],
+          [
+            -6.462018013000488,
+            2.808209180831909
+          ]
+        ],
+        "groundYAtBottomCenter": 2.1767578125,
+        "groundYBelowResolved": 2.1767578125,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          2.22265625,
+          2.103515625,
+          3.2900390625,
+          2.076171875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.1752462387084961,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 6,
+        "bottomHits": 6,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.1352071762084961,
+        "gapBottomMedian": 0.14176273345947266,
+        "gapBottomMax": 0.14821672439575195,
+        "groundYBottomMedian": 2.224609375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 9.080384841370815,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_m",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 133,
+      "polygons": 140,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -12.33494758605957,
+          2.3122122287750244,
+          -25.229673385620117
+        ],
+        "max": [
+          -6.873015403747559,
+          6.2596845626831055,
+          -16.837059020996094
+        ]
+      },
+      "bboxMinY": 2.3122122287750244,
+      "groundYBelow": 2.09765625,
+      "gap": 0.21455597877502441,
+      "gapBottomMin": 0.4420950412750244,
+      "gapBottomMedian": 0.49011778831481934,
+      "gapBottomMax": 0.5071396827697754,
+      "footprintRadius": 5.006712470211095,
+      "footprintCenter": {
+        "x": -9.603981494903564,
+        "y": 4.285948395729065,
+        "z": -21.033366203308105
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -9.603981494903564,
+          2.3122122287750244,
+          -21.033366203308105
+        ],
+        "footprintCornersXZ": [
+          [
+            -12.33494758605957,
+            -25.229673385620117
+          ],
+          [
+            -12.33494758605957,
+            -16.837059020996094
+          ],
+          [
+            -6.873015403747559,
+            -25.229673385620117
+          ],
+          [
+            -6.873015403747559,
+            -16.837059020996094
+          ]
+        ],
+        "groundYAtBottomCenter": 2.09765625,
+        "groundYBelowResolved": 2.09765625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.8115234375,
+          0.8212890625,
+          2.4189453125,
+          1.013671875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.21455597877502441,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 14,
+        "bottomHits": 14,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.4420950412750244,
+        "gapBottomMedian": 0.49011778831481934,
+        "gapBottomMax": 0.5071396827697754,
+        "groundYBottomMedian": 1.849609375
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 23.12225629991335,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_n",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 133,
+      "polygons": 140,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          21.82620620727539,
+          7.323972702026367,
+          3.9260056018829346
+        ],
+        "max": [
+          28.09765625,
+          11.392950057983398,
+          12.795517921447754
+        ]
+      },
+      "bboxMinY": 7.323972702026367,
+      "groundYBelow": 7.1904296875,
+      "gap": 0.1335430145263672,
+      "gapBottomMin": -0.023683547973632812,
+      "gapBottomMedian": -0.0031452178955078125,
+      "gapBottomMax": 0.07002878189086914,
+      "footprintRadius": 5.431374927799189,
+      "footprintCenter": {
+        "x": 24.961931228637695,
+        "y": 9.358461380004883,
+        "z": 8.360761761665344
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          24.961931228637695,
+          7.323972702026367,
+          8.360761761665344
+        ],
+        "footprintCornersXZ": [
+          [
+            21.82620620727539,
+            3.9260056018829346
+          ],
+          [
+            21.82620620727539,
+            12.795517921447754
+          ],
+          [
+            28.09765625,
+            3.9260056018829346
+          ],
+          [
+            28.09765625,
+            12.795517921447754
+          ]
+        ],
+        "groundYAtBottomCenter": 7.1904296875,
+        "groundYBelowResolved": 7.1904296875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          6.751953125,
+          5.1328125,
+          8.75390625,
+          6.9658203125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.1335430145263672,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 16,
+        "bottomHits": 16,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.023683547973632812,
+        "gapBottomMedian": -0.0031452178955078125,
+        "gapBottomMax": 0.07002878189086914,
+        "groundYBottomMedian": 7.34765625
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 26.324893755845743,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_o",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 133,
+      "polygons": 140,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          33.56155776977539,
+          11.124137878417969,
+          1.7965511083602905
+        ],
+        "max": [
+          41.0045166015625,
+          16.28630256652832,
+          8.438250541687012
+        ]
+      },
+      "bboxMinY": 11.124137878417969,
+      "groundYBelow": 10.84765625,
+      "gap": 0.27648162841796875,
+      "gapBottomMin": 0.9327316284179688,
+      "gapBottomMedian": 0.9510011672973633,
+      "gapBottomMax": 0.9526634216308594,
+      "footprintRadius": 4.987730133395607,
+      "footprintCenter": {
+        "x": 37.283037185668945,
+        "y": 13.705220222473145,
+        "z": 5.117400825023651
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          37.283037185668945,
+          11.124137878417969,
+          5.117400825023651
+        ],
+        "footprintCornersXZ": [
+          [
+            33.56155776977539,
+            1.7965511083602905
+          ],
+          [
+            33.56155776977539,
+            8.438250541687012
+          ],
+          [
+            41.0045166015625,
+            1.7965511083602905
+          ],
+          [
+            41.0045166015625,
+            8.438250541687012
+          ]
+        ],
+        "groundYAtBottomCenter": 10.84765625,
+        "groundYBelowResolved": 10.84765625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          9.4228515625,
+          10.3271484375,
+          null,
+          11.2294921875
+        ],
+        "cornerHits": 3,
+        "cornerMisses": 1,
+        "gap": 0.27648162841796875,
+        "gridSamples": 49,
+        "gridHits": 46,
+        "gridMisses": 3,
+        "bottomVertices": 3,
+        "bottomHits": 3,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.9327316284179688,
+        "gapBottomMedian": 0.9510011672973633,
+        "gapBottomMax": 0.9526634216308594,
+        "groundYBottomMedian": 10.1953125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 37.63259278180661,
+      "backdropEvidence": null,
+      "groundingStatus": "floating",
+      "deltaY": 0.0
+    },
+    {
+      "name": "shrub_02_p",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 61,
+      "polygons": 62,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -9.40491008758545,
+          2.1294333934783936,
+          -1.3694931268692017
+        ],
+        "max": [
+          -5.034364223480225,
+          6.698942184448242,
+          3.709888219833374
+        ]
+      },
+      "bboxMinY": 2.1294333934783936,
+      "groundYBelow": 2.1669921875,
+      "gap": -0.037558794021606445,
+      "gapBottomMin": -0.040628910064697266,
+      "gapBottomMedian": -0.026816606521606445,
+      "gapBottomMax": -0.026816606521606445,
+      "footprintRadius": 3.3504397478345047,
+      "footprintCenter": {
+        "x": -7.219637155532837,
+        "y": 4.414187788963318,
+        "z": 1.1701975464820862
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -7.219637155532837,
+          2.1294333934783936,
+          1.1701975464820862
+        ],
+        "footprintCornersXZ": [
+          [
+            -9.40491008758545,
+            -1.3694931268692017
+          ],
+          [
+            -9.40491008758545,
+            3.709888219833374
+          ],
+          [
+            -5.034364223480225,
+            -1.3694931268692017
+          ],
+          [
+            -5.034364223480225,
+            3.709888219833374
+          ]
+        ],
+        "groundYAtBottomCenter": 2.1669921875,
+        "groundYBelowResolved": 2.1669921875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          2.2607421875,
+          2.0595703125,
+          2.97265625,
+          2.03125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.037558794021606445,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 2,
+        "bottomHits": 2,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.040628910064697266,
+        "gapBottomMedian": -0.026816606521606445,
+        "gapBottomMax": -0.026816606521606445,
+        "groundYBottomMedian": 2.171875
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 7.313869220797043,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "single_root_LOD0",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 462,
+      "polygons": 488,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -14.762207984924316,
+          2.15415620803833,
+          -14.991644859313965
+        ],
+        "max": [
+          -7.406303882598877,
+          3.257293224334717,
+          -12.999998092651367
+        ]
+      },
+      "bboxMinY": 2.15415620803833,
+      "groundYBelow": 2.076171875,
+      "gap": 0.07798433303833008,
+      "gapBottomMin": 0.4529843330383301,
+      "gapBottomMedian": 0.46332645416259766,
+      "gapBottomMax": 0.4967038631439209,
+      "footprintRadius": 3.810379968118856,
+      "footprintCenter": {
+        "x": -11.084255933761597,
+        "y": 2.7057247161865234,
+        "z": -13.995821475982666
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -11.084255933761597,
+          2.15415620803833,
+          -13.995821475982666
+        ],
+        "footprintCornersXZ": [
+          [
+            -14.762207984924316,
+            -14.991644859313965
+          ],
+          [
+            -14.762207984924316,
+            -12.999998092651367
+          ],
+          [
+            -7.406303882598877,
+            -14.991644859313965
+          ],
+          [
+            -7.406303882598877,
+            -12.999998092651367
+          ]
+        ],
+        "groundYAtBottomCenter": 2.076171875,
+        "groundYBelowResolved": 2.076171875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.712890625,
+          2.080078125,
+          1.396484375,
+          2.080078125
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": 0.07798433303833008,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": 0.4529843330383301,
+        "gapBottomMedian": 0.46332645416259766,
+        "gapBottomMax": 0.4967038631439209,
+        "groundYBottomMedian": 1.701171875
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 17.85339443520988,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "tree_small_02_a",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 380,
+      "polygons": 338,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          -31.541419982910156,
+          1.8134344816207886,
+          -11.471940994262695
+        ],
+        "max": [
+          -26.15692710876465,
+          15.636950492858887,
+          -2.5089235305786133
+        ]
+      },
+      "bboxMinY": 1.8134344816207886,
+      "groundYBelow": 1.8427734375,
+      "gap": -0.029338955879211426,
+      "gapBottomMin": -0.06341099739074707,
+      "gapBottomMedian": 0.030159354209899902,
+      "gapBottomMax": 0.05146288871765137,
+      "footprintRadius": 5.228012183565317,
+      "footprintCenter": {
+        "x": -28.849173545837402,
+        "y": 8.725192487239838,
+        "z": -6.990432262420654
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          -28.849173545837402,
+          1.8134344816207886,
+          -6.990432262420654
+        ],
+        "footprintCornersXZ": [
+          [
+            -31.541419982910156,
+            -11.471940994262695
+          ],
+          [
+            -31.541419982910156,
+            -2.5089235305786133
+          ],
+          [
+            -26.15692710876465,
+            -11.471940994262695
+          ],
+          [
+            -26.15692710876465,
+            -2.5089235305786133
+          ]
+        ],
+        "groundYAtBottomCenter": 1.8427734375,
+        "groundYBelowResolved": 1.8427734375,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          1.6669921875,
+          1.7841796875,
+          1.6689453125,
+          1.91015625
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.029338955879211426,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 5,
+        "bottomHits": 5,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.06341099739074707,
+        "gapBottomMedian": 0.030159354209899902,
+        "gapBottomMax": 0.05146288871765137,
+        "groundYBottomMedian": 1.8828125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 29.684025576325073,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "tree_small_02_b",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 149,
+      "polygons": 113,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          34.7431755065918,
+          8.145801544189453,
+          15.15778923034668
+        ],
+        "max": [
+          40.34691619873047,
+          23.60076904296875,
+          25.81690788269043
+        ]
+      },
+      "bboxMinY": 8.145801544189453,
+      "groundYBelow": 8.189453125,
+      "gap": -0.043651580810546875,
+      "gapBottomMin": 1.2219734191894531,
+      "gapBottomMedian": 1.6911334991455078,
+      "gapBottomMax": 2.104681968688965,
+      "footprintRadius": 6.0211859336320375,
+      "footprintCenter": {
+        "x": 37.54504585266113,
+        "y": 15.873285293579102,
+        "z": 20.487348556518555
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          37.54504585266113,
+          8.145801544189453,
+          20.487348556518555
+        ],
+        "footprintCornersXZ": [
+          [
+            34.7431755065918,
+            15.15778923034668
+          ],
+          [
+            34.7431755065918,
+            25.81690788269043
+          ],
+          [
+            40.34691619873047,
+            15.15778923034668
+          ],
+          [
+            40.34691619873047,
+            25.81690788269043
+          ]
+        ],
+        "groundYAtBottomCenter": 8.189453125,
+        "groundYBelowResolved": 8.189453125,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          8.09375,
+          6.931640625,
+          9.12109375,
+          5.01171875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.043651580810546875,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": 1.2219734191894531,
+        "gapBottomMedian": 1.6911334991455078,
+        "gapBottomMax": 2.104681968688965,
+        "groundYBottomMedian": 6.923828125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 42.771036854454856,
+      "backdropEvidence": null,
+      "groundingStatus": "grounded",
+      "deltaY": 0.0
+    },
+    {
+      "name": "tree_small_02_branches_a",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 62772,
+      "polygons": 94814,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          0.7779603004455566,
+          1.5415711402893066,
+          2.199873685836792
+        ],
+        "max": [
+          4.0850324630737305,
+          4.046666145324707,
+          4.339884281158447
+        ]
+      },
+      "bboxMinY": 1.5415711402893066,
+      "groundYBelow": 3.9140625,
+      "gap": -2.3724913597106934,
+      "gapBottomMin": -2.546601414680481,
+      "gapBottomMedian": -2.5241141319274902,
+      "gapBottomMax": -2.491536855697632,
+      "footprintRadius": 1.96954129411642,
+      "footprintCenter": {
+        "x": 2.4314963817596436,
+        "y": 2.794118642807007,
+        "z": 3.2698789834976196
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          2.4314963817596436,
+          1.5415711402893066,
+          3.2698789834976196
+        ],
+        "footprintCornersXZ": [
+          [
+            0.7779603004455566,
+            2.199873685836792
+          ],
+          [
+            0.7779603004455566,
+            4.339884281158447
+          ],
+          [
+            4.0850324630737305,
+            2.199873685836792
+          ],
+          [
+            4.0850324630737305,
+            4.339884281158447
+          ]
+        ],
+        "groundYAtBottomCenter": 3.9140625,
+        "groundYBelowResolved": 3.9140625,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          3.5205078125,
+          2.689453125,
+          4.443359375,
+          3.740234375
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -2.3724913597106934,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 30,
+        "bottomHits": 30,
+        "bottomMisses": 0,
+        "gapBottomMin": -2.546601414680481,
+        "gapBottomMedian": -2.5241141319274902,
+        "gapBottomMax": -2.491536855697632,
+        "groundYBottomMedian": 4.0859375
+      },
+      "category": "decorative_noncontact",
+      "classificationBasis": "canopy/leaf/branch component; trunk/root is the contact proxy",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 4.074837323414354,
+      "backdropEvidence": null,
+      "groundingStatus": "not_applicable",
+      "deltaY": 0.0
+    },
+    {
+      "name": "tree_small_02_branches_b",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 62772,
+      "polygons": 94814,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          5.9668755531311035,
+          1.4559820890426636,
+          -12.933058738708496
+        ],
+        "max": [
+          9.970162391662598,
+          4.153701305389404,
+          -10.428688049316406
+        ]
+      },
+      "bboxMinY": 1.4559820890426636,
+      "groundYBelow": 3.2314453125,
+      "gap": -1.7754632234573364,
+      "gapBottomMin": -2.3311272859573364,
+      "gapBottomMedian": -2.301643490791321,
+      "gapBottomMax": -2.072434425354004,
+      "footprintRadius": 2.3610473344178056,
+      "footprintCenter": {
+        "x": 7.968518972396851,
+        "y": 2.804841697216034,
+        "z": -11.680873394012451
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          7.968518972396851,
+          1.4559820890426636,
+          -11.680873394012451
+        ],
+        "footprintCornersXZ": [
+          [
+            5.9668755531311035,
+            -12.933058738708496
+          ],
+          [
+            5.9668755531311035,
+            -10.428688049316406
+          ],
+          [
+            9.970162391662598,
+            -12.933058738708496
+          ],
+          [
+            9.970162391662598,
+            -10.428688049316406
+          ]
+        ],
+        "groundYAtBottomCenter": 3.2314453125,
+        "groundYBelowResolved": 3.2314453125,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          3.0048828125,
+          2.0615234375,
+          3.560546875,
+          3.69140625
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -1.7754632234573364,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 26,
+        "bottomHits": 26,
+        "bottomMisses": 0,
+        "gapBottomMin": -2.3311272859573364,
+        "gapBottomMedian": -2.301643490791321,
+        "gapBottomMax": -2.072434425354004,
+        "groundYBottomMedian": 3.7841796875
+      },
+      "category": "decorative_noncontact",
+      "classificationBasis": "canopy/leaf/branch component; trunk/root is the contact proxy",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 14.140004352126692,
+      "backdropEvidence": null,
+      "groundingStatus": "not_applicable",
+      "deltaY": 0.0
+    },
+    {
+      "name": "tree_small_02_branches_c",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 62772,
+      "polygons": 94814,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          8.050765037536621,
+          2.902503252029419,
+          -13.227813720703125
+        ],
+        "max": [
+          10.91224479675293,
+          6.009984970092773,
+          -8.560504913330078
+        ]
+      },
+      "bboxMinY": 2.902503252029419,
+      "groundYBelow": 3.669921875,
+      "gap": -0.767418622970581,
+      "gapBottomMin": -0.8805603981018066,
+      "gapBottomMedian": -0.8032829761505127,
+      "gapBottomMax": -0.77950119972229,
+      "footprintRadius": 2.737327068318044,
+      "footprintCenter": {
+        "x": 9.481504917144775,
+        "y": 4.456244111061096,
+        "z": -10.894159317016602
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          9.481504917144775,
+          2.902503252029419,
+          -10.894159317016602
+        ],
+        "footprintCornersXZ": [
+          [
+            8.050765037536621,
+            -13.227813720703125
+          ],
+          [
+            8.050765037536621,
+            -8.560504913330078
+          ],
+          [
+            10.91224479675293,
+            -13.227813720703125
+          ],
+          [
+            10.91224479675293,
+            -8.560504913330078
+          ]
+        ],
+        "groundYAtBottomCenter": 3.669921875,
+        "groundYBelowResolved": 3.669921875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          3.423828125,
+          2.2568359375,
+          3.4970703125,
+          3.2373046875
+        ],
+        "cornerHits": 4,
+        "cornerMisses": 0,
+        "gap": -0.767418622970581,
+        "gridSamples": 49,
+        "gridHits": 49,
+        "gridMisses": 0,
+        "bottomVertices": 26,
+        "bottomHits": 26,
+        "bottomMisses": 0,
+        "gapBottomMin": -0.8805603981018066,
+        "gapBottomMedian": -0.8032829761505127,
+        "gapBottomMax": -0.77950119972229,
+        "groundYBottomMedian": 3.712890625
+      },
+      "category": "decorative_noncontact",
+      "classificationBasis": "canopy/leaf/branch component; trunk/root is the contact proxy",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 14.442342402934813,
+      "backdropEvidence": null,
+      "groundingStatus": "not_applicable",
+      "deltaY": 0.0
+    },
+    {
+      "name": "tree_small_02_c",
+      "collections": [
+        "Scene Collection"
+      ],
+      "vertices": 149,
+      "polygons": 113,
+      "exportEligible": true,
+      "bbox": {
+        "min": [
+          27.670055389404297,
+          4.963458061218262,
+          23.790916442871094
+        ],
+        "max": [
+          39.17463302612305,
+          22.785099029541016,
+          30.41817283630371
+        ]
+      },
+      "bboxMinY": 4.963458061218262,
+      "groundYBelow": 5.419921875,
+      "gap": -0.4564638137817383,
+      "gapBottomMin": -3.2558817863464355,
+      "gapBottomMedian": -2.6742372512817383,
+      "gapBottomMax": -2.6742372512817383,
+      "footprintRadius": 6.638445486399332,
+      "footprintCenter": {
+        "x": 33.42234420776367,
+        "y": 13.874278545379639,
+        "z": 27.104544639587402
+      },
+      "groundSample": {
+        "bboxBottomCenter": [
+          33.42234420776367,
+          4.963458061218262,
+          27.104544639587402
+        ],
+        "footprintCornersXZ": [
+          [
+            27.670055389404297,
+            23.790916442871094
+          ],
+          [
+            27.670055389404297,
+            30.41817283630371
+          ],
+          [
+            39.17463302612305,
+            23.790916442871094
+          ],
+          [
+            39.17463302612305,
+            30.41817283630371
+          ]
+        ],
+        "groundYAtBottomCenter": 5.419921875,
+        "groundYBelowResolved": 5.419921875,
+        "groundSupportSource": "aabb_bottom_center",
+        "groundYAtFootprintCorners": [
+          6.041015625,
+          null,
+          6.7578125,
+          null
+        ],
+        "cornerHits": 2,
+        "cornerMisses": 2,
+        "gap": -0.4564638137817383,
+        "gridSamples": 49,
+        "gridHits": 27,
+        "gridMisses": 22,
+        "bottomVertices": 4,
+        "bottomHits": 4,
+        "bottomMisses": 0,
+        "gapBottomMin": -3.2558817863464355,
+        "gapBottomMedian": -2.6742372512817383,
+        "gapBottomMax": -2.6742372512817383,
+        "groundYBottomMedian": 8.3203125
+      },
+      "category": "grounded",
+      "classificationBasis": "playable vegetation/rock/prop; no remote backdrop evidence",
+      "distanceToPlayableMeters": 0.0,
+      "distanceToPlayableCenterMeters": 43.03149209543329,
+      "backdropEvidence": null,
+      "groundingStatus": "embedded",
+      "deltaY": 0.0
+    }
+  ]
+}

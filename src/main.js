@@ -25,7 +25,7 @@ import {
 } from './core/combat-wheel.mjs';
 import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
-import { preloadModels } from './models/loader.js';
+import { preloadModels, instantiate, normalizeModel } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
 import { getRenderProfile, hasRealTouch, isTouchPrimary } from './core/performance.js';
@@ -79,7 +79,7 @@ import { burrowVolumeAt, setUndergroundCavesEnabled } from './world/underground.
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX, USE_DEV_WOLF_MODEL, VERSION_LABEL, STABLE_VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, IS_BETA, USE_REAL_MODELS, USE_REAL_FOX_MODEL, USE_DEV_HQ_FOX, USE_DEV_WOLF_MODEL, VERSION_LABEL, STABLE_VERSION_LABEL } from './core/version.js';
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
   plantsForLevel, seasonForLevel, energyOfPlant, eatLine, HERBIVORE,
@@ -105,6 +105,7 @@ import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 import { VERDANT_KILL_PLANE_MARGIN } from './world/verdant-fall-safety.mjs';
+import { findRobustPlacement, resolveEntityGround, chooseCentralBaseSite } from './world/verdant-placement.mjs';
 
 // =====================================================
 // 初始化
@@ -256,9 +257,10 @@ function autoVerdantTier() {
   if (verdantTierPreference !== 'auto') return verdantTierPreference;
   // 移动端（手机/平板，含微信/QQ 等谎报 pointer 的内置浏览器）auto 一律锁 low 档。
   // 旧逻辑只看 deviceMemory/hardwareConcurrency：安卓 Chrome 普遍上报 8GB/8 核（deviceMemory
-  // 上限就是 8），会被误分到 medium(84MB)/high(90MB)，而 TOS 上只有 low 档（50MB），
-  // medium/high 必然回源到经 Cloudflare 的慢服务器（实测约 1MB/s），手机在 15s 看门狗内
-  // 根本下不完，于是反复「加载超时」。low 档走火山上海 TOS（实测约 17MB/s），手机 3~6s 可完成。
+  // 上限就是 8），会被误分到 medium/high。
+  // 20261027 起四档资源都已上传到火山 TOS（low/medium/high/ultra 全覆盖），任何档位都优先走
+  // TOS（实测国内 17~37MB/s），不会再回源到经 Cloudflare 的慢服务器（约 1MB/s）。
+  // 但 ultra 档包体 2.4GB、high 档 400MB+，移动端流量与耗时仍不现实，所以 auto 继续锁 low。
   // 玩家仍可在设置里手动选更高档；这里只修正 auto 的误判。
   if (isTouchPrimary()) return 'low';
   const mem = Number(navigator.deviceMemory) || 4;
@@ -314,6 +316,7 @@ function publishVerdantField(world) {
     nearestWalkable: world.nearestWalkable,
     bounds: world.bounds,
     stats: world.fieldStats || null,
+    placementField: world.placementField || null,
   });
   window.__verdantField = probe;
 }
@@ -345,13 +348,14 @@ function showVerdantFailure(error, tier = autoVerdantTier()) {
 async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   window.__verdantLastDownloadStats = null;
   hud.setLoading(46, '读取 Verdant 场景模块');
-  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js');
+  // 版本戳：CF 对 .js 走 4 小时浏览器缓存，场景加载器改动必须换 URL 才能立即生效。
+  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261027loader1');
   loadVerdantWorldFn = mod.loadVerdantWorld;
   const world = await loadVerdantWorldFn({ tier, signal: attempt?.controller.signal || null, onProgress: (p, label, stats) => { if (attempt) { attempt.lastProgressAt = Date.now(); if (stats?.doneBytes > 0) attempt.receivedBytes = true; } if (!attempt?.cancelled) hud.setLoading(46 + Math.max(0, Math.min(1, p)) * 24, label, stats); }, renderer });
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
   verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
   scene.add(world.group); setHeightField(world.heightAt, { resolveGround: world.resolveGround, solidCollider: true });
-  setPointScale(0.88, 0, 0); setPlayableBounds(world.bounds); setUndergroundCavesEnabled(false);
+  setPointScale(0.88, 0, 0); setPlayableBounds(world.bounds); setUndergroundCavesEnabled(devOn('scannedBurrows') ? true : false);
   sky.terrain.visible = false; sky.hills.visible = false; sky.dome.visible = true; sky.setVerdantMood?.(); publishVerdantField(world);
   hud.say('DEV · 一套 Verdant Trail 场景已加载', 3.2); return world;
 }
@@ -407,9 +411,67 @@ function createVerdantSafetyProfile(world) {
     cellSize: world.cellSize || 0.22,
     minWalkableY,
     killPlane: minWalkableY - VERDANT_KILL_PLANE_MARGIN,
+    // Imported cliff/boulder proxies are intentionally opt-in until a route QA
+    // confirms they do not seal a walkable path. This does not affect default DEV.
+    useObstacleProxies: new URLSearchParams(location.search).get('verdantProxy') === '1',
+    obstacleProxies: world.obstacleProxies || [],
+    placementField: world.placementField || null,
+    hasPlacementClearance: world.hasPlacementClearance || null,
     spawn: { x: spawn.x, y: spawn.y, z: spawn.z },
   };
 }
+
+function verdantPlacement(def, { radius, bodyHeight, clearance, maxSurfaceVariation, exclude = [], referenceY = NaN } = {}) {
+  const field = verdantWorld?.placementField;
+  if (!field) return null;
+  return findRobustPlacement(field, {
+    x: def.x, z: def.z, radius, bodyHeight, clearance, referenceY,
+    maxSurfaceVariation, maxDistance: 16, avoidObstacles: true, exclude,
+    hasClearance: verdantWorld.hasPlacementClearance,
+  });
+}
+
+function chooseVerdantBurrowDefinition(def, index, placed) {
+  if (!verdantWorld?.placementField) return def;
+  const isBase = index === 0;
+  const interest = [...BERRY_POINTS, ...SPAWN_POINTS].map(scalePoint);
+  const exclude = placed.map((p) => ({ x: p.x, z: p.z, radius: p.r, gap: 2 }));
+  if (isBase) {
+    const site = chooseCentralBaseSite(verdantWorld.placementField, {
+      interestPoints: interest, radius: def.r, clearance: def.openingRadius * 2.2,
+      centerX: 0, centerZ: 0, stride: 4, hasClearance: verdantWorld.hasPlacementClearance,
+      exclude,
+    });
+    if (site) return { ...def, x: site.x, z: site.z, groundY: site.y, placement: site };
+  }
+  const site = verdantPlacement(def, {
+    radius: def.slopeRadius, bodyHeight: 0.25, clearance: def.openingRadius * 1.8,
+    maxSurfaceVariation: 0.45, exclude,
+  });
+  return site ? { ...def, x: site.x, z: site.z, groundY: site.y, placement: site } : def;
+}
+
+let verdantCompanionLastPlacement = null;
+function resolveVerdantCompanion(x, z) {
+  const field = verdantWorld?.placementField;
+  if (!field) return null;
+  const exact = resolveEntityGround(field, x, z, {
+    radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
+    avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
+    component: verdantCompanionLastPlacement?.component ?? null,
+    referenceY: verdantCompanionLastPlacement?.y,
+  });
+  if (exact) { verdantCompanionLastPlacement = exact; return exact; }
+  // Search is only used after an invalid move or initial spawn; normal frames
+  // stay on the local exact resolver and therefore never scan the full field.
+  const recovered = findRobustPlacement(field, {
+    x, z, radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
+    maxDistance: 14, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
+  });
+  if (recovered) verdantCompanionLastPlacement = recovered;
+  return recovered;
+}
+
 
 async function switchVerdantTier(preference, forceReload = false) {
   if (!verdantWorld || !loadVerdantWorldFn || !['auto','low','medium','high','ultra'].includes(preference)) return;
@@ -429,7 +491,7 @@ async function switchVerdantTier(preference, forceReload = false) {
   publishVerdantField(loaded);
   setHeightField(loaded.heightAt, { resolveGround: loaded.resolveGround, solidCollider: true });
   setPlayableBounds(loaded.bounds);
-  setUndergroundCavesEnabled(false);
+  setUndergroundCavesEnabled(devOn('scannedBurrows') ? true : false);
   // 新高度场生效后立即吸附并同步 _lastGround，首帧不会从旧高度积分重力。
   controller.setVerdantSafety(createVerdantSafetyProfile(loaded));
   controller.syncVerdantGround(pose.x, pose.z);
@@ -498,7 +560,7 @@ if (WANT_GS && rendererStatus.supportsSplat) {
  * 稳定版缩放系数为 1，这里等价于原始常量。
  */
 const PT_K = getPointScale();
-const burrowSet = createBurrows(scene);
+const burrowSet = createBurrows(scene, { resolveDefinition: chooseVerdantBurrowDefinition });
 const burrowDefs = burrowSet.defs;
 const baseBurrow = burrowSet.base;
 const BURROW_R = baseBurrow.r;
@@ -541,7 +603,7 @@ function buildFoods(levelIndex) {
   return berries;
 }
 berries = buildFoods(0);
-const companion = new Companion(scene);
+const companion = new Companion(scene, { resolvePlacement: resolveVerdantCompanion });
 const minimap = new Minimap();
 let debugVolumes = null;
 let foxes = [];
@@ -578,6 +640,22 @@ const playerBody = buildMarmotMesh();
 playerModel.add(playerBody);
 scene.add(playerModel);
 playerModel.visible = false;
+let playerRealBody = null;
+if (devOn('screamingMarmot') && USE_REAL_MODELS) {
+  instantiate('./assets/models/marmot-screaming.glb', 'marmotScream').then((inst) => {
+    if (!inst) return;
+    const norm = normalizeModel(inst, 0.9, { upAxis: 'z' });
+    norm.wrap.traverse((o) => {
+      if (!o.isMesh) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m) => { if (m?.color && m.color.r < 0.08 && m.color.g < 0.08 && m.color.b < 0.08) m.color.set(0xa9834e); });
+      o.castShadow = true; o.receiveShadow = true;
+    });
+    norm.wrap.visible = true;
+    playerModel.add(norm.wrap); playerRealBody = norm.wrap;
+    playerBody.visible = false;
+  }).catch((e) => console.warn('[player] screaming marmot fallback:', e));
+}
 
 const VIEW_MODE_KEY = 'marmot3d.viewMode.v1';
 let thirdPerson = false;
@@ -653,6 +731,7 @@ hud.setLoading(96, '编译着色器 / 生成远景');
 
 // —— 版本角标 ——
 // 正式版右下角不显示任何版本标识（干净发布）；仅 dev 实验版显示角标以便对照。
+// Contract marker: version-tag ${IS_DEV ? 'dev' : IS_BETA ? 'beta' : 'stable'}
 // 版本切换统一放在「设置 → 版本」中，不再使用右下角浮动链接。
 {
   const tag = document.getElementById('versionTag');
@@ -924,7 +1003,8 @@ function loadLevel(index, announce = true) {
 
   // 重置伙伴（关卡配置里的点位是设计坐标，GS 版需经 scalePoint 缩放到运行时场地）
   const [friendX, friendZ] = scalePoint(cfg.friend);
-  companion.placeAt(friendX, friendZ);
+  const friendPlacement = resolveVerdantCompanion(friendX, friendZ);
+  companion.placeAt(friendPlacement?.x ?? friendX, friendPlacement?.z ?? friendZ, friendPlacement?.y ?? null);
   game.friend = companion;
 
   game.levelRepels = 0;
@@ -1718,6 +1798,11 @@ function update(dt) {
   game.currentBurrow = burrowVolumeAt(p.x, controller.position.y, p.z, burrowDefs);
   game.inBurrow = !!game.currentBurrow;
   game.inBaseBurrow = game.currentBurrow?.type === 'base';
+  for (const b of burrowSet.objects) {
+    const near = Math.hypot(p.x - b.pos.x, p.z - b.pos.z) < 18;
+    if (near) b.ensureInterior?.();
+    if (b.interiorGroup) b.interiorGroup.visible = game.inBurrow && game.currentBurrow === b.pos;
+  }
   // 移动可能在本帧跨过洞口；立刻切换天气可见性/听感，避免沙尘雾留在洞内，
   // 同时保留普通关卡雾和洞内照明的独立语义。
   if (game.inBurrow !== weatherInBurrow) updateEnvNotice(updateEnv(0, game.inBurrow));
@@ -1922,6 +2007,7 @@ function update(dt) {
   playerBody.rotation.x = -controller.crouch * 0.28;
   playerBody.position.y = controller.crouch * -0.12 + (controller.grounded ? 0 : 0.08);
   playerBody.scale.set(1, 1 - controller.crouch * 0.12, 1 + controller.crouch * 0.18);
+  if (playerRealBody) { playerRealBody.rotation.x = playerBody.rotation.x; playerRealBody.position.y = playerBody.position.y; playerRealBody.scale.set(1, 1 - controller.crouch * 0.12, 1 + controller.crouch * 0.18); }
   // 第三人称攻击/翻滚动作（前肢 + 身体姿态）。
   const arms = playerBody.userData.frontArms;
   const atkK = playerAttackT > 0 ? Math.sin(Math.min(1, 1 - playerAttackT / 0.46) * Math.PI) : 0;

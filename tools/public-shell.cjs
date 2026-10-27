@@ -16,10 +16,10 @@ function replaceOnce(source, pattern, replacement, label) {
 function generatePublicShell(source) {
   let html = source;
   html = html.replace(/((?:href|src)=")\.\/assets\//g, `$1${PUBLIC_BASE}/assets/`);
-  html = replaceOnce(html, /href="\.\/styles\.css"/, `href="${PUBLIC_BASE}/styles.css?v=${VERSION_STAMP}"`, 'stylesheet URL');
+  html = replaceOnce(html, /href="\.\/styles\.css(?:\?[^"]*)?"/, `href="${PUBLIC_BASE}/styles.css?v=${VERSION_STAMP}"`, 'stylesheet URL');
   html = html.replace(/"\.\/vendor\//g, `"${PUBLIC_BASE}/vendor/`);
   html = html.replace(/(['"])\.\/src\/([^'"]+)\1/g,
-    (_match, quote, resource) => `${quote}${PUBLIC_BASE}/src/${resource}?v=${VERSION_STAMP}${quote}`);
+    (_match, quote, resource) => `${quote}${PUBLIC_BASE}/src/${resource.split('?')[0]}?v=${VERSION_STAMP}${quote}`);
 
   if (html.includes('./assets/') || html.includes('./vendor/') || html.includes('./src/')) {
     throw new Error('Unconverted relative beta resource path remains in index.html');

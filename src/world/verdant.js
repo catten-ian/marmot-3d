@@ -3,12 +3,22 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getAssetCandidates } from './local-pack.js';
 import { buildWalkableField } from './verdant-collision.js';
+import { createProgressReporter, fetchWithFailover, parseGltfReferences, sourceLabelOf } from './verdant-progress.mjs';
 
-async function fetchJson(path, tier, sourceOnly = false) {
+/** 单个下载源首字节无响应的上限：超过即判定该源故障，切下一个源。 */
+const SOURCE_STALL_MS = 8000;
+/** 传输中途无字节的上限：超过即判定该源卡死。 */
+const SOURCE_IDLE_MS = 60000;
+
+async function fetchJson(path, tier, sourceOnly = false, signal = null) {
   const errors = [];
   for (const url of getAssetCandidates(path, tier, sourceOnly)) {
     try {
-      const response = await fetch(url, { cache: 'no-store' });
+      const init = {};
+      if (signal) init.signal = signal;
+      // 清单类 JSON 走条件验证（ETag → 304 零字节）：内容永远新鲜，且未变时不重下。
+      if (/^https?:/i.test(url)) init.cache = 'no-cache';
+      const response = await fetch(url, init);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.json();
     } catch (error) { errors.push(`${url}: ${error.message}`); }
@@ -16,77 +26,145 @@ async function fetchJson(path, tier, sourceOnly = false) {
   throw new Error(`Verdant JSON fallback exhausted for ${path}: ${errors.join(' | ')}`);
 }
 
-function loadGltfCandidate(url, resourceBase, sourceOnly, tier, onProgress) {
-  return new Promise(async (resolve, reject) => {
-    const manager = new THREE.LoadingManager();
-    manager.setURLModifier((resourceUrl) => {
-      if (/^(data:|blob:)/i.test(resourceUrl)) return resourceUrl;
-      try {
-        const logical = new URL(resourceUrl, resourceBase).href;
-        return getAssetCandidates(logical, tier, sourceOnly)[0] || resourceUrl;
-      } catch (_) { return resourceUrl; }
-    });
-    manager.onProgress = (_item, loaded, total) => onProgress?.(Math.min(0.98, loaded / Math.max(1, total)), '加载场景外置资源');
-    manager.onError = (resourceUrl) => reject(new Error(`外置资源读取失败：${resourceUrl}`));
-    const loader = new GLTFLoader(manager);
-    const logicalUrl = new URL(resourceBase, location.href).href;
-    if (!/\.gltf(?:$|[?#])/i.test(logicalUrl)) {
-      loader.load(url, (gltf) => resolve(gltf.scene), (event) => {
-        // FileLoader progress callbacks are emitted per stream chunk, unlike
-        // LoadingManager.onProgress which fires at resource completion only.
-        globalThis.__m3dByteHeartbeat?.({
-          url, loaded: event.loaded, total: event.total, lengthComputable: event.lengthComputable,
-        });
-      }, reject);
-      return;
-    }
-    try {
-      const response = await fetch(url, { cache: 'no-store' });
-      if (!response.ok) throw new Error(`glTF HTTP ${response.status}`);
-      const json = await response.json();
-      loader.parse(json, new URL('.', logicalUrl).href, (gltf) => resolve(gltf.scene), reject);
-    } catch (error) { reject(error); }
+/**
+ * 用统一候选链（本地资源包 → 火山 TOS → 同源服务器）下载一个资源，
+ * 逐块回报字节进度；单源首字节超时即换下一个源。
+ */
+async function downloadAsset(url, { tier, signal, size, reporter, cache }) {
+  const candidates = getAssetCandidates(url, tier);
+  const result = await fetchWithFailover(candidates, {
+    signal,
+    stallMs: SOURCE_STALL_MS,
+    idleMs: SOURCE_IDLE_MS,
+    expectedSize: size || 0,
+    cache: cache || '',
+    onOpen: ({ totalBytes }) => { reporter.setTotal(totalBytes || size || 0); },
+    onChunk: (bytes) => {
+      reporter.addBytes(bytes);
+      reporter.publish({ currentPath: url });
+      // 字节心跳：让 index.html 的看门狗知道网络仍在传输，避免误判停滞。
+      globalThis.__m3dByteHeartbeat?.({
+        url, loaded: reporter.doneBytes, total: reporter.totalBytes, lengthComputable: true,
+      });
+    },
+    onSwitch: ({ from, to }) => {
+      reporter.publish({ text: `${sourceLabelOf(from)} 无响应，切换到${sourceLabelOf(to)}`, sourceLabel: sourceLabelOf(to) });
+    },
   });
+  if (!reporter.totalBytes) reporter.setTotal(result.totalBytes || size || 0);
+  return result;
 }
 
-async function loadGltf(path, tier, onProgress) {
-  const logicalUrl = new URL(path, location.href).href;
-  const resourceBase = logicalUrl;
-  const candidates = getAssetCandidates(logicalUrl, tier);
-  const errors = [];
-  for (let i = 0; i < candidates.length; i++) {
+/**
+ * 加载场景资产。
+ *
+ * - GLB（low/medium/high）：场景自包含，贴图与 buffer 全部内嵌；
+ *   下载整个 GLB 即可，进度即该文件的真实字节。
+ * - glTF（ultra）：场景引用外部 buffer 与贴图；先取 glTF 清单，
+ *   再按清单只下载**被引用到**的那些文件（pack-manifest 里另有约 1.1GB 未引用资源，
+ *   全量下载既慢又没必要），最后把外部资源指向本地 blob。
+ *   blob 路径失败时回退到原生加载（由 GLTFLoader 直接回源），保证不因改写而彻底失败。
+ */
+async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signal }) {
+  const sceneUrl = new URL(scenePath, location.href).href;
+  const sceneName = decodeURIComponent(sceneUrl.split('/').pop() || '');
+  const sizeByPath = new Map((packManifest?.files || []).map((file) => [String(file?.path || ''), Number(file?.size) || 0]));
+  const sceneSize = sizeByPath.get(sceneName) || 0;
+  const isGltf = /\.gltf(?:$|[?#])/i.test(sceneUrl);
+
+  // 场景进度：只统计场景资产本身的总字节，HUD 用它算「已下 / 总 / 剩余 / 速度」。
+  const reporter = createProgressReporter({
+    onProgress: (stats) => {
+      const pct = stats.totalBytes > 0 ? Math.min(1, stats.doneBytes / stats.totalBytes) : 0;
+      onProgress?.(pct, stats.text || '加载 Verdant 资源', stats);
+    },
+  });
+
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier((resourceUrl) => {
+    if (/^(data:|blob:)/i.test(resourceUrl)) return resourceUrl;
     try {
-      onProgress?.(i / Math.max(1, candidates.length), i === 0 ? '尝试本地资源包' : i === candidates.length - 1 ? '回退到同源资源' : '尝试 TOS 资源');
-      const scene = await loadGltfCandidate(candidates[i], resourceBase, i === candidates.length - 1, tier, onProgress);
-      return scene;
-    } catch (error) { errors.push(`${candidates[i]}: ${error.message}`); }
+      const logical = new URL(resourceUrl, sceneUrl).href;
+      return getAssetCandidates(logical, tier)[0] || resourceUrl;
+    } catch (_) { return resourceUrl; }
+  });
+  const loader = new GLTFLoader(manager);
+
+  const parseScene = (data, path) => new Promise((resolve, reject) => {
+    manager.onError = (resourceUrl) => reject(new Error(`外置资源读取失败：${resourceUrl}`));
+    loader.parse(data, path, (gltf) => resolve(gltf.scene), reject);
+  });
+
+  if (!isGltf) {
+    // GLB 自包含：一次流式下载即可拿到全部进度。
+    const result = await downloadAsset(sceneUrl, { tier, signal, size: sceneSize, reporter });
+    reporter.publish({ cached: result.cached, sourceLabel: sourceLabelOf(result.url) });
+    const arrayBuffer = result.bytes.buffer.slice(result.bytes.byteOffset, result.bytes.byteOffset + result.bytes.byteLength);
+    return await parseScene(arrayBuffer, new URL('.', sceneUrl).href);
   }
-  throw new Error(`Verdant 场景 local → TOS → source 回退均失败：${errors.join(' | ')}`);
+
+  // glTF：先取清单（小文件，单独统计），再按引用下载外部资源。
+  const manifestReporter = createProgressReporter({
+    onProgress: (stats) => onProgress?.(0, stats.text || '读取 Verdant 场景清单', stats),
+  });
+  const gltfResult = await downloadAsset(sceneUrl, { tier, signal, size: sceneSize, reporter: manifestReporter, cache: 'no-cache' });
+  const json = JSON.parse(new TextDecoder().decode(gltfResult.bytes));
+  const references = parseGltfReferences(json);
+  const depBytes = references.reduce((sum, reference) => sum + (sizeByPath.get(reference) || 0), 0);
+  reporter.setTotal(sceneSize + depBytes);
+  reporter.addBytes(gltfResult.bytes.byteLength);
+
+  const blobUrls = [];
+  const blobs = new Map();
+  for (const reference of references) {
+    const referenceUrl = new URL(reference, new URL('.', sceneUrl).href).href;
+    const result = await downloadAsset(referenceUrl, { tier, signal, size: sizeByPath.get(reference) || 0, reporter });
+    const blobUrl = URL.createObjectURL(new Blob([result.bytes]));
+    blobUrls.push(blobUrl);
+    blobs.set(reference, blobUrl);
+  }
+
+  // 把外部资源改写为本地 blob，GLTFLoader 直接从内存读，不再回源。
+  const rewritten = {
+    ...json,
+    buffers: (json.buffers || []).map((buffer) => (blobs.has(buffer.uri) ? { ...buffer, uri: blobs.get(buffer.uri) } : buffer)),
+    images: (json.images || []).map((image) => (blobs.has(image.uri) ? { ...image, uri: blobs.get(image.uri) } : image)),
+  };
+
+  try {
+    return await parseScene(rewritten, new URL('.', sceneUrl).href);
+  } catch (error) {
+    // blob 路径失败 → 交回原生加载（GLTFLoader 自己按 URL 候选链回源），不因改写而彻底失败。
+    console.warn('[verdant] blob 资源改写失败，回退原生加载:', error?.message || error);
+    return await parseScene(json, new URL('.', sceneUrl).href);
+  } finally {
+    for (const blobUrl of blobUrls) URL.revokeObjectURL(blobUrl);
+  }
 }
 
-export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'medium', onProgress, renderer } = {}) {
+export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'medium', onProgress, renderer, signal = null } = {}) {
   const root = base.endsWith('/') ? base : `${base}/`;
   onProgress?.(0.04, '读取 Verdant 清单');
-  const catalog = await fetchJson(`${root}manifest.json`, tier);
+  const catalog = await fetchJson(`${root}manifest.json`, tier, false, signal);
   const tierEntry = catalog.tiers?.[tier];
   if (catalog.tiers && !tierEntry) throw new Error(`Verdant 清单没有 ${tier} 档，保持手动档位不降级`);
   const manifestPath = tierEntry?.manifest ? `${root}${tierEntry.manifest}` : `${root}manifest.json`;
-  const manifest = catalog.tiers ? await fetchJson(manifestPath, tier) : catalog;
+  const manifest = catalog.tiers ? await fetchJson(manifestPath, tier, false, signal) : catalog;
   const activeTier = manifest.export?.tier || tier;
   if (activeTier !== tier) throw new Error(`请求 ${tier} 档但清单返回 ${activeTier}，拒绝静默降档`);
 
   onProgress?.(0.12, '读取 Verdant 高度场');
   const heightPath = catalog.height ? `${root}${catalog.height}` : `${root}tiers/${activeTier}/${manifest.files.height}`;
-  const height = await fetchJson(heightPath, activeTier);
+  const height = await fetchJson(heightPath, activeTier, false, signal);
   onProgress?.(0.18, '读取资源完整性清单');
   const packManifestPath = `${root}tiers/${activeTier}/${manifest.packManifest || 'pack-manifest.json'}`;
-  const packManifest = await fetchJson(packManifestPath, activeTier);
+  const packManifest = await fetchJson(packManifestPath, activeTier, false, signal);
   if (!Array.isArray(packManifest.files) || packManifest.files.length !== packManifest.fileCount || packManifest.tier !== activeTier) {
     throw new Error(`Verdant ${activeTier} pack-manifest 结构/档位无效`);
   }
   const scenePath = `${root}tiers/${activeTier}/${manifest.files.scene}`;
   onProgress?.(0.2, '加载 Verdant 场景');
-  const scene = await loadGltf(scenePath, activeTier, (p, label) => onProgress?.(0.2 + p * 0.78, label || '加载 Verdant 场景'));
+  const scene = await loadSceneAsset({ scenePath, tier: activeTier, packManifest, onProgress, signal });
   scene.name = 'VerdantTrailWorld';
   scene.userData.verdantTier = activeTier;
   scene.traverse((obj) => {

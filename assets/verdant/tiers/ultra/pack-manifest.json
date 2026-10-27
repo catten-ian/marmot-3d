@@ -1,16 +1,16 @@
 {
   "format": 1,
-  "pack": "m3d-dev/20261022/ultra",
+  "pack": "m3d-dev/20261027/ultra",
   "tier": "ultra",
-  "generatedAt": "2026-10-22",
-  "totalBytes": 2273480718,
-  "fileCount": 145,
+  "generatedAt": "2026-10-26",
+  "totalBytes": 2400028055,
+  "fileCount": 146,
   "files": [
     {
       "path": "manifest-ultra.json",
-      "size": 2265,
-      "sha256": "e91660b63b5b2246ef9fa8315feec171321144f29203503b7a62c5c262b5d4fb",
-      "md5": "a3f6b0e17defff26a620d5d0939ccb9a",
+      "size": 2242,
+      "sha256": "a950b841b25dbc2323b6b17fe8ace00da74a726bdd3a878c7ba9477118cdab83",
+      "md5": "75582bbcfaa9619560ffd0af2754041b",
       "contentType": "application/json"
     },
     {
@@ -1013,6 +1013,13 @@
       "sha256": "caf28a11a80973d44e611c7d4e1f5c701a2c600ead7cb4af55cb13db7d6cc863",
       "md5": "2bd33eaf746866b92267b008898d72d5",
       "contentType": "application/json"
+    },
+    {
+      "path": "verdant-trail-ultra.bin",
+      "size": 126547360,
+      "sha256": "822a9cf8017afd095209a76a0e83feffeee03c137311c8eb027c690272f4a920",
+      "md5": "9a6b7d89530a438406513fcf7d66e7be",
+      "contentType": "application/octet-stream"
     },
     {
       "path": "verdant-trail-ultra.gltf",
