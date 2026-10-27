@@ -139,7 +139,12 @@ const canvas = document.getElementById('scene');
 const hud = new HUD({ beta: IS_BETA });
 const audio = new Audio();
 if (IS_BETA) {
-  audio.preload();
+  audio.preload({
+    onProgress: ({ done, total, label }) => {
+      const pct = 70 + (done / Math.max(1, total)) * 16;
+      hud.setLoading(pct, `预载音频素材 ${done}/${total}${label ? ` · ${label}` : ''}`);
+    },
+  });
   audio.bindUserGesture(window);
 }
 
@@ -154,7 +159,8 @@ if (IS_BETA) {
   if (interactSkillLabel) interactSkillLabel.textContent = INTERACT_TEXT.skillLabel;
 }
 
-hud.setLoading(8);
+hud.beginLoadingSession('正在启动');
+hud.setLoading(8, '正在启动');
 
 /**
  * 渲染器与 three 实例。
@@ -236,7 +242,7 @@ renderer.toneMappingExposure = 0.92;
   }
 }
 
-hud.setLoading(22);
+hud.setLoading(22, '初始化渲染器');
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -245,7 +251,7 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const sky = new Sky(scene, renderer);
-hud.setLoading(45);
+hud.setLoading(45, '生成天空与光照');
 
 // —— GS 全场景（dev 版）——
 // 把摄影测量高斯泼溅当作**全部场景**（含可行走地面）：
@@ -261,7 +267,7 @@ let gsWorld = null;
 let gsStats = null;
 if (WANT_GS && rendererStatus.supportsSplat) {
   try {
-    hud.setLoading(48);
+    hud.setLoading(48, '加载场景资源');
     const { buildGsWorld, GS_AREA } = await import('./gs/world.js');
     // 注意：这里 import 的 world.js 用的 `three`，而渲染器走的是
     // `three/webgpu` 入口。两者共享同一个 three.module.js 核心
@@ -294,7 +300,7 @@ if (WANT_GS && rendererStatus.supportsSplat) {
     gsWorld = null;
     hud.say('GS 场景不可用：' + (e && e.message || e), 4.5);
   }
-  hud.setLoading(60);
+  hud.setLoading(60, '场景资源就绪');
 }
 
 /**
@@ -314,7 +320,7 @@ const BURROW_X = baseBurrow.x;
 const BURROW_Z = baseBurrow.z;
 const burrow = burrowSet.baseObject;
 const scenery = new Scenery(scene);
-hud.setLoading(70);
+hud.setLoading(70, '布置场景与植被');
 
 // GS 全场景下，程序化布景必须让位：
 //  · 程序化地形（会和 GS 地面重叠）
@@ -363,7 +369,7 @@ const minimap = new Minimap({ beta: IS_BETA });
 let debugVolumes = null;
 let debugVolumesReady = Promise.resolve();
 let foxes = [];
-hud.setLoading(86);
+hud.setLoading(86, '生成实体与模型');
 
 // —— 系统 ——
 const controller = new FirstPersonController(camera, canvas);
@@ -483,7 +489,7 @@ buildBackdrop().then((root) => {
 const keys = new Set();
 controller.keys = keys;
 
-hud.setLoading(96);
+hud.setLoading(96, '即将就绪');
 
 // —— 版本角标 ——
 // dev 版（?version=dev）是"按旱獭真实生态学改写"的实验分支，
@@ -3196,11 +3202,13 @@ window.visualViewport?.addEventListener('resize', resizeRenderer);
 
 canvas.addEventListener('webglcontextlost', (event) => {
   event.preventDefault();
+  console.warn('[renderer] WebGL context lost; browser/GPU reset may have interrupted rendering.', event);
   touchControls?.releaseAll();
   if (game.mode === 'play') pause();
-  hud.say('图形设备暂时重置，请稍候…', 3.5);
+  hud.say('图形渲染已重置，请稍候…', 4.5);
 });
 canvas.addEventListener('webglcontextrestored', () => {
+  console.info('[renderer] WebGL context restored; refreshing renderer size/profile.');
   resizeRenderer();
   hud.say('画面已恢复。', 2.2);
 });
@@ -3363,7 +3371,7 @@ if (IS_BETA) {
 // ============================================================
 // 启动
 // ============================================================
-hud.setLoading(100);
+hud.setLoading(100, '完成');
 loadLevel(0, false);
 // 标题状态下相机也需要正确落位，否则会渲染在场景原点（地下）
 controller.update(0.016, new Set(), 1);

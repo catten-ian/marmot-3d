@@ -150,14 +150,81 @@
   <button class="touch-layout-entry" id="touchLayoutEntry" type="button" aria-pressed="false" data-touch-adjust="entry">编辑</button>
 </div>
 
-<!-- ========== 加载 ========== -->
+<!-- ========== 加载（beta：电影感视频背景 + 轻量进度条） ========== -->
 <div id="loader" class="loader">
-  <div class="loader-inner">
-    <div class="loader-marmot">🐹</div>
-    <div class="loader-text">正在筑巢…</div>
-    <div class="loader-track"><div class="loader-fill" id="loaderFill"></div></div>
+  <video class="loader-video" id="loaderVideo" muted loop playsinline preload="none"
+         disablepictureinpicture x-webkit-airplay="deny"></video>
+  <div class="loader-scrim" aria-hidden="true"></div>
+  <div class="loader-marmot" aria-hidden="true">🐹</div>
+  <div class="loader-hud">
+    <div class="loader-brand">
+      <span class="loader-logo" aria-hidden="true">🐹</span>
+      <span class="loader-title">土拨鼠大作战 <em>BETA</em></span>
+    </div>
+    <div class="loader-track"><div class="loader-fill" id="loaderFill"></div><i class="loader-shine"></i></div>
+    <div class="loader-meta">
+      <span class="loader-text">正在筑巢…</span>
+      <span class="loader-bytes" id="loaderBytes" hidden></span>
+      <span class="loader-pct" id="loaderPct">0%</span>
+    </div>
   </div>
 </div>
+<script>
+/* Beta 页面恒用 cinematic；loadquality 只选择视频体积，视频失败时回退经典加载布局。 */
+(function () {
+  function pickLoadingQuality(win, nav) {
+    var connection = nav && nav.connection;
+    var slowTypes = ['slow-2g', '2g', '3g'];
+    var narrow = !!(win && win.matchMedia && win.matchMedia('(max-width: 820px)').matches);
+    var coarse = !!(win && win.matchMedia && win.matchMedia('(pointer: coarse)').matches);
+    var constrained = !!(connection && (connection.saveData === true || slowTypes.indexOf(connection.effectiveType) !== -1));
+    return narrow || coarse || constrained ? 'mobile' : 'desktop';
+  }
+  try {
+    window.__betaLoadingPickQuality = pickLoadingQuality;
+    var loader = document.getElementById('loader');
+    var video = document.getElementById('loaderVideo');
+    if (loader) loader.classList.add('cinematic');
+    if (video) {
+      var forced = new URLSearchParams(location.search).get('loadquality');
+      var quality = (forced === 'mobile' || forced === 'desktop') ? forced : pickLoadingQuality(window, navigator);
+      var isMobile = quality === 'mobile';
+      video.dataset.quality = quality;
+      video.setAttribute('poster', isMobile ? './assets/video/dev-loading-poster-mobile.jpg' : './assets/video/dev-loading-poster.jpg');
+      var source = document.createElement('source');
+      source.src = isMobile ? './assets/video/dev-loading-mobile.mp4' : './assets/video/dev-loading.mp4';
+      source.type = 'video/mp4';
+      video.appendChild(source);
+      video.addEventListener('error', function () {
+        video.style.display = 'none';
+        if (loader) { loader.classList.remove('cinematic'); loader.classList.add('classic'); }
+      }, { once: true });
+      video.load();
+      var play = video.play();
+      if (play && typeof play.catch === 'function') play.catch(function () {});
+    }
+    var lastProgressAt = Date.now();
+    var stalled = false;
+    window.addEventListener('app:boot-progress', function () {
+      lastProgressAt = Date.now();
+      if (stalled) {
+        stalled = false;
+        if (loader) { loader.dataset.watchdogStalled = 'false'; loader.classList.remove('loading-stalled'); }
+      }
+    });
+    window.setInterval(function () {
+      if (!loader || loader.classList.contains('gone')) return;
+      if (!stalled && Date.now() - lastProgressAt > 12000) {
+        stalled = true;
+        loader.dataset.watchdogStalled = 'true';
+        loader.classList.add('loading-stalled');
+        var text = loader.querySelector('.loader-text');
+        if (text) text.textContent = '仍在加载，网络较慢，请稍候…';
+      }
+    }, 1000);
+  } catch (_) { /* fallback remains usable if early DOM APIs are unavailable */ }
+})();
+</script>
 
 <!-- ========== 开发测试面板（仅 ?test=1 显示） ========== -->
 <button class="test-mode-btn" id="testModeBtn" type="button" hidden aria-expanded="false">测试</button>

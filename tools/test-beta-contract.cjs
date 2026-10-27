@@ -10,16 +10,21 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 const canonical = read('index.html');
 const publicShell = read('index-public.html');
+const loaderBlock = (html) => html.match(/<!-- ========== 加载[\s\S]*?(?=<!-- ========== 开发测试面板)/)?.[0] || '';
+const stripLoaderBlock = (html) => html.replace(/<!-- ========== 加载[\s\S]*?(?=<!-- ========== 开发测试面板)/, '<!-- ========== 加载 ========== -->\n');
 
 function ids(html) {
   return new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]));
 }
 
 async function main() {
-  // index-public is generated from the canonical shell, so markup/help/touch UI
-  // changes cannot silently drift between the two entry points.
-  assert.equal(publicShell, generatePublicShell(canonical), 'index-public.html must match its generated canonical shell');
-  assert.deepEqual(ids(publicShell), ids(canonical), 'canonical and public shell DOM id sets must match');
+  // The beta-only loader is intentionally allowed to diverge from the canonical
+  // stable/dev shell; all other generated markup must stay synchronized.
+  assert.equal(stripLoaderBlock(publicShell), stripLoaderBlock(generatePublicShell(canonical)), 'index-public.html must match its generated canonical shell outside the beta loader');
+  const loaderIds = new Set(['loaderVideo', 'loaderBytes', 'loaderPct']);
+  assert.deepEqual([...ids(publicShell)].filter((id) => !loaderIds.has(id)).sort(), [...ids(canonical)].sort(), 'canonical and public shell DOM id sets must match outside beta loader additions');
+  assert.match(loaderBlock(publicShell), /loader-video/);
+  assert.match(loaderBlock(publicShell), /loader-title[^>]*>土拨鼠大作战 <em>BETA/);
   for (const id of [
     'scene', 'crosshair', 'hudTop', 'hpText', 'energyText', 'stressText', 'mission',
     'objective', 'sandboxStatus', 'touchControls', 'touchJoystick', 'touchLookZone',

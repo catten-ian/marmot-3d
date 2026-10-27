@@ -313,14 +313,28 @@ export class Audio {
   }
 
   /** Start network work before the first gesture; decoding still waits for AudioContext. */
-  preload() {
+  preload({ onProgress } = {}) {
     if (!this.isBeta || !this.fetchFn) return Promise.resolve([]);
+    const paths = Object.values(BGM_ASSETS);
+    const total = 2 + paths.length;
+    let done = 0;
+    const report = (label, result) => {
+      done += 1;
+      try { onProgress?.({ done, total, label, doneBytes: undefined, totalBytes: undefined, result }); } catch (_) { /* progress is observational */ }
+    };
+    const tracked = (promise, label) => Promise.resolve(promise).then((result) => {
+      report(label, result);
+      return result;
+    }, (error) => {
+      report(label, null);
+      throw error;
+    });
     const jobs = [
-      this._readManifest('bgm'),
-      this._readManifest('sfx'),
+      tracked(this._readManifest('bgm'), '读取 BGM 清单'),
+      tracked(this._readManifest('sfx'), '读取音效清单'),
       // 进场加载阶段预取全部 BGM 字节（解码仍等首个手势后的 AudioContext），
       // 避免进入游戏后切槽位才临时下载导致长时间程序合成兜底。
-      ...Object.values(BGM_ASSETS).map((path) => this._prefetchAsset(path, AUDIO_TIMEOUTS.bgm)),
+      ...paths.map((path) => tracked(this._prefetchAsset(path, AUDIO_TIMEOUTS.bgm), `预载 ${path.split('/').pop()}`)),
     ];
     return Promise.allSettled(jobs).catch(() => []);
   }

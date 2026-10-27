@@ -9,6 +9,15 @@ import { BETA_TUNE } from '../core/beta-tuning.js';
 import { interactionSemantics } from '../core/interaction-semantics.mjs';
 
 const CH_CIRCUMFERENCE = 2 * Math.PI * 18;
+
+export function formatLoadingBytes(value) {
+  const b = Math.max(0, Number(value) || 0);
+  if (b < 1024) return `${Math.round(b)} B`;
+  const units = ['KiB', 'MiB', 'GiB'];
+  let x = b; let i = -1;
+  do { x /= 1024; i++; } while (x >= 1024 && i < units.length - 1);
+  return `${x.toFixed(x >= 100 ? 0 : x >= 10 ? 1 : 2)} ${units[i]}`;
+}
 const INTERACT_TEXT = interactionSemantics(IS_BETA);
 
 export class HUD {
@@ -42,6 +51,10 @@ export class HUD {
       perfHint: document.getElementById('perfHint'),
       loader: document.getElementById('loader'),
       loaderFill: document.getElementById('loaderFill'),
+      loaderText: document.querySelector('.loader-text'),
+      loaderPct: document.getElementById('loaderPct'),
+      loaderBytes: document.getElementById('loaderBytes'),
+      loaderVideo: document.getElementById('loaderVideo'),
     };
 
     this.el.betaReserves = document.createElement('div');
@@ -49,6 +62,7 @@ export class HUD {
     this.el.betaReserves.hidden = !beta;
     this.el.energyBar.closest('.vitals')?.appendChild(this.el.betaReserves);
     if (beta && this.el.energyLabel) this.el.energyLabel.textContent = '◆ 体力值';
+    this._loadingMax = -1;
     this.toastTimer = 0;
     this.bannerTimer = 0;
     this._threatMarks = [];
@@ -80,13 +94,57 @@ export class HUD {
     el.querySelector('.forage-track i').style.width = `${Math.max(0, Math.min(1, progress)) * 100}%`;
   }
 
-  setLoading(pct) {
-    this.el.loaderFill.style.width = pct + '%';
+  setLoading(pct, label, byteStats = null) {
+    const p = Math.max(0, Math.min(100, Number(pct) || 0));
+    if (p > this._loadingMax) {
+      this._loadingMax = p;
+      if (this.el.loaderFill) this.el.loaderFill.style.width = p + '%';
+      if (this.el.loaderPct) this.el.loaderPct.textContent = Math.round(p) + '%';
+    }
+    if (label && this.el.loaderText) {
+      this.el.loaderText.textContent = label;
+      if (this.el.loader?.dataset.watchdogStalled === 'true') {
+        this.el.loader.dataset.watchdogStalled = 'false';
+        this.el.loader.classList.remove('loading-stalled');
+      }
+    }
+    if (this.el.loaderBytes) {
+      if (byteStats?.text) {
+        this.el.loaderBytes.textContent = byteStats.text;
+        this.el.loaderBytes.hidden = false;
+      } else if (byteStats && Number.isFinite(byteStats.totalBytes) && byteStats.totalBytes > 0) {
+        const total = formatLoadingBytes(byteStats.totalBytes);
+        const done = formatLoadingBytes(byteStats.doneBytes);
+        const remaining = formatLoadingBytes(Math.max(0, byteStats.totalBytes - (byteStats.doneBytes || 0)));
+        this.el.loaderBytes.textContent = byteStats.cached
+          ? `已缓存 ${total}${byteStats.sourceLabel ? ` · ${byteStats.sourceLabel}` : ''}`
+          : `${done} / ${total}（剩 ${remaining}）${byteStats.speedBytesPerSecond > 0 ? ` · ${formatLoadingBytes(byteStats.speedBytesPerSecond)}/s` : ''}${byteStats.sourceLabel ? ` · ${byteStats.sourceLabel}` : ''}`;
+        this.el.loaderBytes.hidden = false;
+      }
+    }
+    try { window.dispatchEvent(new Event('app:boot-progress')); } catch (_) {}
+  }
+
+  beginLoadingSession(label) {
+    this._loadingMax = -1;
+    if (this.el.loader) {
+      this.el.loader.style.display = '';
+      this.el.loader.classList.remove('gone');
+    }
+    if (this.el.loaderBytes) { this.el.loaderBytes.hidden = true; this.el.loaderBytes.textContent = ''; }
+    try {
+      const video = this.el.loaderVideo;
+      if (video) { video.currentTime = 0; void video.play(); }
+    } catch (_) {}
+    this.setLoading(0, label || '准备加载…');
   }
 
   hideLoader() {
     this.el.loader.classList.add('gone');
-    setTimeout(() => { this.el.loader.style.display = 'none'; }, 600);
+    setTimeout(() => {
+      this.el.loader.style.display = 'none';
+      try { this.el.loaderVideo?.pause(); } catch (_) {}
+    }, 620);
   }
 
   /** 短提示气泡 */

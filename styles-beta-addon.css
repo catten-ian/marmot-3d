@@ -32,3 +32,46 @@ body.beta-version.touch-layout-editing .view-btn.layout-dragging { cursor: grabb
 /* 标题/暂停/结算等整页面板（#overlay）打开期间：视角切换按钮在半透明遮罩后透出来，
    层级上属于游戏内控件、此时无任何意义，隐藏；面板关闭即自动恢复。纯 CSS 零 JS 状态。 */
 #overlay:not([hidden]) ~ .view-btn { display: none !important; }
+
+/* ---------- Beta cinematic loading ---------- */
+.loader-video, .loader-scrim { position: absolute; inset: 0; display: none; }
+#loader.loader.cinematic { display: block; background: #0c120f; }
+#loader.loader.cinematic .loader-video {
+  display: block; width: 100%; height: 100%; object-fit: cover; transform: scale(1.02);
+  filter: saturate(.92) contrast(1.02);
+}
+#loader.loader.cinematic .loader-scrim {
+  display: block; pointer-events: none;
+  background: linear-gradient(to top, rgba(8,12,10,.84) 0%, rgba(8,12,10,.42) 22%, rgba(8,12,10,0) 44%),
+    radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 55%, rgba(6,10,8,.38) 100%);
+}
+#loader.loader .loader-marmot { font-size: 46px; animation: betaLoaderHop 1s ease-in-out infinite; }
+@keyframes betaLoaderHop { 0%,100% { transform: translateY(0) scale(1);} 40% { transform: translateY(-12px) scale(1.06);} }
+#loader.loader.cinematic .loader-marmot { display: none; }
+#loader.loader.classic { flex-direction: column; }
+#loader.loader .loader-hud { text-align: center; }
+#loader.loader .loader-brand, #loader.loader .loader-meta, #loader.loader .loader-shine, #loader.loader .loader-pct { display: none; }
+#loader.loader .loader-text { color: var(--soft); font-size: 13px; margin: 12px 0; }
+#loader.loader .loader-track { width: 190px; height: 5px; margin: 0 auto; background: #1d2f24; border-radius: 4px; overflow: hidden; }
+#loader.loader .loader-fill { height: 100%; width: 0%; background: var(--gold); transition: width .2s; }
+#loader.loader.cinematic .loader-hud {
+  position: absolute; left: 0; right: 0; bottom: clamp(26px, 6vh, 64px); padding: 0 clamp(22px, 8vw, 120px);
+  max-width: 760px; margin: 0 auto; text-align: left; animation: betaLoaderFade .8s ease both;
+}
+@keyframes betaLoaderFade { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none;} }
+#loader.loader.cinematic .loader-brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+#loader.loader .loader-logo { display: none; font-size: 20px; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+#loader.loader.cinematic .loader-logo { display: inline-block; }
+#loader.loader .loader-title { font-size: 15px; font-weight: 600; letter-spacing: .14em; color: rgba(238,240,232,.92); text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+#loader.loader .loader-title em { font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .18em; color: var(--gold, #e0c46c); border: 1px solid rgba(224,196,108,.4); border-radius: 4px; padding: 2px 6px; margin-left: 2px; vertical-align: 2px; }
+#loader.loader.cinematic .loader-track { position: relative; width: 100%; height: 2px; border-radius: 2px; background: rgba(255,255,255,.16); }
+#loader.loader.cinematic .loader-fill { position: relative; background: linear-gradient(90deg, rgba(224,196,108,.85), #f3d98b); box-shadow: 0 0 8px rgba(243,217,139,.55); transition: width .35s cubic-bezier(.22,.61,.36,1); }
+#loader.loader.cinematic .loader-shine { display: block; position: absolute; top: 0; right: 0; width: 26px; height: 100%; transform: translateX(50%); background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.85) 50%, rgba(255,255,255,0) 100%); filter: blur(.4px); pointer-events: none; }
+#loader.loader.cinematic .loader-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; }
+#loader.loader.cinematic .loader-text { margin: 0; color: rgba(228,232,224,.72); font-size: 12px; letter-spacing: .06em; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+#loader.loader .loader-bytes { display: none; }
+#loader.loader.cinematic .loader-bytes { display: inline-block; flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: rgba(238,240,232,.72); font-variant-numeric: tabular-nums; }
+#loader.loader.cinematic .loader-pct { display: inline-block; font-variant-numeric: tabular-nums; font-size: 12px; letter-spacing: .08em; color: rgba(238,240,232,.85); text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+#loader.loader.loading-stalled .loader-text { color: #ffe0a1; }
+@media (max-width: 600px) { #loader.loader.cinematic .loader-hud { bottom: 30px; padding: 0 22px; } #loader.loader .loader-title { font-size: 14px; letter-spacing: .1em; } }
+@media (prefers-reduced-motion: reduce) { #loader.loader.cinematic .loader-hud, #loader.loader, #loader.loader .loader-fill { animation: none !important; transition: none !important; } }
