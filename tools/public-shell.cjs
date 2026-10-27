@@ -18,6 +18,8 @@ function generatePublicShell(source) {
   html = html.replace(/((?:href|src)=")\.\/assets\//g, `$1${PUBLIC_BASE}/assets/`);
   html = replaceOnce(html, /href="\.\/styles\.css(?:\?[^"]*)?"/, `href="${PUBLIC_BASE}/styles.css?v=${VERSION_STAMP}"`, 'stylesheet URL');
   html = html.replace(/"\.\/vendor\//g, `"${PUBLIC_BASE}/vendor/`);
+  // 加载页内联早期脚本里的 JS 字符串视频路径同样转绝对（否则触发残留相对路径检查）。
+  html = html.replace(/'\.\/assets\/video\//g, `'${PUBLIC_BASE}/assets/video/`);
   html = html.replace(/(['"])\.\/src\/([^'"]+)\1/g,
     (_match, quote, resource) => `${quote}${PUBLIC_BASE}/src/${resource.split('?')[0]}?v=${VERSION_STAMP}${quote}`);
 
