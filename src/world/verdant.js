@@ -67,7 +67,7 @@ async function downloadAsset(url, { tier, signal, size, reporter, cache }) {
  *   全量下载既慢又没必要），最后把外部资源指向本地 blob。
  *   blob 路径失败时回退到原生加载（由 GLTFLoader 直接回源），保证不因改写而彻底失败。
  */
-async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signal }) {
+async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signal, bitmapMaxSize = 0 }) {
   const sceneUrl = new URL(scenePath, location.href).href;
   const sceneName = decodeURIComponent(sceneUrl.split('/').pop() || '');
   const sizeByPath = new Map((packManifest?.files || []).map((file) => [String(file?.path || ''), Number(file?.size) || 0]));
@@ -113,6 +113,8 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
 
   const parseScene = (data, path) => new Promise((resolve, reject) => {
     parseItems = 0; parseDone = 0; parseMemoryError = null; parseReject = reject; reportParse();
+    // 解析阶段暂停加载屏视频，释放硬解缓冲给贴图 decode。
+    try { const v = document.getElementById('loaderVideo'); if (v && !v.paused) v.pause(); } catch (_) {}
     if (checkMemory(data?.byteLength || 0)) { stopForMemory(data?.byteLength || 0); return; }
     const originalCreateImageBitmap = globalThis.createImageBitmap;
     let activeDecodes = 0; const decodeQueue = [];
@@ -120,10 +122,25 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
     const drain = () => {
       while (activeDecodes < 3 && decodeQueue.length) {
         const { args, resolve: ok, reject: fail } = decodeQueue.shift(); activeDecodes++;
-        Promise.resolve().then(() => originalCreateImageBitmap(...args)).then(ok, fail).finally(() => { activeDecodes--; drain(); });
+        Promise.resolve().then(() => shrinkArgs(args)).then((a) => originalCreateImageBitmap(...a)).then(ok, fail).finally(() => { activeDecodes--; drain(); });
       }
     };
     const limitedCreateImageBitmap = (...args) => new Promise((resolve, reject) => { decodeQueue.push({ args, resolve, reject }); drain(); });
+    // webview/移动端内存紧：超过 bitmapMaxSize 的贴图先探尺寸再按比缩 decode，避免 GPU 共享内存爆掉拖死整个浏览器进程。
+    const shrinkArgs = async (args) => {
+      if (!(bitmapMaxSize > 0)) return args;
+      const source = args[0];
+      if (typeof Blob === 'undefined' || !(source instanceof Blob)) return args;
+      try {
+        const probe = await originalCreateImageBitmap(source);
+        const w = probe.width, h = probe.height; probe.close();
+        if (Math.max(w, h) <= bitmapMaxSize) return args;
+        const opts = { ...(args.length > 1 && typeof args[args.length - 1] === 'object' ? args[args.length - 1] : {}) };
+        if (w >= h) opts.resizeWidth = bitmapMaxSize; else opts.resizeHeight = bitmapMaxSize;
+        opts.resizeQuality = 'high';
+        return [source, opts];
+      } catch (_) { return args; }
+    };
     if (typeof originalCreateImageBitmap === 'function') { try { globalThis.createImageBitmap = limitedCreateImageBitmap; } catch (_) {} }
     try {
       loader.parse(data, path, (gltf) => {
@@ -187,7 +204,7 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
   }
 }
 
-export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'medium', onProgress, renderer, signal = null } = {}) {
+export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'medium', onProgress, renderer, signal = null, bitmapMaxSize = 0 } = {}) {
   const root = base.endsWith('/') ? base : `${base}/`;
   onProgress?.(0.04, '读取 Verdant 清单');
   const catalog = await fetchJson(`${root}manifest.json`, tier, false, signal);
@@ -209,7 +226,7 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   }
   const scenePath = `${root}tiers/${activeTier}/${manifest.files.scene}`;
   onProgress?.(0.2, '加载 Verdant 场景');
-  const scene = await loadSceneAsset({ scenePath, tier: activeTier, packManifest, onProgress, signal });
+  const scene = await loadSceneAsset({ scenePath, tier: activeTier, packManifest, onProgress, signal, bitmapMaxSize });
   scene.name = 'VerdantTrailWorld';
   scene.userData.verdantTier = activeTier;
   await new Promise((resolve) => setTimeout(resolve, 0));
