@@ -92,6 +92,7 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
 
   const parseScene = (data, path) => new Promise((resolve, reject) => {
     manager.onError = (resourceUrl) => reject(new Error(`外置资源读取失败：${resourceUrl}`));
+    onProgress?.(1, '解析 Verdant 场景模型');
     loader.parse(data, path, (gltf) => resolve(gltf.scene), reject);
   });
 
@@ -167,6 +168,7 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   const scene = await loadSceneAsset({ scenePath, tier: activeTier, packManifest, onProgress, signal });
   scene.name = 'VerdantTrailWorld';
   scene.userData.verdantTier = activeTier;
+  onProgress?.(1, '准备 Verdant 材质与贴图');
   scene.traverse((obj) => {
     if (!obj.isMesh) return;
     obj.castShadow = false; obj.receiveShadow = true;
@@ -185,6 +187,8 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   const group = new THREE.Group(); group.name = 'VerdantTrailEnvironment'; group.add(scene);
   group.userData.verdantManifest = manifest; group.userData.packManifest = packManifest;
   onProgress?.(0.99, '光栅化可行走地形');
+  // 这里的回调值刻意保持在 1 以内：主进度条 70% 之后仍要区分
+  // “解析模型 / 准备贴图 / 光栅化”三个同步阶段，便于定位低端设备卡死点。
   // JSON 由渲染 ground 直接射线生成，是玩家支撑高度的权威数据源；
   // ground / sand 三角形栅格提供可行走覆盖与连通性，并填补漏采掩膜。
   // 岩石/悬崖保持独立实体，不得把它们的顶面混成同一竖列的地形高度。
