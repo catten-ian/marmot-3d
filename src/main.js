@@ -28,7 +28,7 @@ import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels, instantiate, normalizeModel } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
-import { getRenderProfile, hasRealTouch, isTouchPrimary, clampVerdantTierForDevice } from './core/performance.js?v=m20261028boot6';
+import { getRenderProfile, hasRealTouch, isTouchPrimary, clampVerdantTierForDevice } from './core/performance.js?v=m20261028boot7';
 import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
 import { TouchControls } from './core/touch-controls.js';
 
@@ -124,7 +124,7 @@ function markBootStage(stage, pct, text) {
   hud.setLoading(pct, text);
 }
 
-hud.setLoading(8, '正在启动 [boot6]');
+hud.setLoading(8, '正在启动 [boot7]');
 
 /**
  * 渲染器与 three 实例。
@@ -363,7 +363,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   loadInitialVerdant._lastProgress = 46;
   markBootStage('verdant-module', 46, '读取 Verdant 场景模块');
   // 版本戳：CF 对 .js 走 4 小时浏览器缓存，场景加载器改动必须换 URL 才能立即生效。
-  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261028boot6');
+  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261028boot7');
   loadVerdantWorldFn = mod.loadVerdantWorld;
   const world = await loadVerdantWorldFn({ tier, signal: attempt?.controller.signal || null, onProgress: (p, label, stats) => {
     if (attempt) { attempt.lastProgressAt = Date.now(); if (stats?.doneBytes > 0) attempt.receivedBytes = true; }
@@ -382,7 +382,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
       loadInitialVerdant._lastProgress = Math.max(loadInitialVerdant._lastProgress || 46, ranges[0] + phaseP * (ranges[1] - ranges[0]));
       hud.setLoading(loadInitialVerdant._lastProgress, label, stats);
     }
-  }, renderer });
+  }, renderer, bitmapMaxSize: (isTouchPrimary() && rendererStatus.backend !== 'webgpu') ? 512 : 0 });
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
   verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
   hud.setLoading(98.2, '就绪：挂载场景');
@@ -529,7 +529,7 @@ async function switchVerdantTier(preference, forceReload = false) {
   if (next === verdantTierActive && !forceReload) { verdantQualityState?.setActive?.(next); return; }
   const old = verdantWorld;
   hud.beginLoadingSession('正在切换 Verdant 画质档…');
-  const loaded = await loadVerdantWorldFn({ tier: next, onProgress: (p, label, stats) => hud.setLoading(4 + Math.max(0, Math.min(1, p)) * 92, label || '加载 Verdant 场景', stats), renderer });
+  const loaded = await loadVerdantWorldFn({ tier: next, onProgress: (p, label, stats) => hud.setLoading(4 + Math.max(0, Math.min(1, p)) * 92, label || '加载 Verdant 场景', stats), renderer, bitmapMaxSize: (isTouchPrimary() && rendererStatus.backend !== 'webgpu') ? 512 : 0 });
   if (requestId !== verdantTierLoadRequest) { disposeVerdantGroup(loaded.group); return; }
   const pose = { x: controller.position.x, z: controller.position.z, yaw: controller.yaw, pitch: controller.pitch };
   scene.remove(old.group); disposeVerdantGroup(old.group);
