@@ -371,11 +371,25 @@ const watchdog = setInterval(() => {
 }, 1000);
 window.__bootWatchdogPause = () => { clearInterval(watchdog); };
 
+// 首帧独立看门狗：下载完成后若渲染器/纹理上传没有产出首帧，给出可操作的降档提示。
+// 只在主模块已经启动且不再处于 Verdant 网络下载阶段时触发，避免把正常慢网误判成崩溃。
+const firstFrameWatchdog = setInterval(() => {
+  if (params.get('version') !== 'dev') return;
+  const started = Number(window.__m3dMainStartedAt) || 0;
+  const stage = String(window.__m3dBootStage || '');
+  if (!started || window.__m3dFirstFrameAt || stage === 'verdant-module') return;
+  if (Date.now() - started < 10000) return;
+  clearInterval(firstFrameWatchdog);
+  bootFail('渲染器尚未产出首帧',
+    `启动阶段“${stage || '未知'}”超过 10 秒没有画面。手机可能无法承受当前画质，请重新加载并在 Verdant 设置中选择“低”档。`);
+}, 1000);
+
 try {
   await import('/marmot3d-beta/src/main.js?v=rev9');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
   clearInterval(watchdog);
+  clearInterval(firstFrameWatchdog);
 } catch (err) {
   clearInterval(watchdog);
   console.error('[boot] 模块图加载失败', err);
