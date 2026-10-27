@@ -360,6 +360,7 @@ function showVerdantFailure(error, tier = autoVerdantTier()) {
 }
 async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   window.__verdantLastDownloadStats = null;
+  loadInitialVerdant._lastProgress = 46;
   markBootStage('verdant-module', 46, '读取 Verdant 场景模块');
   // 版本戳：CF 对 .js 走 4 小时浏览器缓存，场景加载器改动必须换 URL 才能立即生效。
   const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261027boot2');
@@ -374,7 +375,13 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
         : 'verdant-download';
       window.__m3dBootStage = stage;
     }
-    if (!attempt?.cancelled) hud.setLoading(46 + Math.max(0, Math.min(1, p)) * 24, label, stats);
+    if (!attempt?.cancelled) {
+      const phase = stats?.phase;
+      const ranges = phase === 'parse' ? [70, 82] : phase === 'materials' ? [82, 90] : phase === 'rasterize' ? [90, 98] : phase === 'ready' ? [98, 100] : [46, 70];
+      const phaseP = phase && stats?.totalItems ? Math.max(0, Math.min(1, stats.doneItems / stats.totalItems)) : Math.max(0, Math.min(1, p));
+      loadInitialVerdant._lastProgress = Math.max(loadInitialVerdant._lastProgress || 46, ranges[0] + phaseP * (ranges[1] - ranges[0]));
+      hud.setLoading(loadInitialVerdant._lastProgress, label, stats);
+    }
   }, renderer });
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
   verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
