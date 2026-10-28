@@ -28,7 +28,7 @@ import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { preloadModels, instantiate, normalizeModel } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
-import { getRenderProfile, hasRealTouch, isTouchPrimary, clampVerdantTierForDevice } from './core/performance.js?v=m20261028boot10';
+import { getRenderProfile, hasRealTouch, isTouchPrimary, clampVerdantTierForDevice } from './core/performance.js?v=m20261028boot11';
 import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
 import { TouchControls } from './core/touch-controls.js';
 
@@ -124,7 +124,7 @@ function markBootStage(stage, pct, text) {
   hud.setLoading(pct, text);
 }
 
-hud.setLoading(8, '正在启动 [boot10]');
+hud.setLoading(8, '正在启动 [boot11]');
 
 /**
  * 渲染器与 three 实例。
@@ -401,7 +401,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   loadInitialVerdant._lastProgress = 46;
   markBootStage('verdant-module', 46, '读取 Verdant 场景模块');
   // 版本戳：CF 对 .js 走 4 小时浏览器缓存，场景加载器改动必须换 URL 才能立即生效。
-  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261028boot10');
+  const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261028boot11');
   loadVerdantWorldFn = mod.loadVerdantWorld;
   const world = await loadVerdantWorldFn({ tier, signal: attempt?.controller.signal || null, onProgress: (p, label, stats) => {
     if (attempt) { attempt.lastProgressAt = Date.now(); if (stats?.doneBytes > 0) attempt.receivedBytes = true; }
