@@ -114,13 +114,13 @@ test('static SFX file wins; missing/failing audio silently calls procedural fall
   assert.equal(missingFallbacks, 1);
 });
 
-test('BGM slots cover all seven moods and hand off through a serial short fade', async () => {
+test('BGM slots cover all seven moods and hand off through a serial smooth fade', async () => {
   const mod = await import('../src/systems/audio.js');
   assert.deepEqual(mod.BGM_SLOTS, ['menu', 'explore', 'tension', 'combat', 'night', 'victory', 'defeat', 'paf']);
   const states = [
     [{ mode: 'title' }, 'menu'],
     [{ mode: 'play', hp: 100, threats: 0, stress: 10 }, 'explore'],
-    [{ mode: 'play', hp: 100, threats: 1, winding: true, stress: 10 }, 'tension'],
+    [{ mode: 'play', hp: 100, threats: 1, threatActive: true, winding: true, stress: 10 }, 'tension'],
     [{ mode: 'play', hp: 100, threats: 1, combat: true }, 'combat'],
     [{ mode: 'levelclear' }, 'victory'],
     [{ mode: 'lost' }, 'defeat'],
@@ -149,12 +149,12 @@ test('BGM slots cover all seven moods and hand off through a serial short fade',
   assert.equal(manager.pending.slot, 'explore');
   assert.equal(context.sources.length, 1, 'the replacement source is not created while the old one is running');
   assert.equal(oldTrack.source.stopped.length, 1);
-  assert.equal(oldTrack.source.stopped[0], 5.04, 'the old source gets a 40ms exit');
-  assert.ok(oldTrack.gain.gain.events.some((event) => event[0] === 'linear' && event[2] === 5.04));
-  context.currentTime = 5.04;
+  assert.equal(oldTrack.source.stopped[0], 7.5, 'the old source gets the configured serialized 2.5s exit');
+  assert.ok(oldTrack.gain.gain.events.some((event) => event[0] === 'linear' && event[2] === 7.5));
+  context.currentTime = 7.5;
   oldTrack.source.onended?.();
   assert.equal(manager.current.slot, 'explore');
-  assert.ok(manager.current.gain.gain.events.some((event) => event[0] === 'linear' && event[2] === 5.08));
+  assert.ok(manager.current.gain.gain.events.some((event) => event[0] === 'linear' && event[2] === 8.6));
   assert.equal(oldTrack.source.connections.length, 0, 'the old source graph is released');
   assert.equal(context.sources.length, 2);
   assert.equal(mod.selectBgmSlot({ mode: 'pause' }), null);

@@ -51,9 +51,33 @@ export const SFX_EVENT_NAMES = Object.freeze([
   'jump', 'foxDash', 'rescue', 'helpCry', 'levelUp', 'win', 'lose', 'lowHealth',
 ]);
 export const BGM_SLOTS = Object.freeze(['menu', 'explore', 'tension', 'combat', 'night', 'victory', 'defeat', 'paf']);
+// Beta gameplay names are kept separate from canonical assets so new graze/alert
+// recordings can be introduced without changing the state machine or call sites.
+export const BGM_SLOT_ALIASES = Object.freeze({ graze: 'explore', alert: 'tension' });
+export const resolveBgmSlot = (slot) => BGM_SLOT_ALIASES[slot] || slot;
 export const BGM_ASSETS = Object.freeze(Object.fromEntries(
   BGM_SLOTS.map((slot) => [slot, `assets/audio/elevenlabs/bgm/${slot}.mp3`]),
 ));
+
+// 默认值与 BETA_TUNE.bgmCombatLatchSeconds 保持一致；后台可调时以 BETA_TUNE 为准。
+export const BGM_COMBAT_LATCH_SECONDS = 35;
+export const BGM_MIN_DWELL_SECONDS = 10;
+export const BGM_TENSION_ENTER_SECONDS = 1.5;
+export const BGM_TENSION_EXIT_SECONDS = 4;
+export const BGM_COMBAT_POST_OBSERVE_SECONDS = 4;
+export const BGM_THREAT_STATES = Object.freeze(['alert', 'stalk', 'chase', 'wind', 'dash', 'pounce']);
+const BGM_URGENT_SLOTS = new Set(['combat', 'victory', 'defeat', 'paf', 'night']);
+const BGM_ACTIVE_THREAT_STATES = new Set(BGM_THREAT_STATES);
+
+export function isActiveBgmThreat({ anyFoxEngaged = null, nearestThreatState = null, threatStates = null, threatActive = null, threats = 0 } = {}) {
+  if (typeof threatActive === 'boolean') return threatActive;
+  if (typeof anyFoxEngaged === 'boolean') return anyFoxEngaged;
+  if (Array.isArray(threatStates)) return threatStates.some((state) => BGM_ACTIVE_THREAT_STATES.has(state));
+  if (typeof nearestThreatState === 'string') return BGM_ACTIVE_THREAT_STATES.has(nearestThreatState);
+  // Mere proximity is intentionally not a threat. The beta main loop supplies
+  // threatActive from fox intent/state; absent that signal, stay in graze.
+  return false;
+}
 
 /** Map an audio-relative file to its beta remote/local fallback chain. */
 export function audioAssetCandidates(path, isBeta = true) {
@@ -117,8 +141,8 @@ export function selectSfxPlayback({ isBeta = true, enabled = true, fileAvailable
   return 'procedural';
 }
 
-/** Select the score for the current game state; null means fade to silence (e.g. pause). */
-export function selectBgmSlot({ mode = 'title', hp = 100, stress = 0, threats = 0, winding = false, combat = false, overdrive = 0, inBurrow = false } = {}) {
+/** Select the canonical score for an instantaneous state snapshot. */
+export function selectBgmSlot({ mode = 'title', hp = 100, stress = 0, threats = 0, winding = false, combat = false, overdrive = 0, inBurrow = false, anyFoxEngaged = null, nearestThreatState = null, threatStates = null, threatActive = null, combatUntil = -Infinity, now = 0 } = {}) {
   if (mode === 'title') return 'menu';
   if (mode === 'won' || mode === 'levelclear') return 'victory';
   if (mode === 'lost') return 'defeat';
@@ -126,9 +150,85 @@ export function selectBgmSlot({ mode = 'title', hp = 100, stress = 0, threats = 
   if (mode !== 'play') return 'menu';
   if (inBurrow) return 'night';
   if (Number(hp) <= 25) return 'defeat';
-  if (combat || Number(overdrive) > 0) return 'combat';
-  if (winding || Number(threats) > 0 || Number(stress) >= 55) return 'tension';
+  if (combat || Number(overdrive) > 0 || Number(combatUntil) > Number(now)) return 'combat';
+  const threat = isActiveBgmThreat({ anyFoxEngaged, nearestThreatState, threatStates, threatActive, threats });
+  if (winding || threat || Number(stress) >= 55) return 'tension';
   return 'explore';
+}
+
+/**
+ * Beta-only BGM state machine. It owns dwell and tension hysteresis so frame
+ * updates can remain cheap and callers do not need to remember transition time.
+ */
+export class BgmStateMachine {
+  constructor({ minDwellSeconds = BGM_MIN_DWELL_SECONDS, tensionEnterSeconds = BGM_TENSION_ENTER_SECONDS, tensionExitSeconds = BGM_TENSION_EXIT_SECONDS, postCombatObserveSeconds = BGM_COMBAT_POST_OBSERVE_SECONDS } = {}) {
+    this.minDwellSeconds = Math.max(0, Number(minDwellSeconds) || 0);
+    this.tensionEnterSeconds = Math.max(0, Number(tensionEnterSeconds) || 0);
+    this.tensionExitSeconds = Math.max(0, Number(tensionExitSeconds) || 0);
+    this.postCombatObserveSeconds = Math.max(0, Number(postCombatObserveSeconds) || 0);
+    this.slot = null;
+    this.lastSwitchAt = -Infinity;
+    this.lastNow = 0;
+    this.threatSince = null;
+    this.calmSince = null;
+    this.postCombatObserveUntil = -Infinity;
+    this.lastInstantSlot = null;
+  }
+
+  reset() {
+    this.slot = null;
+    this.lastSwitchAt = -Infinity;
+    this.lastNow = 0;
+    this.threatSince = null;
+    this.calmSince = null;
+    this.postCombatObserveUntil = -Infinity;
+    this.lastInstantSlot = null;
+  }
+
+  update(state = {}) {
+    const now = Number.isFinite(Number(state.now)) ? Number(state.now) : this.lastNow;
+    this.lastNow = now;
+    const threat = isActiveBgmThreat(state);
+    const tensionDemand = threat || !!state.winding || Number(state.stress) >= 55;
+    const instant = selectBgmSlot({ ...state, threatActive: threat, now });
+    const current = this.slot;
+    const urgent = BGM_URGENT_SLOTS.has(instant) || instant === null || state.mode === 'title' || state.mode === 'pause' || state.transition === 'play';
+
+    if (tensionDemand) {
+      if (this.threatSince == null) this.threatSince = now;
+      this.calmSince = null;
+    } else {
+      if (this.calmSince == null) this.calmSince = now;
+      this.threatSince = null;
+    }
+
+    if (current === 'combat' && instant !== 'combat' && !urgent && this.postCombatObserveUntil === -Infinity) {
+      this.postCombatObserveUntil = now + this.postCombatObserveSeconds;
+    }
+    if (instant === 'combat') this.postCombatObserveUntil = -Infinity;
+
+    let target = instant;
+    if (!urgent && current === 'combat' && instant !== 'combat') target = 'tension';
+    if (!urgent && instant === 'tension' && current !== 'tension') {
+      const entered = this.threatSince != null && now - this.threatSince >= this.tensionEnterSeconds;
+      if (!entered) target = current || 'explore';
+    }
+    if (!urgent && current === 'tension' && instant === 'explore') {
+      const exited = this.calmSince != null && now - this.calmSince >= this.tensionExitSeconds;
+      if (!exited) target = 'tension';
+    }
+    if (!urgent && this.postCombatObserveUntil > now && (instant === 'explore' || instant === 'tension')) target = 'tension';
+
+    const changed = target !== current;
+    const dwellElapsed = now - this.lastSwitchAt;
+    if (changed && current != null && !urgent && dwellElapsed < this.minDwellSeconds) target = current;
+    if (target !== current) {
+      this.slot = target;
+      this.lastSwitchAt = now;
+    }
+    this.lastInstantSlot = instant;
+    return this.slot ?? target;
+  }
 }
 
 /** Three gain buses with independent controls; both leaf buses feed master. */
@@ -165,7 +265,7 @@ function paramValue(param, value, time) {
   param.setValueAtTime(value, time);
 }
 
-/** Linear, scheduled gain transition used by BGM crossfades and easy to fake in node:test. */
+/** Linear, scheduled gain transition used by tests and older injected params. */
 export function rampGain(param, from, to, startTime, durationSeconds) {
   const endTime = startTime + Math.max(0, durationSeconds);
   param.cancelScheduledValues(startTime);
@@ -174,10 +274,32 @@ export function rampGain(param, from, to, startTime, durationSeconds) {
   return endTime;
 }
 
+/** Smoothstep curve when supported; linear fallback keeps fake AudioParams simple. */
+export function rampGainSmooth(param, from, to, startTime, durationSeconds) {
+  const duration = Math.max(0, durationSeconds);
+  const endTime = startTime + duration;
+  param.cancelScheduledValues(startTime);
+  paramValue(param, from, startTime);
+  if (duration > 0 && typeof param.setValueCurveAtTime === 'function') {
+    const curve = new Float32Array(9);
+    for (let i = 0; i < curve.length; i += 1) {
+      const t = i / (curve.length - 1);
+      const smooth = t * t * (3 - 2 * t);
+      curve[i] = from + (to - from) * smooth;
+    }
+    param.setValueCurveAtTime(curve, startTime, duration);
+  } else {
+    param.linearRampToValueAtTime(to, endTime);
+  }
+  return endTime;
+}
+
 export class BgmManager {
-  constructor(audio, { crossfadeSeconds = 2.5 } = {}) {
+  constructor(audio, { crossfadeSeconds = 1.5, fadeInSeconds = 1.1, combatFadeOutSeconds = 0.65 } = {}) {
     this.audio = audio;
-    this.crossfadeSeconds = crossfadeSeconds;
+    this.crossfadeSeconds = Math.max(0, Number(crossfadeSeconds) || 0);
+    this.fadeInSeconds = Math.max(0, Number(fadeInSeconds) || 0);
+    this.combatFadeOutSeconds = Math.max(0, Number(combatFadeOutSeconds) || 0);
     this.current = null;
     this.pending = null;
     this.desiredSlot = null;
@@ -229,11 +351,11 @@ export class BgmManager {
       if (generation !== this.generation || !this.enabled || !this.audio.settings.bgmEnabled) return;
       const procedural = buffer || this.audio._createProceduralBgm?.(next);
       if (!procedural) { this._fadeOut(this.current); return; }
-      this._crossfadeTo(next, procedural, { startOffset, assetKey, generation });
+      this._crossfadeTo(next, procedural, { startOffset, assetKey, generation, transition });
     }).catch(() => {
       if (generation !== this.generation || !this.enabled || !this.audio.settings.bgmEnabled) return;
       const procedural = this.audio._createProceduralBgm?.(next);
-      if (procedural) this._crossfadeTo(next, procedural, { startOffset, assetKey, generation });
+      if (procedural) this._crossfadeTo(next, procedural, { startOffset, assetKey, generation, transition });
       else this._fadeOut(this.current);
     });
   }
@@ -246,10 +368,12 @@ export class BgmManager {
     return from + (to - from) * ((now - start) / (end - start));
   }
 
-  _fade(track, target, now, duration) {
+  _fade(track, target, now, duration, smooth = true) {
     if (!track) return;
     const from = this._trackLevel(track, now);
-    const end = rampGain(track.gain.gain, from, target, now, duration);
+    const end = smooth
+      ? rampGainSmooth(track.gain.gain, from, target, now, duration)
+      : rampGain(track.gain.gain, from, target, now, duration);
     track.fade = { from, to: target, start: now, end };
     return end;
   }
@@ -296,14 +420,15 @@ export class BgmManager {
     if (this.current === track) this.current = null;
   }
 
-  _retireCurrent(track) {
+  _retireCurrent(track, { transition = 'switch' } = {}) {
     if (!track || track.retiring) return;
     track.retiring = true;
     const now = this.audio.ctx.currentTime;
-    // A 40ms exit removes clicks while ensuring the next source cannot begin
-    // until this source's ended event confirms the scheduled stop has completed.
-    const outroSeconds = Math.min(0.04, Math.max(0, this.crossfadeSeconds));
-    const stopAt = this._fade(track, 0, now, outroSeconds);
+    // Serial hand-off: the old source reaches zero before the replacement is
+    // started. Combat and terminal events use a shorter but still audible tail.
+    const urgent = transition === 'combat' || transition === 'victory' || transition === 'defeat' || transition === 'paf';
+    const outroSeconds = urgent ? this.combatFadeOutSeconds : this.crossfadeSeconds;
+    const stopAt = this._fade(track, 0, now, outroSeconds, true);
     try {
       track.source.stop(stopAt);
     } catch (_) {
@@ -370,22 +495,23 @@ export class BgmManager {
       track.started = true;
       if (procedural) bufferOrProcedural.started = true;
       this.current = track;
-      // Replace the former multi-second overlap with a short, non-overlapping attack.
-      const attackSeconds = Math.min(0.04, Math.max(0, this.crossfadeSeconds));
+      // The source is started at zero and fades in only after the old source
+      // has ended, so a hand-off never has two audible BGM sources.
+      const attackSeconds = this.fadeInSeconds;
       const normalizedGain = Number(getBgmTrackMeta(assetKey).gain) || Number(getBgmTrackMeta(slot).gain) || 1;
-      this._fade(track, 0.42 * normalizedGain, now, attackSeconds);
+      this._fade(track, 0.42 * normalizedGain, now, attackSeconds, true);
     } catch (error) {
       this._stopTrack(track);
       throw error;
     }
   }
 
-  _crossfadeTo(slot, bufferOrProcedural, { startOffset = 0, assetKey = slot, generation = null } = {}) {
-    const candidate = { slot, bufferOrProcedural, startOffset, assetKey, generation };
+  _crossfadeTo(slot, bufferOrProcedural, { startOffset = 0, assetKey = slot, generation = null, transition = 'switch' } = {}) {
+    const candidate = { slot, bufferOrProcedural, startOffset, assetKey, generation, transition };
     if (this.current) {
       this._clearPending();
       this.pending = candidate;
-      this._retireCurrent(this.current);
+      this._retireCurrent(this.current, { transition });
       return;
     }
     this._startTrack(slot, bufferOrProcedural, candidate);
@@ -413,6 +539,7 @@ export class Audio {
     this._audioBytesCache = new Map();
     this._reservations = new Map();
     this._bgmManager = null;
+    this._bgmStateMachine = new BgmStateMachine();
     this._desiredBgmSlot = null;
     this._pafActive = false;
     this._lastBgmMode = null;
@@ -561,20 +688,23 @@ export class Audio {
     this._pafActive = !!active;
     if (this._pafActive) {
       this._desiredBgmSlot = 'paf';
-      this._bgmManager?.request('paf', true, { prevMode: this._lastBgmMode, transition: 'paf' });
+      this._bgmManager?.request('paf', false, { prevMode: this._lastBgmMode, transition: 'paf' });
     }
   }
 
-  updateBgmState(state) {
+  updateBgmState(state = {}) {
     if (!this.isBeta) return null;
     if (this._pafActive) {
       this._desiredBgmSlot = 'paf';
-      this._bgmManager?.request('paf');
+      this._bgmManager?.request('paf', false, { prevMode: this._lastBgmMode, transition: 'paf' });
       return 'paf';
     }
     const prevMode = this._lastBgmMode;
-    const transition = prevMode === 'title' && state?.mode === 'play' ? 'play' : 'switch';
-    const slot = selectBgmSlot(state);
+    const instantSlot = selectBgmSlot(state);
+    const transition = prevMode === 'title' && state?.mode === 'play'
+      ? 'play'
+      : (instantSlot === 'combat' ? 'combat' : instantSlot === 'victory' ? 'victory' : instantSlot === 'defeat' ? 'defeat' : 'switch');
+    const slot = this._bgmStateMachine.update({ ...state, transition });
     this._desiredBgmSlot = slot;
     this._lastBgmMode = state?.mode || null;
     if (this._bgmManager) this._bgmManager.request(slot, false, { prevMode, transition });

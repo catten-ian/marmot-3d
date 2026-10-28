@@ -198,6 +198,7 @@ export function buildTuningEntries() {
     ['lungeLockRange', '扑击锁敌距离', 1, 20, 'm'],
     ['stunDiminishWindow', '眩晕递减窗口', 0, 20, 's'],
     ['stunDiminishFactor', '眩晕递减倍率', 0, 1, '×'],
+    ['bgmCombatLatchSeconds', '受击后战斗BGM保持', 5, 120, 's'],
     ['stunDiminishFloor', '眩晕递减下限', 0, 5, 's'],
     ['stunDiminishResetSeconds', '眩晕递减清零时间', 0, 30, 's'],
   ]) e.push(num(`beta.${k}`, G_BETA, label, F_BETA, `BETA_TUNE.${k}`, BETA_TUNE[k], { min, max, unit }));

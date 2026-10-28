@@ -108,7 +108,7 @@ import {
 import { cooldownState, cooldownOverlayData } from './ui/cooldown-overlay.js';
 import { ClawSwing, Shockwave, Particles, DamageText, PlayerAura } from './systems/effects.js';
 import { ViewModel } from './systems/viewmodel.js';
-import { Audio } from './systems/audio.js';
+import { Audio, BGM_COMBAT_LATCH_SECONDS, BGM_THREAT_STATES } from './systems/audio.js';
 import { ALARM_INTERVALS, alarmSchedule, companionAlarmLevel, stereoPanFromWorld } from './systems/audio-pan.mjs';
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
@@ -632,6 +632,8 @@ const game = {
   sandbox: false,
   attackMoveLock: 0,
   recentlyHit: 0,
+  lastPlayerHitAt: -Infinity,
+  bgmCombatUntil: 0,
   flowerRecovery: null,
 };
 installEnergyAlias(game.player);
@@ -922,6 +924,8 @@ function loadLevel(index, announce = true) {
   p.hp = 100; p.stamina = 100; p.fat = 0; p.mouth = 0; p.stress = 0; p.invuln = 2;
   game.flowerRecovery = null;
   game.recentlyHit = 0;
+  game.lastPlayerHitAt = -Infinity;
+  game.bgmCombatUntil = 0;
   controller.teleport(BURROW_X + 4 * getPointScale(), BURROW_Z + 2 * getPointScale(), Math.PI * 0.05);
   // 出生朝向：看向场地中央
   controller.yaw = Math.atan2(-(0 - controller.position.x), -(0 - controller.position.z));
@@ -2038,6 +2042,8 @@ function update(dt) {
         f.contactCd = FOX.bite.contactCooldown;
         p.invuln = Math.max(p.invuln, FOX.bite.playerInvuln);
         game.recentlyHit = 1.2;
+        game.lastPlayerHitAt = game.totalTime;
+        game.bgmCombatUntil = game.totalTime + Number(BETA_TUNE.bgmCombatLatchSeconds ?? BGM_COMBAT_LATCH_SECONDS);
         p.stress = clamp(p.stress + 8, 0, 100);
         game.hits++;
         const hy = terrainHeight(p.x, p.z);
@@ -3242,7 +3248,7 @@ function frame(now) {
 
   // —— BETA 扮演藏狐模式：由独立模式接管相机/输入/实体/天空 ——
   if (playAsFox) {
-    if (IS_BETA) audio.updateBgmState({ mode: 'play', hp: game.player.hp, stress: 0, threats: 0, combat: false });
+    if (IS_BETA) audio.updateBgmState({ mode: 'play', now: game.totalTime, hp: game.player.hp, stress: 0, threats: 0, threatActive: false, combat: false, combatUntil: game.bgmCombatUntil, lastPlayerHitAt: game.lastPlayerHitAt });
     playAsFox.update(dt);
     renderer.render(scene, camera);
     requestAnimationFrame(frame);
@@ -3253,14 +3259,36 @@ function frame(now) {
   if (IS_BETA) {
     const inRangeFoxes = foxes.filter((fox) => fox.alive && !game.inBurrow
       && Math.hypot(fox.x - game.player.x, fox.z - game.player.z) < 22);
+    const threatStates = [];
+    let nearestThreatState = null;
+    let nearestThreatDistance = Infinity;
+    for (const fox of inRangeFoxes) {
+      if (!BGM_THREAT_STATES.includes(fox.state) && !fox.pounceCommitted) continue;
+      threatStates.push(fox.state);
+      const distance = Math.hypot(fox.x - game.player.x, fox.z - game.player.z);
+      if (distance < nearestThreatDistance) {
+        nearestThreatDistance = distance;
+        nearestThreatState = fox.state;
+      }
+    }
+    const anyFoxEngaged = threatStates.length > 0;
     audio.updateBgmState({
       mode: game.mode,
+      now: game.totalTime,
       hp: game.player.hp,
       stress: game.player.stress,
+      // `threats` remains useful for diagnostics, while threatActive is based
+      // on fox intent/state rather than mere proximity.
       threats: inRangeFoxes.length,
+      threatActive: anyFoxEngaged,
+      anyFoxEngaged,
+      threatStates,
+      nearestThreatState,
       winding: inRangeFoxes.some((fox) => fox.state === 'wind'),
-      combat: game.overdrive > 0 || inRangeFoxes.some((fox) => fox.state === 'dash'),
+      combat: game.overdrive > 0 || inRangeFoxes.some((fox) => fox.state === 'dash' || fox.pounceCommitted),
       overdrive: game.overdrive,
+      combatUntil: game.bgmCombatUntil,
+      lastPlayerHitAt: game.lastPlayerHitAt,
       inBurrow: game.inBurrow,
     });
   }
