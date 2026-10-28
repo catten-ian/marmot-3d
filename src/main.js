@@ -358,6 +358,29 @@ function showVerdantFailure(error, tier = autoVerdantTier()) {
   panel.querySelector('#verdantBootReason').textContent = verdantErrorDetail(error);
   panel.querySelector('#verdantDowngrade').disabled = tier === 'low';
 }
+async function warmVerdantWebGLScene(group) {
+  // WebGLRenderer uploads GLB textures and vertex buffers lazily on first render.
+  // On mobile WebViews that upload can monopolize the renderer process long enough
+  // to trip the host browser's hang detector. Warm the real scene in small visible
+  // batches so every upload is separated by an event-loop turn.
+  if (!group || rendererStatus.backend === 'webgpu' || !isTouchPrimary()) return;
+  const meshes = [];
+  group.traverse((obj) => { if (obj.isMesh) meshes.push(obj); });
+  if (!meshes.length) return;
+  const previous = meshes.map((obj) => obj.visible);
+  meshes.forEach((obj) => { obj.visible = false; });
+  const batchSize = 3;
+  try {
+    for (let start = 0; start < meshes.length; start += batchSize) {
+      for (let i = start; i < Math.min(meshes.length, start + batchSize); i++) meshes[i].visible = true;
+      renderer.render(scene, camera);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  } finally {
+    meshes.forEach((obj, index) => { obj.visible = previous[index]; });
+  }
+}
+
 async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   window.__verdantLastDownloadStats = null;
   loadInitialVerdant._lastProgress = 46;
@@ -387,6 +410,8 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
   hud.setLoading(98.2, '就绪：挂载场景');
   scene.add(world.group);
+  hud.setLoading(98.3, '就绪：分批预热 WebGL 资源');
+  await warmVerdantWebGLScene(world.group);
   hud.setLoading(98.4, '就绪：设置高度场');
   setHeightField(world.heightAt, { resolveGround: world.resolveGround, solidCollider: true });
   setPointScale(0.88, 0, 0); setPlayableBounds(world.bounds); setUndergroundCavesEnabled(devOn('scannedBurrows') ? true : false);
@@ -400,15 +425,8 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
 window.__verdantBootFailure = showVerdantFailure;
 async function ensureVerdantBootGate() {
   if (!devOn('verdantWorld') || verdantBootOverride) return true;
-  // 移动端无 WebGPU 且内存预算低时，GLB 解码/纹理上传会在主线程同步占满，
-  // 表现为字节已到 70% 但页面没有首帧。直接使用程序化地形，避免把浏览器渲染进程推入崩溃边缘。
-  const mobileMemory = Number(navigator.deviceMemory) || 4;
-  if (isTouchPrimary() && rendererStatus.backend !== 'webgpu' && mobileMemory <= 4) {
-    verdantBootOverride = true;
-    hud.setLoading(70, '移动端 GPU/内存预算不足，切换简化地图');
-    hud.say('移动端资源预算不足，已启用简化地图；可在支持 WebGPU 的设备上重试 Verdant 场景', 6);
-    return true;
-  }
+  // Verdant remains the real scene on WebGL2 WebViews. Its first-frame GPU
+  // uploads are paced in warmVerdantWebGLScene() instead of replacing the scene.
   // main.js 已开始执行后由此门控负责下载停滞与总耗时；关掉 index.html 的并行 watchdog。
   try { window.__bootWatchdogPause?.(); } catch (_) {}
   let tier = autoVerdantTier(), attempts = 0;
