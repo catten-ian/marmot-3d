@@ -124,7 +124,7 @@ function markBootStage(stage, pct, text) {
   hud.setLoading(pct, text);
 }
 
-hud.setLoading(8, '正在启动 [boot8]');
+hud.setLoading(8, '正在启动 [boot9]');
 
 /**
  * 渲染器与 three 实例。
@@ -142,11 +142,9 @@ const BOOT = (typeof window !== 'undefined' && window.__boot) || {
   gsWorld: false, gpuOk: false, gpuReason: '', forceWebGL: false,
 };
 const WANT_GS = BOOT.gsWorld === true && !devOn('verdantWorld');
-// Verdant only opts into WebGPURenderer when the boot probe explicitly confirmed WebGPU.
-// Otherwise it stays on the classic WebGLRenderer path, including WebGL2 WebViews.
-// The Verdant boot page only probes WebGPU for the legacy GS path. On Chromium 121
-// WebViews an unprobed Verdant boot must stay on classic WebGLRenderer; forcing the
-// WebGPURenderer WebGL fallback takes a different, less stable upload path.
+// Verdant opts into WebGPURenderer only after index.html has confirmed a real
+// adapter/device. Unsupported WebViews stay on classic WebGLRenderer; this avoids
+// the separate WebGPURenderer WebGL fallback upload path on Chromium 121.
 const WANT_WEBGPU_VERDANT = !WANT_GS && IS_DEV && devOn('verdantWorld') && BOOT.gpuOk === true;
 
 let renderer;
@@ -379,9 +377,13 @@ async function warmVerdantWebGLScene(group) {
     for (let start = 0; start < meshes.length; start += batchSize) {
       const end = Math.min(meshes.length, start + batchSize);
       for (let i = start; i < end; i++) meshes[i].visible = true;
+      const names = meshes.slice(start, end).map((obj) => obj.name || '(unnamed)');
+      console.info('[verdant-warmup] render batch', { start, end, total: meshes.length, meshes: names });
       hud.setLoading(98.3, `就绪：分批预热 WebGL 资源（${end}/${meshes.length}）`);
       try {
+        console.time(`[verdant-warmup] ${start}-${end}`);
         renderer.render(scene, camera);
+        console.timeEnd(`[verdant-warmup] ${start}-${end}`);
       } finally {
         // Uploads remain resident after render, while the next batch does not pay
         // for drawing every previously warmed mesh again.
@@ -1395,7 +1397,20 @@ function title() {
     </div>
   `);
   document.getElementById('startBtn').onclick = startPlay;
-  document.getElementById('sandboxEntryBtn').onclick = enterSandbox;
+  const sandboxEntry = document.getElementById('sandboxEntryBtn');
+  // Some touch emulation/WebViews deliver pointerup but suppress the synthetic
+  // click after a scrollable overlay gesture. Accept either activation path once.
+  let sandboxActivationAt = 0;
+  const activateSandboxFromTitle = (event) => {
+    const now = Date.now();
+    if (now - sandboxActivationAt < 450) return;
+    sandboxActivationAt = now;
+    event?.preventDefault?.();
+    enterSandbox();
+  };
+  sandboxEntry.addEventListener('click', activateSandboxFromTitle);
+  sandboxEntry.addEventListener('pointerup', activateSandboxFromTitle);
+  sandboxEntry.addEventListener('touchend', activateSandboxFromTitle, { passive: false });
   document.getElementById('levelSelectBtn').onclick = showLevelSelect;
   document.getElementById('howBtn').onclick = showTeacherNote;
   if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => getLocalPackAssetInfo(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });

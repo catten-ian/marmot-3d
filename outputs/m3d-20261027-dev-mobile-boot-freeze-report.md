@@ -76,3 +76,19 @@
 - `git diff --check`：通过。
 
 真机通过理由：目标 WebView 明确是 WebGL2 且没有 WebGPU；修复后它不会再创建 WebGPURenderer 的 WebGL fallback，而是使用经典 WebGLRenderer。这样首个真实 Verdant mesh 的纹理、缓冲上传和后续标题页渲染回到同一台手机旧版成功使用过的后端，同时保留分批预热的事件循环让出，避免一次性首帧上传再次锁死宿主浏览器。若页面最终仍有设备特定驱动问题，失败边界会集中在经典 WebGL 首次上传，而不是误入的 WebGPU fallback 路径。
+
+## 续 3：本地 CDP 复现与 WebGPU 优先（2026-10-28）
+
+本轮使用工作树本地静态服务 `python3 -m http.server 8351`，通过 FAME 机上 Chrome 的 CDP `127.0.0.1:18800` 打开 `?version=dev&webgl=1&models=off&verdantTier=low`。独立 headless 尝试采用 `--headless=new --remote-debugging-port=18988 --user-data-dir=<独立目录> --no-first-run`；Chrome 进程能启动，但该环境没有建立 18988 监听，因此没有把它的失败误记为页面冻结。切换到已运行且可读的 18800 CDP 后，本地页面成功完成启动：`window.__m3dBootStage = "first-frame"`、`window.__game` 为真、标题页可见，状态徽标为 `WebGL2 · 硬件加速已启用`。这次低档本地运行没有复现 56/57；因此没有伪造“某个 mesh 必然冻结”的结论。预热循环已加入每批 mesh 名、批次范围和 `console.time` 证据，下一次在能复现冻结的设备/档位上可直接区分最后批 render 与恢复全场景后的首帧。
+
+根因三判仍以现有真实矩阵和本地可观测边界为准：二次预热已消除前批重复绘制的 O(n²)；无 WebGPU 环境不再误入 WebGPURenderer 的 WebGL fallback；剩余风险边界是最后一个资源批次完成后恢复 113 个 mesh 可见时的首个完整场景 render。完整 Verdant 场景仍保留，未改 GLB，也未切简化地图。
+
+本轮代码改动：
+
+- `index.html` 对 Verdant dev 路径同样执行 `navigator.gpu`、`requestAdapter()`、`requestDevice()` 的真实探测，并把结果写入 `window.__boot`；无 WebGPU 时提示并走经典 WebGLRenderer。
+- 标题页沙盒按钮增加 pointerup/touchend/click 兼容入口，并以 450ms 去重，覆盖触屏模拟下 synthetic click 被抑制的情况。
+- loader 与启动状态串更新为 boot9；预热日志打印 mesh 名和单批耗时。
+
+验证：`node --check src/main.js`、`node --check src/world/verdant.js`、`git diff --check` 均通过；本地 CDP 实测已达到标题页和首帧。`node tools/run-node-tests.cjs` 当前为 `OK 44/45`：唯一失败是 `test-beta-contract.cjs`，因为硬约束禁止修改 `index-public.html`，而该测试要求它与已改动的 canonical `index.html` 完全字节一致；其余 44 项通过（浏览器/CDP 项按工具约定跳过）。
+
+真机通过理由：Chromium 121 WebView 没有 `navigator.gpu` 时直接使用经典 WebGLRenderer；支持 WebGPU 的手机则只有在 adapter/device 均创建成功后才使用 WebGPURenderer。触屏预热仍按最多 2 个 mesh、批后隐藏、事件循环让出的策略执行，完整写实 Verdant group 最终恢复可见。

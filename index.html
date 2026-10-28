@@ -160,7 +160,7 @@
     </div>
     <div class="loader-track"><div class="loader-fill" id="loaderFill"></div><i class="loader-shine"></i></div>
     <div class="loader-meta">
-      <span class="loader-text">正在筑巢… [boot8]</span>
+      <span class="loader-text">正在筑巢… [boot9]</span>
       <span class="loader-bytes" id="loaderBytes" hidden></span>
       <span class="loader-pct" id="loaderPct">0%</span>
     </div>
@@ -307,15 +307,17 @@ try {
   boot.forceWebGL = FORCE_WEBGL;
 } catch (e) { /* 版本模块异常时按稳定版处理 */ }
 
-if (boot.gsWorld) {
-  // 显示准备状态，避免长时间白屏
+const shouldProbeWebGPU = boot.gsWorld || (devOn('verdantWorld') && !boot.forceWebGL);
+if (shouldProbeWebGPU) {
+  // GS 与 Verdant 都必须先拿到真实 adapter/device，再决定是否创建 WebGPURenderer。
+  // 没有 WebGPU 时 Verdant 直接使用经典 WebGLRenderer，避免走 WebGPURenderer 的 WebGL fallback。
   const t = document.getElementById('perfHint');
   if (t) t.textContent = '正在准备 WebGPU…';
   const gpu = await probeWebGPU();
   boot.gpuOk = gpu.ok;
   boot.gpuReason = gpu.reason || '';
   if (!gpu.ok && t) {
-    t.textContent = `WebGPU 不可用（${gpu.reason}）— 将使用程序化场景`;
+    t.textContent = `WebGPU 不可用（${gpu.reason}）— 将使用经典 WebGLRenderer`;
   }
 }
 
