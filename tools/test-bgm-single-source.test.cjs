@@ -83,10 +83,10 @@ test('BGM switch stops the old source before starting its replacement', async ()
   assert.equal(manager.pending.slot, 'night');
   assert.equal(harness.sources.length, 1, 'new source is not created before the old one ends');
   assert.equal(oldSource.stopped.length, 1, 'old looping source receives source.stop()');
-  assert.deepEqual(oldSource.stopped[0], [0.04], 'stop follows the short non-overlapping exit');
+  assert.deepEqual(oldSource.stopped[0], [1.5], 'stop follows the serialized 1.5s fade-out exit');
   assert.equal(oldSource.running, true, 'the old source alone runs during its exit');
   assert.equal(harness.active.size, 1);
-  harness.audio.ctx.advanceTo(0.04);
+  harness.audio.ctx.advanceTo(1.5);
   assert.equal(manager.current.slot, 'night');
   assert.equal(oldSource.running, false);
   assert.equal(oldSource.disconnected, true);
@@ -121,7 +121,7 @@ test('rapid A to B to C requests do not start stale tracks or leak sources', asy
   assert.equal(harness.sources.length, 1, 'neither stale B nor pending C is created during A exit');
   assert.equal(firstSource.stopped.length, 1);
   assert.equal(harness.active.size, 1);
-  harness.audio.ctx.advanceTo(0.04);
+  harness.audio.ctx.advanceTo(1.5);
   assert.equal(manager.current.slot, 'night');
   assert.equal(harness.sources.length, 2, 'stale B was never created; only A and final C exist');
   assert.equal(firstSource.disconnected, true);
@@ -256,7 +256,7 @@ test('procedural BGM loop timer and source graph are released after a serialized
   manager._crossfadeTo('night', { duration: 30 });
   assert.equal(manager.current.source, proceduralSource);
   assert.equal(harness.active.size, 1);
-  harness.audio.ctx.advanceTo(0.04);
+  harness.audio.ctx.advanceTo(manager.crossfadeSeconds);
   assert.equal(manager.current.slot, 'night');
   assert.equal(proceduralSource.disconnected, true);
   const ticksAtStop = ticks;
