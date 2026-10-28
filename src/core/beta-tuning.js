@@ -46,6 +46,26 @@ export const BETA_TUNE = {
   stunDiminishResetSeconds: 4.0, // 停止被晕后超过此时长，递减层数清零
 };
 
+/**
+ * Movement drain per second. In Beta, the explicit sprint setting describes
+ * sprint movement itself, so it takes precedence over boost/overdrive travel
+ * rates. Those rates remain unchanged while not sprinting. Stable/dev retain
+ * their original constants and priority exactly.
+ */
+export function resolveMovementCostPerSecond({
+  betaOn = BETA_ACTIVE,
+  sprinting = false,
+  boost = 0,
+  overdrive = 0,
+  tune = BETA_TUNE,
+} = {}) {
+  if (betaOn && sprinting) return tune.sprintMoveCost;
+  if (overdrive > 0) return 4;
+  if (boost > 0) return 4.8;
+  if (sprinting) return betaOn ? tune.sprintMoveCost : 3.4;
+  return betaOn ? tune.runMoveCost : 1.6;
+}
+
 /** 空闲达到清零时间后，立即清掉实例上的递减层与时间戳。 */
 export function expireStunDiminution(state = {}, now = 0, resetSeconds = BETA_TUNE.stunDiminishResetSeconds) {
   const lastAppliedAt = Number.isFinite(state.lastAppliedAt) ? state.lastAppliedAt : -Infinity;

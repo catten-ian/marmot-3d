@@ -9,6 +9,10 @@ export const RUNTIME_CONFIG_QUERY_KEY = 'betaConfig';
 
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
+function safeSessionStorage() {
+  try { return globalThis.sessionStorage; } catch { return null; }
+}
+
 /** Keep only actual beta tuning keys and finite values of the same type. */
 export function sanitizeRuntimeValues(values, base = BETA_TUNE) {
   if (!isObject(values)) return { values: {}, ignored: [], warnings: ['values 必须是对象'] };
@@ -68,11 +72,76 @@ export function decodeRuntimePayload(encoded, base = BETA_TUNE) {
 export function readRuntimePayload(locationLike, storageLike = null, base = BETA_TUNE) {
   const params = new URLSearchParams(locationLike?.search || '');
   const query = params.get(RUNTIME_CONFIG_QUERY_KEY);
-  if (query) return decodeRuntimePayload(query, base);
-  const raw = storageLike?.getItem?.(RUNTIME_CONFIG_QUERY_KEY);
+  if (query !== null) return decodeRuntimePayload(query, base);
+  let raw;
+  try { raw = storageLike?.getItem?.(RUNTIME_CONFIG_QUERY_KEY); }
+  catch { return { ok: false, absent: true, error: '运行时配置存储不可用' }; }
   if (!raw) return { ok: false, absent: true, error: '未提供运行时配置' };
   try { return validateRuntimePayload(JSON.parse(raw), base); }
   catch { return { ok: false, error: '运行时配置存储内容不是有效 JSON' }; }
+}
+
+/** Apply active site values then explicit query values; the query wins conflicts. */
+export function applyRuntimeConfigSources({
+  locationLike = globalThis.location,
+  storageLike = safeSessionStorage(),
+  target = BETA_TUNE,
+  activePayload = null,
+} = {}) {
+  const params = new URLSearchParams(locationLike?.search || '');
+  if (params.has(RUNTIME_CONFIG_QUERY_KEY)) {
+    const query = readRuntimePayload(locationLike, null, target);
+    const active = activePayload ? validateRuntimePayload(activePayload, target) : null;
+    const activeApplied = active?.ok ? applyRuntimeValues(active.payload.values, target).applied : [];
+    if (!query.ok) {
+      return active?.ok
+        ? { ...active, applied: activeApplied, source: 'active', queryError: query.error }
+        : { ...query, applied: [], source: 'default' };
+    }
+    const queryApplied = applyRuntimeValues(query.payload.values, target).applied;
+    return {
+      ...query,
+      applied: [...new Set([...activeApplied, ...queryApplied])],
+      source: 'explicit',
+    };
+  }
+
+  if (activePayload) {
+    const validated = validateRuntimePayload(activePayload, target);
+    if (validated.ok) {
+      return {
+        ...validated,
+        ...applyRuntimeValues(validated.payload.values, target),
+        source: 'active',
+      };
+    }
+  }
+
+  // Same-tab storage remains a fail-soft fallback when no valid site-wide
+  // config is available; it must not override a successfully fetched active.
+  const stored = readRuntimePayload({ ...locationLike, search: '' }, storageLike, target);
+  if (stored.ok) return { ...stored, ...applyRuntimeValues(stored.payload.values, target), source: 'storage' };
+  return { ...stored, applied: [], source: 'default' };
+}
+
+/**
+ * Apply the site-wide config first, then overlay valid per-page query values;
+ * session storage is the fail-soft fallback. Invalid queries leave a valid
+ * active config alone, or preserve defaults if neither source is valid.
+ */
+export async function applyRuntimeConfigWithPrecedence({
+  locationLike = globalThis.location,
+  storageLike = safeSessionStorage(),
+  target = BETA_TUNE,
+  fetchActive = fetchActiveBetaConfig,
+} = {}) {
+  let active;
+  try { active = await fetchActive({ locationLike }); }
+  catch (error) { active = { ok: false, error: error?.message || 'Beta active 配置不可用' }; }
+  if (active?.ok) {
+    return applyRuntimeConfigSources({ locationLike, storageLike, target, activePayload: active.payload });
+  }
+  return { ...applyRuntimeConfigSources({ locationLike, storageLike, target }), error: active?.error || '没有有效 Beta runtime 配置' };
 }
 
 export async function fetchActiveBetaConfig({ locationLike = globalThis.location, fetchFn = globalThis.fetch, timeoutMs = 1500 } = {}) {

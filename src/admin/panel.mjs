@@ -276,6 +276,7 @@ export class TuningPanel {
         <input class="cloud-name" type="text" maxlength="50" autocomplete="off"
                placeholder="配置名字：中英文/数字/-/_，1-50 位">
         <button type="submit" class="cloud-save">保存当前配置到服务器</button>
+        <button type="button" class="cloud-apply-current">应用当前编辑值到全部 Beta</button>
       </form>
       <div class="cloud-confirm" hidden>
         <span class="cloud-confirm-text"></span>
@@ -283,7 +284,7 @@ export class TuningPanel {
         <button type="button" class="cloud-cancel">取消</button>
       </div>
       <div class="cloud-bar">
-        <span class="cloud-title">服务器上的配置</span>
+        <span class="cloud-title">服务器上的配置（列表“应用”只应用已保存版本；当前编辑请先保存）</span>
         <button type="button" class="cloud-refresh">刷新列表</button>
         <span class="cloud-status"></span>
       </div>
@@ -292,11 +293,14 @@ export class TuningPanel {
     this.cloudBox = box;
     this.cloudName = box.querySelector('.cloud-name');
     this.cloudForm = box.querySelector('.cloud-form');
+    this.cloudApplyCurrentBtn = box.querySelector('.cloud-apply-current');
     this.cloudConfirm = box.querySelector('.cloud-confirm');
     this.cloudConfirmText = box.querySelector('.cloud-confirm-text');
     this.cloudListEl = box.querySelector('.cloud-list');
     this.cloudStatusEl = box.querySelector('.cloud-status');
     this.cloudForm.addEventListener('submit', (ev) => { ev.preventDefault(); this._submitSave(); });
+    this.cloudApplyCurrentBtn.title = '不创建命名配置，直接将当前面板里的 Beta 参数设为全部 Beta 游戏页的生效配置';
+    this.cloudApplyCurrentBtn.addEventListener('click', () => this._applyCurrentConfig(this.cloudApplyCurrentBtn));
     this.cloudName.addEventListener('input', () => { if (this.pendingOverwrite) this._hideOverwrite(); });
     box.querySelector('.cloud-ok').addEventListener('click', () => {
       const name = this.pendingOverwrite;
@@ -357,7 +361,7 @@ export class TuningPanel {
       actions.className = 'cloud-item-actions';
       const applyBtn = document.createElement('button');
       applyBtn.type = 'button'; applyBtn.className = 'cloud-apply'; applyBtn.textContent = '应用';
-      applyBtn.title = '在 Beta 游戏页启动并应用这份运行时调参';
+      applyBtn.title = '将这份已保存配置设为全部 Beta 游戏页当前生效配置；先保存编辑后再应用';
       applyBtn.addEventListener('click', () => this._applyConfig(item.name, applyBtn));
       const loadBtn = document.createElement('button');
       loadBtn.type = 'button'; loadBtn.className = 'cloud-load'; loadBtn.textContent = '加载';
@@ -412,7 +416,7 @@ export class TuningPanel {
   }
 
   async _applyConfig(name, btn) {
-    const old = btn.textContent; btn.disabled = true; btn.textContent = '保存中…';
+    const old = btn.textContent; btn.disabled = true; btn.textContent = '应用中…';
     try {
       if (typeof fetch !== 'function') throw new Error('fetch 不可用');
       const res = await fetch(configItemUrl(this.apiBase, name), { headers: { Accept: 'application/json' } });
@@ -425,6 +429,27 @@ export class TuningPanel {
       this._cloudStatus(`已应用「${name}」到全部 Beta 网站`, 'ok'); this.toast(`已应用「${name}」到全部 Beta 网站`, 'ok');
     } catch (e) { const msg = `应用失败：${e && e.message ? e.message : e}`; this._cloudStatus(msg, 'error'); this.toast(msg, 'error'); }
     finally { btn.disabled = false; btn.textContent = old; }
+  }
+
+  async _applyCurrentConfig(btn) {
+    const old = btn.textContent; btn.disabled = true; btn.textContent = '应用中…';
+    try {
+      if (typeof fetch !== 'function') throw new Error('fetch 不可用');
+      const payload = runtimePayloadFromAdminConfig(serializeSavedConfig(this.entries, this.state));
+      if (!Object.keys(payload.values).length) throw new Error('当前面板没有可应用的 Beta 参数');
+      const res = await fetch(`${this.apiBase}/configs/active`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ name: '后台当前值', config: payload }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.ok !== true) throw new Error(data?.error || `HTTP ${res.status}`);
+      const msg = '已将当前编辑的 Beta 参数应用到全部 Beta 网站（未保存为命名配置）';
+      this._cloudStatus(msg, 'ok'); this.toast(msg, 'ok');
+    } catch (e) {
+      const msg = `应用当前值失败：${e && e.message ? e.message : e}`;
+      this._cloudStatus(msg, 'error'); this.toast(msg, 'error');
+    } finally { btn.disabled = false; btn.textContent = old; }
   }
 
   async _loadConfig(name) {

@@ -85,19 +85,16 @@ import { createSmartPack } from './entities/smart-fox-core.mjs';
 import { hpDamageMultiplier } from './core/fox-motion.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION, VERSION_LABEL } from './core/version.js';
-import { BETA_TUNE, betaFlowerCompletesImmediately, resolveLungeLockYaw } from './core/beta-tuning.js';
-import { applyRuntimeConfigFromLocation, fetchActiveBetaConfig, applyRuntimeValues } from './core/runtime-config.mjs';
+import { BETA_TUNE, betaFlowerCompletesImmediately, resolveLungeLockYaw, resolveMovementCostPerSecond } from './core/beta-tuning.js';
+import { applyRuntimeConfigWithPrecedence } from './core/runtime-config.mjs';
 import { betaInteractionSkillState, interactionSemantics } from './core/interaction-semantics.mjs';
 import { documentTitleFor } from './core/version-mode.mjs';
 
-// Admin's “应用” button hands Beta tuning through a signed-by-schema query payload.
-// Invalid/absent payloads are ignored, preserving the shipped defaults.
+// Explicit per-page runtime payloads take priority over the site-wide active config.
+// If neither provides valid Beta values, shipped defaults remain in effect.
 if (IS_BETA) {
-  try {
-    const active = await fetchActiveBetaConfig({ locationLike: location, timeoutMs: 1500 });
-    if (active.ok) applyRuntimeValues(active.payload.values, BETA_TUNE);
-    else applyRuntimeConfigFromLocation(); // query remains an explicit debug fallback
-  } catch (_) { try { applyRuntimeConfigFromLocation(); } catch (_) { /* fail-soft */ } }
+  try { await applyRuntimeConfigWithPrecedence({ locationLike: location, target: BETA_TUNE }); }
+  catch (_) { /* fail-soft: retain shipped defaults */ }
 }
 import { readProgress, writeProgress, isLevelUnlocked } from './core/progress.mjs';
 import {
@@ -1909,8 +1906,9 @@ function update(dt) {
   // dev 版「耐饥渴」：同一动作消耗更低（旱獭能长时间不进食活动）
   const costMul = devOn('famineTolerance') ? HERBIVORE.moveCostMul : 1;
   if (moving) {
-    const sprintCost = IS_BETA ? BETA_TUNE.sprintMoveCost : 3.4;
-    const moveCost = game.overdrive > 0 ? 4 : game.boost > 0 ? 4.8 : sprinting ? sprintCost : (IS_BETA ? BETA_TUNE.runMoveCost : 1.6);
+    const moveCost = resolveMovementCostPerSecond({
+      betaOn: IS_BETA, sprinting, boost: game.boost, overdrive: game.overdrive,
+    });
     p.energy -= dt * moveCost * costMul;
     p.energy = Math.max(0, p.energy);
   }
