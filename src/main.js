@@ -369,11 +369,21 @@ async function warmVerdantWebGLScene(group) {
   if (!meshes.length) return;
   const previous = meshes.map((obj) => obj.visible);
   meshes.forEach((obj) => { obj.visible = false; });
-  const batchSize = 3;
+  // Keep the rendered set bounded. Leaving old batches visible made batch N draw
+  // all N batches again, turning the warm-up into O(n²) GPU work on large GLBs.
+  const batchSize = 2;
   try {
     for (let start = 0; start < meshes.length; start += batchSize) {
-      for (let i = start; i < Math.min(meshes.length, start + batchSize); i++) meshes[i].visible = true;
-      renderer.render(scene, camera);
+      const end = Math.min(meshes.length, start + batchSize);
+      for (let i = start; i < end; i++) meshes[i].visible = true;
+      hud.setLoading(98.3, `就绪：分批预热 WebGL 资源（${end}/${meshes.length}）`);
+      try {
+        renderer.render(scene, camera);
+      } finally {
+        // Uploads remain resident after render, while the next batch does not pay
+        // for drawing every previously warmed mesh again.
+        for (let i = start; i < end; i++) meshes[i].visible = false;
+      }
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   } finally {
