@@ -57,3 +57,22 @@
 - `git diff --check` 通过。
 
 真机通过理由：任意时刻预热渲染集合最多 2 个 Verdant mesh，不再随着批次增长；每个批次之间有事件循环让出，且上传完成后的 GPU 资源不会因隐藏而被释放。这样消除了上一轮实现的 O(n²) 绘制峰值，同时保留完整场景的真实纹理、缓冲、高度场和碰撞数据。若设备仍在单个 mesh 上传时触发驱动级崩溃，剩余风险只集中在该 mesh 的单次资源上传，而不再是批次累积造成的 GPU 工作爆炸。
+
+## 续 2：根因二判（后端路径）与修复
+
+上一轮将 warmup 绘制集合限制为每批 2 个 mesh 后，真机仍在“就绪：分批预热 WebGL 资源”冻结，且 Chromium 121 WebView 的整个浏览器/GPU 进程被拖死。重新沿启动路径核对后发现，Verdant dev 启动在 `index.html` 只为旧 GS 路径探测 WebGPU，但 `src/main.js` 仍会无条件选择 `WebGPURenderer`；在该设备上 WebGPU 不可用，于是进入 Three.js 的 WebGPURenderer WebGL2 fallback。这个 fallback 与旧版能正常工作的经典 `WebGLRenderer` 不是同一上传/渲染路径，首个 Verdant GLB `render()` 正好落在该路径上。加载屏心跳消失仍只是渲染进程被同步 GPU 工作占住后的表现；业务代码没有在 warmup 中主动 `hideLoader()`。
+
+本次改动：
+
+- `src/main.js` 仅当引导结果 `window.__boot.gpuOk === true` 时才让 Verdant 使用 WebGPURenderer。
+- Chromium 121、WebGL2、无 WebGPU 的内置 WebView 直接走经典 WebGLRenderer，恢复旧版已验证过的渲染后端。
+- 保留上一轮每批最多 2 个 mesh、批后隐藏并让出事件循环的 warmup；完整 Verdant GLB、真实材质、高度场和碰撞仍然使用，没有简化地图、没有改三档 GLB、入口页、公共壳或版本戳。
+
+验证：
+
+- `node --check src/main.js`：通过。
+- `node --check src/world/verdant.js`：通过。
+- `node tools/run-node-tests.cjs`：`OK 45/45`（22 个浏览器/CDP 测试按工具约定跳过）。
+- `git diff --check`：通过。
+
+真机通过理由：目标 WebView 明确是 WebGL2 且没有 WebGPU；修复后它不会再创建 WebGPURenderer 的 WebGL fallback，而是使用经典 WebGLRenderer。这样首个真实 Verdant mesh 的纹理、缓冲上传和后续标题页渲染回到同一台手机旧版成功使用过的后端，同时保留分批预热的事件循环让出，避免一次性首帧上传再次锁死宿主浏览器。若页面最终仍有设备特定驱动问题，失败边界会集中在经典 WebGL 首次上传，而不是误入的 WebGPU fallback 路径。

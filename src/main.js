@@ -142,9 +142,12 @@ const BOOT = (typeof window !== 'undefined' && window.__boot) || {
   gsWorld: false, gpuOk: false, gpuReason: '', forceWebGL: false,
 };
 const WANT_GS = BOOT.gsWorld === true && !devOn('verdantWorld');
-// dev Verdant 写实场景同样走 WebGPURenderer（WebGPU→WebGL2 兑底→经典）。
-// 仅 dev：stable 必须继续走下面逐字保留的经典 WebGLRenderer 路径。
-const WANT_WEBGPU_VERDANT = !WANT_GS && IS_DEV && devOn('verdantWorld');
+// Verdant only opts into WebGPURenderer when the boot probe explicitly confirmed WebGPU.
+// Otherwise it stays on the classic WebGLRenderer path, including WebGL2 WebViews.
+// The Verdant boot page only probes WebGPU for the legacy GS path. On Chromium 121
+// WebViews an unprobed Verdant boot must stay on classic WebGLRenderer; forcing the
+// WebGPURenderer WebGL fallback takes a different, less stable upload path.
+const WANT_WEBGPU_VERDANT = !WANT_GS && IS_DEV && devOn('verdantWorld') && BOOT.gpuOk === true;
 
 let renderer;
 let rendererStatus = { backend: 'webgl2', supportsSplat: false, gpuReason: '', gpuName: '', gpuVendor: '', hardwareAccelerated: false, hardwareAccelerationKnown: false };
