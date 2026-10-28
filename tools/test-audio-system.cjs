@@ -114,7 +114,7 @@ test('static SFX file wins; missing/failing audio silently calls procedural fall
   assert.equal(missingFallbacks, 1);
 });
 
-test('BGM slots cover all seven moods and switch through a timed crossfade', async () => {
+test('BGM slots cover all seven moods and hand off through a serial short fade', async () => {
   const mod = await import('../src/systems/audio.js');
   assert.deepEqual(mod.BGM_SLOTS, ['menu', 'explore', 'tension', 'combat', 'night', 'victory', 'defeat', 'paf']);
   const states = [
@@ -142,11 +142,21 @@ test('BGM slots cover all seven moods and switch through a timed crossfade', asy
   await sleep(0);
   assert.equal(manager.current.slot, 'menu');
   assert.equal(manager.current.source.loop, true);
+  const oldTrack = manager.current;
   manager.request('explore');
   await sleep(0);
+  assert.equal(manager.current, oldTrack, 'the old track stays current during its short exit');
+  assert.equal(manager.pending.slot, 'explore');
+  assert.equal(context.sources.length, 1, 'the replacement source is not created while the old one is running');
+  assert.equal(oldTrack.source.stopped.length, 1);
+  assert.equal(oldTrack.source.stopped[0], 5.04, 'the old source gets a 40ms exit');
+  assert.ok(oldTrack.gain.gain.events.some((event) => event[0] === 'linear' && event[2] === 5.04));
+  context.currentTime = 5.04;
+  oldTrack.source.onended?.();
   assert.equal(manager.current.slot, 'explore');
-  assert.ok(manager.current.gain.gain.events.some((event) => event[0] === 'linear' && event[2] === 7.5));
-  assert.ok(context.sources[0].stopped.some((when) => when === 7.54));
+  assert.ok(manager.current.gain.gain.events.some((event) => event[0] === 'linear' && event[2] === 5.08));
+  assert.equal(oldTrack.source.connections.length, 0, 'the old source graph is released');
+  assert.equal(context.sources.length, 2);
   assert.equal(mod.selectBgmSlot({ mode: 'pause' }), null);
 });
 

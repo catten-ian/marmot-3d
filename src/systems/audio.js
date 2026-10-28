@@ -179,6 +179,7 @@ export class BgmManager {
     this.audio = audio;
     this.crossfadeSeconds = crossfadeSeconds;
     this.current = null;
+    this.pending = null;
     this.desiredSlot = null;
     this.generation = 0;
     this.enabled = true;
@@ -190,7 +191,13 @@ export class BgmManager {
     if (next === this.enabled) return;
     this.enabled = next;
     if (next) this.request(this.desiredSlot, true);
-    else this._fadeOut(this.current);
+    else {
+      // Invalidate in-flight loads and mute immediately; Audio.setSettings has
+      // already set the BGM bus to zero before asking the manager to stop.
+      this.generation += 1;
+      this._clearPending();
+      this._fadeOut(this.current, true);
+    }
   }
 
   request(slot, force = false, { prevMode = null, transition = 'switch' } = {}) {
@@ -198,30 +205,35 @@ export class BgmManager {
     if (!force && next === this.desiredSlot) return;
     this.desiredSlot = next;
     const generation = ++this.generation;
+    this._clearPending();
     if (!this.enabled || !this.audio.settings.bgmEnabled || !next) {
-      this._fadeOut(this.current);
+      this._fadeOut(this.current, !this.enabled || !this.audio.settings.bgmEnabled);
       return;
     }
-    if (this.current?.slot === next) return;
+    // A repeated state update should not restart an active track. Forced
+    // refreshes are the explicit exception for combat: they may select the
+    // next assetKey even though the public slot remains `combat`.
+    const sameCurrentSlot = this.current?.slot === next && !this.current.retiring;
     let assetKey = next;
-    if (next === 'combat') {
+    if (next === 'combat' && (!sameCurrentSlot || force)) {
       this._combatVariant = chooseCombatVariant({ previous: this._combatVariant });
       assetKey = this._combatVariant;
     }
+    if (sameCurrentSlot && (!force || this.current.assetKey === assetKey)) return;
     const path = `assets/audio/elevenlabs/bgm/${assetKey}.mp3`;
     const startOffset = resolveBgmStartOffset({ slot: next, prevMode, transition });
     this.audio._hasManifestAsset('bgm', assetKey, path).then((available) => {
       if (!available) return null;
       return this.audio._loadBuffer(path, this.audio._bgmCache);
     }).then((buffer) => {
-      if (generation !== this.generation) return;
+      if (generation !== this.generation || !this.enabled || !this.audio.settings.bgmEnabled) return;
       const procedural = buffer || this.audio._createProceduralBgm?.(next);
       if (!procedural) { this._fadeOut(this.current); return; }
-      this._crossfadeTo(next, procedural, { startOffset, assetKey });
+      this._crossfadeTo(next, procedural, { startOffset, assetKey, generation });
     }).catch(() => {
-      if (generation !== this.generation) return;
+      if (generation !== this.generation || !this.enabled || !this.audio.settings.bgmEnabled) return;
       const procedural = this.audio._createProceduralBgm?.(next);
-      if (procedural) this._crossfadeTo(next, procedural, { startOffset, assetKey });
+      if (procedural) this._crossfadeTo(next, procedural, { startOffset, assetKey, generation });
       else this._fadeOut(this.current);
     });
   }
@@ -239,18 +251,96 @@ export class BgmManager {
     const from = this._trackLevel(track, now);
     const end = rampGain(track.gain.gain, from, target, now, duration);
     track.fade = { from, to: target, start: now, end };
-    if (target === 0) {
-      try { track.source.stop(end + 0.04); } catch (_) { /* already stopped */ }
+    return end;
+  }
+
+  _cleanupTrack(track) {
+    if (!track || track.cleaned) return;
+    track.cleaned = true;
+    if (track.procedural) clearInterval(track.loopTimer);
+    try { track.source.disconnect(); track.gain.disconnect(); } catch (_) { /* cleanup is best-effort */ }
+  }
+
+  _disposeCandidate(candidate) {
+    if (!candidate || candidate.disposed || candidate.started) return;
+    candidate.disposed = true;
+    if (candidate.__proceduralBgm) {
+      clearInterval(candidate.loopTimer);
+      try { candidate.source.disconnect(); candidate.gain.disconnect(); } catch (_) { /* best-effort */ }
     }
   }
 
-  _fadeOut(track) {
-    if (!track) return;
-    this.current = null;
-    this._fade(track, 0, this.audio.ctx.currentTime, this.crossfadeSeconds);
+  _clearPending() {
+    if (!this.pending) return;
+    this._disposeCandidate(this.pending.bufferOrProcedural);
+    this.pending = null;
   }
 
-  _crossfadeTo(slot, bufferOrProcedural, { startOffset = 0, assetKey = slot } = {}) {
+  _stopTrack(track, { waitForEnded = false } = {}) {
+    if (!track || track.stopped) return;
+    track.stopped = true;
+    track.retiring = true;
+    if (track.procedural) clearInterval(track.loopTimer);
+    try {
+      // An immediate stop can supersede a previously scheduled fade-out stop.
+      track.source.stop();
+    } catch (_) {
+      // Fail closed: silence/release the graph but never start a replacement
+      // while the engine has not confirmed this source ended.
+      this._cleanupTrack(track);
+      if (this.current === track && !waitForEnded) this.current = null;
+      return;
+    }
+    if (waitForEnded) return;
+    this._cleanupTrack(track);
+    if (this.current === track) this.current = null;
+  }
+
+  _retireCurrent(track) {
+    if (!track || track.retiring) return;
+    track.retiring = true;
+    const now = this.audio.ctx.currentTime;
+    // A 40ms exit removes clicks while ensuring the next source cannot begin
+    // until this source's ended event confirms the scheduled stop has completed.
+    const outroSeconds = Math.min(0.04, Math.max(0, this.crossfadeSeconds));
+    const stopAt = this._fade(track, 0, now, outroSeconds);
+    try {
+      track.source.stop(stopAt);
+    } catch (_) {
+      // If the scheduled stop cannot be installed, stop synchronously rather
+      // than leave a looping source alive indefinitely.
+      this._stopTrack(track, { waitForEnded: true });
+    }
+  }
+
+  _fadeOut(track, immediate = false) {
+    this._clearPending();
+    if (!track) return;
+    if (immediate) {
+      // Keep the track as the serialization barrier until the AudioBufferSource
+      // confirms its stop via `ended`; a rapid re-enable queues behind it.
+      this._stopTrack(track, { waitForEnded: true });
+      return;
+    }
+    this._retireCurrent(track);
+  }
+
+  _startPending() {
+    if (this.current || !this.pending) return;
+    const pending = this.pending;
+    this.pending = null;
+    if (pending.generation != null && pending.generation !== this.generation) {
+      this._disposeCandidate(pending.bufferOrProcedural);
+      return;
+    }
+    if (!this.enabled || !this.audio.settings.bgmEnabled || !pending.slot) {
+      this._disposeCandidate(pending.bufferOrProcedural);
+      return;
+    }
+    this._startTrack(pending.slot, pending.bufferOrProcedural, pending);
+  }
+
+  _startTrack(slot, bufferOrProcedural, { startOffset = 0, assetKey = slot } = {}) {
     const ctx = this.audio.ctx;
     const now = ctx.currentTime;
     const procedural = bufferOrProcedural?.__proceduralBgm === true;
@@ -263,20 +353,44 @@ export class BgmManager {
     source.connect(gain);
     gain.connect(this.audio.buses.bgm);
     paramValue(gain.gain, 0, now);
-    if (procedural) source.start(now);
-    else source.start(now, startOffset);
-    const track = { slot, assetKey, source, gain, fade: null, procedural };
-    // 增益按实际播放的 assetKey 取（combat / combat-b / combat-c 实测响度不同），缺省回退到槽位。
-    const normalizedGain = Number(getBgmTrackMeta(assetKey).gain) || Number(getBgmTrackMeta(slot).gain) || 1;
-    this._fade(track, 0.42 * normalizedGain, now, this.crossfadeSeconds);
-    const previous = this.current;
-    this.current = track;
-    this._fade(previous, 0, now, this.crossfadeSeconds);
-    source.onended = () => {
-      if (procedural) clearInterval(bufferOrProcedural.loopTimer);
-      try { source.disconnect(); gain.disconnect(); } catch (_) { /* cleanup is best-effort */ }
+    const track = {
+      slot, assetKey, source, gain, fade: null, procedural,
+      loopTimer: procedural ? bufferOrProcedural.loopTimer : null,
+      stopped: false, cleaned: false, retiring: false, started: false,
     };
+    source.onended = () => {
+      this._cleanupTrack(track);
+      if (this.current === track) this.current = null;
+      this._startPending();
+    };
+
+    try {
+      if (procedural) source.start(now);
+      else source.start(now, startOffset);
+      track.started = true;
+      if (procedural) bufferOrProcedural.started = true;
+      this.current = track;
+      // Replace the former multi-second overlap with a short, non-overlapping attack.
+      const attackSeconds = Math.min(0.04, Math.max(0, this.crossfadeSeconds));
+      const normalizedGain = Number(getBgmTrackMeta(assetKey).gain) || Number(getBgmTrackMeta(slot).gain) || 1;
+      this._fade(track, 0.42 * normalizedGain, now, attackSeconds);
+    } catch (error) {
+      this._stopTrack(track);
+      throw error;
+    }
   }
+
+  _crossfadeTo(slot, bufferOrProcedural, { startOffset = 0, assetKey = slot, generation = null } = {}) {
+    const candidate = { slot, bufferOrProcedural, startOffset, assetKey, generation };
+    if (this.current) {
+      this._clearPending();
+      this.pending = candidate;
+      this._retireCurrent(this.current);
+      return;
+    }
+    this._startTrack(slot, bufferOrProcedural, candidate);
+  }
+
 }
 
 export class Audio {
@@ -408,12 +522,17 @@ export class Audio {
 
   setSettings(value, { persist = true } = {}) {
     if (!this.isBeta) return this.getAudioSettings();
+    const managerWasEnabled = this._bgmManager?.enabled;
     this.settings = normalizeAudioSettings({ ...this.settings, ...value });
     this._applySettings();
     if (persist) writeAudioSettings(this.settings, this.storage);
     if (this._bgmManager) {
       this._bgmManager.setEnabled(this.settings.bgmEnabled);
-      if (this.settings.bgmEnabled) this._bgmManager.request(this._desiredBgmSlot, true);
+      // Re-enable already requests once through setEnabled. For unrelated
+      // setting edits, only retry when a desired track is actually missing.
+      if (this.settings.bgmEnabled && managerWasEnabled && !this._bgmManager.current && !this._bgmManager.pending) {
+        this._bgmManager.request(this._desiredBgmSlot, true);
+      }
     }
     return this.getAudioSettings();
   }
@@ -430,7 +549,10 @@ export class Audio {
       try { this.ctx.suspend?.().catch?.(() => {}); } catch (_) { /* best-effort */ }
     } else {
       this._resumeContext();
-      this._bgmManager?.request(this._desiredBgmSlot, true);
+      const manager = this._bgmManager;
+      if (manager && (!manager.current || manager.current.slot !== this._desiredBgmSlot || manager.current.retiring)) {
+        manager.request(this._desiredBgmSlot, true);
+      }
     }
   }
 

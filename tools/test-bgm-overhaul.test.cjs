@@ -32,8 +32,12 @@ test('crossfade target multiplies normalized track gain', async () => {
   const manager = new audio.BgmManager({ ctx: { currentTime: 0, createBufferSource() { return { connect(){}, start(){}, stop(){}, disconnect(){}, loop: false }; }, createGain() { return { gain: makeParam(), connect(){}, disconnect(){} }; } }, buses: { bgm: {} }, settings: { bgmEnabled: true } });
   manager._crossfadeTo('combat', { duration: 45 }, { startOffset: 3 });
   assert.equal(params[params.length - 1].value, 0.42 * 0.56);
-  // 变体按 assetKey 取各自增益，不共用 combat 的增益
+  const oldSource = manager.current.source;
+  // 变体按 assetKey 取各自增益，不共用 combat 的增益；hand-off 等待旧源结束。
   manager._crossfadeTo('combat', { duration: 45 }, { startOffset: 3, assetKey: 'combat-b' });
+  assert.equal(manager.current.source, oldSource);
+  assert.equal(manager.pending.assetKey, 'combat-b');
+  oldSource.onended?.();
   assert.equal(params[params.length - 1].value, 0.42 * 0.68);
 });
 
