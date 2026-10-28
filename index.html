@@ -364,7 +364,10 @@ let lastFillPct = -1;
 const watchdog = setInterval(() => {
   const pct = fillEl ? (parseFloat(fillEl.style.width) || 0) : 0;
   if (pct > lastFillPct) lastFillPct = pct;
-  const failure = activity.failure();
+  const stage = String(window.__m3dBootStage || '');
+  const verdantBusy = /^verdant-(module|download|parse|materials|rasterize|ready)$/.test(stage);
+  const rawFailure = activity.failure();
+  const failure = rawFailure === 'byte-stall' && verdantBusy && stage !== 'verdant-download' ? null : rawFailure;
   if (failure === 'hard-timeout') {
     clearInterval(watchdog);
     if (typeof window.__verdantBootFailure === 'function' && params.get('version') === 'dev') { window.__verdantBootFailure(new Error('下载超过 180 秒仍未完成')); return; }
@@ -385,7 +388,7 @@ const firstFrameWatchdog = setInterval(() => {
   if (params.get('version') !== 'dev') return;
   const started = Number(window.__m3dMainStartedAt) || 0;
   const stage = String(window.__m3dBootStage || '');
-  if (!started || window.__m3dFirstFrameAt || stage === 'verdant-module') return;
+  if (!started || window.__m3dFirstFrameAt || /^verdant-(module|download|parse|materials|rasterize|ready)$/.test(stage)) return;
   if (Date.now() - started < 10000) return;
   clearInterval(firstFrameWatchdog);
   bootFail('渲染器尚未产出首帧',

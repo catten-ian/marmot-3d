@@ -288,3 +288,45 @@ export function chooseCentralBaseSite(field, {
   }
   return null;
 }
+
+/** Cooperative variant for boot/sandbox paths; preserves candidate order while yielding regularly. */
+export async function findRobustPlacementCooperative(field, options = {}, { onProgress = null } = {}) {
+  if (!field || ![options.x, options.z].every(Number.isFinite) || !field.surfaceLayers || !field.layerLabels) return null;
+  const { x, z, radius = 0.35, bodyHeight = 0.8, clearance = 0, referenceY = NaN,
+    maxDistance = 12, maxSurfaceVariation = 1.1, avoidObstacles = true,
+    exclude = [], component = null, stride = 1, hasClearance = null, scorePlacement = null } = options;
+  const { nx, nz, bounds, cellSize, layerCount, surfaceLayers, layerLabels, walkable } = field;
+  const maxD2 = Number.isFinite(maxDistance) ? maxDistance * maxDistance : Infinity;
+  const step = Math.max(1, Math.floor(stride));
+  const minI = Number.isFinite(maxDistance) ? Math.max(0, Math.floor((x - maxDistance - bounds.minX) / cellSize)) : 0;
+  const maxI = Number.isFinite(maxDistance) ? Math.min(nx - 1, Math.floor((x + maxDistance - bounds.minX) / cellSize)) : nx - 1;
+  const minJ = Number.isFinite(maxDistance) ? Math.max(0, Math.floor((z - maxDistance - bounds.minZ) / cellSize)) : 0;
+  const maxJ = Number.isFinite(maxDistance) ? Math.min(nz - 1, Math.floor((z + maxDistance - bounds.minZ) / cellSize)) : nz - 1;
+  let best = null, bestScore = Infinity, scanned = 0;
+  for (let j = minJ; j <= maxJ; j += step) {
+    for (let i = minI; i <= maxI; i += step) {
+      const k = j * nx + i; scanned++;
+      if (!walkable[k] || (avoidObstacles && inObstacle(field, i, j))) continue;
+      const cx = bounds.minX + (i + 0.5) * cellSize, cz = bounds.minZ + (j + 0.5) * cellSize;
+      const d2 = (cx - x) ** 2 + (cz - z) ** 2;
+      if (d2 > maxD2 || exclude.some((e) => Math.hypot(cx - e.x, cz - e.z) < radius + (e.radius || 0) + (e.gap || 0))) continue;
+      for (let slot = 0; slot < layerCount; slot++) {
+        const node = k * layerCount + slot, y = surfaceLayers[node], comp = layerLabels[node];
+        if (!Number.isFinite(y) || comp < 0 || (component != null && comp !== component)) continue;
+        const dy = Number.isFinite(referenceY) ? Math.abs(y - referenceY) : 0;
+        const score = d2 + dy * dy * 0.08;
+        if (!scorePlacement && score >= bestScore) continue;
+        const point = resolveEntityGround(field, cx, cz, { radius, bodyHeight, clearance, referenceY: y, maxSurfaceVariation, avoidObstacles, hasClearance, component: comp });
+        if (!point || point.component !== comp) continue;
+        const result = { ...point, y: point.y, moved: Math.sqrt(d2), component: comp };
+        const rankedScore = typeof scorePlacement === 'function' ? scorePlacement(result) : score;
+        if (Number.isFinite(rankedScore) && rankedScore < bestScore) { best = result; bestScore = rankedScore; }
+      }
+      if ((scanned & 255) === 0) {
+        onProgress?.(scanned / Math.max(1, (maxI - minI + 1) * (maxJ - minJ + 1)), `寻找安全站位 ${scanned} 个候选`);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
+  }
+  return best;
+}

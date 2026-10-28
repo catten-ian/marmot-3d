@@ -235,9 +235,13 @@ export function buildObstacleProxies(sceneRoot, bounds, maxProxies = 24) {
  *   - resolveGround(x,z) → { y, walkable }（water/边缘 walkable=false）
  *   - nearestWalkable(x,z,radius)（出生点吸附）
  */
-export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22, edgeMargin = 0.7, precomputed = null }) {
+export async function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22, edgeMargin = 0.7, precomputed = null, onProgress = null }) {
   const __t0 = Date.now();
   const __pt = (m) => console.info('PT ' + m + ' ' + (Date.now() - __t0) + 'ms');
+  const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const yieldRows = async (j, total, label) => {
+    if ((j & 7) === 0) { onProgress?.(Math.min(0.9, j / Math.max(1, total)), label); await pause(); }
+  };
   const raster = resolveWalkableRaster({
     precomputed, bounds, cellSize, layerCount: 4,
     rasterize: () => rasterizeColumns(scene, bounds, cellSize),
@@ -246,10 +250,13 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
   const { top, surfaceLayers, layerCount, nx, nz, stats } = raster;
   const obstacleProxies = buildObstacleProxies(scene, bounds);
   __pt('rasterize');
+  onProgress?.(0.15, '光栅化：准备可行走网格');
+  await pause();
 
   // 1) 用导出 JSON（与渲染 ground 同一次射线导出）填补光栅遗漏。
   let jsonFilled = 0;
   for (let j = 0; j < nz; j++) {
+    await yieldRows(j, nz, `光栅化：填充地形网格 ${j}/${nz}`);
     for (let i = 0; i < nx; i++) {
       const k = j * nx + i;
       if (!isNaN(top[k])) continue;
@@ -265,6 +272,7 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
   for (let pass = 0; pass < 2; pass++) {
     const snapshot = Float32Array.from(top);
     for (let j = 0; j < nz; j++) {
+      await yieldRows(j, nz, `光栅化：补洞 ${pass + 1}/2 · ${j}/${nz}`);
       for (let i = 0; i < nx; i++) {
         const k = j * nx + i;
         if (!isNaN(snapshot[k])) continue;
@@ -289,15 +297,20 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
   const walkable = Uint8Array.from(solid);
   for (let r = 0; r < erode; r++) {
     const snap = Uint8Array.from(walkable);
-    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    for (let j = 0; j < nz; j++) {
+      await yieldRows(j, nz, `光栅化：安全边界 ${r + 1}/${erode} · ${j}/${nz}`);
+      for (let i = 0; i < nx; i++) {
       const k = j * nx + i;
       if (!snap[k]) continue;
       if (i === 0 || j === 0 || i === nx - 1 || j === nz - 1
         || !snap[k - 1] || !snap[k + 1] || !snap[k - nx] || !snap[k + nx]) walkable[k] = 0;
+      }
     }
   }
 
   __pt('mask');
+  onProgress?.(0.92, '光栅化：建立可行走区域');
+  await pause();
   const idxAt = (x, z) => [
     THREE.MathUtils.clamp(Math.floor((x - bounds.minX) / cellSize), 0, nx - 1),
     THREE.MathUtils.clamp(Math.floor((z - bounds.minZ) / cellSize), 0, nz - 1),
@@ -324,6 +337,7 @@ export function buildWalkableField({ scene, heightJson, bounds, cellSize = 0.22,
     return findNearestWalkableCell({ x, z, nx, nz, cellSize, bounds, walkable, top, heightAt });
   }
 
+  await pause();
   let solidCount = 0, walkCount = 0;
   let minWalkableY = Infinity, maxWalkableY = -Infinity;
   for (let k = 0; k < top.length; k++) {

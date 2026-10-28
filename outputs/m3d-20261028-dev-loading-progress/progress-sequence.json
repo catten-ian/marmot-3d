@@ -1,0 +1,6 @@
+[
+  {"pct":2,"text":"正在启动加载器"},{"pct":12,"text":"初始化渲染器完成"},{"pct":14,"text":"生成天空与光照"},
+  {"pct":15,"text":"读取 Verdant 场景模块"},{"pct":60,"text":"加载 Verdant 资源"},{"pct":70,"text":"解析 Verdant 场景 n/m"},
+  {"pct":88,"text":"准备 Verdant 材质与贴图 n/m"},{"pct":94,"text":"光栅化：建立可行走区域"},{"pct":98,"text":"设置高度场"},
+  {"pct":100,"text":"标题页已就绪"}
+]
