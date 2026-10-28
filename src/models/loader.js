@@ -21,10 +21,11 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
-import { getAssetCandidates } from '../world/local-pack.js';
+import { getAssetCandidatesAsync } from '../world/local-pack.js';
 
 const loader = new GLTFLoader();
 const SOFT_TIMEOUT_MS = 15000;
+const FINAL_TIMEOUT_MS = 60000;
 
 /** url -> { level, scene, error, geomOnly } */
 const cache = new Map();
@@ -208,14 +209,17 @@ function countTris(root) {
 export function loadModel(url, key = '') {
   if (cache.has(url)) return cache.get(url);
 
+  let pendingPromise;
   const p = new Promise((resolve) => {
     // 15s 是软超时，不是取消加载：实例已先显示程序化版本，
     // 因此慢模型继续加载也不会阻塞游戏；迟到成功仍应替换回真实模型。
     let settled = false;
+    let finalTimer;
     const done = (v) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(finalTimer);
       resolve(v);
     };
     const timer = setTimeout(() => {
@@ -225,10 +229,20 @@ export function loadModel(url, key = '') {
       }
       console.warn('[models] 加载较慢（15s），继续等待；程序化模型保持可见:', url);
     }, SOFT_TIMEOUT_MS);
+    finalTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (key && STATUS[key]) { STATUS[key].level = 'timeout'; STATUS[key].error = '模型加载超过 60 秒，已释放待加载状态，可重试'; }
+      if (cache.get(url) === pendingPromise) cache.delete(url);
+      console.warn('[models] 加载终态超时（60s），清理 pending cache:', url);
+      resolve(null);
+    }, FINAL_TIMEOUT_MS);
 
     const tier = typeof window !== 'undefined' ? (window.__VERDANT_ACTIVE_TIER__ || 'medium') : 'medium';
-    const candidates = getAssetCandidates(new URL(url, location.href).href, tier, false, assetResolver);
+    let candidates = [];
     const tryCandidate = (candidateIndex) => {
+      if (settled) return;
       const candidate = candidates[candidateIndex];
       if (!candidate) {
         if (key && STATUS[key]) { STATUS[key].level = 'failed'; STATUS[key].error = 'local → TOS → source 均无法加载'; }
@@ -236,6 +250,7 @@ export function loadModel(url, key = '') {
       }
       loader.load(candidate,
       (gltf) => {
+        if (settled) { gltf.scene?.traverse?.((o) => { if (o.isMesh) { o.geometry?.dispose?.(); const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach((m) => m?.dispose?.()); } }); return; }
         const root = gltf.scene;
         if (!root) {
           if (key && STATUS[key]) { STATUS[key].level = 'empty'; STATUS[key].error = '场景为空'; }
@@ -316,6 +331,7 @@ export function loadModel(url, key = '') {
       },
       undefined,
       (err) => {
+        if (settled) return;
         const msg = (err && (err.message || err.type)) || String(err);
         if (candidateIndex + 1 < candidates.length) { console.warn('[models] 资源回退：', candidate, msg); tryCandidate(candidateIndex + 1); return; }
         clearTimeout(timer);
@@ -324,9 +340,10 @@ export function loadModel(url, key = '') {
         done(null);
       });
     };
-    tryCandidate(0);
+    getAssetCandidatesAsync(new URL(url, location.href).href, tier, false, assetResolver).then((urls) => { candidates = urls; tryCandidate(0); }, () => done(null));
   });
 
+  pendingPromise = p;
   cache.set(url, p);
   return p;
 }

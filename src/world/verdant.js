@@ -1,11 +1,11 @@
 /** Dev-only A Verdant Trail scene loader and walkable height sampler. */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { getAssetCandidates } from './local-pack.js';
+import { getAssetCandidates, getAssetCandidatesAsync } from './local-pack.js';
 import { buildWalkableField } from './verdant-collision.js';
 import { parseWalkableFieldBin } from './verdant-walkable-bin.mjs';
 import { createProgressReporter, fetchWithFailover, parseGltfReferences, sourceLabelOf } from './verdant-progress.mjs';
-import { exceedsMemoryBudget, getMemorySnapshot } from '../core/memory-budget.mjs';
+import { exceedsMemoryBudget, getMemorySnapshot, estimateTextureBytes } from '../core/memory-budget.mjs';
 
 /** 单个下载源首字节无响应的上限：超过即判定该源故障，切下一个源。 */
 const SOURCE_STALL_MS = 8000;
@@ -14,7 +14,7 @@ const SOURCE_IDLE_MS = 60000;
 
 async function fetchJson(path, tier, sourceOnly = false, signal = null) {
   const errors = [];
-  for (const url of getAssetCandidates(path, tier, sourceOnly)) {
+  for (const url of await getAssetCandidatesAsync(path, tier, sourceOnly, null, signal)) {
     try {
       const init = {};
       if (signal) init.signal = signal;
@@ -33,7 +33,7 @@ async function fetchJson(path, tier, sourceOnly = false, signal = null) {
  * 逐块回报字节进度；单源首字节超时即换下一个源。
  */
 async function downloadAsset(url, { tier, signal, size, reporter, cache }) {
-  const candidates = getAssetCandidates(url, tier);
+  const candidates = await getAssetCandidatesAsync(url, tier, false, null, signal);
   const result = await fetchWithFailover(candidates, {
     signal,
     stallMs: SOURCE_STALL_MS,
@@ -49,12 +49,31 @@ async function downloadAsset(url, { tier, signal, size, reporter, cache }) {
         url, loaded: reporter.doneBytes, total: reporter.totalBytes, lengthComputable: true,
       });
     },
-    onSwitch: ({ from, to }) => {
-      reporter.publish({ text: `${sourceLabelOf(from)} 无响应，切换到${sourceLabelOf(to)}`, sourceLabel: sourceLabelOf(to) });
+    onDiscard: (bytes) => { reporter.removeBytes(bytes); reporter.publish({ currentPath: url, text: '当前源断流，已丢弃半截响应并重试下一源' }); },
+    onSwitch: ({ from, to, retryFromStart }) => {
+      reporter.publish({ text: `${sourceLabelOf(from)} ${retryFromStart ? '中途断流，' : ''}切换到${sourceLabelOf(to)}`, sourceLabel: sourceLabelOf(to) });
     },
   });
   if (!reporter.totalBytes) reporter.setTotal(result.totalBytes || size || 0);
   return result;
+}
+
+function readImageDimensions(bytes) {
+  if (bytes.length >= 24 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return { width: new DataView(bytes.buffer, bytes.byteOffset).getUint32(16), height: new DataView(bytes.buffer, bytes.byteOffset).getUint32(20) };
+  }
+  if (bytes.length > 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    for (let i = 2; i + 9 < bytes.length;) {
+      if (bytes[i] !== 0xff) { i++; continue; }
+      const marker = bytes[i + 1]; const len = (bytes[i + 2] << 8) | bytes[i + 3];
+      if (len < 2) break;
+      if ((marker >= 0xc0 && marker <= 0xc3) || (marker >= 0xc5 && marker <= 0xc7) || (marker >= 0xc9 && marker <= 0xcb) || (marker >= 0xcd && marker <= 0xcf)) {
+        return { height: (bytes[i + 5] << 8) | bytes[i + 6], width: (bytes[i + 7] << 8) | bytes[i + 8] };
+      }
+      i += 2 + len;
+    }
+  }
+  return null;
 }
 
 /**
@@ -112,6 +131,9 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
   const loader = new GLTFLoader(manager);
 
   const parseScene = (data, path) => new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new DOMException('Verdant 解析已取消', 'AbortError')); return; }
+    const onAbort = () => { parseReject = null; reject(new DOMException('Verdant 解析已取消', 'AbortError')); };
+    signal?.addEventListener?.('abort', onAbort, { once: true });
     parseItems = 0; parseDone = 0; parseMemoryError = null; parseReject = reject; reportParse();
     // 解析阶段暂停加载屏视频，释放硬解缓冲给贴图 decode。
     try { const v = document.getElementById('loaderVideo'); if (v && !v.paused) v.pause(); } catch (_) {}
@@ -132,9 +154,14 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
       const source = args[0];
       if (typeof Blob === 'undefined' || !(source instanceof Blob)) return args;
       try {
-        const probe = await originalCreateImageBitmap(source);
-        const w = probe.width, h = probe.height; probe.close();
-        if (Math.max(w, h) <= bitmapMaxSize) return args;
+        const bytes = new Uint8Array(await source.arrayBuffer());
+        const dims = readImageDimensions(bytes);
+        if (!dims) return args;
+        const { width: w, height: h } = dims;
+        const estimated = estimateTextureBytes({ width: w, height: h });
+        const snapshot = getMemorySnapshot();
+        const textureBudget = snapshot?.deviceMemory ? snapshot.deviceMemory * 1024 ** 3 * 0.18 : Infinity;
+        if (Math.max(w, h) <= bitmapMaxSize && estimated <= textureBudget) return args;
         const opts = { ...(args.length > 1 && typeof args[args.length - 1] === 'object' ? args[args.length - 1] : {}) };
         if (w >= h) opts.resizeWidth = bitmapMaxSize; else opts.resizeHeight = bitmapMaxSize;
         opts.resizeQuality = 'high';
@@ -144,12 +171,21 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
     if (typeof originalCreateImageBitmap === 'function') { try { globalThis.createImageBitmap = limitedCreateImageBitmap; } catch (_) {} }
     try {
       loader.parse(data, path, (gltf) => {
-        restoreDecodeLimit(); parseReject = null;
+        restoreDecodeLimit(); parseReject = null; signal?.removeEventListener?.('abort', onAbort);
         if (parseMemoryError) { reject(parseMemoryError); return; }
         stopForMemory(); if (parseMemoryError) { reject(parseMemoryError); return; }
+        let textureBytes = 0; gltf.scene?.traverse?.((obj) => {
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          for (const mat of mats) for (const key of ['map', 'normalMap', 'roughnessMap', 'alphaMap']) {
+            const image = mat?.[key]?.image;
+            const width = image?.width || image?.naturalWidth || 0, height = image?.height || image?.naturalHeight || 0;
+            textureBytes += estimateTextureBytes({ width, height });
+          }
+        });
+        if (exceedsMemoryBudget({ snapshot: getMemorySnapshot(), extraBytes: data?.byteLength || 0, extraTextureBytes: textureBytes })) { reject(new Error('Verdant 纹理/GPU 预算不足，已停止解析并建议低档')); return; }
         reportParse('解析 Verdant 场景素材'); resolve(gltf.scene);
-      }, (error) => { restoreDecodeLimit(); parseReject = null; reject(error); });
-    } catch (error) { restoreDecodeLimit(); parseReject = null; reject(error); }
+      }, (error) => { restoreDecodeLimit(); parseReject = null; signal?.removeEventListener?.('abort', onAbort); reject(error); });
+    } catch (error) { restoreDecodeLimit(); parseReject = null; signal?.removeEventListener?.('abort', onAbort); reject(error); }
   });
 
   if (!isGltf) {
@@ -265,7 +301,7 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
       cellSize: 0.22, layerCount: 4, bounds: expectedBounds,
     };
     const failures = [];
-    for (const candidate of getAssetCandidates(fieldUrl, activeTier)) {
+    for (const candidate of await getAssetCandidatesAsync(fieldUrl, activeTier, false, null, signal)) {
       try {
         const reporter = createProgressReporter({ onProgress: (stats) => {
           const mb = (stats.doneBytes / 1048576).toFixed(2), total = stats.totalBytes ? `/${(stats.totalBytes / 1048576).toFixed(2)} MB` : ' MB';

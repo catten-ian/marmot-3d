@@ -118,6 +118,10 @@ export function createProgressReporter({ onProgress, now = () => Date.now() } = 
     },
     get doneBytes() { return doneBytes; },
     get totalBytes() { return totalBytes; },
+    removeBytes(count) {
+      doneBytes = Math.max(0, doneBytes - Math.max(0, Number(count) || 0));
+      return doneBytes;
+    },
     snapshot() {
       return {
         doneBytes, totalBytes,
@@ -201,9 +205,8 @@ export async function streamUrl(url, {
 
 /**
  * 依次尝试多个下载源：某源无字节 / 报错时切下一个源。
- *
- * 已收到部分字节的源不再换源（避免同一个大文件重复下载半截），
- * 改为把 partialBytes 挂到错误上抛出，由上层决定是否重试整档。
+ * 传输中途断流时从下一候选源重新发起完整请求；已读字节不会被拼接，
+ * 避免把不同源的半截响应误当成完整 GLB。调用方可通过 onDiscard 抵消进度。
  */
 export async function fetchWithFailover(urls, {
   signal = null,
@@ -215,8 +218,10 @@ export async function fetchWithFailover(urls, {
   onOpen = null,
   onChunk = null,
   onSwitch = null,
+  onDiscard = null,
 } = {}) {
   const errors = [];
+  let lastPartialBytes = 0;
   for (let i = 0; i < urls.length; i++) {
     const url = urls[i];
     let loaded = 0;
@@ -235,13 +240,14 @@ export async function fetchWithFailover(urls, {
     } catch (error) {
       errors.push(`${url}: ${error.message}`);
       if (signal?.aborted) { error.partialBytes = loaded; throw error; }
-      if (loaded > 0) { error.partialBytes = loaded; throw error; }
-      if (i + 1 < urls.length) onSwitch?.({ from: url, to: urls[i + 1], error });
+      if (loaded > 0) { error.partialBytes = loaded; lastPartialBytes = loaded; onDiscard?.(loaded); }
+      if (i + 1 < urls.length) onSwitch?.({ from: url, to: urls[i + 1], error, partialBytes: loaded, retryFromStart: loaded > 0 });
     }
   }
   const failure = new Error(`所有下载源失败：${errors.join(' | ')}`);
   failure.allCandidatesFailed = true;
   failure.sourceLabel = sourceLabelOf(urls.at(-1));
+  if (lastPartialBytes > 0) failure.partialBytes = lastPartialBytes;
   throw failure;
 }
 

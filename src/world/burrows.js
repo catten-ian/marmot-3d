@@ -54,3 +54,23 @@ export function auditBurrows(defs = scaledBurrows(), minGap = 2) {
   }
   return { ok: issues.length === 0, issues };
 }
+
+
+export async function createBurrowsCooperative(scene, { resolveDefinition = null, onProgress = null } = {}) {
+  let defs = scaledBurrows();
+  if (typeof resolveDefinition === 'function') {
+    const placed = [];
+    const nextDefs = [];
+    for (let i = 0; i < defs.length; i++) {
+      const next = await resolveDefinition(defs[i], i, placed) || defs[i];
+      placed.push(next); nextDefs.push(next);
+      onProgress?.((i + 1) / defs.length, `布置洞穴 ${i + 1}/${defs.length}`);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    defs = nextDefs;
+  }
+  configureUnderground(defs);
+  const objects = [];
+  for (const def of defs) { objects.push(new Burrow(scene, def)); await new Promise((resolve) => setTimeout(resolve, 0)); }
+  return { defs, objects, base: defs[0], baseObject: objects[0] };
+}

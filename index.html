@@ -298,6 +298,7 @@ const boot = {
   gpuOk: false,
   gpuReason: '',
   forceWebGL: false,
+  gpuProbe: null,
 };
 try {
   // 默认跟随 dev 特性（?version=dev）；?gs=1 / ?gs=0 可显式覆盖：
@@ -318,12 +319,15 @@ if (shouldProbeWebGPU) {
   if (t) t.textContent = '正在准备 WebGPU…';
   // requestAdapter/requestDevice 在部分驱动上会永不 resolve（Linux Mesa/禁用 Vulkan 的 Chrome），
   // 必须带超时，否则看门狗还没建立启动就死在这里。
+  const probeController = new AbortController();
+  let probeTimer;
   const gpu = await Promise.race([
-    probeWebGPU(),
-    new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: 'WebGPU 探测超时（10s）' }), 10000)),
-  ]);
+    probeWebGPU({ retainDevice: true, signal: probeController.signal }),
+    new Promise((resolve) => { probeTimer = setTimeout(() => { probeController.abort(); resolve({ ok: false, reason: 'WebGPU 探测超时（10s）' }); }, 10000); }),
+  ]).finally(() => clearTimeout(probeTimer));
   boot.gpuOk = gpu.ok;
   boot.gpuReason = gpu.reason || '';
+  boot.gpuProbe = gpu.ok ? { ok: true, adapter: gpu.adapter, device: gpu.device } : null;
   if (!gpu.ok && t) {
     t.textContent = `WebGPU 不可用（${gpu.reason}）— 将使用经典 WebGLRenderer`;
   }
@@ -340,6 +344,8 @@ const params = new URLSearchParams(location.search);
 function bootFail(title, detail) {
   if (bootSettled) return;
   bootSettled = true;
+  window.__m3dBootCancelled = true;
+  try { window.__m3dBootCancel?.(); } catch (_) {}
   const bust = params.get('t') ? '' : `&t=${Date.now()}`;
   if (loaderTrackEl) loaderTrackEl.style.display = 'none';
   if (loaderTextEl) {
@@ -362,6 +368,7 @@ window.__m3dByteHeartbeat = (payload) => activity.noteBytes(payload);
 const fillEl = document.getElementById('loaderFill');
 let lastFillPct = -1;
 const watchdog = setInterval(() => {
+  if (window.__m3dBootCancelled) return;
   const pct = fillEl ? (parseFloat(fillEl.style.width) || 0) : 0;
   if (pct > lastFillPct) lastFillPct = pct;
   const stage = String(window.__m3dBootStage || '');
@@ -385,7 +392,7 @@ window.__bootWatchdogPause = () => { clearInterval(watchdog); };
 // 首帧独立看门狗：下载完成后若渲染器/纹理上传没有产出首帧，给出可操作的降档提示。
 // 只在主模块已经启动且不再处于 Verdant 网络下载阶段时触发，避免把正常慢网误判成崩溃。
 const firstFrameWatchdog = setInterval(() => {
-  if (params.get('version') !== 'dev') return;
+  if (params.get('version') !== 'dev' || window.__m3dBootCancelled) return;
   const started = Number(window.__m3dMainStartedAt) || 0;
   const stage = String(window.__m3dBootStage || '');
   if (!started || window.__m3dFirstFrameAt || /^verdant-(module|download|parse|materials|rasterize|ready)$/.test(stage)) return;

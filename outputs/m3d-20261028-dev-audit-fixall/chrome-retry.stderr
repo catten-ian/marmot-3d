@@ -1,0 +1,5 @@
+[944300:944300:1028/215802.543707:ERROR:chrome/browser/net/system_network_context_manager.cc:965] Cannot use V8 Proxy resolver in single process mode.
+[944300:944300:1028/215802.592667:ERROR:chrome/browser/net/system_network_context_manager.cc:965] Cannot use V8 Proxy resolver in single process mode.
+[944300:944300:1028/215802.610655:ERROR:chrome/browser/net/system_network_context_manager.cc:965] Cannot use V8 Proxy resolver in single process mode.
+
+DevTools listening on ws://127.0.0.1:9231/devtools/browser/0f577b0b-831b-40e9-99cb-862fdfbce31a
