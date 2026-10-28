@@ -105,7 +105,7 @@ import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 import { VERDANT_KILL_PLANE_MARGIN } from './world/verdant-fall-safety.mjs';
-import { findRobustPlacement, resolveEntityGround, chooseCentralBaseSite } from './world/verdant-placement.mjs';
+import { findRobustPlacement, findRobustPlacementCooperative, resolveEntityGround, chooseCentralBaseSite } from './world/verdant-placement.mjs';
 
 // =====================================================
 // 初始化
@@ -124,7 +124,7 @@ function markBootStage(stage, pct, text) {
   hud.setLoading(pct, text);
 }
 
-hud.setLoading(8, '正在启动 [boot11]');
+hud.setLoading(2, '正在启动加载器');
 
 /**
  * 渲染器与 three 实例。
@@ -305,7 +305,7 @@ function disposeVerdantGroup(group) {
   }
 }
 
-markBootStage('renderer-ready', 22, '初始化渲染器完成');
+markBootStage('renderer-ready', 12, '初始化渲染器完成');
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -314,7 +314,7 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const sky = new Sky(scene, renderer);
-markBootStage('lighting', 45, '生成天空与光照');
+markBootStage('lighting', 14, '生成天空与光照');
 
 // —— Verdant Trail 全环境（dev-only）——
 // The loader is dynamically imported so stable/beta never fetch or evaluate any Verdant code.
@@ -372,14 +372,14 @@ async function warmVerdantWebGLScene(group) {
   meshes.forEach((obj) => { obj.visible = false; });
   // Keep the rendered set bounded. Leaving old batches visible made batch N draw
   // all N batches again, turning the warm-up into O(n²) GPU work on large GLBs.
-  const batchSize = 2;
+  const batchSize = 1;
   try {
     for (let start = 0; start < meshes.length; start += batchSize) {
       const end = Math.min(meshes.length, start + batchSize);
       for (let i = start; i < end; i++) meshes[i].visible = true;
       const names = meshes.slice(start, end).map((obj) => obj.name || '(unnamed)');
       console.info('[verdant-warmup] render batch', { start, end, total: meshes.length, meshes: names });
-      hud.setLoading(98.3, `就绪：分批预热 WebGL 资源（${end}/${meshes.length}）`);
+      hud.setLoading(94 + (end / meshes.length) * 4, `预热 WebGL 资源（${end}/${meshes.length}）`);
       try {
         console.time(`[verdant-warmup] ${start}-${end}`);
         renderer.render(scene, camera);
@@ -389,7 +389,7 @@ async function warmVerdantWebGLScene(group) {
         // for drawing every previously warmed mesh again.
         for (let i = start; i < end; i++) meshes[i].visible = false;
       }
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
     }
   } finally {
     meshes.forEach((obj, index) => { obj.visible = previous[index]; });
@@ -398,8 +398,8 @@ async function warmVerdantWebGLScene(group) {
 
 async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   window.__verdantLastDownloadStats = null;
-  loadInitialVerdant._lastProgress = 46;
-  markBootStage('verdant-module', 46, '读取 Verdant 场景模块');
+  loadInitialVerdant._lastProgress = 15;
+  markBootStage('verdant-module', 15, '读取 Verdant 场景模块');
   // 版本戳：CF 对 .js 走 4 小时浏览器缓存，场景加载器改动必须换 URL 才能立即生效。
   const mod = loadVerdantWorldFn ? { loadVerdantWorld: loadVerdantWorldFn } : await import('./world/verdant.js?v=m20261028boot11');
   loadVerdantWorldFn = mod.loadVerdantWorld;
@@ -415,7 +415,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
     }
     if (!attempt?.cancelled) {
       const phase = stats?.phase;
-      const ranges = phase === 'parse' ? [70, 82] : phase === 'materials' ? [82, 90] : phase === 'rasterize' ? [90, 98] : phase === 'ready' ? [98, 100] : [46, 70];
+      const ranges = phase === 'parse' ? [60, 70] : phase === 'materials' ? [70, 88] : phase === 'rasterize' ? [88, 94] : phase === 'ready' ? [98, 100] : [15, 60];
       const phaseP = phase && stats?.totalItems ? Math.max(0, Math.min(1, stats.doneItems / stats.totalItems)) : Math.max(0, Math.min(1, p));
       loadInitialVerdant._lastProgress = Math.max(loadInitialVerdant._lastProgress || 46, ranges[0] + phaseP * (ranges[1] - ranges[0]));
       hud.setLoading(loadInitialVerdant._lastProgress, label, stats);
@@ -423,18 +423,18 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   }, renderer, bitmapMaxSize: (isTouchPrimary() && rendererStatus.backend !== 'webgpu') ? 512 : 0 });
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
   verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
-  hud.setLoading(98.2, '就绪：挂载场景');
+  hud.setLoading(94, '挂载 Verdant 场景');
   scene.add(world.group);
-  hud.setLoading(98.3, '就绪：分批预热 WebGL 资源');
+  hud.setLoading(94, '预热 WebGL 资源');
   await warmVerdantWebGLScene(world.group);
-  hud.setLoading(98.4, '就绪：设置高度场');
+  hud.setLoading(98, '设置高度场');
   setHeightField(world.heightAt, { resolveGround: world.resolveGround, solidCollider: true });
   setPointScale(0.88, 0, 0); setPlayableBounds(world.bounds); setUndergroundCavesEnabled(devOn('scannedBurrows') ? true : false);
-  hud.setLoading(98.6, '就绪：调整天空');
+  hud.setLoading(98.3, '调整天空');
   sky.terrain.visible = false; sky.hills.visible = false; sky.dome.visible = true; sky.setVerdantMood?.();
-  hud.setLoading(98.8, '就绪：发布地形数据');
+  hud.setLoading(98.6, '发布地形数据');
   publishVerdantField(world);
-  hud.setLoading(98.9, '就绪：进入场景构建');
+  hud.setLoading(99, '进入场景构建');
   hud.say('DEV · 一套 Verdant Trail 场景已加载', 3.2); return world;
 }
 window.__verdantBootFailure = showVerdantFailure;
@@ -552,6 +552,25 @@ function resolveVerdantCompanion(x, z) {
   return recovered;
 }
 
+async function resolveVerdantCompanionCooperative(x, z) {
+  const field = verdantWorld?.placementField;
+  if (!field) return null;
+  const exact = resolveEntityGround(field, x, z, {
+    radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
+    avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
+    component: verdantCompanionLastPlacement?.component ?? null,
+    referenceY: verdantCompanionLastPlacement?.y,
+  });
+  if (exact) { verdantCompanionLastPlacement = exact; return exact; }
+  const recovered = await findRobustPlacementCooperative(field, {
+    x, z, radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
+    maxDistance: 14, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
+  }, { onProgress: (p, label) => hud.setLoading(45 + p * 20, label) });
+  if (recovered) verdantCompanionLastPlacement = recovered;
+  return recovered;
+}
+
+
 
 async function switchVerdantTier(preference, forceReload = false) {
   if (!verdantWorld || !loadVerdantWorldFn || !['auto','low','medium','high','ultra'].includes(preference)) return;
@@ -648,7 +667,7 @@ const BURROW_X = baseBurrow.x;
 const BURROW_Z = baseBurrow.z;
 const burrow = burrowSet.baseObject;
 const scenery = new Scenery(scene, { verdant: !!verdantWorld });
-markBootStage('scenery', 74, '布置场景与植被完成');
+markBootStage('scenery', 76, '布置场景与植被完成');
 
 // GS 全场景下，程序化布景必须让位：
 //  · 程序化地形（会和 GS 地面重叠）
@@ -683,15 +702,15 @@ function buildFoods(levelIndex) {
   return berries;
 }
 berries = buildFoods(0);
-markBootStage('props', 78, '生成采食点与伙伴');
+markBootStage('props', 80, '生成采食点与伙伴');
 const companion = new Companion(scene, { resolvePlacement: resolveVerdantCompanion });
 const minimap = new Minimap();
 let debugVolumes = null;
 let foxes = [];
-markBootStage('entities', 86, '生成实体与模型');
+markBootStage('entities', 84, '生成实体与模型');
 
 // —— 系统 ——
-markBootStage('controls', 83, '初始化移动控制');
+markBootStage('controls', 82, '初始化移动控制');
 const controller = new FirstPersonController(camera, canvas);
 if (IS_DEV && verdantWorld) controller.setVerdantSafety(createVerdantSafetyProfile(verdantWorld));
 if (IS_DEV && window.__verdantField) {
@@ -717,7 +736,7 @@ if (new URLSearchParams(location.search).get('debugvolumes') === '1') {
   }).catch((error) => console.warn('[debugvolumes] disabled:', error));
 }
 
-markBootStage('player', 87, '生成玩家模型');
+markBootStage('player', 86, '生成玩家模型');
 const playerModel = new THREE.Group();
 const playerBody = buildMarmotMesh();
 playerModel.add(playerBody);
@@ -807,11 +826,11 @@ if (!verdantWorld) buildBackdrop().then((root) => {
   }
 });
 
-markBootStage('world', 94, '完成实体与场景挂载');
+markBootStage('world', 92, '完成实体与场景挂载');
 const keys = new Set();
 controller.keys = keys;
 
-markBootStage('shader-world', 96, '编译着色器 / 生成远景');
+markBootStage('shader-world', 93, '编译着色器 / 生成远景');
 
 // —— 版本角标 ——
 // 正式版右下角不显示任何版本标识（干净发布）；仅 dev 实验版显示角标以便对照。
@@ -1018,18 +1037,29 @@ function disposeAllFoxes() {
 }
 
 let sandboxEnterHooks = [];
-function enterSandbox() {
+async function enterSandbox() {
+  hud.beginLoadingSession('正在进入沙盒…');
+  hud.setLoading(20, '重置沙盒状态');
+  await new Promise((resolve) => setTimeout(resolve, 0));
   hud.hidePanel(); sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
   game.sandbox = true; game.mode = 'play'; document.body.classList.add('sandbox-active');
   testModeBtn.hidden = false; testModeBtn.textContent = '沙盒控制';
   testState.godMode = true; testState.freezeTimer = true;
-  loadLevel(0, false); disposeAllFoxes();
-  for (let i = 0; i < 3; i++) spawnSandboxFox('normal', i);
+  hud.setLoading(45, '重建关卡与出生点');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await loadLevel(0, false, { cooperativePlacement: true });
+  disposeAllFoxes();
+  hud.setLoading(70, '生成沙盒狐狸 0/3');
+  for (let i = 0; i < 3; i++) { spawnSandboxFox('normal', i); hud.setLoading(70 + ((i + 1) / 3) * 20, `生成沙盒狐狸 ${i + 1}/3`); await new Promise((resolve) => setTimeout(resolve, 0)); }
   game.time = Infinity; game.foodCount = 0; game.levelRepels = 0; game.player.hp = 100; game.player.energy = 100;
   game.player.stress = 0; game.charge = 100;
   applySandboxDifficulty(sandboxState, sandboxState.difficulty);
   if (!controller.touchEnabled) controller.requestLock();
+  hud.setLoading(98, '应用沙盒设置');
+  await new Promise((resolve) => setTimeout(resolve, 0));
   sandboxEnterHooks.forEach((fn) => { try { fn(); } catch (e) { console.warn('[sandbox] enter hook failed', e); } });
+  hud.setLoading(100, '沙盒已就绪');
+  setTimeout(() => hud.hideLoader(), 250);
 }
 
 function exitSandbox() {
@@ -1041,7 +1071,7 @@ function exitSandbox() {
   title();
 }
 
-function loadLevel(index, announce = true) {
+function loadLevel(index, announce = true, { cooperativePlacement = false } = {}) {
   clearPendingAerialParry();
   cancelAttackCharge();
   game.level = index;
@@ -1087,8 +1117,9 @@ function loadLevel(index, announce = true) {
 
   // 重置伙伴（关卡配置里的点位是设计坐标，GS 版需经 scalePoint 缩放到运行时场地）
   const [friendX, friendZ] = scalePoint(cfg.friend);
-  const friendPlacement = resolveVerdantCompanion(friendX, friendZ);
+  const friendPlacement = cooperativePlacement ? null : resolveVerdantCompanion(friendX, friendZ);
   companion.placeAt(friendPlacement?.x ?? friendX, friendPlacement?.z ?? friendZ, friendPlacement?.y ?? null);
+  const placementPromise = cooperativePlacement ? resolveVerdantCompanionCooperative(friendX, friendZ).then((placed) => { companion.placeAt(placed?.x ?? friendX, placed?.z ?? friendZ, placed?.y ?? null); }) : null;
   game.friend = companion;
 
   game.levelRepels = 0;
@@ -1121,6 +1152,8 @@ function loadLevel(index, announce = true) {
   // applyLevel 只改雾色，这里补上关卡的能见度（near/far）
   scene.fog.near = verdantWorld ? 42 : env.fogBase;
   scene.fog.far = verdantWorld ? 175 : env.fogFarBase;
+
+  if (placementPromise) return placementPromise.then(() => undefined);
 
   if (announce) {
     game.mode = 'play';
@@ -2965,7 +2998,6 @@ let playerBodyYaw = controller.yaw;
 let fpsAcc = 0, fpsCount = 0, fpsTimer = 0;
 
 function frame(now) {
-  if (!window.__m3dFirstFrameAt) { window.__m3dFirstFrameAt = Date.now(); window.__m3dBootStage = 'first-frame'; }
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
 
@@ -2986,6 +3018,7 @@ function frame(now) {
 
   // 主场景
   renderer.render(scene, camera);
+  if (!window.__m3dFirstFrameAt) { window.__m3dFirstFrameAt = Date.now(); window.__m3dBootStage = 'first-frame'; }
 
   // viewmodel（自己的爪子/腿）在独立场景渲染。
   // renderer.clearDepth() 清除深度缓冲，确保爪子永远画在最上层，
@@ -3020,12 +3053,13 @@ function frame(now) {
 //=====================================================
 // 启动
 //=====================================================
-markBootStage('ready', 100, '完成');
+markBootStage('ready', 99, '首帧前收尾');
 loadLevel(0, false);
 // 标题状态下相机也需要正确落位，否则会渲染在场景原点（地下）
 controller.update(0.016, new Set(), 1);
 sky.update(controller.position);
 title();
+hud.setLoading(100, '标题页已就绪');
 hud.hideLoader();
 if (SANDBOX_MODE) requestAnimationFrame(() => requestAnimationFrame(enterSandbox));
 requestAnimationFrame(frame);

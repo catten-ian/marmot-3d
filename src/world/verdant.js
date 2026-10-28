@@ -247,7 +247,7 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
     };
     obj.material = Array.isArray(obj.material) ? obj.material.map(apply) : apply(obj.material);
     onProgress?.((index + 1) / Math.max(1, materialTotal), `准备 Verdant 材质与贴图 ${index + 1}/${materialTotal}`, { phase: 'materials', doneItems: index + 1, totalItems: materialTotal });
-    if ((index & 3) === 3) await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
   const group = new THREE.Group(); group.name = 'VerdantTrailEnvironment'; group.add(scene);
   group.userData.verdantManifest = manifest; group.userData.packManifest = packManifest;
@@ -293,7 +293,7 @@ export async function loadVerdantWorld({ base = './assets/verdant/', tier = 'med
   }
   onProgress?.(0.92, precomputed ? '光栅化：重建可行走地形网格' : '光栅化可行走地形 0/1', { phase: 'rasterize', doneItems: precomputed ? 0.92 : 0, totalItems: 1 });
   // JSON 由渲染 ground 直接射线生成，是玩家支撑高度的权威数据源；其余派生网格仍在运行时构建。
-  const field = buildWalkableField({ scene, heightJson: height, bounds: manifest.mapping.playableBounds, precomputed });
+  const field = await buildWalkableField({ scene, heightJson: height, bounds: manifest.mapping.playableBounds, precomputed, onProgress: (fraction, label) => onProgress?.(fraction, label, { phase: 'rasterize', doneItems: fraction, totalItems: 1 }) });
   console.info('[verdant] 可行走高度场:', field.stats);
   onProgress?.(1, precomputed ? '光栅化：地形数据就绪 1/1' : '光栅化可行走地形 1/1', { phase: 'rasterize', doneItems: 1, totalItems: 1 });
   onProgress?.(1, '就绪：等待主线程空闲', { phase: 'rasterize', doneItems: 1, totalItems: 1 });

@@ -1,0 +1,17 @@
+{
+  "kind": "static-code-verification",
+  "note": "独立 headless Chrome 启动尝试未能在本环境建立 DevTools 端口；未伪造运行时页面时间线。以下为本次代码路径的阶段证据。",
+  "stages": [
+    {"stage":"loader","range":"0-2","text":"正在启动加载器"},
+    {"stage":"renderer-ready","range":"2-12","text":"初始化渲染器完成"},
+    {"stage":"lighting","range":"12-14","text":"生成天空与光照"},
+    {"stage":"verdant-download","range":"15-60","text":"按字节加载 Verdant 资源"},
+    {"stage":"verdant-parse","range":"60-70","text":"解析 Verdant 场景 n/m"},
+    {"stage":"verdant-materials","range":"70-88","text":"逐 mesh 准备材质与贴图 n/m"},
+    {"stage":"verdant-rasterize","range":"88-94","text":"分行构建可行走地形"},
+    {"stage":"warmup","range":"94-98","text":"按 mesh 预热 WebGL 资源 n/m"},
+    {"stage":"scene-finish","range":"98-100","text":"设置高度场、发布地形、标题页已就绪"}
+  ],
+  "cooperative_yields": ["verdant material: every mesh setTimeout(0)","walkable field: every 8 rows setTimeout(0)","WebGL warmup: one mesh then requestAnimationFrame","sandbox: loadLevel/placement and each fox yield setTimeout(0)"],
+  "chrome_attempt": {"port":9230,"result":"Chrome process exited before exposing /json/version","not_connected_to":18800}
+}
