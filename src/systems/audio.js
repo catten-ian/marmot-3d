@@ -59,7 +59,8 @@ export const BGM_ASSETS = Object.freeze(Object.fromEntries(
   BGM_SLOTS.map((slot) => [slot, `assets/audio/elevenlabs/bgm/${slot}.mp3`]),
 ));
 
-export const BGM_COMBAT_LATCH_SECONDS = 55;
+// 默认值与 BETA_TUNE.bgmCombatLatchSeconds 保持一致；后台可调时以 BETA_TUNE 为准。
+export const BGM_COMBAT_LATCH_SECONDS = 35;
 export const BGM_MIN_DWELL_SECONDS = 10;
 export const BGM_TENSION_ENTER_SECONDS = 1.5;
 export const BGM_TENSION_EXIT_SECONDS = 4;

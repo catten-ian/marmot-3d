@@ -44,6 +44,8 @@ export const BETA_TUNE = {
   stunDiminishFactor: 0.55,      // 每层眩晕时长倍率
   stunDiminishFloor: 0.15,       // 递减后的最短眩晕时长（秒）
   stunDiminishResetSeconds: 4.0, // 停止被晕后超过此时长，递减层数清零
+  // —— BGM（仅 Beta）——
+  bgmCombatLatchSeconds: 35, // 被狐狸击中后 combat BGM 保持秒数；每次受击刷新
 };
 
 /**

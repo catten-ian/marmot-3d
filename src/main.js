@@ -2043,7 +2043,7 @@ function update(dt) {
         p.invuln = Math.max(p.invuln, FOX.bite.playerInvuln);
         game.recentlyHit = 1.2;
         game.lastPlayerHitAt = game.totalTime;
-        game.bgmCombatUntil = game.totalTime + BGM_COMBAT_LATCH_SECONDS;
+        game.bgmCombatUntil = game.totalTime + Number(BETA_TUNE.bgmCombatLatchSeconds ?? BGM_COMBAT_LATCH_SECONDS);
         p.stress = clamp(p.stress + 8, 0, 100);
         game.hits++;
         const hy = terrainHeight(p.x, p.z);
