@@ -330,3 +330,53 @@ export async function findRobustPlacementCooperative(field, options = {}, { onPr
   }
   return best;
 }
+
+/** Cooperative central-site search for startup and sandbox entry. */
+export async function chooseCentralBaseSiteCooperative(field, options = {}, { onProgress = null } = {}) {
+  if (!field?.componentSizes?.length) return null;
+  let mainComponent = 0;
+  for (let i = 1; i < field.componentSizes.length; i++) if (field.componentSizes[i] > field.componentSizes[mainComponent]) mainComponent = i;
+  const { interestPoints = [], radius = 4.2, clearance = 3.2, maxSurfaceVariation = 0.65,
+    centerX, centerZ, stride = 5, hasClearance = null, exclude = [], candidateLimit = 64 } = options;
+  const cx0 = Number.isFinite(centerX) ? centerX : (field.bounds.minX + field.bounds.maxX) / 2;
+  const cz0 = Number.isFinite(centerZ) ? centerZ : (field.bounds.minZ + field.bounds.maxZ) / 2;
+  const { nx, nz, bounds, cellSize, layerCount, surfaceLayers, layerLabels, walkable } = field;
+  const step = Math.max(1, Math.floor(stride));
+  const candidates = [];
+  let scanned = 0;
+  for (let j = 0; j < nz; j += step) {
+    for (let i = 0; i < nx; i += step) {
+      scanned++;
+      const k = j * nx + i;
+      if (walkable[k] && !inObstacle(field, i, j)) {
+        const x = bounds.minX + (i + 0.5) * cellSize, z = bounds.minZ + (j + 0.5) * cellSize;
+        if (!exclude.some((e) => Math.hypot(x - e.x, z - e.z) < radius + (e.radius || 0) + (e.gap || 0))) {
+          let y = NaN;
+          for (let slot = 0; slot < layerCount; slot++) { const node = k * layerCount + slot; if (layerLabels[node] === mainComponent && Number.isFinite(surfaceLayers[node])) { y = surfaceLayers[node]; break; } }
+          if (Number.isFinite(y)) {
+            const heights = [];
+            let supported = true;
+            for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              const support = nearestLayer(field, x + dx * radius * 0.8, z + dz * radius * 0.8, mainComponent, y, 0.9, true);
+              if (!support) { supported = false; break; }
+              heights.push(support.y);
+            }
+            if (supported && Math.max(y, ...heights) - Math.min(y, ...heights) <= maxSurfaceVariation) {
+              const centerDistance = Math.hypot(x - cx0, z - cz0);
+              const resourceDistance = interestPoints.length ? interestPoints.reduce((sum, q) => sum + Math.hypot(x - q[0], z - q[1]), 0) / interestPoints.length : 0;
+              candidates.push({ x, y, z, i, j, rank: centerDistance + resourceDistance * 0.11 + (Math.max(y, ...heights) - Math.min(y, ...heights)) * 1.8 });
+            }
+          }
+        }
+      }
+      if ((scanned & 255) === 0) { onProgress?.(scanned / Math.max(1, Math.ceil(nx / step) * Math.ceil(nz / step)), `布置洞穴：检查 ${scanned} 个候选`); await new Promise((resolve) => setTimeout(resolve, 0)); }
+    }
+  }
+  candidates.sort((a, b) => a.rank - b.rank || a.j - b.j || a.i - b.i);
+  for (const candidate of candidates.slice(0, Math.max(1, candidateLimit))) {
+    const site = resolveEntityGround(field, candidate.x, candidate.z, { radius, bodyHeight: 0, clearance, maxSurfaceVariation, avoidObstacles: true, hasClearance, component: mainComponent, referenceY: candidate.y });
+    if (site) return { ...site, component: mainComponent, centerDistance: Math.hypot(site.x - cx0, site.z - cz0), resourceDistance: interestPoints.length ? interestPoints.reduce((sum, p) => sum + Math.hypot(site.x - p[0], site.z - p[1]), 0) / interestPoints.length : 0 };
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return null;
+}

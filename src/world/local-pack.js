@@ -30,6 +30,26 @@ let active = null;
 let uiInstalled = false;
 let status = { state: 'none', found: [], missing: REQUIRED.slice(), message: '未选择本地资源包' };
 let downloadState = { state: 'idle', message: '尚未下载' };
+let restoreController = null;
+function replaceActive(next) {
+  if (active?.urls) for (const url of active.urls.values()) { try { URL.revokeObjectURL(url); } catch (_) {} }
+  active = next;
+}
+export async function prepareLocalAsset(path, { signal = null } = {}) {
+  const pack = active, key = normalizeInputPath(path);
+  if (!pack || !pack.files.has(key) || !key.startsWith('assets/')) return null;
+  if (signal?.aborted) throw new DOMException('本地资源读取已取消', 'AbortError');
+  if (pack.urls.has(key)) return pack.urls.get(key);
+  if (!pack.pending.has(key)) pack.pending.set(key, (async () => {
+    const file = await pack.files.get(key).getFile();
+    if (pack !== active || signal?.aborted) return null;
+    const url = URL.createObjectURL(file);
+    pack.urls.set(key, url);
+    return url;
+  })().finally(() => pack.pending.delete(key)));
+  return pack.pending.get(key);
+}
+
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -58,12 +78,13 @@ async function readHandle() {
     });
   } catch (_) { return null; }
 }
-async function walk(dir, prefix = '') {
+async function walk(dir, prefix = '', signal = null) {
   const out = new Map();
   for await (const entry of dir.values()) {
+    if (signal?.aborted) throw new DOMException('本地资源包恢复已取消', 'AbortError');
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.kind === 'file') out.set(path, entry);
-    else for (const [k, v] of await walk(entry, path)) out.set(k, v);
+    else for (const [k, v] of await walk(entry, path, signal)) out.set(k, v);
   }
   return out;
 }
@@ -87,15 +108,16 @@ async function sha256(blob) {
   return [...new Uint8Array(digest)].map((v) => v.toString(16).padStart(2, '0')).join('');
 }
 async function readEntryJson(entry) { return JSON.parse(await (await entry.getFile()).text()); }
-async function validate(root, entries, onProgress = null, verifyHashes = true) {
-  const files = entries || await walk(root);
+async function validate(root, entries, onProgress = null, verifyHashes = true, signal = null) {
+  const files = entries || await walk(root, '', signal);
+  const checkCancelled = () => { if (signal?.aborted) throw new DOMException('本地资源包恢复已取消', 'AbortError'); };
   const normalized = new Map();
   for (const [rawPath, entry] of files) normalized.set(normalizeInputPath(rawPath), entry);
   const found = REQUIRED.filter((p) => normalized.has(p));
   const missing = REQUIRED.filter((p) => !found.includes(p));
-  if (!normalized.size) { status = { state: 'none', found: [], missing: REQUIRED.slice(), message: '未选择本地资源包' }; active = null; return status; }
+  if (!normalized.size) { status = { state: 'none', found: [], missing: REQUIRED.slice(), message: '未选择本地资源包' }; replaceActive(null); return status; }
   if (missing.length) {
-    active = null;
+    replaceActive(null);
     status = { state: 'partial', found, missing, message: `资源包不完整：缺少 ${missing.length} 个必要文件` };
     return status;
   }
@@ -104,23 +126,24 @@ async function validate(root, entries, onProgress = null, verifyHashes = true) {
   onProgress?.(status);
   let packManifest;
   try { packManifest = await readEntryJson(normalized.get('pack-manifest.json')); }
-  catch (e) { status = { state: 'error', found, missing: [], message: `pack-manifest.json 无法读取：${e.message}` }; active = null; return status; }
+  catch (e) { status = { state: 'error', found, missing: [], message: `pack-manifest.json 无法读取：${e.message}` }; replaceActive(null); return status; }
   if (!Array.isArray(packManifest.files) || packManifest.files.length !== packManifest.fileCount) {
-    status = { state: 'error', found, missing: [], message: 'pack-manifest.json 的文件数/清单结构不匹配' }; active = null; return status;
+    status = { state: 'error', found, missing: [], message: 'pack-manifest.json 的文件数/清单结构不匹配' }; replaceActive(null); return status;
   }
   let checked = 0, totalBytes = 0;
   for (const rec of packManifest.files) {
+    checkCancelled();
     if (!safeRelative(rec.path) || !Number.isSafeInteger(rec.size) || rec.size < 0 || (!/^[a-f0-9]{64}$/i.test(rec.sha256 || '') && !/^[a-f0-9]{32}$/i.test(rec.md5 || ''))) {
-      status = { state: 'error', found, missing: [], message: `pack-manifest.json 条目无效：${rec.path || '(empty)'}` }; active = null; return status;
+      status = { state: 'error', found, missing: [], message: `pack-manifest.json 条目无效：${rec.path || '(empty)'}` }; replaceActive(null); return status;
     }
     const entry = normalized.get(normalizeInputPath(rec.path));
     if (!entry) { missing.push(rec.path); continue; }
     const file = await entry.getFile();
     if (file.size !== rec.size) {
-      status = { state: 'error', found, missing, message: `文件大小校验失败：${rec.path}` }; active = null; return status;
+      status = { state: 'error', found, missing, message: `文件大小校验失败：${rec.path}` }; replaceActive(null); return status;
     }
     if (verifyHashes && (await sha256(file)) !== rec.sha256.toLowerCase()) {
-      status = { state: 'error', found, missing, message: `SHA-256 校验失败：${rec.path}` }; active = null; return status;
+      status = { state: 'error', found, missing, message: `SHA-256 校验失败：${rec.path}` }; replaceActive(null); return status;
     }
     checked++; totalBytes += file.size;
     if (checked % 8 === 0 || checked === packManifest.files.length) {
@@ -129,14 +152,11 @@ async function validate(root, entries, onProgress = null, verifyHashes = true) {
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
-  if (missing.length) { status = { state: 'partial', found, missing, message: `资源包清单仍缺少 ${missing.length} 个文件` }; active = null; return status; }
+  if (missing.length) { status = { state: 'partial', found, missing, message: `资源包清单仍缺少 ${missing.length} 个文件` }; replaceActive(null); return status; }
 
-  const urls = new Map();
-  for (const [rawPath, entry] of normalized) {
-    if (!rawPath.startsWith('assets/')) continue;
-    try { urls.set(rawPath, URL.createObjectURL(await entry.getFile())); } catch (_) {}
-  }
-  active = { root, files: normalized, urls, packManifest };
+  checkCancelled();
+  // Keep handles only. A blob URL is created when a loader actually requests this path.
+  replaceActive({ root, files: normalized, urls: new Map(), pending: new Map(), packManifest });
   status = { state: 'ready', found, missing: [], fileCount: packManifest.fileCount, totalBytes: packManifest.totalBytes, tier: packManifest.tier, message: verifyHashes ? `本地 ${packManifest.tier || ''} 资源包已就绪，${checked} 个文件 SHA-256 全部通过` : `本地 ${packManifest.tier || ''} 资源包已就绪，${checked} 个文件大小与清单一致（启动恢复）` };
   onProgress?.(status);
   return status;
@@ -153,15 +173,26 @@ export async function selectLocalPackFiles(fileList, onProgress) {
   for (const file of fileList) entries.set(normalizeInputPath(file.webkitRelativePath || file.name), { getFile: async () => file });
   return validate({ name: (fileList[0]?.webkitRelativePath || '').split('/')[0] || 'selected-pack' }, entries, onProgress);
 }
-export async function restoreLocalPack(onProgress = null) {
+export async function restoreLocalPack(onProgress = null, { signal = null } = {}) {
   if (!canFS) return status;
   const handle = await readHandle();
   if (!handle) return status;
   try {
     const permission = await handle.queryPermission({ mode: 'read' });
     if (permission !== 'granted') { status = { ...status, state: 'needs-permission', message: '已记住资源包，请重新授权读取目录' }; return status; }
-    return validate(handle, null, onProgress, false);
-  } catch (_) { return status; }
+    status = { ...status, state: 'restoring', message: '正在恢复本地资源包（可取消）' }; onProgress?.(status);
+    return await validate(handle, null, onProgress, false, signal);
+  } catch (error) {
+    if (error?.name === 'AbortError') { status = { ...status, state: 'cancelled', message: '本地资源包恢复已取消' }; onProgress?.(status); return status; }
+    return status;
+  }
+}
+export function cancelRestoreLocalPack() { restoreController?.abort?.(); restoreController = null; }
+export function beginRestoreLocalPack(onProgress = null) {
+  restoreController?.abort?.();
+  const controller = new AbortController();
+  restoreController = controller;
+  return restoreLocalPack(onProgress, { signal: controller.signal }).finally(() => { if (restoreController === controller) restoreController = null; });
 }
 export async function requestStoredPackPermission(onProgress = null) {
   const handle = await readHandle();
@@ -232,7 +263,7 @@ export function getAssetCandidates(url, tier, sourceOnly = false, overrideResolv
   if (!relative) return [source];
   const candidates = [];
   const local = (typeof overrideResolver === 'function' ? overrideResolver(source) : null) || resolveLocalAsset(relative);
-  if (local) candidates.push(local);
+  if (local) candidates.push(typeof local === 'object' ? local.url : local);
   const root = packRoot(tier);
   // Walkable fields are build artifacts kept outside pack.zip/pack-manifest for now.
   // Their dedicated TOS key is m3d-dev/20261028/<tier>/walkable-field.bin.
@@ -244,6 +275,14 @@ export function getAssetCandidates(url, tier, sourceOnly = false, overrideResolv
   if (root) candidates.push(new URL(relative, root).href);
   candidates.push(source);
   return [...new Set(candidates)];
+}
+export async function getAssetCandidatesAsync(url, tier, sourceOnly = false, overrideResolver = null, signal = null) {
+  if (!sourceOnly) {
+    const relative = logicalAssetPath(url);
+    if (relative) await prepareLocalAsset(relative, { signal });
+  }
+  if (signal?.aborted) throw new DOMException('资源请求已取消', 'AbortError');
+  return getAssetCandidates(url, tier, sourceOnly, overrideResolver);
 }
 export function getTierPackRoot(tier) { return packRoot(tier); }
 export function getPreferredAsset(url, tier) { return getAssetCandidates(url, tier)[0] || url; }

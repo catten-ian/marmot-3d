@@ -25,7 +25,7 @@ import {
 } from './core/combat-wheel.mjs';
 import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
-import { preloadModels, instantiate, normalizeModel } from './models/loader.js';
+import { preloadModels, instantiate, normalizeModel, revalidateTextures } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
 import { getRenderProfile, hasRealTouch, isTouchPrimary, clampVerdantTierForDevice } from './core/performance.js?v=m20261028boot11';
@@ -74,7 +74,7 @@ let modelLoadState = null;
 let backdropRoot = null;
 import { Sky } from './world/scene.js';
 import { Scenery } from './world/props.js';
-import { createBurrows } from './world/burrows.js';
+import { createBurrows, createBurrowsCooperative } from './world/burrows.js';
 import { burrowVolumeAt, setUndergroundCavesEnabled } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
@@ -96,7 +96,7 @@ import { SettingsUI } from './ui/settings.js';
 import { FeedbackUI, collectGameSnapshot } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
 import { TouchLayout } from './ui/touch-layout.js';
-import { restoreLocalPack, resolveLocalAsset, getLocalPackAssetInfo, getLocalPackStatus, getDownloadState, getTosBaseUrl, setTosBaseUrl, selectLocalPackDirectory, selectLocalPackFiles, requestStoredPackPermission, downloadVerdantZip, downloadVerdantFolder, installLocalPackUI } from './world/local-pack.js';
+import { beginRestoreLocalPack, cancelRestoreLocalPack, resolveLocalAsset, getLocalPackAssetInfo, getLocalPackStatus, getDownloadState, getTosBaseUrl, setTosBaseUrl, selectLocalPackDirectory, selectLocalPackFiles, requestStoredPackPermission, downloadVerdantZip, downloadVerdantFolder, installLocalPackUI } from './world/local-pack.js';
 import { setAssetResolver } from './models/loader.js';
 import { Minimap } from './ui/minimap.js';
 import { cooldownOverlayData } from './ui/cooldown-overlay.js';
@@ -105,7 +105,8 @@ import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 import { VERDANT_KILL_PLANE_MARGIN } from './world/verdant-fall-safety.mjs';
-import { findRobustPlacement, findRobustPlacementCooperative, resolveEntityGround, chooseCentralBaseSite } from './world/verdant-placement.mjs';
+import { findRobustPlacement, findRobustPlacementCooperative, resolveEntityGround, chooseCentralBaseSite, chooseCentralBaseSiteCooperative } from './world/verdant-placement.mjs';
+import { tierDisplayRows } from './world/verdant-tier-metadata.mjs';
 
 // =====================================================
 // 初始化
@@ -113,8 +114,16 @@ import { findRobustPlacement, findRobustPlacementCooperative, resolveEntityGroun
 const canvas = document.getElementById('scene');
 const hud = new HUD();
 const audio = new Audio();
-const localPackStatus = IS_DEV ? await restoreLocalPack() : null;
-if (IS_DEV && localPackStatus?.state === 'ready') setAssetResolver((url) => getLocalPackAssetInfo(url));
+let localPackStatus = null;
+const localPackRestore = IS_DEV ? beginRestoreLocalPack((state) => {
+  localPackStatus = state;
+  if (state?.state === 'restoring') hud.setLoading(1, state.message);
+  if (typeof verdantQualityState !== 'undefined' && verdantQualityState?.resources) { verdantQualityState.resources.localStatus = state; settingsUI?.render?.(); }
+}) : Promise.resolve(null);
+if (IS_DEV) localPackRestore.then((state) => {
+  localPackStatus = state;
+  if (state?.state === 'ready') setAssetResolver((url) => getLocalPackAssetInfo(url));
+}).catch(() => {});
 if (IS_DEV) installLocalPackUI({ onChange: (state) => { if (state.state === 'ready') { setAssetResolver((url) => getLocalPackAssetInfo(url)); hud.say('本地资源包已选定，刷新后将优先使用本地文件', 4.5); } } });
 
 window.__m3dMainStartedAt = Date.now();
@@ -139,7 +148,7 @@ hud.setLoading(2, '正在启动加载器');
  * 稳定版完全走原来的 WebGLRenderer 路径，不受任何影响。
  */
 const BOOT = (typeof window !== 'undefined' && window.__boot) || {
-  gsWorld: false, gpuOk: false, gpuReason: '', forceWebGL: false,
+  gsWorld: false, gpuOk: false, gpuReason: '', forceWebGL: false, gpuProbe: null,
 };
 const WANT_GS = BOOT.gsWorld === true && !devOn('verdantWorld');
 // Verdant opts into WebGPURenderer only after index.html has confirmed a real
@@ -155,6 +164,7 @@ if (WANT_GS) {
   const result = await createRenderer(canvas, {
     preferWebGPU: true,
     forceWebGL: BOOT.forceWebGL,
+    webgpuProbe: BOOT.gpuProbe,
   });
   renderer = result.renderer;
   rendererStatus = {
@@ -171,6 +181,7 @@ if (WANT_GS) {
     forceWebGL: BOOT.forceWebGL,
     preserveDrawingBuffer: true,   // dev 真机 CDP 截图需可读 backbuffer
     antialias: renderProfile.antialias,
+    webgpuProbe: BOOT.gpuProbe,
   });
   renderer = result.renderer;
   rendererStatus = {
@@ -202,6 +213,7 @@ if ('shadowMap' in renderer) {
   renderer.shadowMap.type = THREE.PCFShadowMap;
 }
 if (typeof window !== 'undefined') window.__resourceRendererBackend = rendererStatus.backend;
+try { if (typeof navigator !== 'undefined') navigator.__m3dMaxTextureSize = renderer.capabilities?.maxTextureSize || renderer.capabilities?.maxTextureDimension2D || 0; } catch (_) {}
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // 曝光过高会把贴地的草地照成一片死白，0.92 是既能保留高光又不溢出的值
@@ -248,11 +260,11 @@ if (rendererStatus.backend === 'webgpu' && navigator.gpu?.requestAdapter) {
     renderVerdantDiagnostics();
   }).catch(() => {});
 }
-const VERDANT_TIERS = [
+let VERDANT_TIERS = [
   { id: 'auto', name: '自动', faces: '按设备推荐', size: '—' },
-  { id: 'low', name: '低', faces: '347,786 三角面', size: '场景 95.6 MB' },
-  { id: 'medium', name: '中', faces: '372,831 三角面', size: '场景 177.0 MB' },
-  { id: 'high', name: '高', faces: '413,432 三角面', size: '场景 187.5 MB' },
+  { id: 'low', name: '低', faces: '347,580 三角面', size: '场景 61.8 MB' },
+  { id: 'medium', name: '中', faces: '392,945 三角面', size: '场景 95.9 MB' },
+  { id: 'high', name: '高', faces: '536,392 三角面', size: '场景 327.8 MB' },
   { id: 'ultra', name: '极致', faces: '4,298,106 三角面', size: '资源包 2.60 GB（原分辨率）' },
 ];
 const requestedVerdantTier = (() => { try { const v = new URLSearchParams(location.search).get('verdantTier'); return ['auto','low','medium','high','ultra'].includes(v) ? v : null; } catch (_) { return null; } })();
@@ -260,6 +272,7 @@ let verdantTierPreference = IS_DEV ? (requestedVerdantTier || (() => { try { ret
 let verdantTierActive = 'medium';
 let loadVerdantWorldFn = null;
 let verdantTierLoadRequest = 0;
+let verdantTierLoadAttempt = null;
 let verdantQualityState = null;
 function autoVerdantTier() {
   const mobile = isTouchPrimary();
@@ -444,6 +457,7 @@ async function ensureVerdantBootGate() {
   // uploads are paced in warmVerdantWebGLScene() instead of replacing the scene.
   // main.js 已开始执行后由此门控负责下载停滞与总耗时；关掉 index.html 的并行 watchdog。
   try { window.__bootWatchdogPause?.(); } catch (_) {}
+  if (window.__m3dBootCancelled) return true;
   let tier = autoVerdantTier(), attempts = 0;
   for (;;) {
     if (attempts++) hud.beginLoadingSession('重试 Verdant 场景下载…');
@@ -469,6 +483,13 @@ async function ensureVerdantBootGate() {
       if (action.action === 'downgrade') { tier = tier === 'high' || tier === 'ultra' ? (tier === 'ultra' ? 'high' : 'medium') : 'low'; continue; }
     } finally { clearInterval(timer); }
   }
+}
+if (IS_DEV) {
+  try {
+    const restored = await Promise.race([localPackRestore, new Promise((resolve) => setTimeout(() => resolve(null), 2500))]);
+    localPackStatus = restored || localPackStatus;
+    if (localPackStatus?.state === 'ready') setAssetResolver((url) => getLocalPackAssetInfo(url));
+  } catch (_) {}
 }
 await ensureVerdantBootGate();
 
@@ -531,6 +552,19 @@ function chooseVerdantBurrowDefinition(def, index, placed) {
   return site ? { ...def, x: site.x, z: site.z, groundY: site.y, placement: site } : def;
 }
 
+async function chooseVerdantBurrowDefinitionCooperative(def, index, placed) {
+  if (!verdantWorld?.placementField) return def;
+  const isBase = index === 0;
+  const interest = [...BERRY_POINTS, ...SPAWN_POINTS].map(scalePoint);
+  const exclude = placed.map((p) => ({ x: p.x, z: p.z, radius: p.r, gap: 2 }));
+  if (isBase) {
+    const site = await chooseCentralBaseSiteCooperative(verdantWorld.placementField, { interestPoints: interest, radius: def.r, clearance: def.openingRadius * 2.2, centerX: 0, centerZ: 0, stride: 4, hasClearance: verdantWorld.hasPlacementClearance, exclude }, { onProgress: (p, label) => hud.setLoading(99 + p * 0.4, label) });
+    if (site) return { ...def, x: site.x, z: site.z, groundY: site.y, placement: site };
+  }
+  const site = await findRobustPlacementCooperative(verdantWorld.placementField, { x: def.x, z: def.z, radius: def.slopeRadius, bodyHeight: 0.25, clearance: def.openingRadius * 1.8, maxSurfaceVariation: 0.45, maxDistance: 16, avoidObstacles: true, exclude, hasClearance: verdantWorld.hasPlacementClearance }, { onProgress: (p, label) => hud.setLoading(99 + p * 0.4, label) });
+  return site ? { ...def, x: site.x, z: site.z, groundY: site.y, placement: site } : def;
+}
+
 let verdantCompanionLastPlacement = null;
 function resolveVerdantCompanion(x, z) {
   const field = verdantWorld?.placementField;
@@ -565,7 +599,7 @@ async function resolveVerdantCompanionCooperative(x, z) {
   const recovered = await findRobustPlacementCooperative(field, {
     x, z, radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
     maxDistance: 14, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
-  }, { onProgress: (p, label) => hud.setLoading(45 + p * 20, label) });
+  }, { onProgress: (p, label) => hud.setLoading(99 + p * 0.5, label) });
   if (recovered) verdantCompanionLastPlacement = recovered;
   return recovered;
 }
@@ -575,29 +609,44 @@ async function resolveVerdantCompanionCooperative(x, z) {
 async function switchVerdantTier(preference, forceReload = false) {
   if (!verdantWorld || !loadVerdantWorldFn || !['auto','low','medium','high','ultra'].includes(preference)) return;
   const requestId = ++verdantTierLoadRequest;
+  verdantTierLoadAttempt?.abort?.();
+  const loadController = typeof AbortController === 'function' ? new AbortController() : null;
+  verdantTierLoadAttempt = loadController;
   verdantTierPreference = preference;
   try { localStorage.setItem('verdant-quality', preference); } catch (_) {}
   const next = autoVerdantTier();
-  if (next === verdantTierActive && !forceReload) { verdantQualityState?.setActive?.(next); return; }
+  if (next === verdantTierActive && !forceReload) { if (verdantQualityState) verdantQualityState.loading = false; verdantQualityState?.setActive?.(next); verdantTierLoadAttempt = null; return; }
   const old = verdantWorld;
   hud.beginLoadingSession('正在切换 Verdant 画质档…');
-  const loaded = await loadVerdantWorldFn({ tier: next, onProgress: (p, label, stats) => hud.setLoading(4 + Math.max(0, Math.min(1, p)) * 92, label || '加载 Verdant 场景', stats), renderer, bitmapMaxSize: (isTouchPrimary() && rendererStatus.backend !== 'webgpu') ? 512 : 0 });
-  if (requestId !== verdantTierLoadRequest) { disposeVerdantGroup(loaded.group); return; }
-  const pose = { x: controller.position.x, z: controller.position.z, yaw: controller.yaw, pitch: controller.pitch };
-  scene.remove(old.group); disposeVerdantGroup(old.group);
-  verdantWorld = loaded; verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
-  scene.add(loaded.group);
-  publishVerdantField(loaded);
-  setHeightField(loaded.heightAt, { resolveGround: loaded.resolveGround, solidCollider: true });
-  setPlayableBounds(loaded.bounds);
-  setUndergroundCavesEnabled(devOn('scannedBurrows') ? true : false);
-  // 新高度场生效后立即吸附并同步 _lastGround，首帧不会从旧高度积分重力。
-  controller.setVerdantSafety(createVerdantSafetyProfile(loaded));
-  controller.syncVerdantGround(pose.x, pose.z);
-  controller.yaw = pose.yaw; controller.pitch = pose.pitch; controller.velocity.set(0, 0, 0); controller.externalVelocity.set(0, 0, 0); controller.vy = 0; controller.grounded = true;
-  hud.setLoading(100, 'Verdant 场景就绪'); hud.say(`Verdant 画质已切换：${verdantTierActive}`, 2.8);
-  setTimeout(() => hud.hideLoader(), 350);
-  verdantQualityState?.setActive?.(verdantTierActive);
+  verdantQualityState && (verdantQualityState.loading = true);
+  settingsUI?.render?.();
+  try {
+    const loaded = await loadVerdantWorldFn({ tier: next, signal: loadController?.signal || null, onProgress: (p, label, stats) => { if (requestId === verdantTierLoadRequest) hud.setLoading(4 + Math.max(0, Math.min(1, p)) * 92, label || '加载 Verdant 场景', stats); }, renderer, bitmapMaxSize: (isTouchPrimary() && rendererStatus.backend !== 'webgpu') ? 512 : 0 });
+    if (requestId !== verdantTierLoadRequest || loadController?.signal?.aborted) { disposeVerdantGroup(loaded.group); return; }
+    const pose = { x: controller.position.x, z: controller.position.z, yaw: controller.yaw, pitch: controller.pitch };
+    scene.remove(old.group); disposeVerdantGroup(old.group);
+    verdantWorld = loaded; verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
+    scene.add(loaded.group);
+    publishVerdantField(loaded);
+    setHeightField(loaded.heightAt, { resolveGround: loaded.resolveGround, solidCollider: true });
+    setPlayableBounds(loaded.bounds);
+    setUndergroundCavesEnabled(devOn('scannedBurrows') ? true : false);
+    // 新高度场生效后立即吸附并同步 _lastGround，首帧不会从旧高度积分重力。
+    controller.setVerdantSafety(createVerdantSafetyProfile(loaded));
+    controller.syncVerdantGround(pose.x, pose.z);
+    controller.yaw = pose.yaw; controller.pitch = pose.pitch; controller.velocity.set(0, 0, 0); controller.externalVelocity.set(0, 0, 0); controller.vy = 0; controller.grounded = true;
+    hud.setLoading(100, 'Verdant 场景就绪'); hud.say(`Verdant 画质已切换：${verdantTierActive}`, 2.8);
+    setTimeout(() => hud.hideLoader(), 350);
+    verdantQualityState?.setActive?.(verdantTierActive);
+  } catch (error) {
+    if (requestId === verdantTierLoadRequest && error?.name !== 'AbortError') throw error;
+  } finally {
+    if (requestId === verdantTierLoadRequest) {
+      if (verdantQualityState) verdantQualityState.loading = false;
+      verdantTierLoadAttempt = null;
+      settingsUI?.render?.();
+    }
+  }
 }
 
 // —— GS 全场景（dev 版）——
@@ -659,7 +708,7 @@ if (WANT_GS && rendererStatus.supportsSplat) {
  * 稳定版缩放系数为 1，这里等价于原始常量。
  */
 const PT_K = getPointScale();
-const burrowSet = createBurrows(scene, { resolveDefinition: chooseVerdantBurrowDefinition });
+const burrowSet = verdantWorld ? await createBurrowsCooperative(scene, { resolveDefinition: chooseVerdantBurrowDefinitionCooperative, onProgress: (p, label) => hud.setLoading(99 + p * 0.5, label) }) : createBurrows(scene, { resolveDefinition: chooseVerdantBurrowDefinition });
 const burrowDefs = burrowSet.defs;
 const baseBurrow = burrowSet.base;
 const BURROW_R = baseBurrow.r;
@@ -1071,7 +1120,7 @@ function exitSandbox() {
   title();
 }
 
-function loadLevel(index, announce = true, { cooperativePlacement = false } = {}) {
+async function loadLevel(index, announce = true, { cooperativePlacement = false } = {}) {
   clearPendingAerialParry();
   cancelAttackCharge();
   game.level = index;
@@ -1090,6 +1139,7 @@ function loadLevel(index, announce = true, { cooperativePlacement = false } = {}
     }
   }
   controller.teleport(spawnX, spawnZ, Math.PI * 0.05);
+  if (cooperativePlacement) await new Promise((resolve) => setTimeout(resolve, 0));
   if (verdantWorld?.resolveGround) controller._lastGround = verdantWorld.resolveGround(spawnX, spawnZ);
   // 出生朝向：看向场地中央
   controller.yaw = Math.atan2(-(0 - controller.position.x), -(0 - controller.position.z));
@@ -1097,7 +1147,8 @@ function loadLevel(index, announce = true, { cooperativePlacement = false } = {}
 
   // 重建藏狐
   foxes.forEach((f) => f.dispose(scene));
-  foxes = Array.from({ length: cfg.count }, (_, i) => makeFox(i));
+  foxes = [];
+  for (let i = 0; i < cfg.count; i++) { foxes.push(makeFox(i)); if (cooperativePlacement && (i % 1 === 0)) await new Promise((resolve) => setTimeout(resolve, 0)); }
   syncSmartFoxSelection();
 
   // 重置采食目标
@@ -1106,7 +1157,9 @@ function loadLevel(index, announce = true, { cooperativePlacement = false } = {}
   // 本该消失的旧植物重新可见）。正式版浆果只复用，reset 即可。
   if (devOn('seasonalFood')) {
     berries.forEach((b) => b.dispose(scene));
+    if (cooperativePlacement) await new Promise((resolve) => setTimeout(resolve, 0));
     berries = buildFoods(index);
+    if (cooperativePlacement) await new Promise((resolve) => setTimeout(resolve, 0));
     game.season = seasonForLevel(index);
   } else {
     berries.forEach((b) => b.reset());
@@ -1153,7 +1206,7 @@ function loadLevel(index, announce = true, { cooperativePlacement = false } = {}
   scene.fog.near = verdantWorld ? 42 : env.fogBase;
   scene.fog.far = verdantWorld ? 175 : env.fogFarBase;
 
-  if (placementPromise) return placementPromise.then(() => undefined);
+  if (placementPromise) await placementPromise;
 
   if (announce) {
     game.mode = 'play';
@@ -1439,6 +1492,7 @@ function title() {
     if (now - sandboxActivationAt < 450) return;
     sandboxActivationAt = now;
     event?.preventDefault?.();
+    if (!audio.ensure()) hud.say('浏览器未允许音频，当前将静音运行；进入游戏后再次点击可重试。', 4);
     enterSandbox();
   };
   sandboxEntry.addEventListener('click', activateSandboxFromTitle);
@@ -1483,11 +1537,11 @@ function showTeacherNote() {
   document.getElementById('backBtn').onclick = title;
 }
 
-function startPlay() {
+async function startPlay() {
   audio.ensure();
   hud.hidePanel();
   game.mode = 'play';
-  loadLevel(game.level, true);
+  await loadLevel(game.level, true);
   if (!controller.touchEnabled) controller.requestLock();
 }
 
@@ -1498,11 +1552,11 @@ function resetAll() {
   game.boosts = 0;
   game.ultimates = 0;
   game.hits = 0;
-  loadLevel(0, false);
+  void loadLevel(0, false);
 }
 
 function retryLevel() {
-  loadLevel(game.level, false);
+  void loadLevel(game.level, false);
   game.mode = 'play';
   hud.hidePanel();
   if (!controller.touchEnabled) controller.requestLock();
@@ -2388,7 +2442,7 @@ for (const evName of ['pointerdown', 'touchstart']) {
   window.addEventListener(evName, (ev) => {
     if (TOUCH_DEVICE) return;
     const realTouch = ev.pointerType === 'touch' || ev.pointerType === 'pen' || evName === 'touchstart';
-    if (realTouch) inputMode.notifyRealTouch();
+    if (realTouch) { inputMode.notifyRealTouch(); if (!audio.ensure()) hud.say('音频未解锁，当前将静音运行。', 3); }
   }, { passive: true, capture: true });
 }
 
@@ -2596,10 +2650,10 @@ touchLayout.onSprintThreshold = (v) => touchControls.setSprintThreshold(v);
 touchControls.setJoystickScale(touchLayout.layout.joystick.scale);
 touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
-verdantQualityState = devOn('verdantWorld') ? { enabled: true, tiers: VERDANT_TIERS, preference: verdantTierPreference, activeName: VERDANT_TIERS.find((x) => x.id === verdantTierActive)?.name || verdantTierActive, activeTier: verdantTierActive, diagnosticsText: '', setPreference: (v) => { verdantQualityState.preference = v; switchVerdantTier(v).catch((e) => hud.say(`画质切换失败：${e.message}`, 4)); settingsUI?.render?.(); }, setActive: (v) => { verdantTierActive = v; verdantQualityState.activeName = VERDANT_TIERS.find((x) => x.id === v)?.name || v; verdantQualityState.activeTier = v; settingsUI?.render?.(); } } : null;
+verdantQualityState = devOn('verdantWorld') ? { enabled: true, loading: false, tiers: VERDANT_TIERS, preference: verdantTierPreference, activeName: VERDANT_TIERS.find((x) => x.id === verdantTierActive)?.name || verdantTierActive, activeTier: verdantTierActive, diagnosticsText: '', setPreference: (v) => { if (verdantQualityState.loading) return; if (isTouchPrimary() && (v === 'high' || v === 'ultra')) { hud.say('移动设备已禁用高/极致档，请使用低档。', 3.5); return; } verdantQualityState.preference = v; switchVerdantTier(v).catch((e) => { hud.say(`画质切换失败：${e.message}`, 4); }).finally(() => settingsUI?.render?.()); }, setActive: (v) => { verdantTierActive = v; verdantQualityState.activeName = VERDANT_TIERS.find((x) => x.id === v)?.name || v; verdantQualityState.activeTier = v; settingsUI?.render?.(); } } : null;
 if (verdantQualityState) {
   verdantQualityState.resources = {
-    localStatus: localPackStatus || getLocalPackStatus(), downloadState: getDownloadState(), tosBase: getTosBaseUrl(),
+    localStatus: localPackStatus || getLocalPackStatus(), downloadState: getDownloadState(), cancelRestore: cancelRestoreLocalPack, tosBase: getTosBaseUrl(),
     canUseDirectory: 'showDirectoryPicker' in window,
     selectDirectory: selectLocalPackDirectory, selectFiles: selectLocalPackFiles,
     reauthorize: requestStoredPackPermission, downloadZip: downloadVerdantZip, downloadFolder: downloadVerdantFolder,
@@ -2608,6 +2662,14 @@ if (verdantQualityState) {
   };
 }
 const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, verdantQualityState);
+if (verdantQualityState) {
+  fetch('./assets/verdant/manifest.json', { cache: 'no-cache' }).then((r) => r.ok ? r.json() : null).then((catalog) => {
+    const rows = tierDisplayRows(catalog);
+    if (!rows.length) return;
+    verdantQualityState.tiers = [{ id: 'auto', name: '自动', faces: '按设备推荐', size: '—' }, ...rows];
+    settingsUI.render?.();
+  }).catch(() => {});
+}
 // 游戏中打开设置面板会暂停，关闭时仅在本次发起暂停时恢复；标题/已暂停态不受影响。
 settingsUI.setPauseHooks({
   pause: () => pause(),
@@ -2987,7 +3049,8 @@ canvas.addEventListener('webglcontextlost', (event) => {
 });
 canvas.addEventListener('webglcontextrestored', () => {
   resizeRenderer();
-  hud.say('画面已恢复。', 2.2);
+  hud.say('画面已恢复，正在检查贴图…', 2.2);
+  setTimeout(() => revalidateTextures().then((bad) => { if (bad) hud.say(`已回退 ${bad} 张失效贴图，画面保持可玩。`, 3.2); }).catch(() => {}), 0);
 });
 
 //=====================================================
@@ -3054,7 +3117,7 @@ function frame(now) {
 // 启动
 //=====================================================
 markBootStage('ready', 99, '首帧前收尾');
-loadLevel(0, false);
+await loadLevel(0, false, { cooperativePlacement: true });
 // 标题状态下相机也需要正确落位，否则会渲染在场景原点（地下）
 controller.update(0.016, new Set(), 1);
 sky.update(controller.position);
