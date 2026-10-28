@@ -160,7 +160,7 @@
     </div>
     <div class="loader-track"><div class="loader-fill" id="loaderFill"></div><i class="loader-shine"></i></div>
     <div class="loader-meta">
-      <span class="loader-text">正在筑巢… [boot8]</span>
+      <span class="loader-text">正在筑巢… [boot11]</span>
       <span class="loader-bytes" id="loaderBytes" hidden></span>
       <span class="loader-pct" id="loaderPct">0%</span>
     </div>
@@ -307,19 +307,27 @@ try {
   boot.forceWebGL = FORCE_WEBGL;
 } catch (e) { /* 版本模块异常时按稳定版处理 */ }
 
-if (boot.gsWorld) {
-  // 显示准备状态，避免长时间白屏
+// 先挂上 window.__boot，再探测：探测挂起也不能拖死整个启动。
+window.__boot = boot;
+
+const shouldProbeWebGPU = boot.gsWorld || (devOn('verdantWorld') && !boot.forceWebGL);
+if (shouldProbeWebGPU) {
+  // GS 与 Verdant 都必须先拿到真实 adapter/device，再决定是否创建 WebGPURenderer。
+  // 没有 WebGPU 时 Verdant 直接使用经典 WebGLRenderer，避免走 WebGPURenderer 的 WebGL fallback。
   const t = document.getElementById('perfHint');
   if (t) t.textContent = '正在准备 WebGPU…';
-  const gpu = await probeWebGPU();
+  // requestAdapter/requestDevice 在部分驱动上会永不 resolve（Linux Mesa/禁用 Vulkan 的 Chrome），
+  // 必须带超时，否则看门狗还没建立启动就死在这里。
+  const gpu = await Promise.race([
+    probeWebGPU(),
+    new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: 'WebGPU 探测超时（10s）' }), 10000)),
+  ]);
   boot.gpuOk = gpu.ok;
   boot.gpuReason = gpu.reason || '';
   if (!gpu.ok && t) {
-    t.textContent = `WebGPU 不可用（${gpu.reason}）— 将使用程序化场景`;
+    t.textContent = `WebGPU 不可用（${gpu.reason}）— 将使用经典 WebGLRenderer`;
   }
 }
-
-window.__boot = boot;
 
 // 加载看门狗：模块图链接失败或静默挂起时给出明确提示，
 // 而不是永远停在「正在筑巢…」。曾因 CDN 缓存陈旧子模块导致。
