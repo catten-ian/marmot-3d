@@ -168,6 +168,7 @@ export class Fox {
     this.leap = 0;              // 跃扑腾空高度（0 = 未起跳）
     this.dashDirX = 0;
     this.dashDirZ = 1;
+    this.attackHeadingYaw = 0;
     this.turnVelocity = 0;
     this.dashVX = 0;
     this.dashVZ = 0;
@@ -643,6 +644,7 @@ export class Fox {
       } else {
         // 到位：短延迟后直线蓄力。
         this.state = 'wind';
+        this.attackHeadingYaw = this.yaw;
         this.warn.visible = true;
         this.windTotal = Math.max(0.55, (levelCfg.wind ?? 0.9) * 0.7);
         this.timer = this.windTotal;
@@ -709,6 +711,7 @@ export class Fox {
           FOX.handling.windTurnRate, FOX.handling.windTurnAccel);
         this.yaw = turn.yaw;
         this.turnVelocity = turn.turnVelocity;
+        this.attackHeadingYaw = this.yaw;
         if (this.timer <= 0) this._beginDash();
         break;
       }
@@ -989,6 +992,7 @@ export class Fox {
     this.windFull = this.levelCfgWind * this.attack.windMul * (this.sandboxAlertMul || 1);
     this.windTotal = this.windFull;
     this.timer = this.windFull;
+    this.attackHeadingYaw = this.yaw;
     this.warn.visible = true;
   }
 
@@ -998,8 +1002,9 @@ export class Fox {
     this.state = 'dash';
     this.turnVelocity = 0;
     this.timer = this.dashTime;
-    this.dashDirX = Math.sin(this.yaw);
-    this.dashDirZ = Math.cos(this.yaw);
+    this.attackHeadingYaw = this.yaw;
+    this.dashDirX = Math.sin(this.attackHeadingYaw);
+    this.dashDirZ = Math.cos(this.attackHeadingYaw);
     this.warn.visible = false;
     this.lured = true; // 虚晃过后必须真的冲，否则玩家会觉得它一直在骗人
     // 只有**一轮连冲的开始**才设置段数。
@@ -1131,7 +1136,9 @@ export class Fox {
   _updateWarn(terrainAt = null) {
     if (!this.warn.visible) return;
     this.warn.position.set(this.x, (terrainAt ? terrainAt(this.x, this.z) : this.baseY) + 0.02, this.z);
-    this.warn.rotation.y = this.yaw;
+    // 预警线与已锁定的冲刺向量使用同一角度，避免模型朝向与实际位移分叉。
+    const heading = this.state === 'dash' || this.attackHeadingYaw ? this.attackHeadingYaw : this.yaw;
+    this.warn.rotation.y = heading;
     // 长度必须等于**真实冲刺距离**：玩家靠预警线判断"往哪躲、躲多远"，
     // 长度一旦失真，"线到头了但狐还在冲"的失信就无从避免。
     // 注意要乘类型自己的 dashSpeedMul —— 首领单段比普通狐短，
