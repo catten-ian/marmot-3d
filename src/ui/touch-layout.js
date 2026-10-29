@@ -473,6 +473,12 @@ export class TouchLayout {
         el.style.setProperty('--attack-core-opacity', String(item.coreOpacity ?? ATTACK_CORE_DEFAULTS.opacity));
       }
       el.style.zIndex = id === 'attack' ? '2' : '1';
+      if (id === 'pause') {
+        // 暂停按钮此前只写 left/top 却没有中心位移（其它动作按钮有 translate(-50%,-50%)），
+        // 于是布局给出的中心坐标被当成左边距，窄屏右侧会溢出视口（390 宽时右缘 400px）。
+        // 标记 managed 后由 CSS 补上居中变换，按钮才真正以中心点定位。
+        el.classList.add('touch-layout-managed');
+      }
     }
     // 摇杆：中心定位 + transform 整体缩放（视觉、摇杆行程、疾跑内圈同比例缩放；
     // TouchControls 经 onJoystickScale 拿到同一倍率做 client→local 坐标换算）。

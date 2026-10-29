@@ -1899,6 +1899,10 @@ body.touch-layout-editing .objective.layout-dragging { cursor: grabbing; filter:
 .touch-controls.layout-editing .touch-actions button { pointer-events: auto; }
 .touch-controls.layout-editing .touch-actions button[data-touch-action] { touch-action: none; }
 .touch-pause { right: auto; bottom: auto; width: 38px; height: 38px; border-radius: 50%; }
+/* 布局系统给出的 pause 坐标是中心点，但 .touch-pause 原本没有中心位移，
+   导致窄屏右缘溢出视口（390 宽时右缘 400px，按钮被裁掉 10px）。
+   与其它动作按钮一致地补上 translate(-50%,-50%)；:not(.pressed) 保留按下时的缩放反馈。 */
+.touch-pause.touch-layout-managed:not(.pressed) { transform: translate(-50%, -50%) scale(var(--touch-button-scale, 1)); transform-origin: center; }
 .touch-layout-entry {
   position: fixed; left: calc(14px + var(--safe-left)); bottom: calc(142px + var(--safe-bottom));
   min-width: 52px; height: 30px; padding: 0 10px; border-radius: 16px;
