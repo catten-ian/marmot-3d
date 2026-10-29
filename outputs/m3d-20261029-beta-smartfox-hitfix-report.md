@@ -57,7 +57,7 @@
 
 - 分支：`feat/beta-smartfox-hitfix-20261029`
 - base SHA：`1cf74bb958b21efb2ef2ef3bd349f4ccf11046e4`
-- commit：`a529727fa55a8de2f3d75aa51574e5e424cae089`
+- commit：`7c73b677269c5cd6a9f69f971cb171cecc5c120c`
 - push/deploy：未 push、未部署、未改 Caddy/systemd/线上文件。
 
 ## Codex 自评
