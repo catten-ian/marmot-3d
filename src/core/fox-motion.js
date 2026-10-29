@@ -182,29 +182,77 @@ export function shouldRetreat({ hpRatio = 1, staminaRatio = 1, hitStreak = 0, st
  * 选休息点（纯函数）：优先"玩家不在附近"的洞穴口旁，否则沿背离玩家方向推到安全距离。
  * 返回 {x, z}，已夹进活动场边界。
  */
-export function chooseRestPoint({ foxX, foxZ, playerX, playerZ, burrows = [], bounds }, cfg = FOX.retreat) {
+export function chooseRestPoint({ foxX, foxZ, playerX, playerZ, burrows = [], bounds, obstacles = [], clearance = null }, cfg = FOX.retreat) {
   const margin = 4;
   const hw = (bounds?.hw ?? 74) - margin;
   const hh = (bounds?.hh ?? 44) - margin;
   const clampX = (v) => Math.max(-hw, Math.min(hw, v));
   const clampZ = (v) => Math.max(-hh, Math.min(hh, v));
-  let best = null, bestD = Infinity;
+  // _groundSteer expands each obstacle by speed*.45, and arrival still needs to
+  // be outside that band.  The old b.r+3.5 offset was inside it for shelter-b.
+  const navClearance = clearance ?? Math.max(1.2, (cfg.speed ?? FOX.retreat.speed) * .45);
+  const targetGap = navClearance + (cfg.arriveRadius ?? FOX.retreat.arriveRadius) + .35;
+  // Preserve the pre-beta pure selection semantics when no navigation map is
+  // supplied. Beta passes the explicit obstacle list below.
+  if (!(obstacles || []).length) {
+    let best = null, bestD = Infinity;
+    for (const b of burrows || []) {
+      const dp = Math.hypot(b.x - playerX, b.z - playerZ);
+      if (dp < 16) continue;
+      const df = Math.hypot(b.x - foxX, b.z - foxZ);
+      if (df < bestD) { bestD = df; best = b; }
+    }
+    if (best) {
+      const a = Math.atan2(best.x - playerX, best.z - playerZ);
+      return { x: clampX(best.x + Math.sin(a) * ((best.r || 0) + 3.5)),
+        z: clampZ(best.z + Math.cos(a) * ((best.r || 0) + 3.5)) };
+    }
+    const ax0 = foxX - playerX, az0 = foxZ - playerZ, d0 = Math.hypot(ax0, az0) || 1;
+    return { x: clampX(playerX + (ax0 / d0) * 26), z: clampZ(playerZ + (az0 / d0) * 26) };
+  }
+  const usable = (x, z) => {
+    if (Math.abs(x) > hw || Math.abs(z) > hh) return false;
+    return (obstacles || []).every((o) => Math.hypot(x - o.x, z - o.z) >= (o.r || 0) + targetGap);
+  };
+  const distFromPlayer = (x, z) => Math.hypot(x - playerX, z - playerZ);
+  const candidates = [];
   for (const b of burrows || []) {
-    const dp = Math.hypot(b.x - playerX, b.z - playerZ);
-    if (dp < 16) continue;                       // 玩家就在洞口，那里不安全
+    const dp = distFromPlayer(b.x, b.z);
+    if (dp < 16) continue; // 玩家就在洞口，那里不安全
     const df = Math.hypot(b.x - foxX, b.z - foxZ);
-    if (df < bestD) { bestD = df; best = b; }
+    const away = Math.atan2(b.x - playerX, b.z - playerZ);
+    const base = (b.r || 0) + 2.5 + targetGap;
+    // Try away-from-player first, then fixed side alternatives if another rock or
+    // the boundary blocks the first ray.  Selection remains one-shot per retreat.
+    for (const side of [0, -0.65, 0.65, Math.PI]) {
+      const a = away + side;
+      const x = clampX(b.x + Math.sin(a) * base);
+      const z = clampZ(b.z + Math.cos(a) * base);
+      if (usable(x, z)) candidates.push({ x, z, df, preferred: side === 0 });
+    }
   }
-  if (best) {
-    // 洞口背玩家一侧；+3.5 保证在 _groundSteer 的洞穴避让半径之外，走得到
-    const a = Math.atan2(best.x - playerX, best.z - playerZ);
-    return { x: clampX(best.x + Math.sin(a) * (best.r + 3.5)),
-      z: clampZ(best.z + Math.cos(a) * (best.r + 3.5)) };
-  }
+  candidates.sort((a, b) => (b.preferred - a.preferred) || (a.df - b.df));
+  if (candidates[0]) return { x: candidates[0].x, z: candidates[0].z };
+
   const ax = foxX - playerX, az = foxZ - playerZ;
   const d = Math.hypot(ax, az) || 1;
   const dist = 26;
-  return { x: clampX(playerX + (ax / d) * dist), z: clampZ(playerZ + (az / d) * dist) };
+  const fallback = { x: clampX(playerX + (ax / d) * dist), z: clampZ(playerZ + (az / d) * dist) };
+  if (usable(fallback.x, fallback.z)) return fallback;
+  // Last resort stays within the active field and is still a real target; the
+  // beta caller's bounded progress guard handles an unusual fully boxed-in map.
+  return fallback;
+}
+
+/** Bounded progress bookkeeping for beta retreat navigation. */
+export function stepRetreatProgress({ elapsed = 0, stall = 0, lastDistance = Infinity } = {}, distance, dt, options = {}) {
+  const nextElapsed = elapsed + Math.max(0, dt);
+  const improved = distance < lastDistance - (options.progressEpsilon ?? 0.05);
+  const nextStall = improved ? 0 : stall + Math.max(0, dt);
+  const timeout = options.timeout ?? 18;
+  const stallLimit = options.stallLimit ?? 1.75;
+  return { elapsed: nextElapsed, stall: nextStall, lastDistance: Math.min(lastDistance, distance), improved,
+    stalled: nextStall >= stallLimit, timedOut: nextElapsed >= timeout };
 }
 
 /**

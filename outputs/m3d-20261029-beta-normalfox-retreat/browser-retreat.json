@@ -1,0 +1,465 @@
+{
+  "browser": "Chrome via CDP port 18800; WebGL renderer",
+  "url": "http://127.0.0.1:8201/index.html?version=beta&sandbox=1&models=off",
+  "setup": {
+    "hp": 6,
+    "maxHp": 6,
+    "x": 5,
+    "z": 6,
+    "renderer": "WebGLRenderer",
+    "gl": "WebKit"
+  },
+  "hits": [
+    {
+      "hp": 4.75,
+      "state": "roam",
+      "retreating": false,
+      "x": 4.98,
+      "z": 5.94,
+      "restPoint": null
+    },
+    {
+      "hp": 3.5,
+      "state": "roam",
+      "retreating": false,
+      "x": 4.96,
+      "z": 5.88,
+      "restPoint": null
+    },
+    {
+      "hp": 2.25,
+      "state": "roam",
+      "retreating": false,
+      "x": 4.94,
+      "z": 5.81,
+      "restPoint": null
+    },
+    {
+      "hp": 1,
+      "state": "retreat",
+      "retreating": true,
+      "x": 4.89,
+      "z": 5.66,
+      "restPoint": {
+        "x": 28.061218023087868,
+        "z": 14.676869670514643
+      }
+    },
+    {
+      "hp": 1,
+      "state": "retreat",
+      "retreating": true,
+      "x": 4.81,
+      "z": 5.38,
+      "restPoint": {
+        "x": 28.061218023087868,
+        "z": 14.676869670514643
+      }
+    }
+  ],
+  "timeline": [
+    {
+      "t": 33.75,
+      "hp": 1,
+      "state": "retreat",
+      "retreating": true,
+      "fleeing": false,
+      "x": 3.33,
+      "z": -0.23,
+      "restPoint": {
+        "x": 28.06,
+        "z": 14.68
+      },
+      "totalRepels": 0,
+      "logs": 0
+    },
+    {
+      "t": 34.75,
+      "hp": 1.42,
+      "state": "rest_safe",
+      "retreating": true,
+      "fleeing": false,
+      "x": 2.64,
+      "z": -3.46,
+      "restPoint": {
+        "x": 28.06,
+        "z": 14.68
+      },
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 35.75,
+      "hp": 2.38,
+      "state": "rest_safe",
+      "retreating": true,
+      "fleeing": false,
+      "x": 2.64,
+      "z": -3.46,
+      "restPoint": {
+        "x": 28.06,
+        "z": 14.68
+      },
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 36.75,
+      "hp": 3.34,
+      "state": "rest_safe",
+      "retreating": true,
+      "fleeing": false,
+      "x": 2.64,
+      "z": -3.46,
+      "restPoint": {
+        "x": 28.06,
+        "z": 14.68
+      },
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 37.75,
+      "hp": 4.3,
+      "state": "rest_safe",
+      "retreating": true,
+      "fleeing": false,
+      "x": 2.64,
+      "z": -3.46,
+      "restPoint": {
+        "x": 28.06,
+        "z": 14.68
+      },
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 38.75,
+      "hp": 5.26,
+      "state": "rest_safe",
+      "retreating": true,
+      "fleeing": false,
+      "x": 2.64,
+      "z": -3.46,
+      "restPoint": {
+        "x": 28.06,
+        "z": 14.68
+      },
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 39.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": 2.34,
+      "z": -4.94,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 40.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": 0.64,
+      "z": -11.94,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 41.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -1.51,
+      "z": -18.81,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 42.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -4.08,
+      "z": -25.53,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 43.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.28,
+      "z": -28.42,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 44.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.5,
+      "z": -29.09,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 45.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.68,
+      "z": -29.77,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 46.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.82,
+      "z": -30.46,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 47.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.91,
+      "z": -31.15,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 48.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.95,
+      "z": -31.85,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 49.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.96,
+      "z": -32.55,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 50.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.91,
+      "z": -33.25,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 51.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.83,
+      "z": -33.94,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 52.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.7,
+      "z": -34.63,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 53.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.54,
+      "z": -35.3,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 54.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.37,
+      "z": -35.98,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 55.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.21,
+      "z": -36.65,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 56.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -5.05,
+      "z": -37.33,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 57.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -4.86,
+      "z": -38,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 58.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -4.64,
+      "z": -38.65,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 59.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -4.38,
+      "z": -39.3,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 60.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -4.08,
+      "z": -39.92,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 61.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -3.74,
+      "z": -40.52,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 62.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -3.36,
+      "z": -41.1,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 63.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -2.95,
+      "z": -41.66,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    },
+    {
+      "t": 64.75,
+      "hp": 6,
+      "state": "roam",
+      "retreating": false,
+      "fleeing": false,
+      "x": -2.51,
+      "z": -42.19,
+      "restPoint": null,
+      "totalRepels": 1,
+      "logs": 0
+    }
+  ],
+  "errors": []
+}

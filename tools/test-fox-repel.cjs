@@ -9,7 +9,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 let R, CFG, shouldRetreat, chooseRestPoint, enterRestSafe, stepRestSafe, exitRestSafe,
-  defeatFate, stepDefeatCooldown;
+  defeatFate, stepDefeatCooldown, stepRetreatProgress;
 
 test.before(async () => {
   const motion = await import('../src/core/fox-motion.js');
@@ -18,7 +18,7 @@ test.before(async () => {
   CFG = config;
   ({
     shouldRetreat, chooseRestPoint, enterRestSafe, stepRestSafe, exitRestSafe,
-    defeatFate, stepDefeatCooldown,
+    defeatFate, stepDefeatCooldown, stepRetreatProgress,
   } = motion);
 });
 
@@ -76,6 +76,29 @@ test('chooseRestPoint：无可用洞穴 → 背离玩家方向，且在边界内
   const away = (rp.x - -5) * (5 - -5) + (rp.z - -5) * (5 - -5);
   assert.ok(away > 0);
   assert.ok(Math.abs(rp.x) <= 70 && Math.abs(rp.z) <= 40);
+});
+
+
+test('chooseRestPoint：beta 导航余量把休息点放在洞穴避让带外', () => {
+  const obstacles = [{ x: 18, z: 13, r: 5.65 }];
+  const rp = chooseRestPoint({
+    foxX: 5, foxZ: 7, playerX: 0, playerZ: 0,
+    burrows: [{ x: 18, z: 13, r: 3.15 }], bounds: { hw: 74, hh: 44 }, obstacles,
+  }, R);
+  const required = obstacles[0].r + R.speed * 0.45 + R.arriveRadius + 0.35;
+  assert.ok(Math.hypot(rp.x - 18, rp.z - 13) >= required - 1e-9,
+    `rest point must clear navigation band: ${JSON.stringify({ rp, required })}`);
+});
+
+test('stepRetreatProgress：停滞和超时都给出有界迁移信号', () => {
+  let p = { elapsed: 0, stall: 0, lastDistance: 10 };
+  p = stepRetreatProgress(p, 10, 1, { stallLimit: 1.5, timeout: 4 });
+  assert.equal(p.stalled, false);
+  p = stepRetreatProgress(p, 10, 0.6, { stallLimit: 1.5, timeout: 4 });
+  assert.equal(p.stalled, true);
+  p = stepRetreatProgress({ elapsed: 3.9, stall: 0, lastDistance: 10 }, 9, 0.2, { timeout: 4 });
+  assert.equal(p.timedOut, true);
+  assert.equal(p.improved, true);
 });
 
 test('enterRestSafe：驱退计数只发生一次（连续进入不重复计数）', () => {

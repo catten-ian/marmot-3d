@@ -24,7 +24,7 @@ import { createTibetanFox } from './tibetan-fox.js';
 import {
   foxRecoverySeconds, stepFoxTurn, stepFoxRecovery, stepFoxLocomotion, foxMaxTurnRate, steerGroundDirection,
   estimatePlayerVelocity, straightWindAimYaw, canSprint, stepStamina, hpSpeedMultiplier,
-  shouldRetreat, chooseRestPoint, enterRestSafe, stepRestSafe, exitRestSafe, defeatFate, stepDefeatCooldown,
+  shouldRetreat, chooseRestPoint, enterRestSafe, stepRestSafe, exitRestSafe, stepRetreatProgress, defeatFate, stepDefeatCooldown,
 } from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
 import { BETA_TUNE, expireStunDiminution, stepStunDiminution } from '../core/beta-tuning.js';
@@ -195,6 +195,8 @@ export class Fox {
     this.hitStreak = 0;           // 短时间连续被打次数（脱战衰减）
     this._sinceHit = Infinity;    // 距上次受击的秒数
     this.onRepelled = null;       // 进入 rest_safe 时由 main.js 注入的驱退计数回调
+    this._retreatProgress = { elapsed: 0, stall: 0, lastDistance: Infinity };
+    this.retreatResolution = null;
     // 记住初始生成点，被驱退后从附近重新出现
     this.spawnPoint = [x, z];
 
@@ -724,7 +726,18 @@ export class Fox {
         this.warn.visible = false;
         if (!rp) { this._exitRestSafe(); break; }
         const rdx = rp.x - this.x, rdz = rp.z - this.z;
-        if (Math.hypot(rdx, rdz) < FOX.retreat.arriveRadius) { this._enterRestSafe(); break; }
+        const distance = Math.hypot(rdx, rdz);
+        if (distance < FOX.retreat.arriveRadius) { this._enterRestSafe('arrival'); break; }
+        if (IS_BETA) {
+          const progress = stepRetreatProgress(this._retreatProgress, distance, dt);
+          this._retreatProgress = progress;
+          if (progress.timedOut || progress.stalled) {
+            // The fox is already at this real position; enter a clearly marked
+            // safe rest fallback instead of teleporting or remaining invincible.
+            this._enterRestSafe(progress.timedOut ? 'timeout' : 'stalled');
+            break;
+          }
+        }
         this._moveGround(rdx, rdz, FOX.retreat.speed, dt, allBurrows);
         break;
       }
@@ -944,11 +957,15 @@ export class Fox {
     this.turnVelocity = moved.turnVelocity; this._locomotionSpeed = moved.speed;
   }
 
-  _groundSteer(wantX, wantZ, speed, burrows) {
-    const bounds = roamBounds();
+  _navigationObstacles(burrows) {
     const obstacles = ROCKS.map((r) => { const [x, z] = scalePoint(r); return { x, z, r: scaleRadius(r[2]) + .72 * this.cfg.scale }; });
     for (const b of (Array.isArray(burrows) ? burrows : burrows ? [burrows] : [])) obstacles.push({ x: b.x, z: b.z, r: b.r + 2.5 });
-    return steerGroundDirection(wantX, wantZ, speed, { x: this.x, z: this.z }, obstacles, bounds, this.slot, this.yaw);
+    return obstacles;
+  }
+
+  _groundSteer(wantX, wantZ, speed, burrows) {
+    const bounds = roamBounds();
+    return steerGroundDirection(wantX, wantZ, speed, { x: this.x, z: this.z }, this._navigationObstacles(burrows), bounds, this.slot, this.yaw);
   }
 
   _stopDashAtObstacle() {
@@ -1005,8 +1022,10 @@ export class Fox {
     if (this.retreating || this.state === 'rest_safe' || this.state === 'dead') return;
     this.restPoint = chooseRestPoint({
       foxX: this.x, foxZ: this.z, playerX: p.x, playerZ: p.z,
-      burrows, bounds: roamBounds(),
+      burrows, bounds: roamBounds(), obstacles: IS_BETA ? this._navigationObstacles(burrows) : [],
     }, FOX.retreat);
+    this._retreatProgress = { elapsed: 0, stall: 0, lastDistance: Math.hypot(this.restPoint.x - this.x, this.restPoint.z - this.z) };
+    this.retreatResolution = null;
     this.state = 'retreat';
     this.retreating = true;
     this.warn.visible = false;
@@ -1016,14 +1035,15 @@ export class Fox {
   }
 
   /** 到达休息点 → 安全休息。进入这一刻（且仅这一刻）触发一次驱退计数。 */
-  _enterRestSafe() {
+  _enterRestSafe(reason = 'arrival') {
     const r = enterRestSafe({ repelCounted: this.repelCounted },
       FOX.retreat.restSeconds[this.type] ?? FOX.retreat.restSeconds.normal);
     this.state = r.state;
     this.timer = r.timer;
     this.repelCounted = r.repelCounted;
+    this.retreatResolution = reason;
     this.warn.visible = false;
-    if (r.justCounted) this.onRepelled?.(this);
+    if (r.justCounted) this.onRepelled?.(this, reason);
   }
 
   /** 休息结束 → 重新参战；repelCounted 复位，下次撤退可再次计数。 */
@@ -1035,6 +1055,8 @@ export class Fox {
     this.repelCounted = r.repelCounted;
     this.hitStreak = r.hitStreak;
     this.timer = 0;
+    this._retreatProgress = { elapsed: 0, stall: 0, lastDistance: Infinity };
+    this.retreatResolution = null;
     if ('fatigue' in this) this.fatigue = 0;   // 智能狐：休息好了一起清疲劳
   }
 

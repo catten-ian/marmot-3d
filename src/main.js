@@ -1682,16 +1682,17 @@ function hitFox(f, damage, s) {
  * "去休息 = 被驱退"：威胁已解除，在这里统一计数与反馈。
  */
 function wireRepelCallback(f) {
-  f.onRepelled = (fox) => {
+  f.onRepelled = (fox, reason = 'arrival') => {
     game.levelRepels = (game.levelRepels || 0) + 1;
     game.totalRepels = (game.totalRepels || 0) + 1;
     if (game.overdrive <= 0) game.charge = clamp(game.charge + 18, 0, 100);
     game.player.energy = clamp(game.player.energy + 8, 0, 100);
     const fy = terrainHeight(fox.x, fox.z);
-    damageText.spawn(fox.x, fy + 1.6, fox.z, '威胁已解除', '#ceebbc');
+    const feedback = IS_BETA && reason !== 'arrival' ? '威胁已解除 · 已安全撤退' : '威胁已解除';
+    damageText.spawn(fox.x, fy + 1.6, fox.z, feedback, '#ceebbc');
     particles.burst(fox.x, fy + 0.5, fox.z, colRepel, 18, 1.4);
     audio.repel();
-    recordTestLog('fox-repelled', { foxType: fox.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels });
+    recordTestLog('fox-repelled', { foxType: fox.type, levelRepels: game.levelRepels, totalRepels: game.totalRepels, retreatResolution: reason });
   };
   return f;
 }
