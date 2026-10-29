@@ -29,7 +29,7 @@ import {
 } from './core/stamina.mjs';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { bindText, kbd, schemeHints, setHintBinds } from './core/key-hints.mjs';
-import { preloadModels } from './models/loader.js';
+import { preloadModels, instantiate, normalizeModel } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
 import { AdaptiveRenderController, getRenderProfile, hasRealTouch } from './core/performance.js';
@@ -84,7 +84,7 @@ import { SmartFox } from './entities/smart-fox.js';
 import { createSmartPack } from './entities/smart-fox-core.mjs';
 import { hpDamageMultiplier } from './core/fox-motion.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
-import { devOn, IS_DEV, IS_BETA, USE_REAL_FOX_MODEL, VERSION, VERSION_LABEL } from './core/version.js';
+import { devOn, IS_DEV, IS_BETA, USE_REAL_MODELS, USE_REAL_FOX_MODEL, VERSION, VERSION_LABEL } from './core/version.js';
 import { BETA_TUNE, betaFlowerCompletesImmediately, resolveLungeLockYaw, resolveMovementCostPerSecond } from './core/beta-tuning.js';
 import { applyRuntimeConfigWithPrecedence } from './core/runtime-config.mjs';
 import { betaInteractionSkillState, interactionSemantics } from './core/interaction-semantics.mjs';
@@ -398,6 +398,30 @@ playerModel.add(playerBody);
 scene.add(playerModel);
 playerModel.visible = false;
 
+// Beta 改用素材包中的尖叫土拨鼠。加载失败时保留程序化模型，
+// 不再接入此前有蒙皮撕裂/穿地问题的 marmot-rig.glb。
+if (IS_BETA && USE_REAL_MODELS) {
+  instantiate('./assets/models/marmot-screaming.glb', 'marmot').then((inst) => {
+    if (!inst) return;
+    const norm = normalizeModel(inst, 0.9, { upAxis: 'z' });
+    norm.wrap.traverse((o) => {
+      if (!o.isMesh) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) {
+        if (!m) continue;
+        if (m.color && m.color.r < 0.08 && m.color.g < 0.08 && m.color.b < 0.08) m.color.set(0xa9834e);
+        m.metalness = 0.08;
+        m.roughness = Math.max(0.72, m.roughness || 0);
+        m.needsUpdate = true;
+      }
+      o.castShadow = true;
+      o.receiveShadow = true;
+    });
+    playerModel.add(norm.wrap);
+    playerBody.visible = false;
+  }).catch((error) => console.warn('[player] screaming marmot fallback:', error));
+}
+
 const VIEW_MODE_KEY = 'marmot3d.viewMode.v1';
 let thirdPerson = false;
 try { thirdPerson = localStorage.getItem(VIEW_MODE_KEY) === 'third-person'; } catch (_) { /* storage may be unavailable */ }
@@ -440,7 +464,10 @@ function refreshViewKeyHint() {
 //   'full' 完整（几何+贴图） / 'geometry-only' 仅几何（贴图解码失败）
 //   'procedural' 回退到程序化建模 / 'timeout' / 'failed'
 const FOX_PRELOAD_FILE = IS_DEV && USE_REAL_FOX_MODEL ? 'fox-segmented.glb' : 'fox.glb';
-preloadModels('./assets/models/', { foxFile: FOX_PRELOAD_FILE }).then((st) => {
+preloadModels('./assets/models/', {
+  foxFile: FOX_PRELOAD_FILE,
+  marmotFile: IS_BETA ? 'marmot-screaming.glb' : 'marmot.glb',
+}).then((st) => {
   modelLoadState = st;
   console.info('[models] 真实模型就绪情况:', st);
   // 明确告知玩家当前处于哪一档 —— "模型没加载出来"时最需要的就是这个信息，

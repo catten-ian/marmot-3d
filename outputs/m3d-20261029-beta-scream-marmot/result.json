@@ -1,0 +1,222 @@
+{
+  "url": "http://127.0.0.1:8327/index.html?version=beta&webgl=1",
+  "steps": [
+    {
+      "name": "ready",
+      "data": {
+        "title": true,
+        "game": true,
+        "stage": null
+      }
+    },
+    {
+      "name": "sandbox-entered",
+      "data": {
+        "sec": 0
+      }
+    },
+    {
+      "name": "walk",
+      "data": {
+        "before": {
+          "x": -48,
+          "y": 0,
+          "z": 2
+        },
+        "after": {
+          "x": -31.27492908915572,
+          "y": -0.19555447964125194,
+          "z": 1.3031220453814878
+        },
+        "moved": 16.739582905688028
+      }
+    },
+    {
+      "name": "model",
+      "data": {
+        "thirdPerson": true,
+        "playerModelVisible": true,
+        "proceduralPlayerVisible": false,
+        "playerChildren": [
+          {
+            "name": "",
+            "type": "Group",
+            "visible": false,
+            "children": 14,
+            "box": {
+              "min": [
+                -31.78783096972172,
+                -0.19555755831187618,
+                0.9825124377439648
+              ],
+              "max": [
+                -30.70352828937246,
+                0.6644424378138218,
+                1.623712509080458
+              ],
+              "size": [
+                1.0843026803492606,
+                0.859999996125698,
+                0.6412000713364933
+              ]
+            }
+          },
+          {
+            "name": "",
+            "type": "Group",
+            "visible": true,
+            "children": 1,
+            "box": {
+              "min": [
+                -31.56709632400954,
+                -0.19555755682176018,
+                1.0808350881232156
+              ],
+              "max": [
+                -30.9794365233552,
+                0.7044424431782399,
+                1.519940269733092
+              ],
+              "size": [
+                0.5876598006543396,
+                0.9000000000000001,
+                0.4391051816098763
+              ]
+            }
+          }
+        ],
+        "companion": {
+          "level": "geometry-only",
+          "hasReal": true,
+          "proceduralVisible": false,
+          "realVisible": true,
+          "mixer": false,
+          "box": {
+            "min": [
+              25.735361055453208,
+              -0.6611704420009645,
+              11.785967982887415
+            ],
+            "max": [
+              26.24037190286258,
+              0.08882955799903547,
+              12.194004836841158
+            ],
+            "size": [
+              0.5050108474093733,
+              0.75,
+              0.40803685395374245
+            ]
+          }
+        },
+        "mode": "play"
+      }
+    },
+    {
+      "name": "load-status",
+      "data": {
+        "marmot": {
+          "level": "geometry-only",
+          "error": null,
+          "tris": 15856,
+          "textured": false
+        },
+        "fox": {
+          "level": "full",
+          "error": null,
+          "tris": 93943,
+          "textured": true
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "logs": [
+    "[accounts] 游客身份签发略过 404",
+    "[scene] 远景布景已加入：14 份 @ 半径 undefinedm",
+    "[models] marmot 加载成功 [geometry-only] 15,856 面",
+    "[models] fox 加载成功 [full] 93,943 面",
+    "[models] 真实模型就绪情况: Object",
+    "[performance] 自适应画质档位切换 Object"
+  ],
+  "ok": true,
+  "moved": 16.739582905688028,
+  "model": {
+    "thirdPerson": true,
+    "playerModelVisible": true,
+    "proceduralPlayerVisible": false,
+    "playerChildren": [
+      {
+        "name": "",
+        "type": "Group",
+        "visible": false,
+        "children": 14,
+        "box": {
+          "min": [
+            -31.78783096972172,
+            -0.19555755831187618,
+            0.9825124377439648
+          ],
+          "max": [
+            -30.70352828937246,
+            0.6644424378138218,
+            1.623712509080458
+          ],
+          "size": [
+            1.0843026803492606,
+            0.859999996125698,
+            0.6412000713364933
+          ]
+        }
+      },
+      {
+        "name": "",
+        "type": "Group",
+        "visible": true,
+        "children": 1,
+        "box": {
+          "min": [
+            -31.56709632400954,
+            -0.19555755682176018,
+            1.0808350881232156
+          ],
+          "max": [
+            -30.9794365233552,
+            0.7044424431782399,
+            1.519940269733092
+          ],
+          "size": [
+            0.5876598006543396,
+            0.9000000000000001,
+            0.4391051816098763
+          ]
+        }
+      }
+    ],
+    "companion": {
+      "level": "geometry-only",
+      "hasReal": true,
+      "proceduralVisible": false,
+      "realVisible": true,
+      "mixer": false,
+      "box": {
+        "min": [
+          25.735361055453208,
+          -0.6611704420009645,
+          11.785967982887415
+        ],
+        "max": [
+          26.24037190286258,
+          0.08882955799903547,
+          12.194004836841158
+        ],
+        "size": [
+          0.5050108474093733,
+          0.75,
+          0.40803685395374245
+        ]
+      }
+    },
+    "mode": "play"
+  }
+}

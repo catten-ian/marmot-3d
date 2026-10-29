@@ -13,11 +13,13 @@ import { terrainHeight } from '../core/utils.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
 import { USE_REAL_MODELS, IS_BETA } from '../core/version.js';
 import { BETA_TUNE } from '../core/beta-tuning.js';
-import { MARMOT_CLIPS, marmotClipForState, animationTransition } from './marmot-rig.js';
+import { marmotClipForState, animationTransition } from './marmot-rig.js';
 
 /** 真实土拨鼠模型（与藏狐同一套分级回退，见 models/loader.js） */
-const instantiateMarmot = () => instantiate('./assets/models/marmot.glb', 'marmot');
-const instantiateMarmotRig = () => instantiate('./assets/models/marmot-rig.glb', 'marmot');
+const instantiateMarmot = () => instantiate(
+  `./assets/models/${IS_BETA ? 'marmot-screaming.glb' : 'marmot.glb'}`,
+  'marmot',
+);
 import { devOn } from '../core/version.js';
 import { FORAGE } from '../core/ecology.js';
 
@@ -311,25 +313,13 @@ export class Companion {
   async _loadRealModel() {
     if (!USE_REAL_MODELS) return;
     try {
-      let inst = null;
-      let rig = false;
-      // Beta 专属绑定模型；stable/dev 保持既有静态路径。
-      if (IS_BETA) {
-        const candidate = await instantiateMarmotRig();
-        const clips = candidate?.userData?.animations || [];
-        const complete = MARMOT_CLIPS.every((name) => clips.some((clip) => clip.name === name));
-        if (candidate && complete) { inst = candidate; rig = true; } else if (candidate) {
-          candidate.traverse((o) => { o.geometry?.dispose?.(); });
-        }
-      }
-      if (!inst) inst = await instantiateMarmot();
+      const inst = await instantiateMarmot();
       if (!inst) { this.modelLevel = 'procedural'; return; }
       const norm = normalizeModel(inst, 0.75, { upAxis: 'native' });
       this.mesh.add(norm.wrap);
       this.realModel = norm.wrap;
-      this.modelLevel = rig ? 'rig' : (inst.userData.level || 'full');
+      this.modelLevel = inst.userData.level || 'full';
       this._rigRoot = inst;
-      if (rig) this._setupRig(inst, inst.userData.animations || []);
       this._prepareMarmotMaterials(norm.wrap);
       this.realModel.updateMatrixWorld(true);
       const rb = new THREE.Box3().setFromObject(this.realModel);

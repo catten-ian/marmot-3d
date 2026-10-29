@@ -35,13 +35,18 @@ test('fallback chooses rig, then static, then procedural', () => {
   assert.equal(rig.marmotFallbackDecision({ rigAvailable: false, clipsAvailable: false, staticAvailable: false }), 'procedural');
 });
 
-test('loader and beta companion contracts are wired', () => {
+test('beta uses the screaming marmot for player and companion with fallbacks intact', () => {
   const loader = readFileSync(path.join(__dirname, '../src/models/loader.js'), 'utf8');
   const props = readFileSync(path.join(__dirname, '../src/entities/props_entities.js'), 'utf8');
+  const main = readFileSync(path.join(__dirname, '../src/main.js'), 'utf8');
+  const asset = readFileSync(path.join(__dirname, '../assets/models/marmot-screaming.glb'));
+  assert.equal(asset.subarray(0, 4).toString('ascii'), 'glTF');
   assert.match(loader, /SkeletonUtils\.js/);
   assert.match(loader, /gltf\.animations/);
-  assert.match(props, /marmot-rig\.glb/);
-  assert.match(props, /IS_BETA/);
+  assert.doesNotMatch(props, /marmot-rig\.glb/);
+  assert.match(props, /IS_BETA \? 'marmot-screaming\.glb' : 'marmot\.glb'/);
   assert.match(props, /AnimationMixer/);
   assert.match(props, /metalness = 0\.08/);
+  assert.match(main, /instantiate\('\.\/assets\/models\/marmot-screaming\.glb', 'marmot'\)/);
+  assert.match(main, /marmotFile: IS_BETA \? 'marmot-screaming\.glb' : 'marmot\.glb'/);
 });
