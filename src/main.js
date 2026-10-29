@@ -105,7 +105,7 @@ import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 import { VERDANT_KILL_PLANE_MARGIN } from './world/verdant-fall-safety.mjs';
-import { findRobustPlacement, findRobustPlacementCooperative, resolveEntityGround, chooseCentralBaseSite, chooseCentralBaseSiteCooperative } from './world/verdant-placement.mjs';
+import { findRobustPlacement, findRobustPlacementCooperative, resolveEntityGround, chooseCentralBaseSite, chooseCentralBaseSiteCooperative, fingerprintPlacementField, fingerprintPlacementInputs } from './world/verdant-placement.mjs';
 import { tierDisplayRows } from './world/verdant-tier-metadata.mjs';
 
 // =====================================================
@@ -332,6 +332,32 @@ markBootStage('lighting', 14, '生成天空与光照');
 // —— Verdant Trail 全环境（dev-only）——
 // The loader is dynamically imported so stable/beta never fetch or evaluate any Verdant code.
 let verdantWorld = null;
+let verdantPlacementBakePromise = null;
+const VERDANT_PLACEMENT_BAKE_ALGORITHM = 'verdant-placement-v1';
+const VERDANT_PLACEMENT_BAKE_POINT_SCALE = 0.88;
+function verdantPlacementInputFingerprint() {
+  return fingerprintPlacementInputs({ algorithm: VERDANT_PLACEMENT_BAKE_ALGORITHM, pointScale: VERDANT_PLACEMENT_BAKE_POINT_SCALE, burrows: BURROWS, berryPoints: BERRY_POINTS, spawnPoints: SPAWN_POINTS, friends: LEVELS.map((level) => level.friend), playerRadius: PLAYER.radius, maxCandidates: 2048, centralStride: 4, candidateLimit: 64 });
+}
+async function loadVerdantPlacementBake() {
+  if (!IS_DEV) return null;
+  if (!verdantPlacementBakePromise) verdantPlacementBakePromise = fetch('./assets/world/verdant-placement-baked.json?v=placement-bake-1', { cache: 'force-cache' }).then((response) => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); }).catch((error) => { console.warn('[verdant-placement] bake unavailable; using cooperative runtime fallback:', error?.message || error); return null; });
+  return verdantPlacementBakePromise;
+}
+async function validateVerdantPlacementBake(world) {
+  if (!IS_DEV || !world?.placementField) return;
+  const bake = await loadVerdantPlacementBake();
+  if (!bake) return;
+  const tier = world.tier || verdantTierActive;
+  const entry = bake?.tiers?.[tier];
+  const actualField = fingerprintPlacementField(world.placementField);
+  const actualInputs = verdantPlacementInputFingerprint();
+  if (bake.algorithm !== VERDANT_PLACEMENT_BAKE_ALGORITHM || bake.inputsFingerprint !== actualInputs || entry?.fieldFingerprint !== actualField || entry?.inputsFingerprint !== actualInputs) {
+    console.warn('[verdant-placement] bake fingerprint mismatch; using cooperative runtime fallback', { tier, expectedField: entry?.fieldFingerprint || '(missing)', actualField, expectedInputs: bake.inputsFingerprint || entry?.inputsFingerprint || '(missing)', actualInputs });
+    return;
+  }
+  world.placementBake = entry;
+  console.info('[verdant-placement] baked placements accepted', { tier, fingerprint: actualField });
+}
 function publishVerdantField(world) {
   if (!IS_DEV || !world) return;
   // Keep the probe object stable so the safety counters installed after controller
@@ -435,6 +461,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
     }
   }, renderer, bitmapMaxSize: (isTouchPrimary() && rendererStatus.backend !== 'webgpu') ? 512 : 0 });
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
+  await validateVerdantPlacementBake(world);
   verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
   hud.setLoading(94, '挂载 Verdant 场景');
   scene.add(world.group);
@@ -563,6 +590,11 @@ function chooseVerdantBurrowDefinition(def, index, placed) {
 
 async function chooseVerdantBurrowDefinitionCooperative(def, index, placed) {
   if (!verdantWorld?.placementField) return def;
+  const baked = verdantWorld.placementBake?.placements?.burrows?.[def.id];
+  if (baked?.result) {
+    const site = baked.result;
+    return { ...def, x: site.x, z: site.z, groundY: site.y, placement: site };
+  }
   const isBase = index === 0;
   const interest = [...BERRY_POINTS, ...SPAWN_POINTS].map(scalePoint);
   const exclude = placed.map((p) => ({ x: p.x, z: p.z, radius: p.r, gap: 2 }));
@@ -598,6 +630,11 @@ function resolveVerdantCompanion(x, z) {
 async function resolveVerdantCompanionCooperative(x, z) {
   const field = verdantWorld?.placementField;
   if (!field) return null;
+  const bakedTier = verdantWorld.placementBake;
+  if (bakedTier) {
+    const record = Object.values(bakedTier.placements?.companions || {}).find((item) => Math.abs(item.input?.x - x) < 1e-6 && Math.abs(item.input?.z - z) < 1e-6);
+    if (record?.exact && !verdantCompanionLastPlacement) { verdantCompanionLastPlacement = record.exact; return record.exact; }
+  }
   const exact = resolveEntityGround(field, x, z, {
     radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
     avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
@@ -605,6 +642,8 @@ async function resolveVerdantCompanionCooperative(x, z) {
     referenceY: verdantCompanionLastPlacement?.y,
   });
   if (exact) { verdantCompanionLastPlacement = exact; return exact; }
+  const bakedRecord = Object.values(verdantWorld.placementBake?.placements?.companions || {}).find((item) => Math.abs(item.input?.x - x) < 1e-6 && Math.abs(item.input?.z - z) < 1e-6);
+  if (bakedRecord?.recovery) { verdantCompanionLastPlacement = bakedRecord.recovery; return bakedRecord.recovery; }
   const recovered = await findRobustPlacementCooperative(field, {
     x, z, radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
     maxDistance: 14, maxCandidates: VERDANT_PLACEMENT_MAX_CANDIDATES, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
@@ -631,10 +670,11 @@ async function switchVerdantTier(preference, forceReload = false) {
   settingsUI?.render?.();
   try {
     const loaded = await loadVerdantWorldFn({ tier: next, signal: loadController?.signal || null, onProgress: (p, label, stats) => { if (requestId === verdantTierLoadRequest) hud.setLoading(4 + Math.max(0, Math.min(1, p)) * 92, label || '加载 Verdant 场景', stats); }, renderer, bitmapMaxSize: (isTouchPrimary() && rendererStatus.backend !== 'webgpu') ? 512 : 0 });
+    await validateVerdantPlacementBake(loaded);
     if (requestId !== verdantTierLoadRequest || loadController?.signal?.aborted) { disposeVerdantGroup(loaded.group); return; }
     const pose = { x: controller.position.x, z: controller.position.z, yaw: controller.yaw, pitch: controller.pitch };
     scene.remove(old.group); disposeVerdantGroup(old.group);
-    verdantWorld = loaded; verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
+    verdantWorld = loaded; verdantCompanionLastPlacement = null; verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
     scene.add(loaded.group);
     publishVerdantField(loaded);
     setHeightField(loaded.heightAt, { resolveGround: loaded.resolveGround, solidCollider: true });

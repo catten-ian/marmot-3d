@@ -1,0 +1,1268 @@
+{
+  "format": 1,
+  "algorithm": "verdant-placement-v1",
+  "generatedBy": "tools/bake-verdant-placement.mjs",
+  "generatedAt": "deterministic",
+  "pointScale": 0.88,
+  "inputsFingerprint": "sha256-49f5fad8eef4143405f31d68ede883dc3b7c442df43cb93600d17b2f5dbb4484",
+  "heightSource": "assets/verdant/verdant-trail-height.json",
+  "tiers": {
+    "low": {
+      "inputsFingerprint": "sha256-49f5fad8eef4143405f31d68ede883dc3b7c442df43cb93600d17b2f5dbb4484",
+      "fieldFingerprint": "sha256-fdcf6301fdaf63bfb645e49a4c7bb8435db4bd572a49e8cf230f1870030c4f52",
+      "field": {
+        "nx": 521,
+        "nz": 312,
+        "layerCount": 4,
+        "cellSize": 0.22,
+        "bounds": {
+          "minX": -57.19999313354492,
+          "maxX": 57.20001220703125,
+          "minZ": -34.31999588012695,
+          "maxZ": 34.319976806640625
+        },
+        "componentCount": 14,
+        "componentSizes": [
+          92608,
+          1,
+          1,
+          4,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          22
+        ]
+      },
+      "placements": {
+        "burrows": {
+          "base": {
+            "inputFingerprint": "sha256-e0d66b464ced1a8eb14a18c848748afbc07e87e82d7bd4ef29423fd43af747e2",
+            "result": {
+              "x": -38.60999313354492,
+              "y": 1.7354024648666382,
+              "z": -5.1699958801269545,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 1.7299628257751465,
+              "surfaceMax": 1.7810280323028564,
+              "surfaceVariation": 0.05106520652770996,
+              "moved": 0,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "centerDistance": 38.95459442957808,
+              "resourceDistance": 57.39704428150354,
+              "groundY": 1.7354024648666382
+            }
+          },
+          "shelter-a": {
+            "inputFingerprint": "sha256-143d9eca94bdf6d8eee1ab905e4933598f2de7d7bff9f761d50ddcd5b6be8284",
+            "result": {
+              "x": -7.149993133544925,
+              "y": 2.719583511352539,
+              "z": -21.889995880126953,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 2.399683952331543,
+              "surfaceMax": 2.770246982574463,
+              "surfaceVariation": 0.3705630302429199,
+              "moved": 3.411780727957148,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "groundY": 2.719583511352539
+            }
+          },
+          "shelter-b": {
+            "inputFingerprint": "sha256-a6679af9c00138a96ad1dbb5cd4fee9a7c63a1f5ce02f6ec8cf7084c8e2c2823",
+            "result": {
+              "x": 13.090006866455084,
+              "y": 5.066357135772705,
+              "z": -0.10999588012695227,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 4.661423206329346,
+              "surfaceMax": 5.066357135772705,
+              "surfaceVariation": 0.4049339294433594,
+              "moved": 11.872862631458924,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "groundY": 5.066357135772705
+            }
+          },
+          "shelter-c": {
+            "inputFingerprint": "sha256-92d61745922fe4d83ddb8754696d4bdfd880fdd385d6621a9af1655126b9e10d",
+            "result": null
+          },
+          "shelter-d": {
+            "inputFingerprint": "sha256-830cfc9788b382ac99c52ad02300fd01fe731818f5c08234c40565dee5d2ffbf",
+            "result": null
+          }
+        },
+        "companions": {
+          "level-0": {
+            "input": {
+              "x": 42.24,
+              "z": 19.36
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-9c8c11bca9fafb857ef3f8a5cb95abdcf9b294bd83280a33ac194c7bf311b00d",
+            "exact": null,
+            "recovery": {
+              "x": 39.490006866455076,
+              "y": 7.926228523254393,
+              "z": 18.59000411987305,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.839575290679932,
+              "surfaceMax": 7.991818904876709,
+              "surfaceVariation": 0.15224361419677734,
+              "moved": 2.855758373874918,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-1": {
+            "input": {
+              "x": 49.28,
+              "z": 16.72
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-7ae7e62f56dad5ae2ee0cff158910b5d89a45c1a8f416a46c42bf12b83712d60",
+            "exact": null,
+            "recovery": {
+              "x": 45.210006866455075,
+              "y": 11.2200927734375,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.128788948059082,
+              "surfaceMax": 11.27794075012207,
+              "surfaceVariation": 0.14915180206298828,
+              "moved": 7.291590653393532,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-2": {
+            "input": {
+              "x": 51.04,
+              "z": 21.12
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-f968bb50e1d9d458c4eb736797cd60f583dce14031b369067458be82c51e9f9f",
+            "exact": null,
+            "recovery": {
+              "x": 39.710006866455075,
+              "y": 7.674466609954834,
+              "z": 19.690004119873045,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.562224388122559,
+              "surfaceMax": 7.766623020172119,
+              "surfaceVariation": 0.20439863204956055,
+              "moved": 11.419878835756323,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-3": {
+            "input": {
+              "x": 50.160000000000004,
+              "z": 16.72
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-cfc1a6716453828a923d96c1ff5897d5abaafd7fcde73bec3c7662582e23852e",
+            "exact": null,
+            "recovery": {
+              "x": 44.77000686645508,
+              "y": 11.185356140136719,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.091947555541992,
+              "surfaceMax": 11.244918823242188,
+              "surfaceVariation": 0.1529712677001953,
+              "moved": 8.102744974958457,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-4": {
+            "input": {
+              "x": 50.160000000000004,
+              "z": 16.72
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-cfc1a6716453828a923d96c1ff5897d5abaafd7fcde73bec3c7662582e23852e",
+            "exact": null,
+            "recovery": {
+              "x": 44.77000686645508,
+              "y": 11.185356140136719,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.091947555541992,
+              "surfaceMax": 11.244918823242188,
+              "surfaceVariation": 0.1529712677001953,
+              "moved": 8.102744974958457,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-5": {
+            "input": {
+              "x": 52.8,
+              "z": 19.36
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-dd02b088afb991f077969b5162ccd0d9011aae6d22a87293e7e6164adfc037c1",
+            "exact": null,
+            "recovery": {
+              "x": 44.77000686645508,
+              "y": 11.185356140136719,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.091947555541992,
+              "surfaceMax": 11.244918823242188,
+              "surfaceVariation": 0.1529712677001953,
+              "moved": 11.832025106523478,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-6": {
+            "input": {
+              "x": 51.04,
+              "z": 22.88
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-5efa97009cb6d0bf94e50bcc79fe99785684fa012c863a50ed8db5fc443cd576",
+            "exact": null,
+            "recovery": {
+              "x": 39.05000686645508,
+              "y": 7.826220989227295,
+              "z": 19.470004119873046,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.735146999359131,
+              "surfaceMax": 7.890161991119385,
+              "surfaceVariation": 0.1550149917602539,
+              "moved": 12.465472604154932,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-7": {
+            "input": {
+              "x": 51.04,
+              "z": 22.88
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-5efa97009cb6d0bf94e50bcc79fe99785684fa012c863a50ed8db5fc443cd576",
+            "exact": null,
+            "recovery": {
+              "x": 39.05000686645508,
+              "y": 7.826220989227295,
+              "z": 19.470004119873046,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.735146999359131,
+              "surfaceMax": 7.890161991119385,
+              "surfaceVariation": 0.1550149917602539,
+              "moved": 12.465472604154932,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-8": {
+            "input": {
+              "x": 49.28,
+              "z": 23.76
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-f5084ee0035868a4b92cc59665eb261fdbaf5810ce39cb35521a22a2085c4bcd",
+            "exact": null,
+            "recovery": {
+              "x": 39.27000686645508,
+              "y": 7.755977630615234,
+              "z": 19.690004119873045,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.631162643432617,
+              "surfaceMax": 7.835762023925781,
+              "surfaceVariation": 0.20459938049316406,
+              "moved": 10.805777574884045,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-9": {
+            "input": {
+              "x": 51.92,
+              "z": 21.12
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-214cc28ab8a2f52d2d0f14057dbebda32694b183dad7d743828510edf1fa6c38",
+            "exact": null,
+            "recovery": {
+              "x": 39.27000686645508,
+              "y": 7.755977630615234,
+              "z": 19.690004119873045,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.631162643432617,
+              "surfaceMax": 7.835762023925781,
+              "surfaceVariation": 0.20459938049316406,
+              "moved": 12.730562222302432,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-10": {
+            "input": {
+              "x": 51.04,
+              "z": 25.52
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-cd90affaa09a4d970afc4c971daccb429023d4f1d37ffd890bf8482ec51028e6",
+            "exact": null,
+            "recovery": {
+              "x": 39.05000686645508,
+              "y": 7.826220989227295,
+              "z": 19.470004119873046,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.735146999359131,
+              "surfaceMax": 7.890161991119385,
+              "surfaceVariation": 0.1550149917602539,
+              "moved": 13.429906384335204,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-11": {
+            "input": {
+              "x": 52.8,
+              "z": 24.64
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-719160459ad6316125f9062b2c2ce8c413a9acf20395fdff4c376fb0d5e92922",
+            "exact": null,
+            "recovery": null
+          }
+        }
+      },
+      "source": {
+        "glb": "assets/verdant/tiers/low/verdant-trail-low.glb",
+        "glbSha256": "eab638d28609f1f7780cafe163284675ba1c79b09642936fe93e161729e3aa59",
+        "walkableField": "assets/verdant/tiers/low/walkable-field.bin",
+        "walkableFieldSha256": "78f755f27e19e8dafc3f88d257f1e8b65e5c5c47122ab424b4eaca5c06465740"
+      }
+    },
+    "medium": {
+      "inputsFingerprint": "sha256-49f5fad8eef4143405f31d68ede883dc3b7c442df43cb93600d17b2f5dbb4484",
+      "fieldFingerprint": "sha256-efc6cce348d23cea9501bf96d3cb6fa023efa120f14696ac2b2ab4b82d74ac73",
+      "field": {
+        "nx": 521,
+        "nz": 312,
+        "layerCount": 4,
+        "cellSize": 0.22,
+        "bounds": {
+          "minX": -57.19999313354492,
+          "maxX": 57.20001220703125,
+          "minZ": -34.31999588012695,
+          "maxZ": 34.319976806640625
+        },
+        "componentCount": 13,
+        "componentSizes": [
+          92595,
+          1,
+          4,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          22
+        ]
+      },
+      "placements": {
+        "burrows": {
+          "base": {
+            "inputFingerprint": "sha256-e0d66b464ced1a8eb14a18c848748afbc07e87e82d7bd4ef29423fd43af747e2",
+            "result": {
+              "x": -38.60999313354492,
+              "y": 1.7354024648666382,
+              "z": -5.1699958801269545,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 1.7299628257751465,
+              "surfaceMax": 1.7810280323028564,
+              "surfaceVariation": 0.05106520652770996,
+              "moved": 0,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "centerDistance": 38.95459442957808,
+              "resourceDistance": 57.39704428150354,
+              "groundY": 1.7354024648666382
+            }
+          },
+          "shelter-a": {
+            "inputFingerprint": "sha256-143d9eca94bdf6d8eee1ab905e4933598f2de7d7bff9f761d50ddcd5b6be8284",
+            "result": {
+              "x": -7.149993133544925,
+              "y": 2.719583511352539,
+              "z": -21.889995880126953,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 2.399683952331543,
+              "surfaceMax": 2.770246982574463,
+              "surfaceVariation": 0.3705630302429199,
+              "moved": 3.411780727957148,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "groundY": 2.719583511352539
+            }
+          },
+          "shelter-b": {
+            "inputFingerprint": "sha256-a6679af9c00138a96ad1dbb5cd4fee9a7c63a1f5ce02f6ec8cf7084c8e2c2823",
+            "result": {
+              "x": 13.090006866455084,
+              "y": 5.066357135772705,
+              "z": -0.10999588012695227,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 4.661423206329346,
+              "surfaceMax": 5.066357135772705,
+              "surfaceVariation": 0.4049339294433594,
+              "moved": 11.872862631458924,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "groundY": 5.066357135772705
+            }
+          },
+          "shelter-c": {
+            "inputFingerprint": "sha256-92d61745922fe4d83ddb8754696d4bdfd880fdd385d6621a9af1655126b9e10d",
+            "result": null
+          },
+          "shelter-d": {
+            "inputFingerprint": "sha256-830cfc9788b382ac99c52ad02300fd01fe731818f5c08234c40565dee5d2ffbf",
+            "result": null
+          }
+        },
+        "companions": {
+          "level-0": {
+            "input": {
+              "x": 42.24,
+              "z": 19.36
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-9c8c11bca9fafb857ef3f8a5cb95abdcf9b294bd83280a33ac194c7bf311b00d",
+            "exact": null,
+            "recovery": {
+              "x": 39.490006866455076,
+              "y": 7.926228523254393,
+              "z": 18.59000411987305,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.839575290679932,
+              "surfaceMax": 7.991818904876709,
+              "surfaceVariation": 0.15224361419677734,
+              "moved": 2.855758373874918,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-1": {
+            "input": {
+              "x": 49.28,
+              "z": 16.72
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-7ae7e62f56dad5ae2ee0cff158910b5d89a45c1a8f416a46c42bf12b83712d60",
+            "exact": null,
+            "recovery": {
+              "x": 45.210006866455075,
+              "y": 11.2200927734375,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.128788948059082,
+              "surfaceMax": 11.27794075012207,
+              "surfaceVariation": 0.14915180206298828,
+              "moved": 7.291590653393532,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-2": {
+            "input": {
+              "x": 51.04,
+              "z": 21.12
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-f968bb50e1d9d458c4eb736797cd60f583dce14031b369067458be82c51e9f9f",
+            "exact": null,
+            "recovery": {
+              "x": 39.710006866455075,
+              "y": 7.674466609954834,
+              "z": 19.690004119873045,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.562224388122559,
+              "surfaceMax": 7.766623020172119,
+              "surfaceVariation": 0.20439863204956055,
+              "moved": 11.419878835756323,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-3": {
+            "input": {
+              "x": 50.160000000000004,
+              "z": 16.72
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-cfc1a6716453828a923d96c1ff5897d5abaafd7fcde73bec3c7662582e23852e",
+            "exact": null,
+            "recovery": {
+              "x": 44.77000686645508,
+              "y": 11.185356140136719,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.091947555541992,
+              "surfaceMax": 11.244918823242188,
+              "surfaceVariation": 0.1529712677001953,
+              "moved": 8.102744974958457,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-4": {
+            "input": {
+              "x": 50.160000000000004,
+              "z": 16.72
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-cfc1a6716453828a923d96c1ff5897d5abaafd7fcde73bec3c7662582e23852e",
+            "exact": null,
+            "recovery": {
+              "x": 44.77000686645508,
+              "y": 11.185356140136719,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.091947555541992,
+              "surfaceMax": 11.244918823242188,
+              "surfaceVariation": 0.1529712677001953,
+              "moved": 8.102744974958457,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-5": {
+            "input": {
+              "x": 52.8,
+              "z": 19.36
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-dd02b088afb991f077969b5162ccd0d9011aae6d22a87293e7e6164adfc037c1",
+            "exact": null,
+            "recovery": {
+              "x": 44.77000686645508,
+              "y": 11.185356140136719,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.091947555541992,
+              "surfaceMax": 11.244918823242188,
+              "surfaceVariation": 0.1529712677001953,
+              "moved": 11.832025106523478,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-6": {
+            "input": {
+              "x": 51.04,
+              "z": 22.88
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-5efa97009cb6d0bf94e50bcc79fe99785684fa012c863a50ed8db5fc443cd576",
+            "exact": null,
+            "recovery": {
+              "x": 39.05000686645508,
+              "y": 7.826220989227295,
+              "z": 19.470004119873046,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.735146999359131,
+              "surfaceMax": 7.890161991119385,
+              "surfaceVariation": 0.1550149917602539,
+              "moved": 12.465472604154932,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-7": {
+            "input": {
+              "x": 51.04,
+              "z": 22.88
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-5efa97009cb6d0bf94e50bcc79fe99785684fa012c863a50ed8db5fc443cd576",
+            "exact": null,
+            "recovery": {
+              "x": 39.05000686645508,
+              "y": 7.826220989227295,
+              "z": 19.470004119873046,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.735146999359131,
+              "surfaceMax": 7.890161991119385,
+              "surfaceVariation": 0.1550149917602539,
+              "moved": 12.465472604154932,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-8": {
+            "input": {
+              "x": 49.28,
+              "z": 23.76
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-f5084ee0035868a4b92cc59665eb261fdbaf5810ce39cb35521a22a2085c4bcd",
+            "exact": null,
+            "recovery": {
+              "x": 39.27000686645508,
+              "y": 7.755977630615234,
+              "z": 19.690004119873045,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.631162643432617,
+              "surfaceMax": 7.835762023925781,
+              "surfaceVariation": 0.20459938049316406,
+              "moved": 10.805777574884045,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-9": {
+            "input": {
+              "x": 51.92,
+              "z": 21.12
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-214cc28ab8a2f52d2d0f14057dbebda32694b183dad7d743828510edf1fa6c38",
+            "exact": null,
+            "recovery": {
+              "x": 39.27000686645508,
+              "y": 7.755977630615234,
+              "z": 19.690004119873045,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.631162643432617,
+              "surfaceMax": 7.835762023925781,
+              "surfaceVariation": 0.20459938049316406,
+              "moved": 12.730562222302432,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-10": {
+            "input": {
+              "x": 51.04,
+              "z": 25.52
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-cd90affaa09a4d970afc4c971daccb429023d4f1d37ffd890bf8482ec51028e6",
+            "exact": null,
+            "recovery": {
+              "x": 39.05000686645508,
+              "y": 7.826220989227295,
+              "z": 19.470004119873046,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.735146999359131,
+              "surfaceMax": 7.890161991119385,
+              "surfaceVariation": 0.1550149917602539,
+              "moved": 13.429906384335204,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-11": {
+            "input": {
+              "x": 52.8,
+              "z": 24.64
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-719160459ad6316125f9062b2c2ce8c413a9acf20395fdff4c376fb0d5e92922",
+            "exact": null,
+            "recovery": null
+          }
+        }
+      },
+      "source": {
+        "glb": "assets/verdant/tiers/medium/verdant-trail-medium.glb",
+        "glbSha256": "3f8f72b5198a9a2a5c3ac3c0ad3e721051decbc9a09dd4def40a7416f632184a",
+        "walkableField": "assets/verdant/tiers/medium/walkable-field.bin",
+        "walkableFieldSha256": "8522e778b994915d657608f9a071b6350d5e1cff5fb665b9896188aad3596c41"
+      }
+    },
+    "high": {
+      "inputsFingerprint": "sha256-49f5fad8eef4143405f31d68ede883dc3b7c442df43cb93600d17b2f5dbb4484",
+      "fieldFingerprint": "sha256-59318076ec733e8048403beb18ccd447cf470e3acc75b1b822934a52ee4fa942",
+      "field": {
+        "nx": 521,
+        "nz": 312,
+        "layerCount": 4,
+        "cellSize": 0.22,
+        "bounds": {
+          "minX": -57.19999313354492,
+          "maxX": 57.20001220703125,
+          "minZ": -34.31999588012695,
+          "maxZ": 34.319976806640625
+        },
+        "componentCount": 13,
+        "componentSizes": [
+          92593,
+          1,
+          3,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          22
+        ]
+      },
+      "placements": {
+        "burrows": {
+          "base": {
+            "inputFingerprint": "sha256-e0d66b464ced1a8eb14a18c848748afbc07e87e82d7bd4ef29423fd43af747e2",
+            "result": {
+              "x": -38.60999313354492,
+              "y": 1.7354024648666382,
+              "z": -5.1699958801269545,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 1.7299628257751465,
+              "surfaceMax": 1.7810280323028564,
+              "surfaceVariation": 0.05106520652770996,
+              "moved": 0,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "centerDistance": 38.95459442957808,
+              "resourceDistance": 57.39704428150354,
+              "groundY": 1.7354024648666382
+            }
+          },
+          "shelter-a": {
+            "inputFingerprint": "sha256-143d9eca94bdf6d8eee1ab905e4933598f2de7d7bff9f761d50ddcd5b6be8284",
+            "result": {
+              "x": -7.149993133544925,
+              "y": 2.719583511352539,
+              "z": -21.889995880126953,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 2.399683952331543,
+              "surfaceMax": 2.770246982574463,
+              "surfaceVariation": 0.3705630302429199,
+              "moved": 3.411780727957148,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "groundY": 2.719583511352539
+            }
+          },
+          "shelter-b": {
+            "inputFingerprint": "sha256-a6679af9c00138a96ad1dbb5cd4fee9a7c63a1f5ce02f6ec8cf7084c8e2c2823",
+            "result": {
+              "x": 13.090006866455084,
+              "y": 5.066357135772705,
+              "z": -0.10999588012695227,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 4.661423206329346,
+              "surfaceMax": 5.066357135772705,
+              "surfaceVariation": 0.4049339294433594,
+              "moved": 11.872862631458924,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "groundY": 5.066357135772705
+            }
+          },
+          "shelter-c": {
+            "inputFingerprint": "sha256-92d61745922fe4d83ddb8754696d4bdfd880fdd385d6621a9af1655126b9e10d",
+            "result": {
+              "x": 35.090006866455084,
+              "y": 8.819927215576172,
+              "z": 22.110004119873047,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 8.410736083984375,
+              "surfaceMax": 8.82884407043457,
+              "surfaceVariation": 0.4181079864501953,
+              "moved": 6.050995673356588,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              },
+              "groundY": 8.819927215576172
+            }
+          },
+          "shelter-d": {
+            "inputFingerprint": "sha256-7d6fecab1708e10b6fad0206557c7a7779d9912c8e8c570c5b97fab2be5f176a",
+            "result": null
+          }
+        },
+        "companions": {
+          "level-0": {
+            "input": {
+              "x": 42.24,
+              "z": 19.36
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-9c8c11bca9fafb857ef3f8a5cb95abdcf9b294bd83280a33ac194c7bf311b00d",
+            "exact": null,
+            "recovery": {
+              "x": 39.490006866455076,
+              "y": 7.926228523254393,
+              "z": 18.59000411987305,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.839575290679932,
+              "surfaceMax": 7.991818904876709,
+              "surfaceVariation": 0.15224361419677734,
+              "moved": 2.855758373874918,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-1": {
+            "input": {
+              "x": 49.28,
+              "z": 16.72
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-7ae7e62f56dad5ae2ee0cff158910b5d89a45c1a8f416a46c42bf12b83712d60",
+            "exact": null,
+            "recovery": {
+              "x": 45.210006866455075,
+              "y": 11.2200927734375,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.128788948059082,
+              "surfaceMax": 11.27794075012207,
+              "surfaceVariation": 0.14915180206298828,
+              "moved": 7.291590653393532,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-2": {
+            "input": {
+              "x": 51.04,
+              "z": 21.12
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-f968bb50e1d9d458c4eb736797cd60f583dce14031b369067458be82c51e9f9f",
+            "exact": null,
+            "recovery": {
+              "x": 39.710006866455075,
+              "y": 7.674466609954834,
+              "z": 19.690004119873045,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.562224388122559,
+              "surfaceMax": 7.766623020172119,
+              "surfaceVariation": 0.20439863204956055,
+              "moved": 11.419878835756323,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-3": {
+            "input": {
+              "x": 50.160000000000004,
+              "z": 16.72
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-cfc1a6716453828a923d96c1ff5897d5abaafd7fcde73bec3c7662582e23852e",
+            "exact": null,
+            "recovery": {
+              "x": 44.77000686645508,
+              "y": 11.185356140136719,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.091947555541992,
+              "surfaceMax": 11.244918823242188,
+              "surfaceVariation": 0.1529712677001953,
+              "moved": 8.102744974958457,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-4": {
+            "input": {
+              "x": 50.160000000000004,
+              "z": 16.72
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-cfc1a6716453828a923d96c1ff5897d5abaafd7fcde73bec3c7662582e23852e",
+            "exact": null,
+            "recovery": {
+              "x": 44.77000686645508,
+              "y": 11.185356140136719,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.091947555541992,
+              "surfaceMax": 11.244918823242188,
+              "surfaceVariation": 0.1529712677001953,
+              "moved": 8.102744974958457,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-5": {
+            "input": {
+              "x": 52.8,
+              "z": 19.36
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-dd02b088afb991f077969b5162ccd0d9011aae6d22a87293e7e6164adfc037c1",
+            "exact": null,
+            "recovery": {
+              "x": 44.77000686645508,
+              "y": 11.185356140136719,
+              "z": 10.670004119873049,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 11.091947555541992,
+              "surfaceMax": 11.244918823242188,
+              "surfaceVariation": 0.1529712677001953,
+              "moved": 11.832025106523478,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-6": {
+            "input": {
+              "x": 51.04,
+              "z": 22.88
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-5efa97009cb6d0bf94e50bcc79fe99785684fa012c863a50ed8db5fc443cd576",
+            "exact": null,
+            "recovery": {
+              "x": 39.05000686645508,
+              "y": 7.826220989227295,
+              "z": 19.470004119873046,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.735146999359131,
+              "surfaceMax": 7.890161991119385,
+              "surfaceVariation": 0.1550149917602539,
+              "moved": 12.465472604154932,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-7": {
+            "input": {
+              "x": 51.04,
+              "z": 22.88
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-5efa97009cb6d0bf94e50bcc79fe99785684fa012c863a50ed8db5fc443cd576",
+            "exact": null,
+            "recovery": {
+              "x": 39.05000686645508,
+              "y": 7.826220989227295,
+              "z": 19.470004119873046,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.735146999359131,
+              "surfaceMax": 7.890161991119385,
+              "surfaceVariation": 0.1550149917602539,
+              "moved": 12.465472604154932,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-8": {
+            "input": {
+              "x": 49.28,
+              "z": 23.76
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-f5084ee0035868a4b92cc59665eb261fdbaf5810ce39cb35521a22a2085c4bcd",
+            "exact": null,
+            "recovery": {
+              "x": 39.27000686645508,
+              "y": 7.755977630615234,
+              "z": 19.690004119873045,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.631162643432617,
+              "surfaceMax": 7.835762023925781,
+              "surfaceVariation": 0.20459938049316406,
+              "moved": 10.805777574884045,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-9": {
+            "input": {
+              "x": 51.92,
+              "z": 21.12
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-214cc28ab8a2f52d2d0f14057dbebda32694b183dad7d743828510edf1fa6c38",
+            "exact": null,
+            "recovery": {
+              "x": 39.27000686645508,
+              "y": 7.755977630615234,
+              "z": 19.690004119873045,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.631162643432617,
+              "surfaceMax": 7.835762023925781,
+              "surfaceVariation": 0.20459938049316406,
+              "moved": 12.730562222302432,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-10": {
+            "input": {
+              "x": 51.04,
+              "z": 25.52
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-cd90affaa09a4d970afc4c971daccb429023d4f1d37ffd890bf8482ec51028e6",
+            "exact": null,
+            "recovery": {
+              "x": 39.05000686645508,
+              "y": 7.826220989227295,
+              "z": 19.470004119873046,
+              "walkable": true,
+              "component": 0,
+              "surfaceMin": 7.735146999359131,
+              "surfaceMax": 7.890161991119385,
+              "surfaceVariation": 0.1550149917602539,
+              "moved": 13.429906384335204,
+              "validation": {
+                "groundDelta": 0,
+                "walkable": true,
+                "fakeZero": false,
+                "component": 0
+              }
+            }
+          },
+          "level-11": {
+            "input": {
+              "x": 52.8,
+              "z": 24.64
+            },
+            "exactFingerprint": "sha256-ebd36fe594e6a76aea9711bf111b310332e6632041690c3684502127c61f8d0a",
+            "recoveryFingerprint": "sha256-719160459ad6316125f9062b2c2ce8c413a9acf20395fdff4c376fb0d5e92922",
+            "exact": null,
+            "recovery": null
+          }
+        }
+      },
+      "source": {
+        "glb": "assets/verdant/tiers/high/verdant-trail-high.glb",
+        "glbSha256": "ce2e6a0ad3b7bb47eb36c6dcf8ea8f2e6e00838ced61e27c6c1249d6c27b23fc",
+        "walkableField": "assets/verdant/tiers/high/walkable-field.bin",
+        "walkableFieldSha256": "cb9601f2cd8e21c1867effcaed03e64769c764efc39dc1f2d4ad3f701472ccb3"
+      }
+    }
+  }
+}

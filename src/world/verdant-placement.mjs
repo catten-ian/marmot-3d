@@ -1,3 +1,4 @@
+import { sha256Hex } from './verdant-walkable-bin.mjs';
 /** Pure, deterministic placement on connected Verdant surface layers. */
 export const VERDANT_SURFACE_LAYER_COUNT = 4;
 const SUPPORT_RING = [
@@ -392,4 +393,30 @@ export async function chooseCentralBaseSiteCooperative(field, options = {}, { on
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   return null;
+}
+
+/** Stable SHA-256 fingerprint for placement-critical field data. */
+export function fingerprintPlacementField(field) {
+  if (!field || !Number.isInteger(field.nx) || !Number.isInteger(field.nz)) return null;
+  const chunks = [];
+  const encoder = new TextEncoder();
+  let total = 0;
+  const push = (bytes) => { chunks.push(bytes); total += bytes.byteLength; };
+  const addText = (text) => push(encoder.encode(`${String(text)}\0`));
+  addText(`${field.nx}|${field.nz}|${field.layerCount}|${field.cellSize}`);
+  for (const key of ['minX', 'maxX', 'minZ', 'maxZ']) addText(field.bounds?.[key]);
+  for (const array of [field.walkable, field.surfaceLayers, field.layerLabels, field.obstacleMask]) {
+    if (!array) { addText('null'); continue; }
+    addText(`${array.constructor.name}:${array.length}`);
+    push(new Uint8Array(array.buffer, array.byteOffset, array.byteLength));
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return `sha256-${sha256Hex(bytes)}`;
+}
+
+/** Stable signature for the authored coordinates/options that key baked points. */
+export function fingerprintPlacementInputs(inputs) {
+  return `sha256-${sha256Hex(new TextEncoder().encode(JSON.stringify(inputs)))}`;
 }
