@@ -1,0 +1,73 @@
+{
+  "beta": true,
+  "results": [
+    {
+      "scenario": "facing",
+      "commits": 1,
+      "hits": 1,
+      "commitRate": 1,
+      "hitRate": 1,
+      "submissions": [
+        {
+          "time": 0,
+          "distance": 5.5,
+          "angle": 0,
+          "suspicion": 1,
+          "memory": 0,
+          "fatigue": 0
+        }
+      ]
+    },
+    {
+      "scenario": "back_turned",
+      "commits": 1,
+      "hits": 1,
+      "commitRate": 1,
+      "hitRate": 1,
+      "submissions": [
+        {
+          "time": 0,
+          "distance": 5.5,
+          "angle": 0,
+          "suspicion": 0,
+          "memory": 0,
+          "fatigue": 0
+        }
+      ]
+    },
+    {
+      "scenario": "memory_one",
+      "commits": 1,
+      "hits": 1,
+      "commitRate": 1,
+      "hitRate": 1,
+      "submissions": [
+        {
+          "time": 0,
+          "distance": 5.5,
+          "angle": 0,
+          "suspicion": 1,
+          "memory": 1,
+          "fatigue": 0
+        }
+      ]
+    },
+    {
+      "scenario": "multi_fox",
+      "commits": 1,
+      "hits": 1,
+      "commitRate": 1,
+      "hitRate": 1,
+      "submissions": [
+        {
+          "time": 0,
+          "distance": 5.5,
+          "angle": 0,
+          "suspicion": 1,
+          "memory": 0,
+          "fatigue": 0
+        }
+      ]
+    }
+  ]
+}
