@@ -58,12 +58,31 @@ export function ingestGraze(state, amount, {
   };
 }
 
+/** Return the outside-mouth chewing rate for the current horizontal speed. */
+export function resolveMouthChewRate(speed, {
+  speedThreshold = BETA_TUNE.chewRunSpeedThreshold,
+  chewPerSec = BETA_TUNE.chewPerSec,
+  runRateRatio = BETA_TUNE.chewRunRateRatio,
+} = {}) {
+  const fullRate = Math.max(0, Number(chewPerSec) || 0);
+  const threshold = Math.max(0, Number(speedThreshold) || 0);
+  const floorRatio = Math.max(0, Math.min(1, Number(runRateRatio) || 0));
+  const currentSpeed = Number(speed);
+  if (!Number.isFinite(currentSpeed)) return 0;
+  if (currentSpeed > threshold) return 0;
+  if (!(threshold > 0)) return fullRate * floorRatio;
+  const progress = Math.max(0, Math.min(1, currentSpeed / threshold));
+  return fullRate * (1 - progress * (1 - floorRatio));
+}
+
 /**
  * Chewing is the only burrow recovery path. Both burrow kinds chew, main > temporary;
- * an empty mouth cannot generate stamina/fat. Outside, standing requires !running && !grazing.
+ * an empty mouth cannot generate stamina/fat. Outside, speed at or below the ordinary
+ * running threshold chews at a linearly reduced rate; grazing still pauses chewing.
  */
 export function chewMouth(state, dt, {
-  running = false, grazing = false, burrowType = null,
+  running = false, grazing = false, speed = null, speedThreshold = BETA_TUNE.chewRunSpeedThreshold,
+  runRateRatio = BETA_TUNE.chewRunRateRatio, burrowType = null,
   mouthCapacity = BETA_TUNE.mouthCapacity,
   chewPerSec = BETA_TUNE.chewPerSec,
   mainRate = BETA_TUNE.mainBurrowChewPerSec,
@@ -71,10 +90,14 @@ export function chewMouth(state, dt, {
 } = {}) {
   const mouth = clampResource(state.mouth, mouthCapacity);
   const inBurrow = burrowType === 'base' || burrowType === 'shelter';
-  const standing = !running && !grazing;
-  const rate = burrowType === 'base' ? mainRate : burrowType === 'shelter' ? temporaryRate : standing ? chewPerSec : 0;
+  // Legacy callers without a speed value keep the old explicit running stop.
+  const hasSpeed = speed != null && Number.isFinite(Number(speed));
+  const outsideRate = hasSpeed
+    ? resolveMouthChewRate(speed, { speedThreshold, chewPerSec, runRateRatio })
+    : (running || grazing ? 0 : Math.max(0, chewPerSec));
+  const rate = burrowType === 'base' ? mainRate : burrowType === 'shelter' ? temporaryRate : grazing ? 0 : outsideRate;
   const chewed = Math.min(mouth, Math.max(0, rate) * Math.max(0, Number.isFinite(dt) ? dt : 0));
-  if (!inBurrow && !standing) return { ...state, mouth, chewed: 0, staminaGain: 0, fatGain: 0 };
+  if (!inBurrow && (grazing || (!hasSpeed && running))) return { ...state, mouth, chewed: 0, staminaGain: 0, fatGain: 0 };
   const converted = applyNutrition({ ...state, mouth: mouth - chewed }, chewed);
   return { ...converted, chewed };
 }

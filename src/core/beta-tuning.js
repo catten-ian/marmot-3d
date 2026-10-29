@@ -1,6 +1,7 @@
 // beta 专属玩法平衡。所有数值仅在 IS_BETA 下被 main.js 采用；
 // 纯函数显式接收 betaOn 等参数，便于 node 单测，不在模块顶层依赖 DOM。
 import { IS_BETA } from './version.js';
+import { PLAYER } from './config.js';
 
 export const BETA_ACTIVE = IS_BETA;
 
@@ -22,6 +23,9 @@ export const BETA_TUNE = {
   grazeImmediateShare: 0.35, // 35% 草料立即转化，其余进入有限口腔缓冲
   mouthCapacity: 120,
   chewPerSec: 5,
+  // 口腔消化速度阈值：玩家普通无 Shift/非摇杆内圈速度（PLAYER.speed 经 Beta 移速倍率）。
+  chewRunSpeedThreshold: PLAYER.speed * 1.07,
+  chewRunRateRatio: 0.25, // 达到普通奔跑阈值时保留的咀嚼速率比例。
   mainBurrowChewPerSec: 12,
   temporaryBurrowChewPerSec: 7.5,
   staminaFatThreshold: 0.6,

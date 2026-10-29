@@ -1956,7 +1956,8 @@ function update(dt) {
   const burrowRegenMul = devOn('famineTolerance') ? HERBIVORE.burrowRegenMul : 1;
   if (IS_BETA) {
     syncMetabolism(p, chewMouth(p, dt, {
-      running: moving && sprinting, grazing: forage.index === -2 && interactHeld,
+      running: moving && sprinting, speed: p.speed,
+      grazing: forage.index === -2 && interactHeld,
       burrowType: game.currentBurrow?.type || null,
     }));
     if (game.flowerRecovery) {

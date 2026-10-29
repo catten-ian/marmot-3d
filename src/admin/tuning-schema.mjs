@@ -185,6 +185,8 @@ export function buildTuningEntries() {
     ['grazeMoveSpeedMul', '吃草移动速度倍率', 0, 2, ''],
     ['mouthCapacity', '口中食物储备上限', 0, 500, '单位'],
     ['chewPerSec', '站立吃草咀嚼速率', 0, 30, '单位/s'],
+    ['chewRunSpeedThreshold', '口腔消化奔跑速度阈值', 0, 20, 'm/s'],
+    ['chewRunRateRatio', '奔跑时口腔消化速率比例', 0, 1, '×'],
     ['mainBurrowChewPerSec', '主洞咀嚼速率', 0, 60, '单位/s'],
     ['temporaryBurrowChewPerSec', '临时洞咀嚼速率', 0, 60, '单位/s'],
 
