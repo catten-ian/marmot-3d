@@ -44,7 +44,7 @@
 - 工作树：`/home/fame/code/marmot3d/m3d-beta-digestion-rate-20261029`
 - 分支：`feat/beta-digestion-rate-20261029`
 - base SHA：`d817cea031a4728d4706f7297b70b9a804753fb3`
-- commit hash：9d74a717a1a439891ab424de2d1d89577c926572
+- commit hash：bc54d52e3ab546b5f95674bed91090928a6a1c6a（实现提交）
 - push/deploy：未 push，未部署；未改 Caddy/systemd/线上文件，未改 stable/dev 分支或版本戳/public shell。
 
 ## Codex 自评
