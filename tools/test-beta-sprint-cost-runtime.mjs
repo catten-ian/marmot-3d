@@ -77,6 +77,12 @@ test('invalid explicit query and absent active config leave shipped Beta default
   assert.equal(storageFailTarget.sprintMoveCost, 0, 'storage errors do not block an available active config');
 });
 
+test('Beta main loop checks whether the sprint binding is pressed, not merely configured', () => {
+  const main = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  assert.match(main, /IS_BETA\s*\n\s*\? controller\.touchSprint \|\| binds\.keys\('sprint'\)\.some\(\(code\) => keys\.has\(code\)\)/);
+  assert.doesNotMatch(main, /const sprinting = controller\.touchSprint \|\| binds\.isAction\('ShiftLeft', 'sprint'\)/);
+});
+
 test('zero sprint cost produces zero per-frame movement drain, including boost and overdrive', () => {
   const tune = { ...BETA_TUNE, sprintMoveCost: 0 };
   const dt = 1 / 60;

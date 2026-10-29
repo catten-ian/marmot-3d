@@ -1896,9 +1896,11 @@ function update(dt) {
   if (IS_BETA) speedMul *= BETA_TUNE.moveSpeedMul;
   if (IS_BETA) speedMul *= 1 + (BETA_TUNE.grazeMoveSpeedMul - 1) * grazeProne;
   // 疾行：按方案查表，并额外接受任意一侧 Shift（双手都能用）
-  const sprinting = controller.touchSprint || binds.isAction('ShiftLeft', 'sprint')
-    || binds.isAction('ShiftRight', 'sprint')
-    || keys.has('ShiftLeft') || keys.has('ShiftRight');
+  // Beta 疾跑必须判断绑定键是否实际按下；isAction 只表示“该键已绑定”，不能代表按键状态。
+  const sprinting = IS_BETA
+    ? controller.touchSprint || binds.keys('sprint').some((code) => keys.has(code))
+    : controller.touchSprint || binds.isAction('ShiftLeft', 'sprint')
+      || binds.isAction('ShiftRight', 'sprint') || keys.has('ShiftLeft') || keys.has('ShiftRight');
   if (sprinting && p.energy > 5) speedMul *= 1.42;
   // 阵风走 controller.externalVelocity.x；洞内先清掉上一帧残留的横向风速，
   // 避免只把本帧 gust 设为 0 却让风继续把玩家拖行。
