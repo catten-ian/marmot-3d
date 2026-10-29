@@ -38,7 +38,14 @@ export const BETA_TUNE = {
   smartPounceAimOffsetScale: 0, // 提交态不把分离/包抄偏移带入最终瞄准点
   smartPounceMinDistance: 4.2,
   smartPounceMaxDistance: 6.2,
-  smartPounceHitRadius: 1.3, // Beta 扑击水平命中半径上限，避免冲穿后仍判定过宽
+  smartPounceHitRadius: 1.3,
+  smartPounceMinDistance: 3.8,
+  smartPounceMaxDistance: 6.8,
+  smartPounceApproachRadius: 5.0,
+  smartPounceObserveRadius: 7.0,
+  smartPounceDashEndDistance: 2.0,
+  smartPounceMemoryPenalty: 0.18,
+  smartPounceFatiguePenalty: 0.12, // Beta 扑击水平命中半径上限，避免冲穿后仍判定过宽
   // —— 眩晕递减（仅 Beta）——
   stunDiminishWindow: 3.0,       // 上次施加/结束后，窗口内再次命中会递减
   stunDiminishFactor: 0.55,      // 每层眩晕时长倍率

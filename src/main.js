@@ -1456,6 +1456,14 @@ function resume() {
 // ============================================================
 // 战斗动作
 // ============================================================
+function segmentPointDistance2D(ax, az, bx, bz, px, pz) {
+  const dx = bx - ax, dz = bz - az;
+  const len2 = dx * dx + dz * dz;
+  const t = len2 > 1e-9 ? Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / len2)) : 0;
+  const qx = ax + dx * t - px, qz = az + dz * t - pz;
+  return Math.hypot(qx, qz);
+}
+
 const _fwd = new THREE.Vector3();
 // 缓存本次战斗数值，供 viewmodel 的攻击动画计算进度使用
 let stats_cache = { cd: 0 };
@@ -1957,6 +1965,7 @@ function update(dt) {
   const smartTactics = { roles: null };
   for (const f of foxes) {
     const prevState = f.state;
+    const prevFoxX = f.x, prevFoxZ = f.z;
     if (sandboxState.parryDrill) {
       f.drillCtx = { px: p.x, pz: p.z, yaw: controller.bodyYaw };
     } else if (f.drillCtx) {
@@ -1992,7 +2001,8 @@ function update(dt) {
         playerBottom, playerHeight: playerHitHeight, foxBottom, foxHeight: foxHitHeight,
         groundAttackHeight: FOX.groundAttackHeight, dodgeHeight: PLAYER.jump.dodgeHeight, mode: f.attack?.mode, state: f.state,
       });
-      if (d < reach && verticalOverlap) {
+      const sweptD = f.type === 'smart' && IS_BETA ? segmentPointDistance2D(prevFoxX, prevFoxZ, f.x, f.z, p.x, p.z) : d;
+      if (sweptD < reach && verticalOverlap) {
         // 迎击判定（振刀式）：迎击窗口未过期 + 狐狸正在 dash 攻击窗口内 +
         // 接触距离内 + 狐狸从玩家攻击朝向正面（约 ±80°）冲来 → 抵消本次接触并反打。
         // 狐狸空闲/巡逻/蓄力(wind)/喘息(rest)、玩家输入过早或过晚，都不算迎击。

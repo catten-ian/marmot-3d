@@ -268,6 +268,8 @@ const wrapAngle = (a) => {
 };
 
 export function utilityScores(input = {}) {
+  const beta = input.betaOn === true;
+  const weights = beta ? { ...SMART_WEIGHTS, approachSuspicion: input.approachSuspicionWeight ?? 0.10, pounceSuspicion: input.pounceSuspicionWeight ?? 0.36, pounceBase: input.pounceBaseWeight ?? 0.14, pounceDistance: input.pounceDistanceWeight ?? 0.50, pounceMemory: input.pounceMemoryPenalty ?? 0.18, pounceInterruptions: input.pounceInterruptionPenalty ?? 0.16, pounceFatigue: input.pounceFatiguePenalty ?? 0.12 } : SMART_WEIGHTS;
   const distance = Number.isFinite(input.distance) ? input.distance : 20;
   const d = clamp(1 - distance / 24);
   const facing = clamp((Number.isFinite(input.playerFacing) ? input.playerFacing : 0.5));
@@ -278,13 +280,13 @@ export function utilityScores(input = {}) {
   const memory = clamp((input.memory ?? 0) / 3);
   const suspicion = clamp(input.suspicion ?? 0);
   const scores = {
-    observe: SMART_WEIGHTS.observeBase + (1 - suspicion) * SMART_WEIGHTS.observeUnaware + (1 - d) * SMART_WEIGHTS.observeDistance,
-    approach: SMART_WEIGHTS.approachBase + d * SMART_WEIGHTS.approachDistance + suspicion * SMART_WEIGHTS.approachSuspicion + (1 - guard) * SMART_WEIGHTS.approachUnguarded,
-    feint: SMART_WEIGHTS.feintBase + guard * SMART_WEIGHTS.feintGuard + memory * SMART_WEIGHTS.feintMemory + interruptions * SMART_WEIGHTS.feintInterruptions,
-    pounce: SMART_WEIGHTS.pounceBase + d * SMART_WEIGHTS.pounceDistance + suspicion * SMART_WEIGHTS.pounceSuspicion + (1 - guard) * SMART_WEIGHTS.pounceUnguarded
-      - memory * SMART_WEIGHTS.pounceMemory - interruptions * SMART_WEIGHTS.pounceInterruptions - fatigue * SMART_WEIGHTS.pounceFatigue,
-    recover: SMART_WEIGHTS.recoverBase + fatigue * SMART_WEIGHTS.recoverFatigue + (1 - health) * SMART_WEIGHTS.recoverHealth + interruptions * SMART_WEIGHTS.recoverInterruptions,
-    abandon: SMART_WEIGHTS.abandonBase + (1 - health) * SMART_WEIGHTS.abandonHealth + fatigue * SMART_WEIGHTS.abandonFatigue + (distance < 4 ? SMART_WEIGHTS.abandonClose : 0),
+    observe: weights.observeBase + (1 - suspicion) * weights.observeUnaware + (1 - d) * weights.observeDistance,
+    approach: weights.approachBase + d * weights.approachDistance + suspicion * weights.approachSuspicion + (1 - guard) * weights.approachUnguarded,
+    feint: weights.feintBase + guard * weights.feintGuard + memory * weights.feintMemory + interruptions * weights.feintInterruptions,
+    pounce: weights.pounceBase + d * weights.pounceDistance + suspicion * weights.pounceSuspicion + (1 - guard) * weights.pounceUnguarded
+      - memory * weights.pounceMemory - interruptions * weights.pounceInterruptions - fatigue * weights.pounceFatigue,
+    recover: weights.recoverBase + fatigue * weights.recoverFatigue + (1 - health) * weights.recoverHealth + interruptions * weights.recoverInterruptions,
+    abandon: weights.abandonBase + (1 - health) * weights.abandonHealth + fatigue * weights.abandonFatigue + (distance < 4 ? weights.abandonClose : 0),
   };
   scores.feint *= input.feintScale ?? 1;
   for (const key of SMART_INTENTS) scores[key] = Number(scores[key].toFixed(6));

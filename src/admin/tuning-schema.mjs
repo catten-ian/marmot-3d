@@ -210,6 +210,11 @@ export function buildTuningEntries() {
   e.push(num('beta.smartPounceMinDistance', G_BETA, '智能狐扑击最小提交距离', F_BETA, 'BETA_TUNE.smartPounceMinDistance', BETA_TUNE.smartPounceMinDistance, { min: 1, max: 15, unit: 'm' }));
   e.push(num('beta.smartPounceMaxDistance', G_BETA, '智能狐扑击最大提交距离', F_BETA, 'BETA_TUNE.smartPounceMaxDistance', BETA_TUNE.smartPounceMaxDistance, { min: 1, max: 20, unit: 'm' }));
   e.push(num('beta.smartPounceHitRadius', G_BETA, '智能狐扑击额外命中半径', F_BETA, 'BETA_TUNE.smartPounceHitRadius', BETA_TUNE.smartPounceHitRadius, { min: 0, max: 3, unit: 'm' }));
+  e.push(num('beta.smartPounceApproachRadius', G_BETA, '智能狐扑击接近停靠半径', F_BETA, 'BETA_TUNE.smartPounceApproachRadius', BETA_TUNE.smartPounceApproachRadius, { min: 2, max: 10, unit: 'm' }));
+  e.push(num('beta.smartPounceObserveRadius', G_BETA, '智能狐观察停靠半径', F_BETA, 'BETA_TUNE.smartPounceObserveRadius', BETA_TUNE.smartPounceObserveRadius, { min: 4, max: 12, unit: 'm' }));
+  e.push(num('beta.smartPounceDashEndDistance', G_BETA, '智能狐冲刺结束距离', F_BETA, 'BETA_TUNE.smartPounceDashEndDistance', BETA_TUNE.smartPounceDashEndDistance, { min: 0.5, max: 4, unit: 'm' }));
+  e.push(num('beta.smartPounceMemoryPenalty', G_BETA, '智能狐记忆抑制系数', F_BETA, 'BETA_TUNE.smartPounceMemoryPenalty', BETA_TUNE.smartPounceMemoryPenalty, { min: 0, max: 1 }));
+  e.push(num('beta.smartPounceFatiguePenalty', G_BETA, '智能狐疲劳抑制系数', F_BETA, 'BETA_TUNE.smartPounceFatiguePenalty', BETA_TUNE.smartPounceFatiguePenalty, { min: 0, max: 1 }));
   e.push(bool('beta.flowerInstant', G_BETA, '吃花立即完成', F_BETA, 'BETA_TUNE.flowerInstant', BETA_TUNE.flowerInstant));
 
   const G_BURROW = '洞穴与避难';
