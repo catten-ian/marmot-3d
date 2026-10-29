@@ -11,7 +11,7 @@
  *   悬崖侧壁不会被当成地面。
  * - 节点自带缩放/旋转，统一用 matrixWorld 换到运行时坐标。
  */
-import * as THREE from 'three';
+import * as THREE from '../../vendor/three.module.js';
 import { findNearestWalkableCell } from './verdant-fall-safety.mjs';
 import { selectConnectedObstacleProxies } from './verdant-obstacles.mjs';
 import { buildSurfaceComponents } from './verdant-placement.mjs';
