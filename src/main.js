@@ -81,7 +81,7 @@ import { createBurrows } from './world/burrows.js';
 import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
-import { createSmartPack } from './entities/smart-fox-core.mjs';
+import { createSmartPack, smartMeleeContactHit } from './entities/smart-fox-core.mjs';
 import { hpDamageMultiplier } from './core/fox-motion.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, IS_BETA, USE_REAL_MODELS, USE_REAL_FOX_MODEL, VERSION, VERSION_LABEL } from './core/version.js';
@@ -599,7 +599,7 @@ function testSnapshot() {
     test: { ...testState },
     player: { x: Number(controller.position.x.toFixed(2)), y: Number(controller.position.y.toFixed(2)),
       z: Number(controller.position.z.toFixed(2)), yaw: Number(controller.yaw.toFixed(3)) },
-    foxes: foxes.map((fox) => ({ type: fox.type, state: fox.state, hp: Number(fox.hp.toFixed(1)),
+    foxes: foxes.map((fox) => ({ type: fox.type, state: fox.state, meleePhase: fox.meleePhase ?? null, hp: Number(fox.hp.toFixed(1)),
       x: Number(fox.x.toFixed(2)), z: Number(fox.z.toFixed(2)) })),
   };
 }
@@ -1997,6 +1997,7 @@ function update(dt) {
     const prevState = f.state;
     const prevFoxX = f.x, prevFoxZ = f.z;
     const prevCommitted = !!f.pounceCommitted;
+    const prevMeleePhase = f.meleePhase ?? null;
     if (sandboxState.parryDrill) {
       f.drillCtx = { px: p.x, pz: p.z, yaw: controller.bodyYaw };
     } else if (f.drillCtx) {
@@ -2014,6 +2015,10 @@ function update(dt) {
       }
       if (f.pounceCommitted && f.pounceStriking) sandboxRecorder.push('smart-pounce-strike-frame', { fox: sandboxRecorder.idFor(f), distance: Number(Math.hypot(f.x - p.x, f.z - p.z).toFixed(3)), sweptDistance: Number(segmentPointDistance2D(prevFoxX, prevFoxZ, f.x, f.z, p.x, p.z).toFixed(3)) }, game.totalTime);
     }
+    if (IS_BETA && f.type === 'smart' && prevMeleePhase !== (f.meleePhase ?? null)) {
+      recordTestLog('smart-melee-phase', { from: prevMeleePhase, to: f.meleePhase ?? null,
+        distance: Number(Math.hypot(f.x - p.x, f.z - p.z).toFixed(3)) });
+    }
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
@@ -2024,12 +2029,14 @@ function update(dt) {
     // 接触伤害
     // 智能藏狐在 approach/feint 阶段也会高速贴身，但只有不可取消的扑击(pounce)
     // 才应造成伤害，故对 type==='smart' 额外要求 pounceCommitted。
-    // 阶段 4：智能狐只有"扑咬 strike 激活帧"才结算接触伤害（冲刺逼近/前摇/后摇不造成伤害）。
-    const smartCanHit = f.type !== 'smart' || (f.pounceCommitted && f.pounceStriking);
+    // 智能狐只有扑击 strike 或 Beta 独立 melee strike 才结算；前摇/收招不造成伤害。
+    const smartMelee = IS_BETA && f.type === 'smart' && f.meleePhase === 'strike';
+    const smartCanHit = f.type !== 'smart' || (f.pounceCommitted && f.pounceStriking)
+      || (smartMelee && f.meleeStriking && !f.meleeHitConsumed);
     if (f.alive && !game.inBurrow && p.invuln <= 0 && (f.contactCd ?? 0) <= 0 && smartCanHit) {
       const d = Math.hypot(f.x - p.x, f.z - p.z);
       const reachBase = PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal);
-      const reach = f.type === 'smart' && IS_BETA
+      const reach = smartMelee ? BETA_TUNE.smartMeleeHitRange : f.type === 'smart' && IS_BETA
         ? Math.min(reachBase, BETA_TUNE.smartPounceHitRadiusCap)
         : reachBase;
       // 水平接触仍受原半径限制；高度则比较双方碰撞区间，
@@ -2042,8 +2049,13 @@ function update(dt) {
         playerBottom, playerHeight: playerHitHeight, foxBottom, foxHeight: foxHitHeight,
         groundAttackHeight: FOX.groundAttackHeight, dodgeHeight: PLAYER.jump.dodgeHeight, mode: f.attack?.mode, state: f.state,
       });
-      const sweptD = f.type === 'smart' && IS_BETA ? segmentPointDistance2D(prevFoxX, prevFoxZ, f.x, f.z, p.x, p.z) : d;
-      if (sweptD < reach && verticalOverlap) {
+      const sweptD = f.type === 'smart' && IS_BETA && !smartMelee ? segmentPointDistance2D(prevFoxX, prevFoxZ, f.x, f.z, p.x, p.z) : d;
+      const contactHit = smartMelee ? smartMeleeContactHit({
+        phase: f.meleePhase, striking: f.meleeStriking, hitConsumed: f.meleeHitConsumed,
+        distance: d, verticalOverlap, safe: game.inBurrow, invulnerable: p.invuln > 0, contactCd: f.contactCd,
+      }, BETA_TUNE) : sweptD < reach && verticalOverlap;
+      if (contactHit) {
+        if (smartMelee) f.consumeSmartMeleeHit();
         // 迎击判定（振刀式）：迎击窗口未过期 + 狐狸正在 dash 攻击窗口内 +
         // 接触距离内 + 狐狸从玩家攻击朝向正面（约 ±80°）冲来 → 抵消本次接触并反打。
         // 狐狸空闲/巡逻/蓄力(wind)/喘息(rest)、玩家输入过早或过晚，都不算迎击。
@@ -2082,7 +2094,7 @@ function update(dt) {
         interruptHeldAttackCharge();
         clearPendingAerialParry();
         p.hp = testState.godMode ? Math.max(1, p.hp) : Math.max(0, p.hp - damage);
-        recordTestLog('player-hit', { foxType: f.type, damage, hpBefore, hpAfter: p.hp,
+        recordTestLog('player-hit', { foxType: f.type, attackKind: smartMelee ? 'melee' : f.type === 'smart' ? 'pounce' : 'contact', damage, hpBefore, hpAfter: p.hp,
           preventedByGodMode: testState.godMode });
         sandboxRecorder?.playerHit({
           fox: sandboxRecorder.idFor(f), foxType: f.type, damage: Number(damage),

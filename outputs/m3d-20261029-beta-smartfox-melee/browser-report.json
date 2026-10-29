@@ -1,0 +1,2168 @@
+{
+  "generatedAt": "2026-10-29T16:23:14.094Z",
+  "target": "http://127.0.0.1:8700/index.html?version=beta&sandbox=1&test=1&webgl=1&qaMelee=1793290994093",
+  "desktop": {
+    "setup": {
+      "foxes": 1,
+      "smart": true,
+      "godMode": false
+    },
+    "backend": {
+      "backend": "WebGL2",
+      "renderer": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
+      "vendor": "Google Inc. (Intel)",
+      "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+      "three": "WebGLRenderer"
+    },
+    "windup": {
+      "phase": "windup",
+      "state": "wind",
+      "warn": true,
+      "fox": {
+        "x": 0,
+        "z": -1.2
+      },
+      "player": {
+        "x": 0,
+        "z": 0
+      },
+      "ndc": {
+        "x": 0,
+        "y": 2.7767173103310236,
+        "z": 0.9167265643718033
+      }
+    },
+    "strike": {
+      "phase": "strike",
+      "state": "dash",
+      "hp": 76
+    },
+    "recover": {
+      "phase": "recover",
+      "state": "rest",
+      "hp": 76
+    },
+    "samples": [
+      {
+        "at": 0.406,
+        "phase": null,
+        "state": "roam",
+        "hp": 100,
+        "distance": 61.703,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -61.507,
+        "z": 4.909
+      },
+      {
+        "at": 0.438,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.455,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0818,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.473,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0704,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.49,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0601,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.537,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0315,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.553,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0213,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.594,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9967,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.61,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9865,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.659,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9567,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.709,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.08,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -1.08
+      },
+      {
+        "at": 0.747,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.151,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.988
+      },
+      {
+        "at": 0.764,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.178,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.948
+      },
+      {
+        "at": 0.781,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.201,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.908
+      },
+      {
+        "at": 0.809,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.232,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.84
+      },
+      {
+        "at": 0.826,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.247,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 0.865,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.36,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 0.881,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.407,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 0.9,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.455,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 0.916,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.496,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 0.95,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.571,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.665,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.038,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.729,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.055,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.755,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.075,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.785,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.092,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.809,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.126,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.853,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.176,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.906,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.193,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.923,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.21,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.939,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.226,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.955,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.272,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.991,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.288,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 2.003,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.799
+      },
+      {
+        "at": 1.338,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.99,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.754
+      },
+      {
+        "at": 1.355,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.98,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.734
+      },
+      {
+        "at": 1.388,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.939,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.674
+      },
+      {
+        "at": 1.405,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.912,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.639
+      },
+      {
+        "at": 1.429,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.863,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.578
+      },
+      {
+        "at": 1.446,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.823,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.531
+      },
+      {
+        "at": 1.486,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.695,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.387
+      },
+      {
+        "at": 1.503,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.637,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.322
+      },
+      {
+        "at": 1.526,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.547,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.225
+      },
+      {
+        "at": 1.543,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.476,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.148
+      },
+      {
+        "at": 1.573,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.33,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 0.008
+      },
+      {
+        "at": 1.59,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 1.244,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 0.098
+      },
+      {
+        "at": 1.64,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.94,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 0.414
+      },
+      {
+        "at": 1.656,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.837,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 0.521
+      },
+      {
+        "at": 1.676,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.715,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 0.647
+      },
+      {
+        "at": 1.693,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.612,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 0.754
+      },
+      {
+        "at": 1.733,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.364,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 1.009
+      },
+      {
+        "at": 1.749,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.26,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 1.116
+      },
+      {
+        "at": 1.767,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.148,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 1.231
+      },
+      {
+        "at": 1.784,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.043,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 1.338
+      },
+      {
+        "at": 1.815,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.153,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 1.539
+      },
+      {
+        "at": 1.832,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.258,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 1.646
+      },
+      {
+        "at": 1.858,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.422,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.001,
+        "z": 1.813
+      },
+      {
+        "at": 1.875,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.526,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.002,
+        "z": 1.919
+      },
+      {
+        "at": 1.903,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.702,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.005,
+        "z": 2.097
+      },
+      {
+        "at": 1.919,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.806,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 2.204
+      },
+      {
+        "at": 1.948,
+        "phase": null,
+        "state": "roam",
+        "hp": 88,
+        "distance": 0.989,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 1.965,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.988,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 1.982,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.986,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0818,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.985,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0708,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.016,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.984,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0606,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.066,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.98,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0301,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.083,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.979,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0198,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.101,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.978,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0088,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.118,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.978,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9986,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.148,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.976,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9801,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.165,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.975,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9699,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.194,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.974,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9517,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.211,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 88,
+        "distance": 0.973,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9416,
+        "x": 0.015,
+        "z": 2.389
+      },
+      {
+        "at": 2.249,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 76,
+        "distance": 0.881,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.014,
+        "z": 2.298
+      },
+      {
+        "at": 2.265,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 76,
+        "distance": 0.917,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.013,
+        "z": 2.258
+      },
+      {
+        "at": 2.289,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 76,
+        "distance": 0.96,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.012,
+        "z": 2.201
+      },
+      {
+        "at": 2.306,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 76,
+        "distance": 0.986,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.012,
+        "z": 2.161
+      },
+      {
+        "at": 2.337,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 76,
+        "distance": 1.023,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.01,
+        "z": 2.085
+      },
+      {
+        "at": 2.354,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 76,
+        "distance": 1.04,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.01,
+        "z": 2.045
+      },
+      {
+        "at": 2.394,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 76,
+        "distance": 1.063,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.411,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.11,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.435,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.175,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.452,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.216,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.496,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.312,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.513,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.346,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.563,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.433,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.579,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.46,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.62,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.519,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.636,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.542,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.665,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.578,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.682,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.598,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.732,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.649,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.748,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.665,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.798,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.706,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.815,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.719,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.856,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 76,
+        "distance": 1.747,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.949
+      },
+      {
+        "at": 2.872,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.752,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.945
+      },
+      {
+        "at": 2.912,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.735,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.008,
+        "z": 1.904
+      },
+      {
+        "at": 2.929,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.722,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.007,
+        "z": 1.882
+      },
+      {
+        "at": 2.949,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.697,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.007,
+        "z": 1.847
+      },
+      {
+        "at": 2.966,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.672,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.006,
+        "z": 1.814
+      },
+      {
+        "at": 2.983,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.642,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.006,
+        "z": 1.776
+      },
+      {
+        "at": 3,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.603,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.005,
+        "z": 1.73
+      },
+      {
+        "at": 3.017,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.561,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.004,
+        "z": 1.681
+      },
+      {
+        "at": 3.045,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.478,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.003,
+        "z": 1.587
+      },
+      {
+        "at": 3.061,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.422,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0.002,
+        "z": 1.526
+      },
+      {
+        "at": 3.091,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.307,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": 1.402
+      },
+      {
+        "at": 3.107,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.237,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.001,
+        "z": 1.326
+      },
+      {
+        "at": 3.136,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.1,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.004,
+        "z": 1.182
+      },
+      {
+        "at": 3.153,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 1.015,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.005,
+        "z": 1.092
+      },
+      {
+        "at": 3.178,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 0.878,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.007,
+        "z": 0.949
+      },
+      {
+        "at": 3.194,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 0.78,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.009,
+        "z": 0.847
+      },
+      {
+        "at": 3.227,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 0.577,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.012,
+        "z": 0.638
+      },
+      {
+        "at": 3.244,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 0.474,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.014,
+        "z": 0.531
+      },
+      {
+        "at": 3.281,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 0.24,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.018,
+        "z": 0.291
+      },
+      {
+        "at": 3.298,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 0.136,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.019,
+        "z": 0.184
+      },
+      {
+        "at": 3.348,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 0.177,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.024,
+        "z": -0.136
+      },
+      {
+        "at": 3.365,
+        "phase": null,
+        "state": "roam",
+        "hp": 76,
+        "distance": 0.282,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -0.026,
+        "z": -0.244
+      }
+    ],
+    "rangeControl": {
+      "done": true,
+      "startHp": 64,
+      "startHits": 3,
+      "phases": [
+        "recover",
+        null,
+        "windup",
+        "strike",
+        "recover",
+        null
+      ],
+      "sawStrike": true,
+      "sawRecover": true,
+      "endHp": 64,
+      "endHits": 3
+    },
+    "logs": [
+      {
+        "at": "2026-10-29T16:23:20.526Z",
+        "elapsed": 0.44,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": null,
+          "to": "windup",
+          "distance": 1.2
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:20.918Z",
+        "elapsed": 0.71,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "windup",
+          "to": "strike",
+          "distance": 1.08
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:20.919Z",
+        "elapsed": 0.71,
+        "level": 1,
+        "mode": "play",
+        "type": "player-hit",
+        "details": {
+          "foxType": "smart",
+          "attackKind": "melee",
+          "damage": 12,
+          "hpBefore": 100,
+          "hpAfter": 88,
+          "preventedByGodMode": false
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:21.058Z",
+        "elapsed": 0.86,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "strike",
+          "to": "recover",
+          "distance": 1.36
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:21.881Z",
+        "elapsed": 1.34,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "recover",
+          "to": null,
+          "distance": 1.99
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:22.507Z",
+        "elapsed": 1.96,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": null,
+          "to": "windup",
+          "distance": 0.988
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:22.804Z",
+        "elapsed": 2.25,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "windup",
+          "to": "strike",
+          "distance": 0.881
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:22.804Z",
+        "elapsed": 2.25,
+        "level": 1,
+        "mode": "play",
+        "type": "player-hit",
+        "details": {
+          "foxType": "smart",
+          "attackKind": "melee",
+          "damage": 12,
+          "hpBefore": 88,
+          "hpAfter": 76,
+          "preventedByGodMode": false
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:22.961Z",
+        "elapsed": 2.41,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "strike",
+          "to": "recover",
+          "distance": 1.11
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:23.450Z",
+        "elapsed": 2.87,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "recover",
+          "to": null,
+          "distance": 1.752
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:24.116Z",
+        "elapsed": 3.51,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": null,
+          "to": "windup",
+          "distance": 1.02
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:24.352Z",
+        "elapsed": 3.76,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "windup",
+          "to": "strike",
+          "distance": 0.966
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:24.352Z",
+        "elapsed": 3.76,
+        "level": 1,
+        "mode": "play",
+        "type": "player-hit",
+        "details": {
+          "foxType": "smart",
+          "attackKind": "melee",
+          "damage": 12,
+          "hpBefore": 76,
+          "hpAfter": 64,
+          "preventedByGodMode": false
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:24.555Z",
+        "elapsed": 3.94,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "strike",
+          "to": "recover",
+          "distance": 1.276
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:25.184Z",
+        "elapsed": 4.41,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "recover",
+          "to": null,
+          "distance": 1.864
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:29.498Z",
+        "elapsed": 8.45,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": null,
+          "to": "windup",
+          "distance": 2.305
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:29.760Z",
+        "elapsed": 8.71,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "windup",
+          "to": "strike",
+          "distance": 2.22
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:29.917Z",
+        "elapsed": 8.86,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "strike",
+          "to": "recover",
+          "distance": 1.887
+        }
+      },
+      {
+        "at": "2026-10-29T16:23:30.376Z",
+        "elapsed": 9.33,
+        "level": 1,
+        "mode": "play",
+        "type": "smart-melee-phase",
+        "details": {
+          "from": "recover",
+          "to": null,
+          "distance": 1.882
+        }
+      }
+    ],
+    "finalSnapshot": {
+      "timestamp": "2026-10-29T16:23:30.980Z",
+      "url": "http://127.0.0.1:8700/index.html?version=beta&sandbox=1&test=1&webgl=1&qaMelee=1793290994093",
+      "version": "BETA · 体验版（全部关卡开放）",
+      "game": {
+        "mode": "play",
+        "level": 1,
+        "time": null,
+        "elapsed": 9.89,
+        "totalTime": 9.89,
+        "hp": 64,
+        "energy": 96.7,
+        "stress": 59.9,
+        "foodCount": 0,
+        "levelRepels": 0,
+        "hits": 3,
+        "inBurrow": false
+      },
+      "test": {
+        "godMode": false,
+        "freezeTimer": true
+      },
+      "player": {
+        "x": 0.03,
+        "y": -2.78,
+        "z": 1.42,
+        "yaw": 0
+      },
+      "foxes": [
+        {
+          "type": "smart",
+          "state": "roam",
+          "meleePhase": null,
+          "hp": 4,
+          "x": -0.89,
+          "z": 10.12
+        }
+      ]
+    }
+  },
+  "mobile": {
+    "setup": {
+      "foxes": 1,
+      "smart": true,
+      "godMode": false
+    },
+    "backend": {
+      "backend": "WebGL2",
+      "renderer": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
+      "vendor": "Google Inc. (Intel)",
+      "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+      "three": "WebGLRenderer"
+    },
+    "samples": [
+      {
+        "at": 0.4,
+        "phase": null,
+        "state": "roam",
+        "hp": 100,
+        "distance": 61.751,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": -61.564,
+        "z": 4.797
+      },
+      {
+        "at": 0.45,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.5,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0614,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.54,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0372,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.587,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 1.0081,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.621,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9877,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.671,
+        "phase": "windup",
+        "state": "wind",
+        "hp": 100,
+        "distance": 1.2,
+        "committed": false,
+        "hitConsumed": false,
+        "warn": true,
+        "scaleY": 0.9571,
+        "x": 0,
+        "z": -1.2
+      },
+      {
+        "at": 0.721,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.08,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -1.08
+      },
+      {
+        "at": 0.767,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.161,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.968
+      },
+      {
+        "at": 0.817,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.217,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.848
+      },
+      {
+        "at": 0.867,
+        "phase": "strike",
+        "state": "dash",
+        "hp": 88,
+        "distance": 1.247,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.728
+      },
+      {
+        "at": 0.914,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.367,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.728
+      },
+      {
+        "at": 0.964,
+        "phase": "recover",
+        "state": "rest",
+        "hp": 88,
+        "distance": 1.477,
+        "committed": false,
+        "hitConsumed": true,
+        "warn": false,
+        "scaleY": 1.092,
+        "x": 0,
+        "z": -0.728
+      }
+    ],
+    "hud": {
+      "innerWidth": 390,
+      "innerHeight": 844,
+      "dpr": 3,
+      "maxTouchPoints": 5,
+      "bodyScrollWidth": 390,
+      "bodyScrollHeight": 844,
+      "items": {
+        "hudTop": {
+          "visible": true,
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 128
+          }
+        },
+        "hpText": {
+          "visible": true,
+          "rect": {
+            "x": 101.703125,
+            "y": 50.5,
+            "width": 30.296875,
+            "height": 15
+          }
+        },
+        "hpBar": {
+          "visible": true,
+          "rect": {
+            "x": 16,
+            "y": 69.5,
+            "width": 102.078125,
+            "height": 7
+          }
+        },
+        "touchControls": {
+          "visible": true,
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "width": 390,
+            "height": 844
+          }
+        },
+        "touchJoystick": {
+          "visible": true,
+          "rect": {
+            "x": 14,
+            "y": 718,
+            "width": 112,
+            "height": 112
+          }
+        }
+      },
+      "effectiveInput": "touch",
+      "hp": 88,
+      "meleeHits": 1
+    }
+  },
+  "errors": [
+    {
+      "kind": "log",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/manifest.json"
+    },
+    {
+      "kind": "log",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:8700/marmot3d-beta/api/auth/guest"
+    },
+    {
+      "kind": "log",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/foxWind.mp3"
+    },
+    {
+      "kind": "log",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/foxDash.mp3"
+    },
+    {
+      "kind": "log",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/manifest.json"
+    },
+    {
+      "kind": "log",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:8700/marmot3d-beta/api/auth/guest"
+    },
+    {
+      "kind": "log",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/foxWind.mp3"
+    },
+    {
+      "kind": "log",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/foxDash.mp3"
+    }
+  ],
+  "assertions": {
+    "desktopTwoRealMeleeHits": true,
+    "oncePerAction": true,
+    "hpDecreasedTwice": true,
+    "visiblePhases": true,
+    "rangeControlNoDamage": true,
+    "rangeControlActed": true,
+    "mobileRealMeleeHit": true,
+    "mobileHudBounds": true,
+    "mobileTouchAndDpr": true,
+    "noRuntimeErrors": true,
+    "noUnexpectedConsoleErrors": true
+  },
+  "assertionDetails": {
+    "firstTwoActionHits": [
+      1,
+      1
+    ]
+  }
+}

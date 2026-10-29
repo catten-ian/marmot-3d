@@ -16,6 +16,7 @@ import {
   smartPounceStaminaReserve, smartPounceStaminaDrainPerSec,
   updateSmartMemory, habituateDecayRate, stepInterruptionTimes,  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK, stepSmartContactCooldown,
   flankSlots, assignFlankSlot, assignRoles, forcedRetreat, assembleSmartAim,
+  createSmartMeleeState, advanceSmartMelee, cancelSmartMelee, consumeSmartMeleeHit,
 } from './smart-fox-core.mjs';
 
 /**
@@ -41,6 +42,10 @@ export class SmartFox extends Fox {
     this.pounceCommitted = false;
     this.pounceStage = null;    // 阶段 4：'dash' | 'windup' | 'strike' | 'recover' | null
     this.pounceStriking = false; // 仅 strike 激活帧 true —— 主循环据此做接触伤害
+    this._meleeState = createSmartMeleeState();
+    this.meleePhase = null;       // Beta：null | windup | strike | recover
+    this.meleeStriking = false;
+    this.meleeHitConsumed = false;
     this._smartState = {
       x, z, vx: 0, vz: 0, yaw: this.yaw,
       maxTurnRate: 2.8, acceleration: 18, pounceCooldown: 0, telegraphT: 0, phase: 'observe', phaseTime: 0, cooldown: 0, pounceTime: 0,
@@ -67,6 +72,24 @@ export class SmartFox extends Fox {
     this._lastPlayerPos = null;
   }
 
+  get meleeState() {
+    return { ...this._meleeState, phase: this.meleePhase, striking: this.meleeStriking, hitConsumed: this.meleeHitConsumed };
+  }
+
+  consumeSmartMeleeHit() {
+    if (!IS_BETA) return;
+    this._meleeState = consumeSmartMeleeHit(this._meleeState);
+    this.meleeHitConsumed = this._meleeState.hitConsumed;
+  }
+
+  _cancelMelee() {
+    if (!IS_BETA) return;
+    this._meleeState = cancelSmartMelee(this._meleeState);
+    this.meleePhase = null;
+    this.meleeStriking = false;
+    this.meleeHitConsumed = false;
+  }
+
   applySmartDifficulty(key) {
     this.smartDifficulty = SANDBOX_DIFFICULTIES[key] ? key : 'standard';
     const d = SANDBOX_DIFFICULTIES[this.smartDifficulty].smart;
@@ -81,6 +104,7 @@ export class SmartFox extends Fox {
     // 被驱退/撤退/休息/死亡/眩晕时退回普通狐狸逻辑（撤退移动、rest_safe、击退位移等）。
     if (this.fleeing || this.hp <= 0 || this.stun > 0
       || this.retreating || this.state === 'rest_safe' || this.state === 'dead') {
+      this._cancelMelee();
       return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
     }
     this._recoverLock = Math.max(0, this._recoverLock - Math.max(0, dt));
@@ -223,6 +247,17 @@ export class SmartFox extends Fox {
     // 故由本层按意图选点，避免逼近时穿过玩家、喘息时仍贴脸。
     const STAND = { observe: IS_BETA ? BETA_TUNE.smartPounceObserveRadius : 7.2, approach: IS_BETA ? BETA_TUNE.smartPounceApproachRadius : 3.4, feint: 4.6, recover: 11, abandon: 15 };
     const toP = Math.atan2(dx, dz);          // 狐→玩家 方位角
+    const pounceWindup = this._smartState.pounceWindup ?? .22;
+    const pouncePending = intent === 'pounce' && (this._smartState.windupRemaining ?? pounceWindup) < pounceWindup - 1e-6;
+    this._meleeState = IS_BETA ? advanceSmartMelee(this._meleeState, {
+      distance, reachable, safe, alive: this.alive && this.hp > 0,
+      stunned: this.stun > 0, retreating: this.retreating, fleeing: this.fleeing,
+      pounceCommitted: this.pounceCommitted,
+      pouncePending: pouncePending || this._recoverLock > 0 || this.pounceStage === 'recover',
+      targetYaw: toP,
+    }, dt, BETA_TUNE) : this._meleeState;
+    const meleeActive = IS_BETA && this._meleeState.phase !== null;
+    if (meleeActive) { intent = 'observe'; this.intent = 'observe'; }
     const dn = distance || 1;
     const ux = -dx / dn, uz = -dz / dn;      // 玩家→狐 单位向量（身后方向）
     const initialTacticalScale = (IS_BETA && intent === 'pounce') ? BETA_TUNE.smartPounceAimOffsetScale : 1;
@@ -290,7 +325,20 @@ export class SmartFox extends Fox {
       : { x: p.x, z: p.z };
     const ground = !this.pounceCommitted ? this._groundSteer(aimX - this.x, aimZ - this.z, this._smartState.approachSpeed, burrows) : null;
     const navigationAim = ground ? { x: this.x + ground.x * 100, z: this.z + ground.z * 100 } : { x: aimX, z: aimZ };
-    const next = stepSmartMotion(
+    const next = meleeActive ? {
+      ...this._smartState,
+      x: this.x, z: this.z, yaw: this._meleeState.yaw,
+      vx: 0, vz: 0, speed: 0,
+      pounceCommitted: false, pounceStriking: false,
+      pounceCooldown: Math.max(0, (this._smartState.pounceCooldown || 0) - dt),
+      ...(this._meleeState.phase === 'strike' ? {
+        x: this.x + Math.sin(this._meleeState.yaw) * BETA_TUNE.smartMeleeStrikeSpeed * dt,
+        z: this.z + Math.cos(this._meleeState.yaw) * BETA_TUNE.smartMeleeStrikeSpeed * dt,
+        vx: Math.sin(this._meleeState.yaw) * BETA_TUNE.smartMeleeStrikeSpeed,
+        vz: Math.cos(this._meleeState.yaw) * BETA_TUNE.smartMeleeStrikeSpeed,
+        speed: BETA_TUNE.smartMeleeStrikeSpeed,
+      } : {}),
+    } : stepSmartMotion(
       {
         ...this._smartState,
         x: this.x, z: this.z, yaw: this.yaw,
@@ -350,10 +398,20 @@ export class SmartFox extends Fox {
     this._smartState.cooldown = Math.max(this._smartState.cooldown || 0, next.pounceCooldown || 0);
     this.pounceStage = next.pounceStage ?? null;
     this.pounceStriking = !!next.pounceStriking;
+    this.meleePhase = meleeActive ? this._meleeState.phase : null;
+    this.meleeStriking = this.meleePhase === 'strike';
+    this.meleeHitConsumed = !!this._meleeState.hitConsumed;
+    if (this.meleePhase === 'windup') {
+      this.timer = this._meleeState.phaseTime;
+      this.windFull = BETA_TUNE.smartMeleeWindupTime;
+      this.windTotal = BETA_TUNE.smartMeleeWindupTime;
+    }
 
     // 映射到既有动画状态：冲刺阶段/扑击=dash（驱动预警/位移），极短前摇=wind（下蹲），
     // 后摇/喘息/放弃=rest（硬直），其余=roam。
-    this.state = this.pounceCommitted
+    this.state = meleeActive
+      ? ({ windup: 'wind', strike: 'dash', recover: 'rest' }[this.meleePhase])
+      : this.pounceCommitted
       ? (this.pounceStage === 'windup' ? 'wind' : 'dash')
       : (this.pounceStage === 'recover' || intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam';    this.leap = 0;
 
@@ -379,10 +437,11 @@ export class SmartFox extends Fox {
     this._updateHpBar();
     this._updateStaminaBar();
     // 阶段 4：预警线在"扑咬前的冲刺阶段"显示；保留提交前可读前摇的淡预警。
-    this.warn.visible = (this.pounceCommitted && this.pounceStage === 'dash')
+    this.warn.visible = this.meleePhase === 'windup'
+      || (this.pounceCommitted && this.pounceStage === 'dash')
       || (this._smartState.windupRemaining > 0 && intent === 'pounce');
     this._updateWarn(terrainAt);
-    this.telemetry.push({ intent, distance, guard, fatigue: this.fatigue, health: this.hp / this.maxHp,
+    this.telemetry.push({ intent, meleePhase: this.meleePhase, distance, guard, fatigue: this.fatigue, health: this.hp / this.maxHp,
       memory: this.memory, suspicion: this.suspicion, scores: { ...this.topScores } });
     if (this.telemetry.length > 192) this.telemetry.shift();
   }
@@ -390,7 +449,12 @@ export class SmartFox extends Fox {
   _updateWarn(terrainAt = terrainHeight) {
     if (!this.warn?.visible) return;
     this.warn.position.set(this.x, terrainAt(this.x, this.z) + .02, this.z);
-    this.warn.rotation.y = this.pounceCommitted ? this._smartState.pounceYaw : this.yaw;
+    this.warn.rotation.y = this.meleePhase === 'windup' ? this._meleeState.yaw : this.pounceCommitted ? this._smartState.pounceYaw : this.yaw;
+    if (this.meleePhase === 'windup') {
+      this.warn.scale.z = BETA_TUNE.smartMeleeHitRange;
+      this.warn.material.opacity = .7;
+      return;
+    }
     const speed = Math.hypot(this._smartState.vx, this._smartState.vz);
     // 冲刺阶段预警线长度 = 剩余冲刺的真实位移距离（真实速度积分，与 smartPounceDashDistance 一致）
     this.warn.scale.z = this.pounceCommitted
@@ -411,6 +475,7 @@ export class SmartFox extends Fox {
     this.memory = m.memory ?? this.memory;
     this.fatigue = clamp(this.fatigue + 0.18, 0, 1);
     this.pounceCommitted = false;
+    this._cancelMelee();
     const reset = trackFeint({ repeats: this._feintRepeats, side: this._feintSide, prevIntent: this._feintPrevIntent }, 'recover', { reset: 'hit' });
     this._feintRepeats = reset.repeats; this._feintSide = reset.side; this._feintPrevIntent = reset.prevIntent;
     this._recoverLock = 0;

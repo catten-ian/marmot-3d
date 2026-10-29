@@ -52,6 +52,14 @@ export const BETA_TUNE = {
   smartPounceMaxLeadDistance: 0.65,
   smartPounceStrikeSpeed: 10.8,
   smartPounceStrikeTime: 0.21, // 总位移约 2.27m，保留前摇和可闪避窗口
+  // —— 智能狐独立近身撕咬（仅 Beta）——
+  smartMeleeTriggerRange: 2.4,
+  smartMeleeHitRange: 1.55, // 当前水平接触距离；不复用扑击 swept hit
+  smartMeleeWindupTime: 0.25,
+  smartMeleeStrikeTime: 0.15,
+  smartMeleeRecoverTime: 0.45,
+  smartMeleeCooldown: 1.1, // 从进入 recover 起计，避免贴身连续无间隔扣血
+  smartMeleeStrikeSpeed: 2.4, // 攻击段约 0.36m 短位移
   // —— 眩晕递减（仅 Beta）——
   stunDiminishWindow: 3.0,       // 上次施加/结束后，窗口内再次命中会递减
   stunDiminishFactor: 0.55,      // 每层眩晕时长倍率

@@ -222,6 +222,13 @@ export function buildTuningEntries() {
   e.push(num('beta.smartPounceMaxLeadDistance', G_BETA, '智能狐提前量距离上限', F_BETA, 'BETA_TUNE.smartPounceMaxLeadDistance', BETA_TUNE.smartPounceMaxLeadDistance, { min: 0, max: 3, unit: 'm' }));
   e.push(num('beta.smartPounceStrikeSpeed', G_BETA, '智能狐扑击速度', F_BETA, 'BETA_TUNE.smartPounceStrikeSpeed', BETA_TUNE.smartPounceStrikeSpeed, { min: 2, max: 25, unit: 'm/s' }));
   e.push(num('beta.smartPounceStrikeTime', G_BETA, '智能狐扑击位移时长', F_BETA, 'BETA_TUNE.smartPounceStrikeTime', BETA_TUNE.smartPounceStrikeTime, { min: 0.05, max: 0.8, unit: 's' }));
+  e.push(num('beta.smartMeleeTriggerRange', G_BETA, '智能狐近战触发距离', F_BETA, 'BETA_TUNE.smartMeleeTriggerRange', BETA_TUNE.smartMeleeTriggerRange, { min: 0.5, max: 4, unit: 'm' }));
+  e.push(num('beta.smartMeleeHitRange', G_BETA, '智能狐近战命中距离', F_BETA, 'BETA_TUNE.smartMeleeHitRange', BETA_TUNE.smartMeleeHitRange, { min: 0.3, max: 2.5, unit: 'm' }));
+  e.push(num('beta.smartMeleeWindupTime', G_BETA, '智能狐近战前摇', F_BETA, 'BETA_TUNE.smartMeleeWindupTime', BETA_TUNE.smartMeleeWindupTime, { min: 0.2, max: 0.6, unit: 's' }));
+  e.push(num('beta.smartMeleeStrikeTime', G_BETA, '智能狐近战攻击窗口', F_BETA, 'BETA_TUNE.smartMeleeStrikeTime', BETA_TUNE.smartMeleeStrikeTime, { min: 0.1, max: 0.3, unit: 's' }));
+  e.push(num('beta.smartMeleeRecoverTime', G_BETA, '智能狐近战收招', F_BETA, 'BETA_TUNE.smartMeleeRecoverTime', BETA_TUNE.smartMeleeRecoverTime, { min: 0.2, max: 1.5, unit: 's' }));
+  e.push(num('beta.smartMeleeCooldown', G_BETA, '智能狐近战冷却', F_BETA, 'BETA_TUNE.smartMeleeCooldown', BETA_TUNE.smartMeleeCooldown, { min: 0.6, max: 4, unit: 's' }));
+  e.push(num('beta.smartMeleeStrikeSpeed', G_BETA, '智能狐近战短位移速度', F_BETA, 'BETA_TUNE.smartMeleeStrikeSpeed', BETA_TUNE.smartMeleeStrikeSpeed, { min: 0, max: 5, unit: 'm/s' }));
   e.push(bool('beta.flowerInstant', G_BETA, '吃花立即完成', F_BETA, 'BETA_TUNE.flowerInstant', BETA_TUNE.flowerInstant));
 
   const G_BURROW = '洞穴与避难';

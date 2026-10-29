@@ -63,6 +63,87 @@ export function stepSmartContactCooldown(current = 0, dt = 0) {
   return Math.max(0, (Number(current) || 0) - Math.max(0, Number(dt) || 0));
 }
 
+/**
+ * Beta-only close bite. This state machine is deliberately independent from
+ * pounce: a close action has a readable windup, a short strike and recovery.
+ */
+export const SMART_MELEE_PHASES = Object.freeze([null, 'windup', 'strike', 'recover']);
+
+export function createSmartMeleeState() {
+  return { phase: null, phaseTime: 0, cooldown: 0, hitConsumed: false, yaw: 0 };
+}
+
+export function cancelSmartMelee(state = {}) {
+  return { ...createSmartMeleeState(), ...state, phase: null, phaseTime: 0, hitConsumed: false };
+}
+
+export function consumeSmartMeleeHit(state = {}) {
+  if (state.phase !== 'strike' || state.hitConsumed) return { ...state };
+  return { ...state, hitConsumed: true };
+}
+
+const meleeDuration = (value, fallback) => Number.isFinite(value) && value > 0 ? value : fallback;
+
+export function advanceSmartMelee(state = {}, input = {}, dt = 1 / 60, tune = {}) {
+  const s = { ...createSmartMeleeState(), ...state };
+  const step = Math.max(0, Number(dt) || 0);
+  const windupTime = meleeDuration(tune.smartMeleeWindupTime, .25);
+  const strikeTime = meleeDuration(tune.smartMeleeStrikeTime, .15);
+  const recoverTime = meleeDuration(tune.smartMeleeRecoverTime, .45);
+  const cooldownTime = Math.max(0, Number(tune.smartMeleeCooldown) || 0);
+  s.cooldown = Math.max(0, (Number(s.cooldown) || 0) - step);
+  s.justStarted = false;
+  s.justStrikeStarted = false;
+  s.justEnded = false;
+
+  const safe = !!input.safe;
+  const incapacitated = input.alive === false || !!input.stunned || !!input.retreating || !!input.fleeing;
+  if (safe || incapacitated) return cancelSmartMelee(s);
+
+  if (s.phase == null) {
+    const canStart = input.distance <= (Number(tune.smartMeleeTriggerRange) || 0)
+      && input.reachable !== false && !input.pounceCommitted && !input.pouncePending
+      && s.cooldown <= 0;
+    if (canStart) {
+      s.phase = 'windup';
+      s.phaseTime = windupTime;
+      s.hitConsumed = false;
+      s.yaw = Number.isFinite(input.targetYaw) ? input.targetYaw : (s.yaw || 0);
+      s.justStarted = true;
+    }
+    return s;
+  }
+
+  if (s.phase === 'windup' && Number.isFinite(input.targetYaw)) s.yaw = input.targetYaw;
+  s.phaseTime -= step;
+  if (s.phaseTime > 0) return s;
+  if (s.phase === 'windup') {
+    s.phase = 'strike';
+    s.phaseTime = strikeTime;
+    s.hitConsumed = false;
+    s.justStrikeStarted = true;
+  } else if (s.phase === 'strike') {
+    s.phase = 'recover';
+    s.phaseTime = recoverTime;
+    s.cooldown = Math.max(s.cooldown, cooldownTime);
+  } else {
+    s.phase = null;
+    s.phaseTime = 0;
+    s.hitConsumed = false;
+    s.justEnded = true;
+  }
+  return s;
+}
+
+/** Current-contact melee test; intentionally no pounce swept-segment test. */
+export function smartMeleeContactHit(input = {}, tune = {}) {
+  const range = Number(tune.smartMeleeHitRange) || 0;
+  return input.phase === 'strike' && input.striking === true && !input.hitConsumed
+    && !input.safe && !input.invulnerable && (Number(input.contactCd) || 0) <= 0
+    && input.verticalOverlap === true && Number.isFinite(input.distance)
+    && range > 0 && input.distance < range;
+}
+
 export function smartPounceDashDistance(initialSpeed = 0, dashSpeed, acceleration = 18, remaining = SMART_POUNCE_TUNE.dashDuration, dt = 1 / 60) {
   let speed = initialSpeed, dist = 0, t = Math.max(0, remaining);
   // stepSmartMotion 每帧"先移动一个完整 dt、再扣剩余时长"（末帧过冲也走满 dt），
