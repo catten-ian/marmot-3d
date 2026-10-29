@@ -213,7 +213,7 @@ export function buildTuningEntries() {
   e.push(num('beta.smartPounceMaxDistance', G_BETA, '智能狐扑击最大提交距离', F_BETA, 'BETA_TUNE.smartPounceMaxDistance', BETA_TUNE.smartPounceMaxDistance, { min: 1, max: 20, unit: 'm' }));
   e.push(num('beta.smartPounceApproachRadius', G_BETA, '智能狐扑击接近停靠半径', F_BETA, 'BETA_TUNE.smartPounceApproachRadius', BETA_TUNE.smartPounceApproachRadius, { min: 2, max: 10, unit: 'm' }));
   e.push(num('beta.smartPounceObserveRadius', G_BETA, '智能狐观察停靠半径', F_BETA, 'BETA_TUNE.smartPounceObserveRadius', BETA_TUNE.smartPounceObserveRadius, { min: 4, max: 12, unit: 'm' }));
-  e.push(num('beta.smartPounceDashEndDistance', G_BETA, '智能狐冲刺结束距离', F_BETA, 'BETA_TUNE.smartPounceDashEndDistance', BETA_TUNE.smartPounceDashEndDistance, { min: 0.5, max: 4, unit: 'm' }));
+  e.push(num('beta.smartPounceRingTolerance', G_BETA, '智能狐提交环容差', F_BETA, 'BETA_TUNE.smartPounceRingTolerance', BETA_TUNE.smartPounceRingTolerance, { min: 0.05, max: 1, unit: 'm' }));
   e.push(num('beta.smartPounceMemoryPenalty', G_BETA, '智能狐记忆抑制系数', F_BETA, 'BETA_TUNE.smartPounceMemoryPenalty', BETA_TUNE.smartPounceMemoryPenalty, { min: 0, max: 1 }));
   e.push(num('beta.smartPounceFatiguePenalty', G_BETA, '智能狐疲劳抑制系数', F_BETA, 'BETA_TUNE.smartPounceFatiguePenalty', BETA_TUNE.smartPounceFatiguePenalty, { min: 0, max: 1 }));
 

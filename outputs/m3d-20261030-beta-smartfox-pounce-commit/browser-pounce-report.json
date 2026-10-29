@@ -1,0 +1,72 @@
+{
+  "task": "m3d-20261030-beta-smartfox-pounce-commit",
+  "base": "28f0bcb0a6f0c195568c9cb0364044a0732a1c27",
+  "browser": {
+    "renderer": "WebGLRenderer",
+    "backend": "WebGL2",
+    "gpu": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
+    "consoleErrors": 0,
+    "desktop1280x720": {
+      "singleFoxStationary": {
+        "realCommitSamples": 1,
+        "commitDistances": [
+          4.533
+        ],
+        "angleErrors": [
+          0
+        ],
+        "hits": 0
+      },
+      "singleFoxMoving": {
+        "realCommitSamples": 0
+      },
+      "multiFox": {
+        "slots": [
+          {
+            "slot": 0,
+            "commits": 0
+          },
+          {
+            "slot": 1,
+            "commits": 0
+          },
+          {
+            "slot": 2,
+            "commits": 0
+          }
+        ]
+      },
+      "evidence": "desktop-stationary.png"
+    },
+    "mobile390x844": {
+      "dpr": 3,
+      "touchPoints": 5,
+      "cpuThrottle": 4,
+      "scrollWidth": 390,
+      "scrollHeight": 844,
+      "smartFoxAlive": 1,
+      "evidence": "mobile-390x844-dpr3-cpu4x.png"
+    }
+  },
+  "node": {
+    "smartFoxBeta": "24/24",
+    "smartFoxMelee": "8/8",
+    "runNodeTests": "90/90 passed, 22 browser/CDP skipped",
+    "checks": "all modified JS/MJS passed node --check",
+    "diffCheck": "passed",
+    "stableClosedLoop": "facing 0/0, back_turned 1/1, memory_one 0/0, multi_fox 0/0",
+    "betaClosedLoop": "facing 1/1, back_turned 1/1, memory_one 1/1, multi_fox 1/1"
+  },
+  "rootCause": "beta non-committed pounce intent used sprint-speed direct navigation through the player; distance and angle gates then ceased overlapping. Audit reproduction: 858/906 uncommitted pounce frames; distance gate failed 707, angle 757, windup reset 856, all other gates clear.",
+  "strategy": [
+    "IS_BETA guarded approach/align/reposition/commit ring controller",
+    "stalk-speed approach and zero-speed alignment stop; missed inner ring selects side reposition",
+    "pounce commit remains locked; melee start is suppressed while pounce intent is active",
+    "removed dead smartPounceDashEndDistance and use SMART_POUNCE_TUNE.maxStrikeDistance for dash endpoint"
+  ],
+  "knownLimitations": [
+    "Real browser harness completed WebGL/mobile smoke and one genuine desktop commit, but did not reach the requested 30 real attempts; moving and multi-fox samples were zero in this run and require follow-up tuning."
+  ],
+  "push": false,
+  "deploy": false
+}

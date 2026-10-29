@@ -16,6 +16,7 @@ import {
   smartPounceStaminaReserve, smartPounceStaminaDrainPerSec,
   updateSmartMemory, habituateDecayRate, stepInterruptionTimes,  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK, stepSmartContactCooldown,
   flankSlots, assignFlankSlot, assignRoles, forcedRetreat, assembleSmartAim,
+  createSmartPounceApproachState, advanceSmartPounceApproach,
   createSmartMeleeState, advanceSmartMelee, cancelSmartMelee, consumeSmartMeleeHit,
 } from './smart-fox-core.mjs';
 
@@ -70,6 +71,7 @@ export class SmartFox extends Fox {
     this._restSafeSeen = false;
     this._escVel = { x: 0, z: 0 };   // 玩家速度低通估计（逃跑轴）
     this._lastPlayerPos = null;
+    this._pounceApproach = createSmartPounceApproachState();
   }
 
   get meleeState() {
@@ -247,13 +249,19 @@ export class SmartFox extends Fox {
     // 故由本层按意图选点，避免逼近时穿过玩家、喘息时仍贴脸。
     const STAND = { observe: IS_BETA ? BETA_TUNE.smartPounceObserveRadius : 7.2, approach: IS_BETA ? BETA_TUNE.smartPounceApproachRadius : 3.4, feint: 4.6, recover: 11, abandon: 15 };
     const toP = Math.atan2(dx, dz);          // 狐→玩家 方位角
+    const commitAngle = Math.abs(Math.atan2(Math.sin(toP - this.yaw), Math.cos(toP - this.yaw)));
+    if (IS_BETA && !this.pounceCommitted) this._pounceApproach = advanceSmartPounceApproach(this._pounceApproach, {
+      distance, angle: commitAngle, maxAngle: this._smartState.pounceMaxAngle ?? (20 * Math.PI / 180),
+      committed: false, recover: intent === 'recover' || intent === 'abandon', safe,
+    }, dt, BETA_TUNE);
+    else if (IS_BETA && this.pounceCommitted) this._pounceApproach = advanceSmartPounceApproach(this._pounceApproach, { committed: true }, dt, BETA_TUNE);
     const pounceWindup = this._smartState.pounceWindup ?? .22;
     const pouncePending = intent === 'pounce' && (this._smartState.windupRemaining ?? pounceWindup) < pounceWindup - 1e-6;
     this._meleeState = IS_BETA ? advanceSmartMelee(this._meleeState, {
       distance, reachable, safe, alive: this.alive && this.hp > 0,
       stunned: this.stun > 0, retreating: this.retreating, fleeing: this.fleeing,
       pounceCommitted: this.pounceCommitted,
-      pouncePending: pouncePending || this._recoverLock > 0 || this.pounceStage === 'recover',
+      pouncePending: pouncePending || this._recoverLock > 0 || this.pounceStage === 'recover' || (IS_BETA && intent === 'pounce'),
       targetYaw: toP,
     }, dt, BETA_TUNE) : this._meleeState;
     const meleeActive = IS_BETA && this._meleeState.phase !== null;
@@ -291,8 +299,13 @@ export class SmartFox extends Fox {
           aimX = p.x + ux * R; aimZ = p.z + uz * R;
         }
       } else {
-        const R = STAND[intent] ?? STAND.approach;   // observe / approach 保持半径
-        aimX = p.x + ux * R; aimZ = p.z + uz * R;
+        const R = (IS_BETA && intent === 'pounce')
+          ? (this._pounceApproach.ringRadius ?? ((BETA_TUNE.smartPounceMinDistance + BETA_TUNE.smartPounceMaxDistance) * 0.5))
+          : (STAND[intent] ?? STAND.approach);
+        if (IS_BETA && intent === 'pounce' && this._pounceApproach.phase === 'reposition') {
+          const a = toP + this._pounceApproach.side * Math.PI / 2;
+          aimX = p.x + Math.sin(a) * R; aimZ = p.z + Math.cos(a) * R;
+        } else { aimX = p.x + ux * R; aimZ = p.z + uz * R; }
       }
     }
     // 阶段 3：被打后的侧向甩开 —— 不直线背对玩家跑，边撤边横移一段。
@@ -323,7 +336,9 @@ export class SmartFox extends Fox {
     const commitAim = IS_BETA && intent === 'pounce'
       ? { x: p.x + this._escVel.x * leadScale, z: p.z + this._escVel.z * leadScale }
       : { x: p.x, z: p.z };
-    const ground = !this.pounceCommitted ? this._groundSteer(aimX - this.x, aimZ - this.z, this._smartState.approachSpeed, burrows) : null;
+    const betaPounceAlign = IS_BETA && !this.pounceCommitted && intent === 'pounce' && this._pounceApproach.phase === 'align';
+    const approachSpeed = betaPounceAlign ? 0 : (IS_BETA && intent === 'pounce' ? Math.min(this._smartState.approachSpeed, FOX.ACTIONS.stalk.speed) : this._smartState.approachSpeed);
+    const ground = !this.pounceCommitted ? this._groundSteer(aimX - this.x, aimZ - this.z, approachSpeed, burrows) : null;
     const navigationAim = ground ? { x: this.x + ground.x * 100, z: this.z + ground.z * 100 } : { x: aimX, z: aimZ };
     const next = meleeActive ? {
       ...this._smartState,
@@ -347,13 +362,15 @@ export class SmartFox extends Fox {
         pounceCommitted: this.pounceCommitted,
         pounceCooldown: this._smartState.pounceCooldown || 0,
         ...(IS_BETA && intent === 'pounce' ? { pounceDashDuration: (() => {
-          const targetDash = Math.max(1.5, Math.min(4.3, distance - 2.5));
+          const targetDash = Math.max(1.5, Math.min(4.3, distance - SMART_POUNCE_TUNE.maxStrikeDistance));
           let lo = 0.08, hi = SMART_POUNCE_TUNE.dashDuration;
           for (let i = 0; i < 12; i++) { const mid = (lo + hi) * 0.5;
             if (smartPounceDashDistance(0, (this._smartState.pounceSpeed ?? 10.6) * SMART_POUNCE_TUNE.dashSpeedMul, this._smartState.acceleration ?? 18, mid, dt) < targetDash) lo = mid; else hi = mid; }
           return hi;
         })() } : {}),
         intent: this.intent,
+        locomotionIntent: betaPounceAlign ? 'observe' : this.intent,
+        speedTarget: betaPounceAlign ? 0 : undefined,
       },
       navigationAim,
       dt,

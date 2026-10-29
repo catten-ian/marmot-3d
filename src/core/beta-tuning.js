@@ -44,7 +44,7 @@ export const BETA_TUNE = {
   smartPounceMaxDistance: 6.2,
   smartPounceApproachRadius: 5.0,
   smartPounceObserveRadius: 7.0,
-  smartPounceDashEndDistance: 2.0,
+  smartPounceRingTolerance: 0.28,
   smartPounceMemoryPenalty: 0.18,
   smartPounceFatiguePenalty: 0.12,
   smartPounceHitRadiusCap: 1.7, // 命中半径上限；默认不小于原始 1.70m 接触半径

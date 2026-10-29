@@ -245,6 +245,43 @@ export const SMART_PHASE_MIN = { observe: 0.35, approach: 0.35, wind: 0.55, poun
 export const SMART_POUNCE_COOLDOWN = 1.2;
 
 
+/** Beta-only approach/align/reposition controller for the pounce commit ring. */
+export const SMART_POUNCE_APPROACH_PHASES = Object.freeze(['approach', 'align', 'reposition', 'commit']);
+export function createSmartPounceApproachState() {
+  return { phase: 'approach', phaseTime: 0, side: 1, missed: 0 };
+}
+export function advanceSmartPounceApproach(state = {}, input = {}, dt = 1 / 60, tune = {}) {
+  const s = { ...createSmartPounceApproachState(), ...state };
+  const step = Math.max(0, Number(dt) || 0);
+  s.phaseTime += step;
+  if (input.committed) { s.phase = 'commit'; return s; }
+  if (input.recover || input.meleeActive || input.safe) { s.phase = 'approach'; s.phaseTime = 0; return s; }
+  const min = Number(tune.smartPounceMinDistance) || SMART_POUNCE.minDistance;
+  const max = Number(tune.smartPounceMaxDistance) || SMART_POUNCE.maxDistance;
+  const d = Number(input.distance) || 0;
+  const angle = Math.abs(Number(input.angle) || 0);
+  const maxAngle = Number(input.maxAngle) || SMART_POUNCE.maxAngle;
+  const ring = (min + max) * 0.5;
+  const tolerance = Number(tune.smartPounceRingTolerance) || 0.28;
+  if (d > max + tolerance) { s.phase = 'approach'; s.phaseTime = 0; s.missed = 0; }
+  else if (d < min - tolerance) {
+    if (s.phase !== 'reposition') s.side *= -1;
+    s.phase = 'reposition'; s.phaseTime = 0; s.missed += step;
+  } else if (angle > maxAngle) {
+    s.phase = 'align';
+    s.missed = 0;
+  } else if (Math.abs(d - ring) <= tolerance) {
+    s.phase = 'align';
+    s.missed = 0;
+  } else {
+    s.phase = d > ring ? 'approach' : 'reposition';
+  }
+  s.ringRadius = ring;
+  s.ready = s.phase === 'align' && d >= min && d <= max && angle <= maxAngle;
+  return s;
+}
+
+
 export function sampleWalkableGround(samples, referenceY = null, layerTolerance = 0.28) {
   const values = (samples || []).filter(Number.isFinite);
   if (!values.length) return Number.isFinite(referenceY) ? referenceY : 0;
@@ -525,7 +562,7 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
     if (s.pounceStageTime <= 0) s.pounceStage = null;
     s.intent = 'recover';
   } else {
-    const speedTarget = intent === 'observe' ? stalkSpeed : intent === 'recover' ? recoverSpeed : sprintSpeed;
+    const speedTarget = Number.isFinite(options.speedTarget) ? Math.max(0, options.speedTarget) : ((options.locomotionIntent ?? intent) === 'observe' ? stalkSpeed : (options.locomotionIntent ?? intent) === 'recover' ? recoverSpeed : sprintSpeed);
     const moved = stepFoxLocomotion({ ...s, turnVelocity: s.turnVelocity || 0 }, { x: s.x + Math.sin(aim) * 100, z: s.z + Math.cos(aim) * 100 }, dt,
       { speed: speedTarget, acceleration: accel, maxTurnSlow: s.maxTurnRate ?? 2.8 });
     Object.assign(s, moved);

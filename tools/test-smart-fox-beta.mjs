@@ -236,3 +236,24 @@ test('智能狐 contactCd 每帧递减且不低于零', async () => {
   assert.equal(stepSmartContactCooldown(0.9, 0.1), 0.8);
   assert.equal(stepSmartContactCooldown(0.1, 0.2), 0);
 });
+
+test('Beta 接近环显式拆分 approach/align/reposition 且错过窗口不穿过玩家', async () => {
+  const { createSmartPounceApproachState, advanceSmartPounceApproach, SMART_POUNCE_APPROACH_PHASES } = await import('../src/entities/smart-fox-core.mjs');
+  let s = createSmartPounceApproachState();
+  s = advanceSmartPounceApproach(s, { distance: 8, angle: 0 }, 1 / 60, { smartPounceMinDistance: 4.2, smartPounceMaxDistance: 6.2 });
+  assert.equal(s.phase, 'approach');
+  s = advanceSmartPounceApproach(s, { distance: 5.2, angle: 0 }, 1 / 60, { smartPounceMinDistance: 4.2, smartPounceMaxDistance: 6.2 });
+  assert.equal(s.phase, 'align'); assert.equal(s.ready, true);
+  s = advanceSmartPounceApproach(s, { distance: 2.8, angle: 0 }, 1 / 60, { smartPounceMinDistance: 4.2, smartPounceMaxDistance: 6.2 });
+  assert.equal(s.phase, 'reposition'); assert.ok(SMART_POUNCE_APPROACH_PHASES.includes(s.phase));
+});
+
+test('Beta 提交与 melee 互斥，提交后仍不可取消', async () => {
+  let pounce = { x: 0, z: -5, yaw: 0, vx: 0, vz: 0, pounceMinDistance: 4.2, pounceMaxDistance: 6.2, windupRemaining: 0 };
+  const { stepSmartMotion } = await import('../src/entities/smart-fox-core.mjs');
+  pounce = stepSmartMotion(pounce, { x: 0, z: 0 }, 1 / 60, 'pounce', { commitAllowed: true });
+  assert.equal(pounce.pounceCommitted, true);
+  const yaw = pounce.pounceYaw;
+  pounce = stepSmartMotion(pounce, { x: 9, z: 9 }, 1 / 60, 'recover', { commitAllowed: false });
+  assert.equal(pounce.pounceCommitted, true); assert.equal(pounce.pounceYaw, yaw);
+});
