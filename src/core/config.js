@@ -343,8 +343,8 @@ export const FOX = {
   // 接触判定：土拨鼠体型小，接触距离相应放大到体型的一半以上才合理
   contact: { boss: 2.2, heavy: 1.95, pup: 1.45, default: 1.7 },
   // 水平接触按双方半径相加，与旧 contact 触发距离完全等价；可在调试面板中独立调节。
-  collisionRadius: { normal: 1.28, pup: 1.03, fast: 1.28, heavy: 1.53, boss: 1.78 },
-  collisionHeight: { normal: 0.48, pup: 0.34, fast: 0.4, heavy: 0.52, boss: 0.68 },
+  collisionRadius: { normal: 1.28, smart: 1.34, pup: 1.03, fast: 1.28, heavy: 1.53, boss: 1.78 },
+  collisionHeight: { normal: 0.48, smart: 0.48, pup: 0.34, fast: 0.4, heavy: 0.52, boss: 0.68 },
   damage: { boss: 22, heavy: 18, pup: 8, default: 12 },
   /**
    * 狐狸撕咬节流：

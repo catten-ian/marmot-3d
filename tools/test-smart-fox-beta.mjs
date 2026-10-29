@@ -218,3 +218,21 @@ test('站立玩家扑击命中率模拟处于可命中但非必中区间', () =>
   assert.ok(rate >= 0.6 && rate <= 0.95, `expected 60-95% hit rate, got ${rate}`);
   console.log(JSON.stringify({ kind: 'standing-pounce-simulation', attempts: N, hits, rate }));
 });
+
+test('提交判定独立于导航扩展目标，并锁定 lead 点', () => {
+  let s = { x: 0, z: -5, vx: 0, vz: 0, yaw: 0, pounceCooldown: 0, pounceMinDistance: 4.2, pounceMaxDistance: 6.2 };
+  const nav = { x: 0, z: 95 };
+  const lead = { x: 0.4, z: 0 };
+  s = stepSmartMotion(s, nav, 1 / 60, 'pounce', { commitTarget: lead, commitDistanceTarget: lead });
+  assert.equal(s.pounceCommitted, true);
+  assert.ok(Math.abs(s.pounceYaw - Math.atan2(lead.x - 0, lead.z + 5)) < 1e-9);
+  const committedYaw = s.pounceYaw;
+  s = stepSmartMotion(s, { x: -50, z: -50 }, 1 / 60, 'recover', { commitTarget: { x: -50, z: -50 } });
+  assert.equal(s.pounceYaw, committedYaw);
+});
+
+test('智能狐 contactCd 每帧递减且不低于零', async () => {
+  const { stepSmartContactCooldown } = await import('../src/entities/smart-fox-core.mjs');
+  assert.equal(stepSmartContactCooldown(0.9, 0.1), 0.8);
+  assert.equal(stepSmartContactCooldown(0.1, 0.2), 0);
+});

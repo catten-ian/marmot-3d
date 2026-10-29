@@ -1449,6 +1449,13 @@ function resume() {
 // ============================================================
 // 战斗动作
 // ============================================================
+function segmentPointDistance2D(ax, az, bx, bz, px, pz) {
+  const dx = bx - ax, dz = bz - az;
+  const len2 = dx * dx + dz * dz;
+  const t = len2 > 1e-9 ? Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / len2)) : 0;
+  return Math.hypot(ax + dx * t - px, az + dz * t - pz);
+}
+
 const _fwd = new THREE.Vector3();
 // 缓存本次战斗数值，供 viewmodel 的攻击动画计算进度使用
 let stats_cache = { cd: 0 };
@@ -1949,6 +1956,8 @@ function update(dt) {
   const smartTactics = { roles: null };
   for (const f of foxes) {
     const prevState = f.state;
+    const prevFoxX = f.x, prevFoxZ = f.z;
+    const prevCommitted = !!f.pounceCommitted;
     if (sandboxState.parryDrill) {
       f.drillCtx = { px: p.x, pz: p.z, yaw: controller.bodyYaw };
     } else if (f.drillCtx) {
@@ -1956,6 +1965,16 @@ function update(dt) {
     }
     f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow,
       f.type === 'smart' ? { smartFoxes, coordinator: sandboxState.active ? sandboxState.smartPack : null, tactics: smartTactics } : null);
+    if (sandboxRecorder && f.type === 'smart') {
+      if (!prevCommitted && f.pounceCommitted) {
+        const commitDistance = Math.hypot(prevFoxX - p.x, prevFoxZ - p.z);
+        const targetYaw = Math.atan2(p.x - prevFoxX, p.z - prevFoxZ);
+        let lockError = Math.abs(targetYaw - (f._smartState.pounceYaw ?? f.yaw));
+        while (lockError > Math.PI) lockError -= Math.PI * 2;
+        sandboxRecorder.push('smart-pounce-commit', { fox: sandboxRecorder.idFor(f), distance: Number(commitDistance.toFixed(3)), lockAngleError: Number(Math.abs(lockError).toFixed(4)), leadDistance: Number(Math.hypot((f._smartState.pounceTargetX ?? p.x) - p.x, (f._smartState.pounceTargetZ ?? p.z) - p.z).toFixed(3)) }, game.totalTime);
+      }
+      if (f.pounceCommitted && f.pounceStriking) sandboxRecorder.push('smart-pounce-strike-frame', { fox: sandboxRecorder.idFor(f), distance: Number(Math.hypot(f.x - p.x, f.z - p.z).toFixed(3)), sweptDistance: Number(segmentPointDistance2D(prevFoxX, prevFoxZ, f.x, f.z, p.x, p.z).toFixed(3)) }, game.totalTime);
+    }
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
@@ -1972,7 +1991,7 @@ function update(dt) {
       const d = Math.hypot(f.x - p.x, f.z - p.z);
       const reachBase = PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal);
       const reach = f.type === 'smart' && IS_BETA
-        ? Math.min(reachBase, BETA_TUNE.smartPounceHitRadius)
+        ? Math.min(reachBase, BETA_TUNE.smartPounceHitRadiusCap)
         : reachBase;
       // 水平接触仍受原半径限制；高度则比较双方碰撞区间，
       // 避免地面玩家被从头顶跃过的狐狸击中。
@@ -1984,7 +2003,8 @@ function update(dt) {
         playerBottom, playerHeight: playerHitHeight, foxBottom, foxHeight: foxHitHeight,
         groundAttackHeight: FOX.groundAttackHeight, dodgeHeight: PLAYER.jump.dodgeHeight, mode: f.attack?.mode, state: f.state,
       });
-      if (d < reach && verticalOverlap) {
+      const sweptD = f.type === 'smart' && IS_BETA ? segmentPointDistance2D(prevFoxX, prevFoxZ, f.x, f.z, p.x, p.z) : d;
+      if (sweptD < reach && verticalOverlap) {
         // 迎击判定（振刀式）：迎击窗口未过期 + 狐狸正在 dash 攻击窗口内 +
         // 接触距离内 + 狐狸从玩家攻击朝向正面（约 ±80°）冲来 → 抵消本次接触并反打。
         // 狐狸空闲/巡逻/蓄力(wind)/喘息(rest)、玩家输入过早或过晚，都不算迎击。

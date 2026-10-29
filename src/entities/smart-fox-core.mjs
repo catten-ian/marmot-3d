@@ -42,6 +42,11 @@ export const SMART_POUNCE_TUNE = { ...SMART_POUNCE_STAGE };
 /** 把覆盖层复位回冻结常量的默认值。 */
 export function resetSmartPounceTune() { Object.assign(SMART_POUNCE_TUNE, SMART_POUNCE_STAGE); return SMART_POUNCE_TUNE; }
 
+/** Shared one-bite cooldown step; callers invoke it once per active update. */
+export function stepSmartContactCooldown(current = 0, dt = 0) {
+  return Math.max(0, (Number(current) || 0) - Math.max(0, Number(dt) || 0));
+}
+
 export function smartPounceDashDistance(initialSpeed = 0, dashSpeed, acceleration = 18, remaining = SMART_POUNCE_TUNE.dashDuration, dt = 1 / 60) {
   let speed = initialSpeed, dist = 0, t = Math.max(0, remaining);
   // stepSmartMotion 每帧"先移动一个完整 dt、再扣剩余时长"（末帧过冲也走满 dt），
@@ -268,6 +273,8 @@ const wrapAngle = (a) => {
 };
 
 export function utilityScores(input = {}) {
+  const beta = input.betaOn === true;
+  const weights = beta ? { ...SMART_WEIGHTS, approachSuspicion: 0.10, pounceSuspicion: 0.36, pounceBase: 0.14, pounceDistance: 0.50, pounceMemory: 0.18, pounceInterruptions: 0.16, pounceFatigue: 0.12 } : SMART_WEIGHTS;
   const distance = Number.isFinite(input.distance) ? input.distance : 20;
   const d = clamp(1 - distance / 24);
   const facing = clamp((Number.isFinite(input.playerFacing) ? input.playerFacing : 0.5));
@@ -278,13 +285,13 @@ export function utilityScores(input = {}) {
   const memory = clamp((input.memory ?? 0) / 3);
   const suspicion = clamp(input.suspicion ?? 0);
   const scores = {
-    observe: SMART_WEIGHTS.observeBase + (1 - suspicion) * SMART_WEIGHTS.observeUnaware + (1 - d) * SMART_WEIGHTS.observeDistance,
-    approach: SMART_WEIGHTS.approachBase + d * SMART_WEIGHTS.approachDistance + suspicion * SMART_WEIGHTS.approachSuspicion + (1 - guard) * SMART_WEIGHTS.approachUnguarded,
-    feint: SMART_WEIGHTS.feintBase + guard * SMART_WEIGHTS.feintGuard + memory * SMART_WEIGHTS.feintMemory + interruptions * SMART_WEIGHTS.feintInterruptions,
-    pounce: SMART_WEIGHTS.pounceBase + d * SMART_WEIGHTS.pounceDistance + suspicion * SMART_WEIGHTS.pounceSuspicion + (1 - guard) * SMART_WEIGHTS.pounceUnguarded
-      - memory * SMART_WEIGHTS.pounceMemory - interruptions * SMART_WEIGHTS.pounceInterruptions - fatigue * SMART_WEIGHTS.pounceFatigue,
-    recover: SMART_WEIGHTS.recoverBase + fatigue * SMART_WEIGHTS.recoverFatigue + (1 - health) * SMART_WEIGHTS.recoverHealth + interruptions * SMART_WEIGHTS.recoverInterruptions,
-    abandon: SMART_WEIGHTS.abandonBase + (1 - health) * SMART_WEIGHTS.abandonHealth + fatigue * SMART_WEIGHTS.abandonFatigue + (distance < 4 ? SMART_WEIGHTS.abandonClose : 0),
+    observe: weights.observeBase + (1 - suspicion) * weights.observeUnaware + (1 - d) * weights.observeDistance,
+    approach: weights.approachBase + d * weights.approachDistance + suspicion * weights.approachSuspicion + (1 - guard) * weights.approachUnguarded,
+    feint: weights.feintBase + guard * weights.feintGuard + memory * weights.feintMemory + interruptions * weights.feintInterruptions,
+    pounce: weights.pounceBase + d * weights.pounceDistance + suspicion * weights.pounceSuspicion + (1 - guard) * weights.pounceUnguarded
+      - memory * weights.pounceMemory - interruptions * weights.pounceInterruptions - fatigue * weights.pounceFatigue,
+    recover: weights.recoverBase + fatigue * weights.recoverFatigue + (1 - health) * weights.recoverHealth + interruptions * weights.recoverInterruptions,
+    abandon: weights.abandonBase + (1 - health) * weights.abandonHealth + fatigue * weights.abandonFatigue + (distance < 4 ? weights.abandonClose : 0),
   };
   scores.feint *= input.feintScale ?? 1;
   for (const key of SMART_INTENTS) scores[key] = Number(scores[key].toFixed(6));
@@ -326,11 +333,19 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
   s.pounceJustEnded = false;
   const dx = target.x - s.x, dz = target.z - s.z;
   const distance = Math.hypot(dx, dz) || 1;
-  const desired = Math.atan2(dx, dz);
+  const navDesired = Math.atan2(dx, dz);
+  // Navigation may be steered around obstacles and expanded to a long direction
+  // vector. Commit geometry must instead use the real player and the separately
+  // supplied, frame-locked lead point.
+  const commitTarget = options.commitTarget || target;
+  const distanceTarget = options.commitDistanceTarget || commitTarget;
+  const commitDx = commitTarget.x - s.x, commitDz = commitTarget.z - s.z;
+  const commitDesired = Math.atan2(commitDx, commitDz);
+  const commitDistance = Math.hypot(distanceTarget.x - s.x, distanceTarget.z - s.z) || 1;
   if (s.pounceCooldown > 0) s.pounceCooldown = Math.max(0, s.pounceCooldown - dt);
-  const angle = Math.abs(wrapAngle(desired - s.yaw));
-  const pounceReady = distance >= (s.pounceMinDistance ?? SMART_POUNCE.minDistance)
-    && distance <= (s.pounceMaxDistance ?? SMART_POUNCE.maxDistance)
+  const angle = Math.abs(wrapAngle(commitDesired - s.yaw));
+  const pounceReady = commitDistance >= (s.pounceMinDistance ?? SMART_POUNCE.minDistance)
+    && commitDistance <= (s.pounceMaxDistance ?? SMART_POUNCE.maxDistance)
     && angle <= (s.pounceMaxAngle ?? SMART_POUNCE.maxAngle);
   if (intent === 'pounce' && pounceReady && !s.pounceCommitted && (s.pounceCooldown ?? 0) <= 0
     && (s.windupRemaining ?? 0) <= 0 && options.commitAllowed !== false) {
@@ -340,8 +355,11 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
     s.pounceStageTime = s.pounceDashDuration ?? SMART_POUNCE_TUNE.dashDuration;
     s.pounceDashSpeed = (s.pounceSpeed ?? SMART_POUNCE.speed) * (s.pounceDashSpeedMul ?? SMART_POUNCE_TUNE.dashSpeedMul);
     // pounceTime 保留为"整个扑咬（冲刺+前摇+扑击）"的总倒计时，供旧调用方/冷却参考。
-    s.pounceTime = s.pounceStageTime + SMART_POUNCE_TUNE.windupTime + SMART_POUNCE_TUNE.strikeTime;
-    s.pounceYaw = s.yaw;
+    const strikeTime = s.pounceStrikeTime ?? SMART_POUNCE_TUNE.strikeTime;
+    s.pounceTime = s.pounceStageTime + SMART_POUNCE_TUNE.windupTime + strikeTime;
+    s.pounceYaw = commitDesired;
+    s.pounceTargetX = commitTarget.x;
+    s.pounceTargetZ = commitTarget.z;
     s.pounceStartSpeed = Math.hypot(s.vx || 0, s.vz || 0);
     s.pounceStriking = false;
   }
@@ -349,7 +367,7 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
     s.windupRemaining = Math.max(0, (s.windupRemaining ?? s.pounceWindup ?? SMART_POUNCE.windup) - dt);
   } else if (!s.pounceCommitted) s.windupRemaining = s.pounceWindup ?? SMART_POUNCE.windup;
   const committed = s.pounceCommitted === true;
-  const aim = committed ? s.pounceYaw : desired;
+  const aim = committed ? s.pounceYaw : navDesired;
   // 动作集对齐（阶段 4）：慢行=stalk、冲刺=sprint 的速度语义可由调用方按 FOX.ACTIONS 传入。
   const stalkSpeed = options.stalkSpeed ?? 2.4;
   const sprintSpeed = options.sprintSpeed ?? 6.5;
@@ -357,6 +375,7 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
   const accel = s.acceleration ?? 18;
   const speed = Math.hypot(s.vx ?? 0, s.vz ?? 0);
   const strikeSpeed = s.pounceStrikeSpeed ?? SMART_POUNCE_TUNE.strikeSpeed;
+  const strikeTime = s.pounceStrikeTime ?? SMART_POUNCE_TUNE.strikeTime;
   const endPounce = () => {
     // 扑击段结束 → 后摇硬直（recover）：不可移动/攻击/再扑，给玩家反击窗口。
     s.pounceCommitted = false;
@@ -388,7 +407,7 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
       s.pounceStageTime -= dt;
       if (s.pounceStageTime <= 0) {
         s.pounceStage = 'strike';
-        s.pounceStageTime = SMART_POUNCE_TUNE.strikeTime;
+        s.pounceStageTime = strikeTime;
         s.pounceStriking = true;
         s.pounceStrikeStarted = true; // 供调用方扣一次性体力
       }
