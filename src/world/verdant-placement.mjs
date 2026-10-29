@@ -186,21 +186,32 @@ export function resolveEntityGround(field, x, z, {
   };
 }
 
+/** Bound expensive placement scans so a sparse/invalid field cannot monopolize a mobile CPU.
+ * The returned stride preserves the caller's requested stride and deterministically
+ * increases it only when the rectangular search would exceed the budget.
+ */
+function boundedSearchStep(minI, maxI, minJ, maxJ, requestedStride = 1, maxCandidates = 4096) {
+  const base = Math.max(1, Math.floor(requestedStride));
+  const count = Math.ceil(Math.max(0, maxI - minI + 1) / base) * Math.ceil(Math.max(0, maxJ - minJ + 1) / base);
+  if (!Number.isFinite(maxCandidates) || maxCandidates <= 0 || count <= maxCandidates) return base;
+  return Math.max(base, Math.ceil(Math.sqrt(count / maxCandidates)) * base);
+}
+
 /** Deterministic nearest supported placement search; never samples fake-zero fills. */
 export function findRobustPlacement(field, {
   x, z, radius = 0.35, bodyHeight = 0.8, clearance = 0, referenceY = NaN,
   maxDistance = 12, maxSurfaceVariation = 1.1, avoidObstacles = true,
-  exclude = [], component = null, stride = 1, hasClearance = null, scorePlacement = null,
+  exclude = [], component = null, stride = 1, maxCandidates = 4096, hasClearance = null, scorePlacement = null,
 } = {}) {
   if (!field || ![x, z].every(Number.isFinite) || !field.surfaceLayers || !field.layerLabels) return null;
   const { nx, nz, bounds, cellSize, layerCount, surfaceLayers, layerLabels, walkable } = field;
   const maxD2 = Number.isFinite(maxDistance) ? maxDistance * maxDistance : Infinity;
-  const step = Math.max(1, Math.floor(stride));
   let best = null, bestScore = Infinity;
   const minI = Number.isFinite(maxDistance) ? Math.max(0, Math.floor((x - maxDistance - bounds.minX) / cellSize)) : 0;
   const maxI = Number.isFinite(maxDistance) ? Math.min(nx - 1, Math.floor((x + maxDistance - bounds.minX) / cellSize)) : nx - 1;
   const minJ = Number.isFinite(maxDistance) ? Math.max(0, Math.floor((z - maxDistance - bounds.minZ) / cellSize)) : 0;
   const maxJ = Number.isFinite(maxDistance) ? Math.min(nz - 1, Math.floor((z + maxDistance - bounds.minZ) / cellSize)) : nz - 1;
+  const step = boundedSearchStep(minI, maxI, minJ, maxJ, stride, maxCandidates);
   for (let j = minJ; j <= maxJ; j += step) for (let i = minI; i <= maxI; i += step) {
     const k = j * nx + i;
     if (!walkable[k] || (avoidObstacles && inObstacle(field, i, j))) continue;
@@ -241,7 +252,7 @@ export function chooseCentralBaseSite(field, {
   const cx0 = Number.isFinite(centerX) ? centerX : (field.bounds.minX + field.bounds.maxX) / 2;
   const cz0 = Number.isFinite(centerZ) ? centerZ : (field.bounds.minZ + field.bounds.maxZ) / 2;
   const { nx, nz, bounds, cellSize, layerCount, surfaceLayers, layerLabels, walkable } = field;
-  const step = Math.max(1, Math.floor(stride));
+  const step = boundedSearchStep(0, nx - 1, 0, nz - 1, stride, 4096);
   const candidates = [];
   for (let j = 0; j < nz; j += step) for (let i = 0; i < nx; i += step) {
     const k = j * nx + i;
@@ -294,15 +305,16 @@ export async function findRobustPlacementCooperative(field, options = {}, { onPr
   if (!field || ![options.x, options.z].every(Number.isFinite) || !field.surfaceLayers || !field.layerLabels) return null;
   const { x, z, radius = 0.35, bodyHeight = 0.8, clearance = 0, referenceY = NaN,
     maxDistance = 12, maxSurfaceVariation = 1.1, avoidObstacles = true,
-    exclude = [], component = null, stride = 1, hasClearance = null, scorePlacement = null } = options;
+    exclude = [], component = null, stride = 1, maxCandidates = 4096, hasClearance = null, scorePlacement = null } = options;
   const { nx, nz, bounds, cellSize, layerCount, surfaceLayers, layerLabels, walkable } = field;
   const maxD2 = Number.isFinite(maxDistance) ? maxDistance * maxDistance : Infinity;
-  const step = Math.max(1, Math.floor(stride));
   const minI = Number.isFinite(maxDistance) ? Math.max(0, Math.floor((x - maxDistance - bounds.minX) / cellSize)) : 0;
   const maxI = Number.isFinite(maxDistance) ? Math.min(nx - 1, Math.floor((x + maxDistance - bounds.minX) / cellSize)) : nx - 1;
   const minJ = Number.isFinite(maxDistance) ? Math.max(0, Math.floor((z - maxDistance - bounds.minZ) / cellSize)) : 0;
   const maxJ = Number.isFinite(maxDistance) ? Math.min(nz - 1, Math.floor((z + maxDistance - bounds.minZ) / cellSize)) : nz - 1;
+  const step = boundedSearchStep(minI, maxI, minJ, maxJ, stride, maxCandidates);
   let best = null, bestScore = Infinity, scanned = 0;
+  const totalCandidates = Math.max(1, Math.ceil((maxI - minI + 1) / step) * Math.ceil((maxJ - minJ + 1) / step));
   for (let j = minJ; j <= maxJ; j += step) {
     for (let i = minI; i <= maxI; i += step) {
       const k = j * nx + i; scanned++;
@@ -322,8 +334,8 @@ export async function findRobustPlacementCooperative(field, options = {}, { onPr
         const rankedScore = typeof scorePlacement === 'function' ? scorePlacement(result) : score;
         if (Number.isFinite(rankedScore) && rankedScore < bestScore) { best = result; bestScore = rankedScore; }
       }
-      if ((scanned & 255) === 0) {
-        onProgress?.(scanned / Math.max(1, (maxI - minI + 1) * (maxJ - minJ + 1)), `寻找安全站位 ${scanned} 个候选`);
+      if ((scanned & 63) === 0) {
+        onProgress?.(Math.min(1, scanned / totalCandidates), `寻找安全站位 ${scanned}/${totalCandidates} 个候选`);
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
@@ -337,13 +349,14 @@ export async function chooseCentralBaseSiteCooperative(field, options = {}, { on
   let mainComponent = 0;
   for (let i = 1; i < field.componentSizes.length; i++) if (field.componentSizes[i] > field.componentSizes[mainComponent]) mainComponent = i;
   const { interestPoints = [], radius = 4.2, clearance = 3.2, maxSurfaceVariation = 0.65,
-    centerX, centerZ, stride = 5, hasClearance = null, exclude = [], candidateLimit = 64 } = options;
+    centerX, centerZ, stride = 5, hasClearance = null, exclude = [], candidateLimit = 64, maxCandidates = 2048 } = options;
   const cx0 = Number.isFinite(centerX) ? centerX : (field.bounds.minX + field.bounds.maxX) / 2;
   const cz0 = Number.isFinite(centerZ) ? centerZ : (field.bounds.minZ + field.bounds.maxZ) / 2;
   const { nx, nz, bounds, cellSize, layerCount, surfaceLayers, layerLabels, walkable } = field;
-  const step = Math.max(1, Math.floor(stride));
+  const step = boundedSearchStep(0, nx - 1, 0, nz - 1, stride, maxCandidates);
   const candidates = [];
   let scanned = 0;
+  const totalCandidates = Math.max(1, Math.ceil(nx / step) * Math.ceil(nz / step));
   for (let j = 0; j < nz; j += step) {
     for (let i = 0; i < nx; i += step) {
       scanned++;
@@ -369,7 +382,7 @@ export async function chooseCentralBaseSiteCooperative(field, options = {}, { on
           }
         }
       }
-      if ((scanned & 255) === 0) { onProgress?.(scanned / Math.max(1, Math.ceil(nx / step) * Math.ceil(nz / step)), `布置洞穴：检查 ${scanned} 个候选`); await new Promise((resolve) => setTimeout(resolve, 0)); }
+      if ((scanned & 63) === 0) { onProgress?.(Math.min(1, scanned / totalCandidates), `布置洞穴：检查 ${scanned}/${totalCandidates} 个候选`); await new Promise((resolve) => setTimeout(resolve, 0)); }
     }
   }
   candidates.sort((a, b) => a.rank - b.rank || a.j - b.j || a.i - b.i);

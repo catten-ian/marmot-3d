@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three';
 import {
-  LEVELS, BERRY_POINTS, SPAWN_POINTS, BURROW, PLAYER, FOX,
+  LEVELS, BERRY_POINTS, SPAWN_POINTS, BURROW, BURROWS, PLAYER, FOX,
   BERRY_RADIUS, BERRY_ENERGY, BERRY_CHARGE, RESCUE_DIST,
   setPointScale, scalePoint, scaleCoord, scaleRadius,
   getPointScale, fieldHalf, FIELD_W, FIELD_H, setPlayableBounds, clearPlayableBounds,
@@ -532,6 +532,15 @@ function verdantPlacement(def, { radius, bodyHeight, clearance, maxSurfaceVariat
   });
 }
 
+const VERDANT_PLACEMENT_MAX_CANDIDATES = 2048;
+let verdantPlacementProgress = 0;
+function reportVerdantPlacement(index, progress, label) {
+  const total = Math.max(1, BURROWS.length);
+  const value = 99 + Math.min(0.85, (index + Math.max(0, Math.min(1, progress))) / total * 0.85);
+  verdantPlacementProgress = Math.max(verdantPlacementProgress, value);
+  hud.setLoading(verdantPlacementProgress, label);
+}
+
 function chooseVerdantBurrowDefinition(def, index, placed) {
   if (!verdantWorld?.placementField) return def;
   const isBase = index === 0;
@@ -540,7 +549,7 @@ function chooseVerdantBurrowDefinition(def, index, placed) {
   if (isBase) {
     const site = chooseCentralBaseSite(verdantWorld.placementField, {
       interestPoints: interest, radius: def.r, clearance: def.openingRadius * 2.2,
-      centerX: 0, centerZ: 0, stride: 4, hasClearance: verdantWorld.hasPlacementClearance,
+      centerX: 0, centerZ: 0, stride: 4, maxCandidates: VERDANT_PLACEMENT_MAX_CANDIDATES, hasClearance: verdantWorld.hasPlacementClearance,
       exclude,
     });
     if (site) return { ...def, x: site.x, z: site.z, groundY: site.y, placement: site };
@@ -558,10 +567,10 @@ async function chooseVerdantBurrowDefinitionCooperative(def, index, placed) {
   const interest = [...BERRY_POINTS, ...SPAWN_POINTS].map(scalePoint);
   const exclude = placed.map((p) => ({ x: p.x, z: p.z, radius: p.r, gap: 2 }));
   if (isBase) {
-    const site = await chooseCentralBaseSiteCooperative(verdantWorld.placementField, { interestPoints: interest, radius: def.r, clearance: def.openingRadius * 2.2, centerX: 0, centerZ: 0, stride: 4, hasClearance: verdantWorld.hasPlacementClearance, exclude }, { onProgress: (p, label) => hud.setLoading(99 + p * 0.4, label) });
+    const site = await chooseCentralBaseSiteCooperative(verdantWorld.placementField, { interestPoints: interest, radius: def.r, clearance: def.openingRadius * 2.2, centerX: 0, centerZ: 0, stride: 4, maxCandidates: VERDANT_PLACEMENT_MAX_CANDIDATES, hasClearance: verdantWorld.hasPlacementClearance, exclude }, { onProgress: (p, label) => reportVerdantPlacement(index, p, label) });
     if (site) return { ...def, x: site.x, z: site.z, groundY: site.y, placement: site };
   }
-  const site = await findRobustPlacementCooperative(verdantWorld.placementField, { x: def.x, z: def.z, radius: def.slopeRadius, bodyHeight: 0.25, clearance: def.openingRadius * 1.8, maxSurfaceVariation: 0.45, maxDistance: 16, avoidObstacles: true, exclude, hasClearance: verdantWorld.hasPlacementClearance }, { onProgress: (p, label) => hud.setLoading(99 + p * 0.4, label) });
+  const site = await findRobustPlacementCooperative(verdantWorld.placementField, { x: def.x, z: def.z, radius: def.slopeRadius, bodyHeight: 0.25, clearance: def.openingRadius * 1.8, maxSurfaceVariation: 0.45, maxDistance: 16, maxCandidates: VERDANT_PLACEMENT_MAX_CANDIDATES, avoidObstacles: true, exclude, hasClearance: verdantWorld.hasPlacementClearance }, { onProgress: (p, label) => reportVerdantPlacement(index, p, label) });
   return site ? { ...def, x: site.x, z: site.z, groundY: site.y, placement: site } : def;
 }
 
@@ -580,7 +589,7 @@ function resolveVerdantCompanion(x, z) {
   // stay on the local exact resolver and therefore never scan the full field.
   const recovered = findRobustPlacement(field, {
     x, z, radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
-    maxDistance: 14, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
+    maxDistance: 14, maxCandidates: VERDANT_PLACEMENT_MAX_CANDIDATES, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
   });
   if (recovered) verdantCompanionLastPlacement = recovered;
   return recovered;
@@ -598,8 +607,8 @@ async function resolveVerdantCompanionCooperative(x, z) {
   if (exact) { verdantCompanionLastPlacement = exact; return exact; }
   const recovered = await findRobustPlacementCooperative(field, {
     x, z, radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
-    maxDistance: 14, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
-  }, { onProgress: (p, label) => hud.setLoading(99 + p * 0.5, label) });
+    maxDistance: 14, maxCandidates: VERDANT_PLACEMENT_MAX_CANDIDATES, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
+  }, { onProgress: (p, label) => hud.setLoading(Math.max(verdantPlacementProgress, 99 + p * 0.2), label) });
   if (recovered) verdantCompanionLastPlacement = recovered;
   return recovered;
 }
@@ -708,7 +717,8 @@ if (WANT_GS && rendererStatus.supportsSplat) {
  * 稳定版缩放系数为 1，这里等价于原始常量。
  */
 const PT_K = getPointScale();
-const burrowSet = verdantWorld ? await createBurrowsCooperative(scene, { resolveDefinition: chooseVerdantBurrowDefinitionCooperative, onProgress: (p, label) => hud.setLoading(99 + p * 0.5, label) }) : createBurrows(scene, { resolveDefinition: chooseVerdantBurrowDefinition });
+verdantPlacementProgress = 99;
+const burrowSet = verdantWorld ? await createBurrowsCooperative(scene, { resolveDefinition: chooseVerdantBurrowDefinitionCooperative, onProgress: (p, label) => reportVerdantPlacement(Math.max(0, Math.ceil(p * BURROWS.length) - 1), 1, label) }) : createBurrows(scene, { resolveDefinition: chooseVerdantBurrowDefinition });
 const burrowDefs = burrowSet.defs;
 const baseBurrow = burrowSet.base;
 const BURROW_R = baseBurrow.r;
