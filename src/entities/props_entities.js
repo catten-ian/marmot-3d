@@ -205,7 +205,7 @@ export class Food {
   }
 
   update(dt) {
-    if (this.taken) return;
+    if (this.taken || !this.group) return;
     this._t += dt;
     const bob = Math.sin(this._t * 2.2) * (this.herbivore ? 0.035 : 0.06);
     this.group.position.y = terrainHeight(this.x, this.z) + 0.52 + bob;
