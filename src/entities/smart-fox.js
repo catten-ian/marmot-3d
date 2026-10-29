@@ -13,6 +13,7 @@ import {
   separationVector,
   isSegmentReachable,
   smartPounceDistance, smartPounceDashDistance, cancelSmartPounce, SMART_POUNCE_TUNE,
+  smartPounceStaminaReserve, smartPounceStaminaDrainPerSec,
   updateSmartMemory, habituateDecayRate, stepInterruptionTimes,  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK, stepSmartContactCooldown,
   flankSlots, assignFlankSlot, assignRoles, forcedRetreat, assembleSmartAim,
 } from './smart-fox-core.mjs';
@@ -122,7 +123,15 @@ export class SmartFox extends Fox {
       const resting = this.state === 'rest';
       const stepped = stepStamina({ stamina: this.stamina, locked: this.staminaLocked, hp: this.hp }, dt, {
         maxStamina: this.maxStamina,
-        drainPerSec: this.pounceCommitted ? V.pounceStaminaPerSec : V.stalkStaminaPerSec,
+        drainPerSec: smartPounceStaminaDrainPerSec({
+          beta: IS_BETA,
+          committed: this.pounceCommitted,
+          stage: this.pounceStage,
+          remaining: this._smartState.pounceStageTime,
+          dt,
+          pounceRate: V.pounceStaminaPerSec,
+          stalkRate: V.stalkStaminaPerSec,
+        }),
         regenPerSec: V.restStaminaPerSec,
         resting,
         hpRegenRatio: V.restHpRegenRatio,
@@ -313,7 +322,7 @@ export class SmartFox extends Fox {
           && this._recoverLock <= 0
           && this.staminaLocked <= 0
           && canSprint(this.stamina, FOX.vitals.pounceStaminaPerSec, SMART_POUNCE_TUNE.dashDuration)
-          && this.stamina >= SMART_POUNCE_TUNE.staminaCost + FOX.vitals.pounceStaminaPerSec * SMART_POUNCE_TUNE.dashDuration
+          && this.stamina >= smartPounceStaminaReserve(FOX.vitals.pounceStaminaPerSec, SMART_POUNCE_TUNE)
           && (!packContext || this._role === 'striker')
           && this._age >= this._cautiousUntil
           && this._evadeUntil <= 0

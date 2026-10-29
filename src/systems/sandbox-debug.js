@@ -206,9 +206,6 @@ export function createSandboxDebugGUI({ actions = {}, state = null } = {}) {
   addNumber(fGlob, FOX, 'fleeSpeed', 2, 16, 0.1, '逃跑速度');
   addNumber(fGlob, FOX, 'fleeMaxTime', 0.5, 8, 0.1, '逃跑最长时间');
   addNumber(fGlob, FOX, 'roamRange', 10, 120, 1, '感知半径');
-  for (const [key, label] of [['boss', '首领接触半径'], ['heavy', '厚皮接触半径'], ['pup', '幼狐接触半径'], ['default', '默认接触半径']]) {
-    addNumber(fGlob, FOX.contact, key, 0.1, 5, 0.01, label);
-  }
 
   // —— 各类型狐狸 ——
   const fTypes = folder(gui, '狐狸 · 类型属性');

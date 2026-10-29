@@ -45,7 +45,7 @@ test('攻击数值契约与冲刺距离覆盖接触范围', () => {
   assert.deepEqual(FOX.attacks.fast, { mode: 'straight', windMul: 0.85, dashTime: 0.68, turnRate: 0.16, windLeadTime: 0.35, label: '疾冲' });
   for (const key of ['normal', 'fast']) {
     const a = FOX.attacks[key];
-    assert.ok(14.5 * a.dashTime * (a.dashSpeedMul || 1) >= FOX.windRange - (FOX.contact.default ?? 1.7));
+    assert.ok(14.5 * a.dashTime * (a.dashSpeedMul || 1) >= FOX.windRange - (PLAYER.radius + FOX.collisionRadius.normal));
   }
 });
 

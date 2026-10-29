@@ -254,7 +254,7 @@ export function buildTuningEntries() {
   for (const [k, label] of [['normal', '普通'], ['fast', '疾冲'], ['leap', '跃扑'], ['combo', '连冲'], ['blocked', '被格挡']])
     e.push(num(`fox.recovery.${k}`, G_FOX, `后摇·${label}`, F_CONFIG, `FOX.recovery.${k}`, FOX.recovery[k], { min: 0, max: 4, unit: 's' }));
 
-  bool('fox.useProcedural', G_FOX, '启用程序化狐狸', F_CONFIG, 'FOX.useProcedural', FOX.useProcedural);
+  e.push(bool('fox.useProcedural', G_FOX, '启用程序化狐狸', F_CONFIG, 'FOX.useProcedural', FOX.useProcedural));
   for (const [type, color] of Object.entries(FOX.proceduralColors))
     e.push(num(`fox.proceduralColor.${type}`, G_FOX, `程序化毛色·${type}`, F_CONFIG, `FOX.proceduralColors.${type}`, color, { min: 0, max: 0xffffff, step: 1 }));
 
@@ -270,10 +270,6 @@ export function buildTuningEntries() {
     const tl = TYPE_LABEL[key] || key;
     e.push(num(`foxCol.${key}.radius`, G_FOXT, `${tl}·碰撞半径`, F_CONFIG, `FOX.collisionRadius.${key}`, FOX.collisionRadius[key], { min: 0.1, max: 3, unit: 'm' }));
     e.push(num(`foxCol.${key}.height`, G_FOXT, `${tl}·碰撞高度`, F_CONFIG, `FOX.collisionHeight.${key}`, FOX.collisionHeight[key], { min: 0.1, max: 2, unit: 'm' }));
-  }
-  for (const key of Object.keys(FOX.contact)) {
-    const tl = TYPE_LABEL[key] || (key === 'default' ? '默认' : key);
-    e.push(num(`foxContact.${key}`, G_FOXT, `${tl}·接触距离`, F_CONFIG, `FOX.contact.${key}`, FOX.contact[key], { min: 0.3, max: 5, unit: 'm' }));
   }
   for (const key of Object.keys(FOX.damage)) {
     const tl = TYPE_LABEL[key] || (key === 'default' ? '默认' : key);
@@ -456,8 +452,18 @@ export function toStored(entry, viewValue) {
 }
 
 /** 新建预览态：默认值的副本。 */
+function syncContactPreviewAliases(values) {
+  // 仅供 3D 预览旧接触环读取：不是 schema 条目，不产生旋钮，也不参与配置导出。
+  // 与 main.js 的真实命中公式一致：玩家半径 + 对应狐狸碰撞半径。
+  for (const type of Object.keys(FOX.collisionRadius))
+    values[`foxContact.${type}`] = values['player.radius'] + (values[`foxCol.${type}.radius`] ?? values['foxCol.normal.radius']);
+  values['foxContact.default'] = values['player.radius'] + values['foxCol.normal.radius'];
+}
+
 export function createTuningState(entries) {
-  return { values: defaultValues(entries), dirty: new Set() };
+  const state = { values: defaultValues(entries), dirty: new Set() };
+  syncContactPreviewAliases(state.values);
+  return state;
 }
 
 /** 设置一个展示值，返回实际存储值。 */
@@ -466,6 +472,7 @@ export function setViewValue(entriesById, state, id, viewValue) {
   if (!entry) return null;
   const stored = toStored(entry, viewValue);
   state.values[id] = stored;
+  syncContactPreviewAliases(state.values);
   if (Object.is(stored, entry.def)) state.dirty.delete(id);
   else state.dirty.add(id);
   return stored;
@@ -480,6 +487,7 @@ export function resetGroup(state, entries, group = null) {
     state.dirty.delete(e.id);
     reset.push(e.id);
   }
+  syncContactPreviewAliases(state.values);
   return reset;
 }
 
@@ -545,6 +553,7 @@ export function applyImport(entries, entriesById, state, data) {
     else state.dirty.add(id);
     applied.push(id);
   }
+  syncContactPreviewAliases(state.values);
   return { applied, ignored, clamped };
 }
 

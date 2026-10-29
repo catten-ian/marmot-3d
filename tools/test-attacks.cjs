@@ -18,6 +18,8 @@ const BASE = 'http://127.0.0.1:8123/index.html';
 
 function findChrome() {
   for (const c of [
+    process.env.CHROME_BIN,
+    '/usr/bin/google-chrome',
     'C:/Program Files/Google/Chrome/Application/chrome.exe',
     'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
     'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
@@ -28,19 +30,25 @@ function findChrome() {
 const get = (u) => fetch(u, { headers: { Host: '127.0.0.1' } }).then((r) => r.json());
 
 (async () => {
-  const CHROME = findChrome();
-  if (!CHROME) { console.log('未找到 Chrome/Edge'); process.exit(1); }
+  const CDP = process.env.CHROME_CDP || null;
+  const CHROME = CDP ? null : findChrome();
+  if (!CDP && !CHROME) { console.log('未找到 Chrome/Edge'); process.exit(1); }
   const profile = path.join(os.tmpdir(), 'marmot-atk-' + Date.now());
-  const chrome = spawn(CHROME, [
+  const chrome = CHROME ? spawn(CHROME, [
     '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`,
     '--no-first-run', '--disable-gpu', '--use-gl=swiftshader', '--enable-unsafe-swiftshader',
     '--window-size=1024,640', 'about:blank',
-  ], { stdio: 'ignore' });
+  ], { stdio: 'ignore' }) : null;
   let t = null;
-  for (let i = 0; i < 60; i++) {
-    await new Promise((r) => setTimeout(r, 500));
-    try { t = (await get(`http://127.0.0.1:${PORT}/json/list`)).find((x) => x.type === 'page'); if (t) break; } catch (e) {}
+  if (CDP) {
+    t = await fetch(`${CDP}/json/new?about:blank`, { method: 'PUT' }).then((r) => r.json());
+  } else {
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      try { t = (await get(`http://127.0.0.1:${PORT}/json/list`)).find((x) => x.type === 'page'); if (t) break; } catch (e) {}
+    }
   }
+  if (!t) { if (chrome) chrome.kill(); throw new Error('Chrome CDP target unavailable'); }
   const ws = new WebSocket(t.webSocketDebuggerUrl);
   let id = 0; const pend = new Map();
   const logs = [];
@@ -98,7 +106,7 @@ const get = (u) => fetch(u, { headers: { Host: '127.0.0.1' } }).then((r) => r.js
     const { FOX } = cfg;
     const knockback = {};
     for (const type of ['normal', 'heavy', 'boss']) {
-      const kbVelocity = 2 * FOX.knockbackScale[type];
+      const kbVelocity = 2 * FOX.types[type].knockbackMul;
       knockback[type] = { firstFrame: kbVelocity / 60, totalApprox: kbVelocity / 5.5 };
     }
     return {
@@ -120,8 +128,9 @@ const get = (u) => fetch(u, { headers: { Host: '127.0.0.1' } }).then((r) => r.js
   // 关键断言：把藏狐放进蓄力状态后，预警线在**局部 +Z** 方向有几何延伸，
   // 而藏狐冲刺方向 (sin yaw, cos yaw) 也是 +Z。
   // 之前用 ShapeGeometry + rotateX(-PI/2) 会让线跑到 -Z，于是 dot < 0。
-  results.warnDir = await evalJS(`(function(){
+  results.warnDir = await evalJS(`(async function(){
     const g = window.__game;
+    const { FOX } = await import('/src/core/config.js');
     const f = g.foxesList()[0];
     if (!f) return { err: 'no fox' };
     const THREE = g.THREE;
@@ -133,7 +142,7 @@ const get = (u) => fetch(u, { headers: { Host: '127.0.0.1' } }).then((r) => r.js
     // 预警线是充能式增长的（越接近冲刺越长），所以只有 timer→0 时
     // 才应该等于真实冲刺距离。早期版本曾在蓄力中期采样，
     // 报出"线 4.55m vs 冲刺 11.47m"的假失配。
-    const realDist = g.FOX.dashSpeed * f.dashTime * (f.attack.dashSpeedMul || 1);
+    const realDist = FOX.dashSpeed * f.dashTime * (f.attack.dashSpeedMul || 1);
     f.windFull = 0.8; f.windTotal = 0.8;
     const lens = {};
     for (const frac of [1, 0.5, 0]) {
@@ -216,6 +225,7 @@ const get = (u) => fetch(u, { headers: { Host: '127.0.0.1' } }).then((r) => r.js
   results.modes = await evalJS(`(async function(){
     const g = window.__game;
     const mod = await import('/src/entities/fox.js');
+    const { FOX } = await import('/src/core/config.js');
     const THREE = g.THREE;
     const cfg = { wind: 0.6, speed: 9, reinforce: 8 };
     const burrow = { x: -52, z: 0, r: 8.2 };
@@ -358,12 +368,13 @@ const get = (u) => fetch(u, { headers: { Host: '127.0.0.1' } }).then((r) => r.js
   results.reach = await evalJS(`(async function(){
     const cfg = await import('/src/core/config.js');
     const FOX = cfg.FOX;
+    const PLAYER = cfg.PLAYER;
     const rows = [];
     for (const ty of ['pup','normal','fast','heavy','boss']) {
       const a = FOX.attacks[ty];
       const dashDist = FOX.dashSpeed * a.dashTime * (a.dashSpeedMul || 1)
         + (a.mode === 'leap' ? 0.22 * FOX.dashSpeed : 0);
-      const contact = FOX.contact[ty] || FOX.contact.default;
+      const contact = PLAYER.radius + (FOX.collisionRadius[ty] || FOX.collisionRadius.normal);
       const need = FOX.windRange - contact;
       rows.push({
         ty,
@@ -445,7 +456,8 @@ const get = (u) => fetch(u, { headers: { Host: '127.0.0.1' } }).then((r) => r.js
   console.log('\n控制台 error/warning/exception: ' + logs.length);
   logs.slice(0, 8).forEach((l) => console.log('  ' + String(l).slice(0, 220)));
 
-  ws.close(); chrome.kill();
+  ws.close(); if (chrome) chrome.kill();
+  if (CDP && t) await fetch(`${CDP}/json/close/${t.id}`);
   await new Promise((r) => setTimeout(r, 300));
   process.exit(results.heading.pass ? 0 : 1);
 })();

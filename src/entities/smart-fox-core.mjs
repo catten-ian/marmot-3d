@@ -42,6 +42,22 @@ export const SMART_POUNCE_TUNE = { ...SMART_POUNCE_STAGE };
 /** 把覆盖层复位回冻结常量的默认值。 */
 export function resetSmartPounceTune() { Object.assign(SMART_POUNCE_TUNE, SMART_POUNCE_STAGE); return SMART_POUNCE_TUNE; }
 
+/** 提交门预留一次性成本与真正 dash 的持续成本；不改变原提交阈值。 */
+export function smartPounceStaminaReserve(pounceStaminaPerSec, tune = SMART_POUNCE_TUNE) {
+  return tune.staminaCost + pounceStaminaPerSec * tune.dashDuration;
+}
+
+/**
+ * 逐帧体力扣费策略。beta 只在真正 dash 时按扑击费率收费，dash 尾帧按实际占比收费，
+ * 使完整预留量与离散帧真实消耗一致；stable 永远沿用旧 committed 扣费。
+ */
+export function smartPounceStaminaDrainPerSec({ beta = false, committed = false, stage = null,
+  remaining = 0, dt = 0, pounceRate = 0, stalkRate = 0 } = {}) {
+  if (!beta) return committed ? pounceRate : stalkRate;
+  if (stage === 'dash') return dt > 0 ? pounceRate * Math.min(1, Math.max(0, remaining) / dt) : pounceRate;
+  return stalkRate;
+}
+
 /** Shared one-bite cooldown step; callers invoke it once per active update. */
 export function stepSmartContactCooldown(current = 0, dt = 0) {
   return Math.max(0, (Number(current) || 0) - Math.max(0, Number(dt) || 0));
