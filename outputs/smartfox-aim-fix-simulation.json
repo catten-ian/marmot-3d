@@ -1,0 +1,71 @@
+{
+  "generatedAt": "2026-10-29T05:51:29.935Z",
+  "betaTune": {
+    "moveSpeedMul": 1.07,
+    "sprintMoveCost": 5,
+    "runMoveCost": 0.8,
+    "flowerCount": 4,
+    "flowerInstant": true,
+    "grassSeconds": 0.6,
+    "grazeCoreRadius": 1.2,
+    "grazeHaloRadius": 3,
+    "grazeRate": 0.55,
+    "grassRegrowPerSec": 0.012,
+    "grazeRegenPerSec": 8,
+    "grazeConeHalfAngle": 1.0471975511965976,
+    "grazeMoveSpeedMul": 0.16,
+    "grazeImmediateShare": 0.35,
+    "mouthCapacity": 120,
+    "chewPerSec": 5,
+    "mainBurrowChewPerSec": 12,
+    "temporaryBurrowChewPerSec": 7.5,
+    "staminaFatThreshold": 0.6,
+    "flowerHpTotal": 18,
+    "flowerStaminaTotal": 28,
+    "flowerRecoverySeconds": 8,
+    "companionFollowSpeed": 9.6,
+    "companionFollowGap": 1.05,
+    "grazeEyeDropExtra": 0.12,
+    "thirdPersonGrazeDrop": 1.05,
+    "lungeLockRange": 9,
+    "lungeLockHalfAngle": 1.427996660722633,
+    "smartPounceAimOffsetScale": 0,
+    "smartPounceMinDistance": 4.2,
+    "smartPounceMaxDistance": 6.2,
+    "smartPounceHitRadiusCap": 1.7,
+    "smartPounceLeadSeconds": 0.1,
+    "smartPounceMaxLeadDistance": 0.65,
+    "smartPounceStrikeSpeed": 10.8,
+    "smartPounceStrikeTime": 0.21,
+    "stunDiminishWindow": 3,
+    "stunDiminishFactor": 0.55,
+    "stunDiminishFloor": 0.15,
+    "stunDiminishResetSeconds": 4
+  },
+  "groups": [
+    {
+      "name": "single-standing",
+      "attempts": 60,
+      "commits": 44,
+      "hits": 26,
+      "submissionRate": 0.7333333333333333,
+      "hitRate": 0.5909090909090909
+    },
+    {
+      "name": "single-moving",
+      "attempts": 60,
+      "commits": 49,
+      "hits": 16,
+      "submissionRate": 0.8166666666666667,
+      "hitRate": 0.32653061224489793
+    },
+    {
+      "name": "multi-fox-proxy",
+      "attempts": 60,
+      "commits": 44,
+      "hits": 26,
+      "submissionRate": 0.7333333333333333,
+      "hitRate": 0.5909090909090909
+    }
+  ]
+}

@@ -1966,6 +1966,7 @@ function update(dt) {
   for (const f of foxes) {
     const prevState = f.state;
     const prevFoxX = f.x, prevFoxZ = f.z;
+    const prevCommitted = !!f.pounceCommitted;
     if (sandboxState.parryDrill) {
       f.drillCtx = { px: p.x, pz: p.z, yaw: controller.bodyYaw };
     } else if (f.drillCtx) {
@@ -1973,6 +1974,16 @@ function update(dt) {
     }
     f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow,
       f.type === 'smart' ? { smartFoxes, coordinator: sandboxState.active ? sandboxState.smartPack : null, tactics: smartTactics } : null);
+    if (sandboxRecorder && f.type === 'smart') {
+      if (!prevCommitted && f.pounceCommitted) {
+        const commitDistance = Math.hypot(prevFoxX - p.x, prevFoxZ - p.z);
+        const targetYaw = Math.atan2(p.x - prevFoxX, p.z - prevFoxZ);
+        let lockError = Math.abs(targetYaw - (f._smartState.pounceYaw ?? f.yaw));
+        while (lockError > Math.PI) lockError -= Math.PI * 2;
+        sandboxRecorder.push('smart-pounce-commit', { fox: sandboxRecorder.idFor(f), distance: Number(commitDistance.toFixed(3)), lockAngleError: Number(Math.abs(lockError).toFixed(4)), leadDistance: Number(Math.hypot((f._smartState.pounceTargetX ?? p.x) - p.x, (f._smartState.pounceTargetZ ?? p.z) - p.z).toFixed(3)) }, game.totalTime);
+      }
+      if (f.pounceCommitted && f.pounceStriking) sandboxRecorder.push('smart-pounce-strike-frame', { fox: sandboxRecorder.idFor(f), distance: Number(Math.hypot(f.x - p.x, f.z - p.z).toFixed(3)), sweptDistance: Number(segmentPointDistance2D(prevFoxX, prevFoxZ, f.x, f.z, p.x, p.z).toFixed(3)) }, game.totalTime);
+    }
     if (f.alive && Math.hypot(f.x - p.x, f.z - p.z) < 22 && !game.inBurrow) threats++;
     if (f.alive && f.state === 'wind') {
       anyWinding = true;
@@ -1989,7 +2000,7 @@ function update(dt) {
       const d = Math.hypot(f.x - p.x, f.z - p.z);
       const reachBase = PLAYER.radius + (FOX.collisionRadius[f.type] ?? FOX.collisionRadius.normal);
       const reach = f.type === 'smart' && IS_BETA
-        ? Math.min(reachBase, BETA_TUNE.smartPounceHitRadius)
+        ? Math.min(reachBase, BETA_TUNE.smartPounceHitRadiusCap)
         : reachBase;
       // 水平接触仍受原半径限制；高度则比较双方碰撞区间，
       // 避免地面玩家被从头顶跃过的狐狸击中。

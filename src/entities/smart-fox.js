@@ -13,7 +13,7 @@ import {
   separationVector,
   isSegmentReachable,
   smartPounceDistance, smartPounceDashDistance, cancelSmartPounce, SMART_POUNCE_TUNE,
-  updateSmartMemory, habituateDecayRate, stepInterruptionTimes,  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK,
+  updateSmartMemory, habituateDecayRate, stepInterruptionTimes,  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK, stepSmartContactCooldown,
   flankSlots, assignFlankSlot, assignRoles, forcedRetreat, assembleSmartAim,
 } from './smart-fox-core.mjs';
 
@@ -83,6 +83,8 @@ export class SmartFox extends Fox {
       return super.update(dt, p, safe, levelCfg, burrows, terrainAt);
     }
     this._recoverLock = Math.max(0, this._recoverLock - Math.max(0, dt));
+    // SmartFox bypasses Fox.update(), so keep the one-bite cooldown lifecycle here.
+    this.contactCd = stepSmartContactCooldown(this.contactCd, dt);
 
     // —— 智能狐更早撤退（阶段 2）：效用层本就让低血/疲劳个体偏向 recover/abandon，
     // 达到硬阈值（血量/体力/连被打）时直接转入自主撤退 —— 进 rest_safe 计入驱退，
@@ -270,12 +272,21 @@ export class SmartFox extends Fox {
       const lockedAim = assembleSmartAim({ player: p, self: this, intent, separation: sep, flank: bias, pounceOffsetScale: BETA_TUNE.smartPounceAimOffsetScale });
       aimX = lockedAim.x; aimZ = lockedAim.z;
     }
+    // Lead is sampled before commit and then frozen by stepSmartMotion. Keep it
+    // short and bounded so moving targets remain dodgeable.
+    const leadDistance = Math.min(BETA_TUNE.smartPounceMaxLeadDistance, Math.hypot(this._escVel.x, this._escVel.z) * BETA_TUNE.smartPounceLeadSeconds);
+    const leadScale = Math.hypot(this._escVel.x, this._escVel.z) > 1e-5 ? leadDistance / Math.hypot(this._escVel.x, this._escVel.z) : 0;
+    const commitAim = IS_BETA && intent === 'pounce'
+      ? { x: p.x + this._escVel.x * leadScale, z: p.z + this._escVel.z * leadScale }
+      : { x: p.x, z: p.z };
     const ground = !this.pounceCommitted ? this._groundSteer(aimX - this.x, aimZ - this.z, this._smartState.approachSpeed, burrows) : null;
-    if (ground) { aimX = this.x + ground.x * 100; aimZ = this.z + ground.z * 100; }
+    const navigationAim = ground ? { x: this.x + ground.x * 100, z: this.z + ground.z * 100 } : { x: aimX, z: aimZ };
     const next = stepSmartMotion(
       {
         ...this._smartState,
         x: this.x, z: this.z, yaw: this.yaw,
+        pounceStrikeSpeed: IS_BETA ? BETA_TUNE.smartPounceStrikeSpeed : undefined,
+        pounceStrikeTime: IS_BETA ? BETA_TUNE.smartPounceStrikeTime : undefined,
         pounceCommitted: this.pounceCommitted,
         pounceCooldown: this._smartState.pounceCooldown || 0,
         ...(IS_BETA && intent === 'pounce' ? { pounceDashDuration: (() => {
@@ -287,7 +298,7 @@ export class SmartFox extends Fox {
         })() } : {}),
         intent: this.intent,
       },
-      { x: aimX, z: aimZ },
+      navigationAim,
       dt,
       this.intent,
       {
@@ -296,6 +307,8 @@ export class SmartFox extends Fox {
         // - 体力：不足时不允许进入冲刺阶段（体力耗尽 ≠ 被驱退，只是扑不出来）
         // - 角色：striker 独占扑咬提交权，其余角色保持施压不扑
         // - 谨慎期：回血归队后 8s 内不主动扑咬
+        commitTarget: commitAim,
+        commitDistanceTarget: commitAim,
         commitAllowed: reachable
           && this._recoverLock <= 0
           && this.staminaLocked <= 0
