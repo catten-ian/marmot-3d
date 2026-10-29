@@ -187,10 +187,12 @@ export class SmartFox extends Fox {
       memory: this.memory,
       // 阶段 4：已被玩家察觉 → suspicion 抬高 → 更谨慎（feint/observe 偏多，不硬扑）
       suspicion: clamp(this.suspicion + (this.detected ? 0.6 : 0), 0, 1),
+      betaOn: IS_BETA,
+      ...(IS_BETA ? { pounceMemoryPenalty: BETA_TUNE.smartPounceMemoryPenalty, pounceFatiguePenalty: BETA_TUNE.smartPounceFatiguePenalty } : {}),
       feintScale: this._smartState.feintScale ?? 1,
     });
     let intent = this._recoverLock > 0 ? 'recover' : (this.pounceCommitted ? 'pounce' : scores.topIntent);
-    const nearBand = this._approachBand ? 3.9 : 3.4;
+    const nearBand = IS_BETA ? (this._approachBand ? BETA_TUNE.smartPounceApproachRadius + 0.45 : BETA_TUNE.smartPounceApproachRadius) : (this._approachBand ? 3.9 : 3.4);
     if (intent === 'approach' || intent === 'observe') {
       if (distance < nearBand) intent = 'observe'; else if (distance > 7.7) intent = 'approach'; else intent = this._approachBand ? 'approach' : 'observe';
       this._approachBand = intent === 'approach';
@@ -208,7 +210,7 @@ export class SmartFox extends Fox {
     // —— 交战战术：把抽象意图映射成具体运动目标点 ——
     // stepSmartMotion 只提供转向/加减速/不可取消扑击原语，永远朝目标点走，
     // 故由本层按意图选点，避免逼近时穿过玩家、喘息时仍贴脸。
-    const STAND = { observe: 7.2, approach: 3.4, feint: 4.6, recover: 11, abandon: 15 };
+    const STAND = { observe: IS_BETA ? BETA_TUNE.smartPounceObserveRadius : 7.2, approach: IS_BETA ? BETA_TUNE.smartPounceApproachRadius : 3.4, feint: 4.6, recover: 11, abandon: 15 };
     const toP = Math.atan2(dx, dz);          // 狐→玩家 方位角
     const dn = distance || 1;
     const ux = -dx / dn, uz = -dz / dn;      // 玩家→狐 单位向量（身后方向）
@@ -276,6 +278,13 @@ export class SmartFox extends Fox {
         x: this.x, z: this.z, yaw: this.yaw,
         pounceCommitted: this.pounceCommitted,
         pounceCooldown: this._smartState.pounceCooldown || 0,
+        ...(IS_BETA && intent === 'pounce' ? { pounceDashDuration: (() => {
+          const targetDash = Math.max(1.5, Math.min(4.3, distance - 2.5));
+          let lo = 0.08, hi = SMART_POUNCE_TUNE.dashDuration;
+          for (let i = 0; i < 12; i++) { const mid = (lo + hi) * 0.5;
+            if (smartPounceDashDistance(0, (this._smartState.pounceSpeed ?? 10.6) * SMART_POUNCE_TUNE.dashSpeedMul, this._smartState.acceleration ?? 18, mid, dt) < targetDash) lo = mid; else hi = mid; }
+          return hi;
+        })() } : {}),
         intent: this.intent,
       },
       { x: aimX, z: aimZ },
