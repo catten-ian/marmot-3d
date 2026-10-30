@@ -13,6 +13,24 @@ import { devOn } from '../core/version.js';
 import { undergroundProfile } from './underground.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
 
+let texturedGrassPromise = null;
+function loadLocalGrassTextures() {
+  if (texturedGrassPromise) return texturedGrassPromise;
+  const loader = new THREE.TextureLoader();
+  texturedGrassPromise = Promise.all([
+    loader.loadAsync('./assets/verdant/tiers/low/grass_medium_02_diff_512.jpg'),
+    loader.loadAsync('./assets/verdant/tiers/low/grass_medium_02_alpha_512.png'),
+  ]).then(([diff, alpha]) => {
+    diff.colorSpace = THREE.SRGBColorSpace;
+    alpha.colorSpace = THREE.NoColorSpace;
+    return { diff, alpha };
+  }).catch((error) => {
+    console.warn('[scenery] local textured grass unavailable; keeping procedural grass:', error);
+    return null;
+  });
+  return texturedGrassPromise;
+}
+
 // 生成始终面向相机的悬浮文字标签（Sprite）。
 function buildBurrowLabel(text) {
   const canvas = document.createElement('canvas');
@@ -238,6 +256,12 @@ export class Scenery {
       this._buildGrass();
       this._buildRocks();
       this._buildBushes();
+    } else if (devOn('verdantWorld')) {
+      // Verdant supplies the textured world backdrop; keep both grass representations
+      // explicit in dev low/mobile so the procedural fallback remains visible and
+      // future beta grass-eating logic can distinguish decorative textured grass.
+      this._buildGrass();
+      this._buildTexturedGrass();
     }
     // 风的时间推进：用 rAF 绝对时间而非 dt 累加，暂停/切页也不会失步。
     // Scenery 全局单例（main.js 只 new 一次），常驻 rAF 不会累积泄漏；
@@ -345,6 +369,66 @@ export class Scenery {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     this.grass = mesh;
     this.group.add(mesh);
+  }
+
+  _buildTexturedGrass() {
+    const rng = makeRng(9182);
+    const blade = new THREE.PlaneGeometry(0.52, 0.72, 1, 2);
+    blade.translate(0, 0.36, 0);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 1,
+      side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.38,
+      depthWrite: true,
+    });
+    const mesh = new THREE.InstancedMesh(blade, mat, 900);
+    mesh.name = 'dev-textured-grass';
+    mesh.userData = {
+      grassKind: 'textured',
+      edible: false,
+      betaGrassEating: { compatible: true, enabled: false, reason: 'decorative-world-grass' },
+      source: 'assets/verdant/tiers/low/grass_medium_02_diff_512.jpg + grass_medium_02_alpha_512.png',
+      license: 'repository-local Verdant pack; see docs-verdant-local-pack.md',
+    };
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const n = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    const scale = new THREE.Vector3();
+    const pos = new THREE.Vector3();
+    let placed = 0;
+    let guard = 0;
+    while (placed < 900 && guard++ < 5400) {
+      const x = (rng() - 0.5) * 200;
+      const z = (rng() - 0.5) * (150 * getPointScale());
+      const bx = scaleCoord(BURROW.x, 'x');
+      const bz = scaleCoord(BURROW.z, 'z');
+      if (Math.hypot(x - bx, z - bz) < scaleRadius(11)) continue;
+      const y = terrainHeight(x, z);
+      terrainNormal(x, z, n);
+      q.setFromUnitVectors(up, n);
+      q.multiply(new THREE.Quaternion().setFromAxisAngle(up, rng() * Math.PI * 2));
+      const s = 0.55 + rng() * 0.7;
+      scale.set(s, s * (0.8 + rng() * 0.45), s);
+      pos.set(x, y, z);
+      m.compose(pos, q, scale);
+      mesh.setMatrixAt(placed++, m);
+    }
+    mesh.count = placed;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    this.texturedGrass = mesh;
+    this.group.add(mesh);
+    loadLocalGrassTextures().then((textures) => {
+      if (!textures || !this.texturedGrass) return;
+      mat.map = textures.diff;
+      mat.alphaMap = textures.alpha;
+      mat.needsUpdate = true;
+      console.info('[scenery] textured grass loaded', { count: placed, source: mesh.userData.source });
+    });
   }
 
   _buildRocks() {

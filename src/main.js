@@ -2038,7 +2038,7 @@ function update(dt) {
   for (const b of burrowSet.objects) {
     const near = Math.hypot(p.x - b.pos.x, p.z - b.pos.z) < 18;
     if (near) b.ensureInterior?.();
-    if (b.interiorGroup) b.interiorGroup.visible = game.inBurrow && game.currentBurrow === b.pos;
+    if (b.interiorGroup) b.interiorGroup.visible = game.inBurrow && game.currentBurrow?.id === b.pos.id;
   }
   // 移动可能在本帧跨过洞口；立刻切换天气可见性/听感，避免沙尘雾留在洞内，
   // 同时保留普通关卡雾和洞内照明的独立语义。
@@ -2277,7 +2277,7 @@ function update(dt) {
     overloaded: stats.overloaded, social: game.social > 0, fatigue: game.fatigue > 0,
   });
   updateCooldownButtons();
-  if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(dt, 0.0001) });
+  if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(rawFrameDeltaForHud, 0.0001) });
 
   controller.forwardFlat(_fwd);
   hud.updateThreats(foxes, p, camera, _fwd, companion);
@@ -3111,10 +3111,13 @@ canvas.addEventListener('webglcontextrestored', () => {
 //=====================================================
 let last = performance.now();
 let playerBodyYaw = controller.yaw;
-let fpsAcc = 0, fpsCount = 0, fpsTimer = 0;
+let rawFrameDeltaForHud = 1 / 60;
+let fpsRawElapsed = 0, fpsRawFrames = 0, fpsRawTimer = 0;
 
 function frame(now) {
-  const dt = Math.min((now - last) / 1000, 0.05);
+  const rawDt = Math.max(0, (now - last) / 1000);
+  const dt = Math.min(rawDt, 0.05);
+  rawFrameDeltaForHud = rawDt;
   last = now;
 
   const touchPlaying = TOUCH_DEVICE && game.mode === 'play';
@@ -3153,14 +3156,15 @@ function frame(now) {
     viewModel.render(renderer);
   }
 
-  // 性能提示
-  fpsAcc += 1 / Math.max(dt, 0.0001);
-  fpsCount++;
-  fpsTimer += dt;
-  if (fpsTimer > 2) {
-    const fps = Math.round(fpsAcc / fpsCount);
+  // 性能提示使用 RAF 的原始帧间隔；逻辑 dt 仍限制为 50ms，避免慢帧让物理爆炸。
+  const perfDt = IS_DEV ? rawDt : dt;
+  fpsRawElapsed += perfDt;
+  fpsRawFrames++;
+  fpsRawTimer += perfDt;
+  if (fpsRawTimer > 2) {
+    const fps = Math.round(fpsRawFrames / Math.max(fpsRawElapsed, 0.001));
     hud.setPerfHint(`${fps} FPS · ${renderer.info.render.triangles.toLocaleString()} 三角面`);
-    fpsAcc = 0; fpsCount = 0; fpsTimer = 0;
+    fpsRawElapsed = 0; fpsRawFrames = 0; fpsRawTimer = 0;
   }
 
   requestAnimationFrame(frame);
