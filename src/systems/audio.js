@@ -12,6 +12,14 @@ const resolveBgmStartOffset = (options = {}) => typeof startOffsetFor === 'funct
 export const AUDIO_SETTINGS_KEY = 'marmot3d.audio.beta.v1';
 export const TOS_AUDIO_BASE = 'https://marmot.tos-cn-shanghai.volces.com/audio/';
 export const AUDIO_TIMEOUTS = Object.freeze({ bgm: 15000, sfx: 8000 });
+// The public 180s PAF master (SHA-256 b70f5931…b0137f7) measures RMS 0.13723203
+// across decoded stereo samples. Match that sample-RMS after the standard 0.42
+// track trim. This is measurable level matching, not a claim of LUFS equivalence.
+export const BGM_REFERENCE_RMS = 0.13723203;
+export const BGM_REFERENCE_DBFS = 20 * Math.log10(BGM_REFERENCE_RMS);
+export const TRIANGLE_WAVE_RMS = 1 / Math.sqrt(3);
+export const PROCEDURAL_BGM_GAIN = BGM_REFERENCE_RMS / TRIANGLE_WAVE_RMS;
+export const BGM_FALLBACK_RETRY_MS = 30000;
 export const AUDIO_DEFAULTS = Object.freeze({
   masterVolume: 100,
   sfxVolume: 100,
@@ -104,6 +112,12 @@ const FALLBACK_HOLD_MS = Object.freeze({
   hurt: 300, foxWind: 450, jump: 220, foxDash: 270, rescue: 430, helpCry: 300,
   levelUp: 620, win: 950, lose: 900, lowHealth: 220,
 });
+
+export function resolveBgmPlaybackGain({ procedural = false, assetKey = 'menu', slot = assetKey } = {}) {
+  if (procedural) return 0.42 * PROCEDURAL_BGM_GAIN;
+  const normalizedGain = Number(getBgmTrackMeta(assetKey).gain) || Number(getBgmTrackMeta(slot).gain) || 1;
+  return 0.42 * normalizedGain;
+}
 
 export function normalizeAudioSettings(value = {}) {
   return {
@@ -295,7 +309,7 @@ export function rampGainSmooth(param, from, to, startTime, durationSeconds) {
 }
 
 export class BgmManager {
-  constructor(audio, { crossfadeSeconds = 1.5, fadeInSeconds = 1.1, combatFadeOutSeconds = 0.65 } = {}) {
+  constructor(audio, { crossfadeSeconds = 1.5, fadeInSeconds = 1.1, combatFadeOutSeconds = 0.65, fallbackRetryMs = BGM_FALLBACK_RETRY_MS } = {}) {
     this.audio = audio;
     this.crossfadeSeconds = Math.max(0, Number(crossfadeSeconds) || 0);
     this.fadeInSeconds = Math.max(0, Number(fadeInSeconds) || 0);
@@ -306,6 +320,8 @@ export class BgmManager {
     this.generation = 0;
     this.enabled = true;
     this._combatVariant = null;
+    this.fallbackRetryMs = Math.max(0, Number(fallbackRetryMs) || 0);
+    this.retryInFlight = false;
   }
 
   setEnabled(enabled) {
@@ -317,6 +333,7 @@ export class BgmManager {
       // Invalidate in-flight loads and mute immediately; Audio.setSettings has
       // already set the BGM bus to zero before asking the manager to stop.
       this.generation += 1;
+      this.retryInFlight = false;
       this._clearPending();
       this._fadeOut(this.current, true);
     }
@@ -324,7 +341,17 @@ export class BgmManager {
 
   request(slot, force = false, { prevMode = null, transition = 'switch' } = {}) {
     const next = BGM_SLOTS.includes(slot) ? slot : null;
-    if (!force && next === this.desiredSlot) return;
+    const sameDesired = next === this.desiredSlot;
+    const retryFallback = sameDesired && next
+      && this.current?.slot === next && this.current.procedural && !this.retryInFlight
+      && (force || Date.now() - this.current.startedAt >= this.fallbackRetryMs);
+    if (!force && sameDesired && !retryFallback) return;
+    if (retryFallback) {
+      force = true;
+      this.retryInFlight = true;
+    } else if (force || !sameDesired || !next) {
+      this.retryInFlight = false;
+    }
     this.desiredSlot = next;
     const generation = ++this.generation;
     this._clearPending();
@@ -341,19 +368,32 @@ export class BgmManager {
       this._combatVariant = chooseCombatVariant({ previous: this._combatVariant });
       assetKey = this._combatVariant;
     }
-    if (sameCurrentSlot && (!force || this.current.assetKey === assetKey)) return;
+    if (sameCurrentSlot && !retryFallback && (!force || this.current.assetKey === assetKey)) return;
     const path = `assets/audio/elevenlabs/bgm/${assetKey}.mp3`;
     const startOffset = resolveBgmStartOffset({ slot: next, prevMode, transition });
-    this.audio._hasManifestAsset('bgm', assetKey, path).then((available) => {
-      if (!available) return null;
+    this.audio._hasManifestAsset('bgm', assetKey, path).catch(() => null).then((available) => {
+      // The slot and assetKey are allow-listed here. Treat manifests as advisory:
+      // an old manifest must not prevent trying a known live TOS/local URL.
       return this.audio._loadBuffer(path, this.audio._bgmCache);
     }).then((buffer) => {
       if (generation !== this.generation || !this.enabled || !this.audio.settings.bgmEnabled) return;
+      if (retryFallback && !buffer && this.current?.slot === next && this.current.procedural) {
+        this.retryInFlight = false;
+        this.current.startedAt = Date.now();
+        return; // Keep the audible fallback; retry again only after the cooldown.
+      }
+      if (retryFallback) this.retryInFlight = false;
       const procedural = buffer || this.audio._createProceduralBgm?.(next);
       if (!procedural) { this._fadeOut(this.current); return; }
       this._crossfadeTo(next, procedural, { startOffset, assetKey, generation, transition });
     }).catch(() => {
       if (generation !== this.generation || !this.enabled || !this.audio.settings.bgmEnabled) return;
+      if (retryFallback && this.current?.slot === next && this.current.procedural) {
+        this.retryInFlight = false;
+        this.current.startedAt = Date.now();
+        return;
+      }
+      if (retryFallback) this.retryInFlight = false;
       const procedural = this.audio._createProceduralBgm?.(next);
       if (procedural) this._crossfadeTo(next, procedural, { startOffset, assetKey, generation, transition });
       else this._fadeOut(this.current);
@@ -480,6 +520,9 @@ export class BgmManager {
     paramValue(gain.gain, 0, now);
     const track = {
       slot, assetKey, source, gain, fade: null, procedural,
+      sourceType: procedural ? 'procedural-fallback' : 'elevenlabs-buffer',
+      assetPath: procedural ? null : `assets/audio/elevenlabs/bgm/${assetKey}.mp3`,
+      startedAt: Date.now(),
       loopTimer: procedural ? bufferOrProcedural.loopTimer : null,
       stopped: false, cleaned: false, retiring: false, started: false,
     };
@@ -498,8 +541,8 @@ export class BgmManager {
       // The source is started at zero and fades in only after the old source
       // has ended, so a hand-off never has two audible BGM sources.
       const attackSeconds = this.fadeInSeconds;
-      const normalizedGain = Number(getBgmTrackMeta(assetKey).gain) || Number(getBgmTrackMeta(slot).gain) || 1;
-      this._fade(track, 0.42 * normalizedGain, now, attackSeconds, true);
+      track.targetGain = resolveBgmPlaybackGain({ procedural, assetKey, slot });
+      this._fade(track, track.targetGain, now, attackSeconds, true);
     } catch (error) {
       this._stopTrack(track);
       throw error;
@@ -542,6 +585,7 @@ export class Audio {
     this._bgmStateMachine = new BgmStateMachine();
     this._desiredBgmSlot = null;
     this._pafActive = false;
+    this._pafPaused = false;
     this._lastBgmMode = null;
     this._gestureHandler = null;
   }
@@ -657,8 +701,11 @@ export class Audio {
       this._bgmManager.setEnabled(this.settings.bgmEnabled);
       // Re-enable already requests once through setEnabled. For unrelated
       // setting edits, only retry when a desired track is actually missing.
-      if (this.settings.bgmEnabled && managerWasEnabled && !this._bgmManager.current && !this._bgmManager.pending) {
-        this._bgmManager.request(this._desiredBgmSlot, true);
+      if (this.settings.bgmEnabled && managerWasEnabled && !this._pafPaused
+        && (!this._bgmManager.current || this._bgmManager.current.procedural) && !this._bgmManager.pending) {
+        // Volume/settings edits are explicit opportunities to recover a failed
+        // downloaded track without restarting the session.
+        this._bgmManager.request(this._desiredBgmSlot, true, { transition: this._pafActive ? 'paf' : 'switch' });
       }
     }
     return this.getAudioSettings();
@@ -677,7 +724,7 @@ export class Audio {
     } else {
       this._resumeContext();
       const manager = this._bgmManager;
-      if (manager && (!manager.current || manager.current.slot !== this._desiredBgmSlot || manager.current.retiring)) {
+      if (manager && !this._pafPaused && (!manager.current || manager.current.slot !== this._desiredBgmSlot || manager.current.retiring || manager.current.procedural)) {
         manager.request(this._desiredBgmSlot, true);
       }
     }
@@ -685,16 +732,36 @@ export class Audio {
 
   setPafActive(active) {
     if (!this.isBeta) return;
+    const wasActive = this._pafActive;
     this._pafActive = !!active;
+    this._pafPaused = false;
     if (this._pafActive) {
       this._desiredBgmSlot = 'paf';
       this._bgmManager?.request('paf', false, { prevMode: this._lastBgmMode, transition: 'paf' });
+    } else if (wasActive) {
+      // PAF is entered from the title; restore the title score explicitly so
+      // its current source cannot survive an exit race until the next frame.
+      this.updateBgmState({ mode: 'title' });
     }
+  }
+
+  setPafPaused(paused) {
+    if (!this.isBeta || !this._pafActive) return false;
+    const next = !!paused;
+    if (next === this._pafPaused) return false;
+    this._pafPaused = next;
+    if (next) this._bgmManager?.request(null, true, { transition: 'paf' });
+    else {
+      this._desiredBgmSlot = 'paf';
+      this._bgmManager?.request('paf', true, { prevMode: this._lastBgmMode, transition: 'paf' });
+    }
+    return true;
   }
 
   updateBgmState(state = {}) {
     if (!this.isBeta) return null;
     if (this._pafActive) {
+      if (this._pafPaused) return null;
       this._desiredBgmSlot = 'paf';
       this._bgmManager?.request('paf', false, { prevMode: this._lastBgmMode, transition: 'paf' });
       return 'paf';
@@ -770,6 +837,9 @@ export class Audio {
     const path = this.isBeta ? `assets/audio/elevenlabs/${kind}/manifest.json` : `assets/audio/${kind}/manifest.json`;
     if (this.isBeta) {
       const promise = this._loadBetaManifest(path, AUDIO_TIMEOUTS[kind] || AUDIO_TIMEOUTS.sfx);
+      promise.then((manifest) => {
+        if (!manifest && this._manifestCache.get(kind) === promise) this._manifestCache.delete(kind);
+      });
       this._manifestCache.set(kind, promise);
       return promise;
     }
@@ -783,6 +853,7 @@ export class Audio {
   async _hasManifestAsset(kind, name, expectedPath) {
     if (!this.isBeta) return false;
     const manifest = await this._readManifest(kind);
+    if (!manifest || typeof manifest !== 'object') return null;
     const entry = manifest?.assets?.[name];
     if (typeof entry === 'string') return entry === expectedPath;
     return !!entry && entry.file === expectedPath;
@@ -854,16 +925,21 @@ export class Audio {
   _loadBetaBuffer(path, cache, timeoutMs) {
     const promise = (async () => {
       for (const url of audioAssetCandidates(path, true)) {
-        const bytes = await this._fetchBetaBytes(url, timeoutMs);
+        const bytesPromise = this._fetchBetaBytes(url, timeoutMs);
+        const bytes = await bytesPromise;
         if (!bytes) continue;
         try {
           return await this.ctx.decodeAudioData(bytes);
-        } catch (_) { /* corrupt remote bytes fall through to the local file */ }
+        } catch (_) {
+          // Bad MP3/decode results must not poison the session cache; the next
+          // slot visit can request fresh bytes and network recovery can succeed.
+          if (this._audioBytesCache.get(url) === bytesPromise) this._audioBytesCache.delete(url);
+        }
       }
       return null;
     })().catch(() => null);
     // 解码/取数失败不缓存，下一次切换槽位时允许重试真实文件。
-    promise.then((buf) => { if (!buf) cache.delete(path); });
+    promise.then((buf) => { if (!buf && cache.get(path) === promise) cache.delete(path); });
     cache.set(path, promise);
     return promise;
   }
