@@ -1,4 +1,6 @@
-const assert = require('node:assert/strict');
+const assertBase = require('node:assert/strict');
+let assertionCount = 0;
+const assert = new Proxy(assertBase, { get(target, property) { const fn = Reflect.get(target, property); return typeof fn === 'function' ? (...args) => { assertionCount++; return fn.apply(target, args); } : fn; } });
 const fs = require('node:fs');
 (async () => {
   const { StaticPlacementCache, resolvePlacementWithFallback, buildSurfaceComponents, resolveEntityGround } = await import('../src/world/verdant-placement.mjs');
@@ -82,5 +84,5 @@ const fs = require('node:fs');
   assert.match(main, /const sprinting = controller\.touchSprint \|\| binds\.isActionDown\('sprint'\)/);
   assert.doesNotMatch(main, /binds\.isAction\('Shift(?:Left|Right)', 'sprint'\)/, 'sprint runtime state never uses binding-only lookup');
   assert.match(main, /verdantBootOverride = true;[\s\S]{0,260}自动档位加载失败，已切换到简化地图/);
-  console.log('dev perf pure regression tests: 31 assertions passed');
+  console.log(`dev perf pure regression tests: ${assertionCount} assertions passed`);
 })().catch((error) => { console.error(error); process.exitCode = 1; });

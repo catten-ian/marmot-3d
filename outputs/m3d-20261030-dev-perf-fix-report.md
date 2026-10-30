@@ -9,10 +9,10 @@
 
 | 目标 | 完成内容 | 未完成/限制 | 证据 |
 |---|---|---|---|
-| P1-a 静态支撑缓存、移动/dirty 失效、救援/跨层正确性 | Companion 静止帧复用已验证支撑；移动/dirty 时精确重验；失败回退上个安全点。保留 build-time bake，并让 baked recovery 优先用于初始化。 | 同环境 180 帧改后有效 RAF 样本与 5 秒 profile 未取得（见第 4 节）。 | `src/entities/props_entities.js`、`src/main.js`、`src/world/verdant-placement.mjs`；新增纯逻辑测试 31 assertions。与 `m3d-20261029-dev-mobile-placement` 的 build-time bake 互补，未回退 bake。 |
+| P1-a 静态支撑缓存、移动/dirty 失效、救援/跨层正确性 | Companion 静止帧复用已验证支撑；移动/dirty 时精确重验；失败回退上个安全点。保留 build-time bake，并让 baked recovery 优先用于初始化。 | 同环境 180 帧改后有效 RAF 样本与 5 秒 profile 未取得（见第 4 节）。 | `src/entities/props_entities.js`、`src/main.js`、`src/world/verdant-placement.mjs`；新增纯逻辑测试 38 assertions。与 `m3d-20261029-dev-mobile-placement` 的 build-time bake 互补，未回退 bake。 |
 | P1-a 清隙正确且降成本 | XZ 均匀网格 broadphase + 保守 overflow；保留精确三角形 raycast narrow phase、Y 区间、各 ring probe，不用代理替换碰撞判定。 | 因浏览器目标进入 hidden 后 RAF 节流至约 1Hz，没能作有效桌面持续帧性能比较，未声称达成 30/60 FPS。 | `src/world/verdant-collision.js`；相关测试含跨层 component 和救援回退。 |
 | P1-b 唯一纹理计数、auto 与预算一致、自动回退 | 纹理按 UUID/身份去重；auto 对未知/集显 WebGL2 保守降档；auto 失败显示提示并依次降档；low 仍失败则进入简化地图；手动模式仍保留失败/降档面板。 | 最终回退补丁之前，fresh auto target 选 medium 后超过 180 秒未完成，之后自动转 low 重试并最终显示‘Verdant 下载超过 180 秒’面板（低档按钮已禁用）。随后补上 auto-low 再失败时自动切至简化地图的路径并以纯逻辑测试验证；该最终补丁没有重新跑完整浏览器启动，因此当前 runtime ready 仍未确认。 | `src/core/memory-budget.mjs`、`src/world/verdant.js`、`src/main.js`；unique texture 测试。 |
-| P2-1 parry 粒子颜色 | 将 parry 数值色显式转 `THREE.Color`，粒子入口归一化并测试实例色有限。 | 真实战斗触发后的截图/实机视觉未完成。 | `src/main.js`、`src/systems/effects.js`、`src/systems/particle-color.mjs`；31 assertions 中有限值检查。 |
+| P2-1 parry 粒子颜色 | 将 parry 数值色显式转 `THREE.Color`，粒子入口归一化并测试实例色有限。 | 真实战斗触发后的截图/实机视觉未完成。 | `src/main.js`、`src/systems/effects.js`、`src/systems/particle-color.mjs`；38 assertions 中有限值检查。 |
 | P2-2 sprint action-down | Keybinds 维护按键 down 状态；按当前绑定判定，blur 清状态；自定义映射可测。 | 浏览器真实键盘/触屏交互矩阵未完成。 | `src/core/keybinds.js`、`src/main.js`；action-down 默认/按下/松开/自定义绑定测试。 |
 | P2-3 Food 共享资源 dispose | 只释放实体自有 geometry；缓存模型实例只释放每实例材质，不释放共享几何或纹理。 | 未执行浏览器多轮真实 GLB GPU 重建 soak。 | `src/entities/resource-disposal.mjs`、`src/entities/props_entities.js`；重复实例化-销毁逻辑模拟测试。 |
 | P2-4 FPS/渲染统计 | raw RAF delta 与模拟 dt 分离；主场景统计在 render 后快照，viewmodel 分开显示并标明范围。 | 未做显示 FPS 与独立 CDP 连续样本的 ≤5% 精度验证。 | `src/main.js`，`window.__m3dLastMainRenderStats`。 |
@@ -57,7 +57,7 @@
 ## 4. 验证命令与结果
 
 - `node --check` 对所有本次修改的 `.js`/`.mjs`：通过（逐文件执行）。
-- `node tools/test-dev-perf-fixes.cjs`：`31 assertions passed`，含 auto tier failure 降档序列和 low 失败转简化场景。
+- `node tools/test-dev-perf-fixes.cjs`：`38 assertions passed`，含 auto tier failure 降档序列和 low 失败转简化场景。
 - `node tools/run-node-tests.cjs`：`OK 47/47`；22 个 browser/CDP 测试按脚本约定跳过（需要 Chrome），非通过项。
 - `git diff --check`：通过。
 - `git diff -- index-public.html index.html`：空；boot/rev 版本戳未改。
