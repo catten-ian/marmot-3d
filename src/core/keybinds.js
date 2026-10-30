@@ -95,6 +95,7 @@ export class Keybinds {
     this.scheme = 'compatible';
     this.custom = { ...COMPAT };
     this.listeners = new Set();
+    this._downCodes = new Set();
     this._load();
   }
 
@@ -185,6 +186,14 @@ export class Keybinds {
   isAction(code, actionId) {
     return this.keys(actionId).includes(code);
   }
+
+  setKeyDown(code, down = true) {
+    if (!code) return;
+    if (down) this._downCodes.add(code); else this._downCodes.delete(code);
+  }
+  clearDownKeys() { this._downCodes.clear(); }
+  /** Read live input state for the action's current bindings (including custom mappings). */
+  isActionDown(actionId) { return this.keys(actionId).some((code) => this._downCodes.has(code)); }
 
   /** 生成用于展示的按键名称 */
   static pretty(code) {
