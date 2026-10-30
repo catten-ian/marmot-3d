@@ -38,6 +38,9 @@ export function setupSandboxPanel({ root, state, onAction, onChange, showLowGrav
   const parryDrill = section.querySelector('#sandboxParryDrill');
   const lowGravity = section.querySelector('#sandboxLowGravity');
   const dummyDefeatable = section.querySelector('#sandboxDummyDefeatable');
+  const debug = section.querySelector('#sandboxDebug');
+  let lastText = '';
+  let lastUpdatedAt = 0;
   const difficulty = section.querySelector('#sandboxDifficulty');
   god.checked = !!state.godMode;
   freeze.checked = state.freezeTimer !== false;
@@ -58,16 +61,19 @@ export function setupSandboxPanel({ root, state, onAction, onChange, showLowGrav
   return {
     section,
     update({ game, controller, foxes, fps }) {
-      const debug = section.querySelector('#sandboxDebug');
-      if (!debug) return;
+      if (!debug || section.hidden || section.closest?.('[hidden]')) return;
+      const now = performance.now();
+      if (now - lastUpdatedAt < 250) return;
+      lastUpdatedAt = now;
       const enemies = foxes.filter((f) => !f.isSandboxDummy);
       const statuses = enemies.slice(0, 5).map((f) => f.state).join(' · ') || '无';
       const dummy = state.dummy && !state.dummy._disposed ? state.dummy : null;
       const dummyStatus = dummy ? `木桩 <b>${Math.max(0, dummy.hp).toFixed(1)}/${dummy.maxHp}</b> · ${dummy.dummyDefeatable ? '可击败' : '不可击败'}` : '木桩 无';
-      debug.innerHTML = `FPS <b>${Math.round(fps || 0)}</b>　坐标 <b>${controller.position.x.toFixed(1)}, ${controller.position.z.toFixed(1)}</b><br>`
+      const text = `FPS <b>${Math.round(fps || 0)}</b>　坐标 <b>${controller.position.x.toFixed(1)}, ${controller.position.z.toFixed(1)}</b><br>`
         + `yaw <b>${controller.yaw.toFixed(2)}</b>　敌狐 <b>${enemies.length}</b>　${dummyStatus}<br>`
         + `<span>${statuses}${enemies.length > 5 ? ' …' : ''}</span>`
         + (state.lastCommand ? `<br><em>${state.lastCommand}</em>` : '');
+      if (text !== lastText) { debug.innerHTML = text; lastText = text; }
     },
   };
 }
