@@ -1,0 +1,1903 @@
+{
+  "url": "http://127.0.0.1:8391/index.html?version=beta&pafqa=1",
+  "renderer": {
+    "backend": "WebGL2",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "desktop": {
+    "before": {
+      "phase": "idle",
+      "pos": {
+        "x": 0,
+        "y": -2.624782481812682,
+        "z": -6,
+        "yaw": 0,
+        "airY": 0
+      },
+      "input": {
+        "touch": {
+          "throttle": 0,
+          "turn": 0,
+          "sprint": false
+        },
+        "charging": false,
+        "chargeHeld": false,
+        "pounceYaw": 0,
+        "crouchScale": 1
+      },
+      "view": "tps",
+      "look": {
+        "yaw": 0,
+        "pitch": 0
+      },
+      "cfg": {
+        "catchRadius": 1.25,
+        "pounceArcDeg": 120,
+        "windTime": 0.22,
+        "lungeSpeed": 13.5
+      }
+    },
+    "afterMove": {
+      "phase": "idle",
+      "pos": {
+        "x": 0,
+        "y": -2.6353805180418086,
+        "z": -5.875,
+        "yaw": 0,
+        "airY": 0
+      },
+      "input": {
+        "touch": {
+          "throttle": 1,
+          "turn": 0,
+          "sprint": false
+        },
+        "charging": false,
+        "chargeHeld": false,
+        "pounceYaw": 0,
+        "crouchScale": 1
+      },
+      "view": "tps",
+      "look": {
+        "yaw": 0,
+        "pitch": 0
+      },
+      "cfg": {
+        "catchRadius": 1.25,
+        "pounceArcDeg": 120,
+        "windTime": 0.22,
+        "lungeSpeed": 13.5
+      }
+    },
+    "wind": {
+      "phase": "wind",
+      "pos": {
+        "x": -0.125,
+        "y": -2.6438151864447534,
+        "z": -5.75,
+        "yaw": 0,
+        "airY": 0
+      },
+      "input": {
+        "touch": {
+          "throttle": 1,
+          "turn": 0,
+          "sprint": false
+        },
+        "charging": true,
+        "chargeHeld": true,
+        "pounceYaw": -1.0471975511965976,
+        "crouchScale": 1
+      },
+      "view": "tps",
+      "look": {
+        "yaw": 0,
+        "pitch": -0.1
+      },
+      "cfg": {
+        "catchRadius": 1.25,
+        "pounceArcDeg": 120,
+        "windTime": 0.35,
+        "lungeSpeed": 13.5
+      }
+    },
+    "samples": [
+      {
+        "phase": "wind",
+        "pos": {
+          "x": -0.125,
+          "y": -2.6438151864447534,
+          "z": -5.75,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": true,
+          "chargeHeld": true,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "wind",
+        "pos": {
+          "x": -0.125,
+          "y": -2.6438151864447534,
+          "z": -5.75,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": true,
+          "chargeHeld": true,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": -0.125,
+          "y": -2.6438151864447534,
+          "z": -5.75,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": -0.709567147554496,
+          "y": -2.1769244964234864,
+          "z": -5.4125,
+          "yaw": 0,
+          "airY": 0.4555779260734361
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": -1.294134295108992,
+          "y": -1.760559946936429,
+          "z": -5.074999999999999,
+          "yaw": 0,
+          "airY": 0.8209230565914313
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": -1.878701442663488,
+          "y": -1.479120528448126,
+          "z": -4.737499999999999,
+          "yaw": 0,
+          "airY": 1.023674307790915
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": -2.463268590217984,
+          "y": -1.3802194813655733,
+          "z": -4.399999999999999,
+          "yaw": 0,
+          "airY": 1.023674307790915
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": -3.04783573777248,
+          "y": -1.471250138438252,
+          "z": -4.062499999999998,
+          "yaw": 0,
+          "airY": 0.8209230565914315
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": -3.632402885326976,
+          "y": -1.7193240892506427,
+          "z": -3.724999999999998,
+          "yaw": 0,
+          "airY": 0.45557792607343617
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": -4.216970032881472,
+          "y": -2.0591826086767706,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -4.341970032881472,
+          "y": -2.03026450549349,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -4.466970032881472,
+          "y": -2.0017810506436726,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -4.591970032881472,
+          "y": -1.9738048642194053,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -4.716970032881472,
+          "y": -1.9464085663127746,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -4.841970032881472,
+          "y": -1.9196647770158675,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -4.966970032881472,
+          "y": -1.8936461164207699,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -5.091970032881472,
+          "y": -1.8684252046195675,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -5.216970032881472,
+          "y": -1.8440746617043478,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -5.341970032881472,
+          "y": -1.8206671077671988,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": -5.466970032881472,
+          "y": -1.7982720532163543,
+          "z": -3.3874999999999975,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.0471975511965976,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": -0.1
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.35,
+          "lungeSpeed": 13.5
+        }
+      }
+    ],
+    "rangeContract": {
+      "configuredCatchRadius": 1.25,
+      "strict": true
+    },
+    "fpv": {
+      "phase": "idle",
+      "pos": {
+        "x": -5.591970032881472,
+        "y": -1.7768550645072316,
+        "z": -3.3874999999999975,
+        "yaw": 0,
+        "airY": 0
+      },
+      "input": {
+        "touch": {
+          "throttle": 0,
+          "turn": 0,
+          "sprint": false
+        },
+        "charging": false,
+        "chargeHeld": false,
+        "pounceYaw": -1.0471975511965976,
+        "crouchScale": 1
+      },
+      "view": "fpv",
+      "look": {
+        "yaw": 0,
+        "pitch": -0.10471975511965977
+      },
+      "cfg": {
+        "catchRadius": 1.25,
+        "pounceArcDeg": 120,
+        "windTime": 0.35,
+        "lungeSpeed": 13.5
+      }
+    }
+  },
+  "mobile": {
+    "ui": {
+      "touch": "beta-version touch-mode touch-playing play-as-fox paf-touch-route",
+      "joystick": {
+        "x": 70,
+        "y": 774,
+        "w": 112,
+        "h": 112
+      },
+      "attack": {
+        "x": 234,
+        "y": 613.578125,
+        "w": 76,
+        "h": 76
+      },
+      "view": {
+        "x": 234,
+        "y": 517.578125,
+        "w": 58,
+        "h": 58
+      },
+      "tip": "左下摇杆移动 · 冲刺切换潜行 · 扑击按下后自动扑出（潜行）"
+    },
+    "uiAfter": {
+      "view": "tps",
+      "tip": "左下摇杆移动 · 冲刺切换潜行 · 扑击按下后自动扑出（潜行）",
+      "body": "beta-version touch-mode touch-playing play-as-fox paf-touch-route"
+    },
+    "samples": [
+      {
+        "phase": "idle",
+        "pos": {
+          "x": 0.2603947764189705,
+          "y": -2.637133144133359,
+          "z": -5.814003869895865,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "wind",
+        "pos": {
+          "x": 1.041579105675882,
+          "y": -2.6271794981299568,
+          "z": -5.256015479583461,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 1,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": true,
+          "chargeHeld": true,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": 1.041579105675882,
+          "y": -2.6271794981299568,
+          "z": -5.256015479583461,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": 1.590849337184648,
+          "y": -2.212226091072995,
+          "z": -4.863679892645051,
+          "yaw": 0,
+          "airY": 0.3836080755847148
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": 2.1401195686934136,
+          "y": -1.8403343841148225,
+          "z": -4.471344305706641,
+          "yaw": 0,
+          "airY": 0.7141813746594655
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": 2.6893898002021794,
+          "y": -1.562562551979627,
+          "z": -4.079008718768231,
+          "yaw": 0,
+          "airY": 0.9460173112975403
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": 3.2386600317109453,
+          "y": -1.415733605088101,
+          "z": -3.6866731318298207,
+          "yaw": 0,
+          "airY": 1.0470639870402392
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": 3.787930263219711,
+          "y": -1.4177096420302824,
+          "z": -3.2943375448914107,
+          "yaw": 0,
+          "airY": 1.0033514460754478
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": 4.337200494728477,
+          "y": -1.5652981379510393,
+          "z": -2.9020019579530008,
+          "yaw": 0,
+          "airY": 0.8209230565914315
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": 4.886470726237243,
+          "y": -1.8350572871540702,
+          "z": -2.509666371014591,
+          "yaw": 0,
+          "airY": 0.5250000000000004
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "lunge",
+        "pos": {
+          "x": 5.435740957746009,
+          "y": -2.1868848001411485,
+          "z": -2.117330784076181,
+          "yaw": 0,
+          "airY": 0.15649437948498346
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "recover",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      },
+      {
+        "phase": "idle",
+        "pos": {
+          "x": 5.985011189254775,
+          "y": -2.325839112441903,
+          "z": -1.7249951971377706,
+          "yaw": 0,
+          "airY": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0.9505471936839281,
+          "crouchScale": 1
+        },
+        "view": "tps",
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "cfg": {
+          "catchRadius": 1.25,
+          "pounceArcDeg": 120,
+          "windTime": 0.22,
+          "lungeSpeed": 13.5
+        }
+      }
+    ]
+  },
+  "consoleErrors": []
+}
