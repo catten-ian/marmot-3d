@@ -1,6 +1,6 @@
 import { SANDBOX_DIFFICULTIES } from './state.js';
 
-export function setupSandboxPanel({ root, state, onAction, onChange, recorder = null }) {
+export function setupSandboxPanel({ root, state, onAction, onChange, recorder = null, blackbox = null }) {
   if (!root) return null;
   const existing = root.querySelector('.sandbox-controls');
   if (existing) existing.remove();
@@ -30,6 +30,9 @@ export function setupSandboxPanel({ root, state, onAction, onChange, recorder = 
       <button type="button" data-sandbox-action="placeDummy">放置练习木桩</button>
       <button type="button" data-sandbox-action="removeDummy">移除练习木桩</button>
     </div>
+    <div class="sandbox-heading">智能狐黑匣子（Beta）</div>
+    <div class="test-actions sandbox-actions"><button type="button" data-sandbox-action="captureAnomaly" id="sandboxCaptureAnomaly">一键捕获智能狐异常</button></div>
+    <div id="sandboxBlackboxStatus" aria-live="polite">自动保留最近 20 秒；点击后继续记录 5 秒</div>
     <div class="sandbox-heading">操作录制（JSON，不是视频）</div>
     <div class="test-actions sandbox-actions">
       <button type="button" data-sandbox-action="recordStart" id="sandboxRecordToggle">开始录制</button>
@@ -91,6 +94,9 @@ export function setupSandboxPanel({ root, state, onAction, onChange, recorder = 
         summary.textContent = state.lastRecordingSummary || '';
         summary.hidden = !state.lastRecordingSummary;
       }
+      const blackboxStatus = section.querySelector('#sandboxBlackboxStatus');
+      const bb = blackbox?.status?.(game.totalTime);
+      if (blackboxStatus && bb) blackboxStatus.textContent = bb.pending ? '已捕获前 20 秒 · 正在记录后 5 秒' : bb.ready ? '异常包已生成，可在本机下载' : '自动保留最近 20 秒；点击后继续记录 5 秒';
       const debug = section.querySelector('#sandboxDebug');
       const badge = document.getElementById('sandboxGodBadge');
       if (badge) badge.style.display = state.godMode ? 'block' : 'none';
