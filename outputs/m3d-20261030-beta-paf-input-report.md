@@ -5,7 +5,8 @@
 - Channel: beta
 - Job: `/home/fame/code/marmot3d/m3d-beta-paf-input-20261030`
 - Delivery: local commit only; no push or deploy
-- Implementation commit: recorded in the final delivery response after the local commit
+- Implementation commit: `8b4c3de8b8e7cd2e40224f59a6e38778d4495c92` (local)
+- Report commit: documentation follow-up commit on this branch (reported with the final delivery SHA)
 
 ## Goal and acceptance matrix
 
