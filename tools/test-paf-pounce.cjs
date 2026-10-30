@@ -73,7 +73,9 @@ test('lunge 语义：retarget 之外锁定方向（调用方零微调）——wi
 
 test('B2 同高度贴身命中；水平超距不命中', () => {
   assert.equal(pp.canCatch(1, 0, 0, 0, P), true);
-  assert.equal(pp.canCatch(2, 0, 0, 0, P), false); // 2m > catchRadius 1.7
+  assert.equal(P.catchRadius, 1.25);
+  assert.equal(pp.canCatch(1.249, 0, 0, 0, P), true);
+  assert.equal(pp.canCatch(1.25, 0, 0, 0, P), false); // strict collision reach contract
 });
 
 test('B2 腾空越过头顶不算命中（apex 1.05m 时 |1.05+0.45-0.45|=1.05 ≥ 0.8）', () => {

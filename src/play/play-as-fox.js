@@ -34,7 +34,7 @@ import {
   pushOutCircles,
 } from '../core/predator-prey.js';
 import {
-  isPafKey, pafKeyHeld, PafPounceCharge,
+  isPafKey, pafKeyHeld, pafDirectionFromInput, pafMovementFromInput, PafPounceCharge,
   PafInputRoute,
 } from '../core/paf-input.js';
 
@@ -46,14 +46,14 @@ export const PAF_DEFAULTS = {
   reverseSpeed: 0.55,     // 后退相对速度
   turnRate: 2.6,          // 键盘转向 rad/s
   mouseTurn: 0.0024,      // 鼠标每像素转向（默认乘普通控制器灵敏度比例）
-  pounceMaxCharge: 1.2,  // 触屏按住攻击的最长蓄力 s；短按仍按 windTime 自动扑出
+  pounceArcDeg: 120,      // wind 期间可选方向总弧度（默认前方 ±60°）
   // 扑击相位
   windTime: 0.22,         // 蓄力下蹲 s
   lungeTime: 0.42,        // 腾空时长 s
   lungeSpeed: 13.5,       // 腾空速度 m/s
   lungeHeight: 1.05,      // 腾空抛物线高度 m
   recoverTime: 0.5,       // 落地硬直 s
-  catchRadius: 1.7,       // 扑击捕获水平半径 m（扑击范围）
+  catchRadius: 1.25,      // 扑击捕获水平半径 m（实际 pounce reach contract）
   // 碰撞体积（供后台可视化/标定；捕获以 catchRadius 为准）
   foxRadius: 0.5,
   foxHeight: 0.9,
@@ -304,6 +304,8 @@ export function createPlayAsFox(ctx) {
   // 仅在后台模式下读取已保存的调参；普通玩家永远默认值。
   const debugOn = new URLSearchParams(location.search).get('pafdebug') === '1';
   const cfg = { ...PAF_DEFAULTS, ...(debugOn ? loadPafCfg() : {}) };
+  cfg.pounceArcDeg = clamp(Number.isFinite(cfg.pounceArcDeg) ? cfg.pounceArcDeg : PAF_DEFAULTS.pounceArcDeg, 0, 360);
+  cfg.catchRadius = Number.isFinite(cfg.catchRadius) ? Math.max(0, cfg.catchRadius) : PAF_DEFAULTS.catchRadius;
 
   // —— 玩家扮演的藏狐 ——
   const foxVisual = createPafFoxModel({});
@@ -434,14 +436,15 @@ export function createPlayAsFox(ctx) {
   }
   function toggleView() { setViewMode(viewMode.toggle()); return viewMode.mode; }
 
-  function startPounce(fromTouch = false) {
+  function startPounce() {
     if (fox.phase !== 'idle') return false;
-    if (fromTouch && !pounceCharge.press()) return false;
-    if (!fromTouch) pounceCharge.reset();
+    if (!pounceCharge.press()) return false;
     fox.phase = 'wind'; fox.phaseT = 0;
-    fox.windStartYaw = fox.yaw;   // B1 重瞄护栏的基准朝向
+    fox.windStartYaw = fox.yaw;
+    fox.lungeYaw = fox.yaw;
     return true;
   }
+
   function catchPrey(p) {
     p.caught = true; p.respawn = cfg.respawnTime;
     p.mesh.visible = false; p.mark.style.display = 'none';
@@ -505,8 +508,7 @@ export function createPlayAsFox(ctx) {
   const pafRoute = new PafInputRoute(touchControls);
   const touchAction = (action, pressed) => {
     if (action === 'attack') {
-      if (pressed) startPounce(true);
-      else pounceCharge.release();
+      if (pressed) startPounce();
     } else if (action === 'dodge') {
       touch.sprint = pressed;
     } else if (action === 'jump' && pressed) {
@@ -532,7 +534,7 @@ export function createPlayAsFox(ctx) {
     const attack = document.querySelector('[data-touch-action="attack"]');
     const sprint = document.querySelector('[data-touch-action="dodge"]');
     const view = document.querySelector('[data-touch-action="jump"]');
-    if (attack) { attack.dataset.pafLabel = 'attack'; attack.setAttribute('aria-label', '扑击：按住蓄力，松手扑出'); attack.querySelector('b')?.replaceChildren('爪'); attack.querySelector('small')?.replaceChildren('扑击'); }
+    if (attack) { attack.dataset.pafLabel = 'attack'; attack.setAttribute('aria-label', '扑击：按下后自动扑出'); attack.querySelector('b')?.replaceChildren('爪'); attack.querySelector('small')?.replaceChildren('扑击'); }
     if (sprint) { sprint.dataset.pafLabel = 'sprint'; sprint.setAttribute('aria-label', '冲刺：按住冲刺'); sprint.querySelector('b')?.replaceChildren('⚡'); sprint.querySelector('small')?.replaceChildren('冲刺'); }
     if (view) { view.dataset.pafLabel = 'view'; view.setAttribute('aria-label', '视角：切换第一人称/第三人称'); view.querySelector('b')?.replaceChildren('◉'); view.querySelector('small')?.replaceChildren('视角'); }
   }
@@ -554,31 +556,28 @@ export function createPlayAsFox(ctx) {
     elapsed += dt;
     const keyboardSprint = sprintHeld();
     const axes = pafRoute.controller?.touchAxes || { x: 0, y: 0 };
-    touch.turn = -axes.x;
-    touch.throttle = axes.y;
+    const keyboardInput = {
+      forward: forwardHeld(), back: backHeld(), left: leftHeld(), right: rightHeld(),
+    };
+    const cameraYaw = viewMode.mode === 'fpv' ? look.yaw : fox.yaw;
+    const movement = pafMovementFromInput({ cameraYaw, ...keyboardInput, axes });
+    touch.throttle = movement.active ? movement.magnitude : 0;
+    touch.turn = 0;
     fox.sprint = keyboardSprint || touch.sprint || !!pafRoute.controller?.touchSprint;
     fox.stalk = !fox.sprint;
 
-    // 相位推进
+    // 相位推进；wind 期间方向持续跟随当前键盘/摇杆输入，提交时锁定该方向。
     if (fox.phase === 'wind') {
       fox.phaseT += dt;
-      // B1：wind 前 60% 对最近猎物做 lead 预测并允许 ≤windRetargetDeg 的缓慢重瞄，后 40% 锁定
-      const live = prey.filter((p) => !p.caught).map((p) => ({ x: p.x, z: p.z, vx: p.vx, vz: p.vz }));
-      const near = nearestTarget(fox.x, fox.z, live);
-      if (near) {
-        const t = near.target;
-        const leadT = windLeadTime(Math.max(0, cfg.windTime - fox.phaseT), cfg);
-        const aim = leadTarget(t.x, t.z, t.vx, t.vz, leadT);
-        const desired = yawTo(aim.x - fox.x, aim.z - fox.z);
-        fox.yaw = retargetWindYaw({
-          startYaw: fox.windStartYaw, yaw: fox.yaw, desiredYaw: desired,
-          progress: Math.min(fox.phaseT, cfg.windTime) / cfg.windTime, dt,
-        }, cfg);
-      }
-      const charge = pounceCharge.step(dt, cfg.windTime, cfg.pounceMaxCharge);
-      if ((pounceCharge.active && charge.shouldLunge) || (!pounceCharge.active && fox.phaseT >= cfg.windTime)) {
+      const selected = pafDirectionFromInput({ cameraYaw, ...keyboardInput, axes, arcDeg: cfg.pounceArcDeg });
+      // Keep the last deliberate selection if the input is released during wind;
+      // a committed pounce must not snap back to a cosmetic camera-forward marker.
+      if (selected.source !== 'fallback') fox.lungeYaw = selected.yaw;
+      const charge = pounceCharge.step(dt, cfg.windTime);
+      if (charge.shouldLunge) {
         pounceCharge.reset();
-        fox.phase = 'lunge'; fox.phaseT = 0; fox.lungeYaw = fox.yaw;
+        fox.phase = 'lunge'; fox.phaseT = 0;
+        if (selected.source !== 'fallback') fox.lungeYaw = selected.yaw;
       }
     } else if (fox.phase === 'lunge') {
       fox.phaseT += dt;
@@ -592,22 +591,13 @@ export function createPlayAsFox(ctx) {
       if (fox.phaseT >= cfg.recoverTime) fox.phase = 'idle';
     }
 
-    // 常规移动 / 转向（蓄力与扑击中锁向）
-    const canSteer = fox.phase === 'idle' || fox.phase === 'recover';
-    let turn = touch.turn;
-    if (canSteer) {
-      if (leftHeld()) turn += 1;
-      if (rightHeld()) turn -= 1;
-      fox.yaw += turn * cfg.turnRate * dt;
-    }
-    let throttle = touch.throttle;
-    if (fox.phase === 'idle') {
-      if (forwardHeld()) throttle += 1;
-      if (backHeld()) throttle -= cfg.reverseSpeed;
-      throttle = clamp(throttle, -cfg.reverseSpeed, 1);
-      const sp = fox.sprint ? cfg.runSpeed : cfg.stalkSpeed;
-      fox.x += Math.sin(fox.yaw) * sp * throttle * dt;
-      fox.z += Math.cos(fox.yaw) * sp * throttle * dt;
+    // 常规移动：两种视角都使用同一套相机相对方向；动作键仍由各自状态机处理。
+    const throttle = movement.active ? movement.magnitude : 0;
+    if (fox.phase === 'idle' && movement.active) {
+      const reverseOnly = keyboardInput.back && !keyboardInput.forward && !keyboardInput.left && !keyboardInput.right && !Math.hypot(axes.x || 0, axes.y || 0);
+      const sp = (fox.sprint ? cfg.runSpeed : cfg.stalkSpeed) * (reverseOnly ? cfg.reverseSpeed : 1);
+      fox.x += movement.x * sp * dt;
+      fox.z += movement.z * sp * dt;
     }
     fox.x = clamp(fox.x, -bounds.hw, bounds.hw);
     fox.z = clamp(fox.z, -bounds.hh, bounds.hh);
@@ -645,7 +635,7 @@ export function createPlayAsFox(ctx) {
     if (viewMode.mode === 'fpv') {
       // 扑击期间视线柔和锁向扑击方向（阻尼回正，不瞬移）
       if (fox.phase === 'wind' || fox.phase === 'lunge') {
-        const targetYaw = fox.phase === 'lunge' ? fox.lungeYaw : fox.yaw;
+        const targetYaw = fox.lungeYaw;
         dampLookToward(look, targetYaw, cfg.fpvPouncePitch, cfg.fpvPounceLockDamp, dt);
       }
       const pose = fpvCameraPose(fox, look, cfg, groundY);
@@ -666,11 +656,10 @@ export function createPlayAsFox(ctx) {
     // HUD
     elTop.textContent = `扮演藏狐 · 捕猎 ${score} 只 · ${elapsed.toFixed(0)}s`;
     const phaseLabel = fox.phase === 'wind' ? '蓄力中…' : fox.phase === 'lunge' ? '扑击！' : fox.phase === 'recover' ? '硬直' : fox.sprint ? '冲刺（易被发现）' : '潜行';
-    const chargeHint = pounceCharge.active
-      ? ` · 蓄力 ${Math.round(Math.min(1, fox.phaseT / Math.max(cfg.windTime, cfg.pounceMaxCharge)) * 100)}%` : '';
+    const chargeHint = fox.phase === 'wind' ? ` · 方向锁定 ${Math.round(Math.min(1, fox.phaseT / Math.max(cfg.windTime, 0.0001)) * 100)}%` : '';
     elTip.innerHTML = isTouch
-      ? `左下摇杆移动/转向 · <b>冲刺</b>切换潜行 · <b>扑击</b>捕猎（按住蓄力，松手扑出）（${phaseLabel}）${chargeHint}`
-      : `W/S 前后 · 鼠标或 A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
+      ? `左下摇杆移动 · <b>冲刺</b>切换潜行 · <b>扑击</b>按下后自动扑出（${phaseLabel}）${chargeHint}`
+      : `W/A/S/D 相机相对移动 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
   }
 
   function exit() {
@@ -716,7 +705,7 @@ export function createPlayAsFox(ctx) {
     get phase() { return fox.phase; },
     get sprint() { return fox.sprint; },
     get stalk() { return !fox.sprint; },
-    get input() { return { touch: { ...touch }, charging: pounceCharge.active, chargeHeld: pounceCharge.held, crouchScale: foxVisual.group.scale.y }; },
+    get input() { return { touch: { ...touch }, charging: pounceCharge.active, chargeHeld: pounceCharge.held, pounceYaw: fox.lungeYaw, crouchScale: foxVisual.group.scale.y }; },
     get pos() { return { x: fox.x, y: fox.y, z: fox.z, yaw: fox.yaw, airY: fox.airY }; },
     get prey() { return prey; },
     get bounds() { return { hw: bounds.hw, hh: bounds.hh }; },

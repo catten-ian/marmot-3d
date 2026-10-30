@@ -2,7 +2,9 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 let input;
-test.before(async () => { input = await import('../src/core/paf-input.js'); });
+let pafDirectionFromInput;
+let pafMovementFromInput;
+test.before(async () => { input = await import('../src/core/paf-input.js'); ({ pafDirectionFromInput, pafMovementFromInput } = input); });
 
 test('摇杆轴映射：死区、前后、左右倒置及径向归一化', () => {
   const { mapPafJoystick } = input;
@@ -37,35 +39,65 @@ test('推过 sprintThreshold 疾跑、内圈内潜行，任意输入二者严格
   }
 });
 
-test('触屏攻击：短按经过最短前摇扑出，按住可延长蓄力且松手扑出', () => {
+test('PAF moving pounce: press starts a readable windup and release does not gate launch', () => {
   const charge = new input.PafPounceCharge();
   assert.equal(charge.press(), true);
-  assert.equal(charge.press(), false, '同一次蓄力不可重复开始');
-  assert.equal(charge.step(0.08, 0.22, 1.2).shouldLunge, false);
+  assert.equal(charge.press(), false, 'one press cannot re-arm the same pounce');
+  assert.equal(charge.step(0.08, 0.22).shouldLunge, false);
   charge.release();
-  assert.equal(charge.step(0.1, 0.22, 1.2).shouldLunge, false, '短按也不能跳过前摇');
-  const shortDone = charge.step(0.05, 0.22, 1.2);
-  assert.equal(shortDone.shouldLunge, true);
+  assert.equal(charge.step(0.1, 0.22).shouldLunge, false);
+  assert.equal(charge.step(0.05, 0.22).shouldLunge, true);
   charge.reset();
   charge.press();
-  const held = charge.step(0.5, 0.22, 1.2);
-  assert.equal(held.shouldLunge, false, '持续按住应停留在 wind，而非自动短扑');
-  assert.ok(held.charge > 0 && held.charge < 1);
-  charge.release();
-  assert.equal(charge.step(0, 0.22, 1.2).shouldLunge, true);
+  assert.equal(charge.step(0.5, 0.22).shouldLunge, true, 'held input must not extend moving pounce');
   charge.reset();
   assert.equal(charge.active, false);
-  assert.equal(charge.held, false, '取消/退出后不得残留 held');
 });
 
-test('触屏攻击：最长蓄力自动扑出，max 小于 wind 时仍保留最短前摇', () => {
+test('PAF pounce press has no repeat auto-trigger after commit/reset', () => {
   const charge = new input.PafPounceCharge();
-  charge.press();
-  assert.equal(charge.step(1.2, 0.22, 1.2).shouldLunge, true);
-  assert.equal(charge.step(0.1, 0.22, 1.2).charge, 1);
-  charge.reset(); charge.press();
-  assert.equal(charge.step(0.1, 0.22, 0.05).shouldLunge, false);
-  assert.equal(charge.step(0.12, 0.22, 0.05).shouldLunge, true);
+  assert.equal(charge.press(), true);
+  assert.equal(charge.step(0.22, 0.22).shouldLunge, true);
+  charge.reset();
+  assert.equal(charge.step(1, 0.22).shouldLunge, false);
+});
+
+test('camera-relative keyboard direction maps W/AW/A/D/WD and clamps to the configured arc', () => {
+  const cases = [
+    [{ forward: true }, 0],
+    [{ forward: true, left: true }, -45],
+    [{ left: true }, -60],
+    [{ right: true }, 60],
+    [{ forward: true, right: true }, 45],
+  ];
+  for (const [keys, degrees] of cases) {
+    const got = pafDirectionFromInput({ cameraYaw: 0, ...keys });
+    assert.ok(Math.abs(got.offset - degrees * Math.PI / 180) < 1e-9, `${JSON.stringify(keys)} => ${got.offset}`);
+    assert.ok(Number.isFinite(got.x) && Number.isFinite(got.z));
+  }
+  assert.equal(pafDirectionFromInput({ arcDeg: 80, right: true }).offset, 40 * Math.PI / 180);
+  assert.equal(pafDirectionFromInput({ arcDeg: 240, left: true }).offset, -90 * Math.PI / 180);
+});
+
+test('FPV and TPS use identical camera-relative movement semantics for the same input', () => {
+  for (const cameraYaw of [0, 0.7, -2.2]) {
+    for (const keys of [{ forward: true }, { left: true, forward: true }, { right: true }]) {
+      const tps = pafMovementFromInput({ cameraYaw, ...keys });
+      const fpv = pafMovementFromInput({ cameraYaw, ...keys });
+      assert.deepEqual(fpv, tps);
+    }
+  }
+});
+
+test('touch joystick uses the same camera-relative direction contract and finite fallback', () => {
+  const touch = pafDirectionFromInput({ cameraYaw: Math.PI / 2, axes: { x: 0, y: 1 } });
+  assert.ok(Math.abs(touch.yaw - Math.PI / 2) < 1e-9);
+  const diagonal = pafMovementFromInput({ cameraYaw: 0.4, axes: { x: 1, y: 1 } });
+  assert.ok(Math.abs(diagonal.magnitude - 1) < 1e-12);
+  assert.ok(Math.abs(Math.hypot(diagonal.x, diagonal.z) - 1) < 1e-12);
+  const fallback = pafDirectionFromInput({ cameraYaw: 0.7, axes: { x: NaN, y: Infinity } });
+  assert.equal(fallback.source, 'fallback');
+  assert.ok(Number.isFinite(fallback.yaw));
 });
 
 test('Keybinds.isAction 命中优先生效，未命中时保留默认键兜底', () => {

@@ -4,6 +4,75 @@
  */
 
 export const PAF_TOUCH_DEAD_ZONE = 0.14;
+export const PAF_DEFAULT_POUNCE_ARC_DEG = 120;
+
+const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
+const clamp = (value, min, max) => value < min ? min : value > max ? max : value;
+
+/**
+ * Camera-relative PAF direction. The local frame is x=right, z=forward and
+ * yaw=0 points along +Z. Keyboard and touch use the same vector contract;
+ * diagonal input is normalized once and pounce selection is clamped to the
+ * configured forward arc. This helper is DOM/THREE free for contract tests.
+ */
+export function pafDirectionFromInput({
+  cameraYaw = 0,
+  forward = false,
+  back = false,
+  left = false,
+  right = false,
+  axes = null,
+  arcDeg = PAF_DEFAULT_POUNCE_ARC_DEG,
+  deadZone = PAF_TOUCH_DEAD_ZONE,
+} = {}) {
+  const yaw = finite(cameraYaw, 0);
+  let x = (right ? 1 : 0) - (left ? 1 : 0);
+  let z = (forward ? 1 : 0) - (back ? 1 : 0);
+  let source = 'keyboard';
+  if (x === 0 && z === 0) {
+    const ax = finite(axes?.x, 0);
+    const az = finite(axes?.y, 0);
+    if (Math.hypot(ax, az) >= Math.max(0, finite(deadZone, PAF_TOUCH_DEAD_ZONE))) {
+      x = ax; z = az; source = 'touch';
+    } else {
+      x = Math.sin(yaw); z = Math.cos(yaw); source = 'fallback';
+    }
+  }
+  const magnitude = Math.hypot(x, z);
+  if (!(magnitude > 1e-9) || !Number.isFinite(magnitude)) {
+    x = Math.sin(yaw); z = Math.cos(yaw); source = 'fallback';
+  } else {
+    x /= magnitude; z /= magnitude;
+  }
+  const requestedOffset = Math.atan2(x, z);
+  const halfArc = clamp(Math.abs(finite(arcDeg, PAF_DEFAULT_POUNCE_ARC_DEG)), 0, 360) * Math.PI / 360;
+  const offset = clamp(requestedOffset, -halfArc, halfArc);
+  const worldYaw = yaw + offset;
+  return {
+    x: Math.sin(worldYaw),
+    z: Math.cos(worldYaw),
+    yaw: worldYaw,
+    localX: Math.sin(offset),
+    localZ: Math.cos(offset),
+    offset,
+    requestedOffset,
+    magnitude: Math.min(1, magnitude),
+    source,
+  };
+}
+
+/** Full camera-relative movement vector; unlike pounce selection it is not arc-clamped. */
+export function pafMovementFromInput({ cameraYaw = 0, forward = false, back = false, left = false, right = false, axes = null, deadZone = 0 } = {}) {
+  const yaw = finite(cameraYaw, 0);
+  let x = (right ? 1 : 0) - (left ? 1 : 0);
+  let z = (forward ? 1 : 0) - (back ? 1 : 0);
+  if (x === 0 && z === 0) { x = finite(axes?.x, 0); z = finite(axes?.y, 0); }
+  const magnitude = Math.hypot(x, z);
+  if (magnitude <= Math.max(0, finite(deadZone, 0)) || !Number.isFinite(magnitude)) return { x: 0, z: 0, yaw, magnitude: 0, active: false };
+  const nx = x / magnitude, nz = z / magnitude;
+  const worldYaw = yaw + Math.atan2(nx, nz);
+  return { x: Math.sin(worldYaw), z: Math.cos(worldYaw), yaw: worldYaw, magnitude: Math.min(1, magnitude), active: true };
+}
 
 /** 与 TouchControls 相同的径向死区/归一化口径；右拖为负 turn（顺时针右转）。 */
 export function mapPafJoystick(axes = {}, sprintThreshold = 0.78, deadZone = PAF_TOUCH_DEAD_ZONE) {
@@ -34,8 +103,8 @@ export function pafKeyHeld(binds, keys, actionIds, fallbackCodes = []) {
 }
 
 /**
- * 触屏攻击蓄力状态机：短按松手仍经过 windTime 后扑出；持续按住可延长蓄力，
- * 松手或达到 maxChargeTime 时扑出。只决定相位，不改变既有位移/捕获规则。
+ * PAF moving-pounce phase gate: a press starts a short readable windup and
+ * launch is time-based; release state is retained only for route compatibility.
  */
 export class PafPounceCharge {
   constructor() { this.reset(); }
@@ -50,15 +119,14 @@ export class PafPounceCharge {
     this.held = false; this.released = true;
     return true;
   }
-  step(dt, windTime, maxChargeTime) {
+  step(dt, windTime) {
     if (!this.active) return { shouldLunge: false, charge: 0, elapsed: 0 };
-    this.elapsed += Math.max(0, Number.isFinite(dt) ? dt : 0);
-    const minWind = Math.max(0, windTime);
-    const maxCharge = Math.max(minWind, maxChargeTime);
-    const shouldLunge = (this.released && this.elapsed >= minWind) || this.elapsed >= maxCharge;
+    this.elapsed += Math.max(0, finite(dt, 0));
+    const minWind = Math.max(0, finite(windTime, 0));
     return {
-      shouldLunge,
-      charge: Math.min(1, this.elapsed / Math.max(0.0001, maxCharge)),
+      // PAF moving pounce is press-to-trigger: release state never gates launch.
+      shouldLunge: this.elapsed >= minWind,
+      charge: Math.min(1, this.elapsed / Math.max(0.0001, minWind)),
       elapsed: this.elapsed,
     };
   }
