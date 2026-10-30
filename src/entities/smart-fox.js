@@ -260,7 +260,7 @@ export class SmartFox extends Fox {
       if (distance < nearBand) intent = 'observe'; else if (distance > 7.7) intent = 'approach'; else intent = this._approachBand ? 'approach' : 'observe';
       this._approachBand = intent === 'approach';
     }
-    const debounced = debounceIntent(this._intentCandidate, intent, this._intentHeld, dt);
+    const debounced = debounceIntent(this._intentCandidate, intent, this._intentHeld, dt, IS_BETA ? { hold: BETA_TUNE.smartDebounceHold } : undefined);
     this._intentCandidate = debounced.intent; this._intentHeld = debounced.held;
     intent = debounced.intent;
     if (IS_BETA && this._role === 'rest') intent = 'recover';

@@ -54,6 +54,11 @@ export const BETA_TUNE = {
   smartPounceMaxLeadDistance: 0.65,
   smartPounceStrikeSpeed: 10.8,
   smartPounceStrikeTime: 0.21, // 总位移约 2.27m，保留前摇和可闪避窗口
+  // —— 智能狐群体节流与意图去抖（仅 Beta；stable 使用 smart-fox-core 默认值）——
+  smartPackWindow: 1.2,
+  smartPackSpacing: 0.35,
+  smartPackSlotSpacing: 0.025,
+  smartDebounceHold: 0.25,
   // —— 智能狐独立近身撕咬（仅 Beta）——
   smartMeleeTriggerRange: 2.4,
   smartMeleeHitRange: 1.55, // 当前水平接触距离；不复用扑击 swept hit

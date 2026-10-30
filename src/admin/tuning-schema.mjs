@@ -33,6 +33,13 @@ function describeEntry(entry) {
 
 const deg = (r) => r * 180 / Math.PI;
 
+/** Whether an admin entry is projected into the Beta runtime payload. */
+export function tuningCapability(entry, runtimeKeys = BETA_TUNE) {
+  const id = String(entry?.id || '');
+  const key = id.startsWith('beta.') ? id.slice(5) : '';
+  return id.startsWith('beta.') && Object.prototype.hasOwnProperty.call(runtimeKeys, key) ? 'runtime' : 'preview';
+}
+
 /**
  * 单项数值条目：
  *   id     面板内唯一键（点分路径，如 'fox.attacks.normal.dashTime'）
@@ -325,12 +332,12 @@ export function buildTuningEntries() {
   e.push(num('smart.pounceAcceleration', G_SMART, '扑击加速度', F_SMART, 'stepSmartMotion(options.acceleration 默认值)', 18, { min: 0, max: 60, unit: 'm/s²' }));
   e.push(num('smart.defaultSeparationDistance', G_SMART, '群体分离距离', F_SMART, 'separationVector(minDistance 默认值)', 1.8, { min: 0, max: 10, unit: 'm' }));
   e.push(num('smart.defaultSeparationStrength', G_SMART, '群体分离强度', F_SMART, 'separationVector(strength 默认值)', 2.4, { min: 0, max: 10 }));
-  e.push(num('smart.defaultDebounceHold', G_SMART, '意图切换确认时间', F_SMART, 'debounceIntent(options.hold 默认值)', 0.25, { min: 0, max: 3, unit: 's' }));
+  e.push(num('beta.smartDebounceHold', G_SMART, '意图切换确认时间', F_BETA, 'BETA_TUNE.smartDebounceHold → smart-fox.js debounceIntent({hold})', BETA_TUNE.smartDebounceHold, { min: 0, max: 3, unit: 's' }));
   e.push(num('smart.defaultWalkableLayerTolerance', G_SMART, '地面层采样容差', F_SMART, 'sampleWalkableGround(layerTolerance 默认值)', 0.28, { min: 0, max: 2, unit: 'm' }));
   e.push(num('smart.defaultGroundStepRate', G_SMART, '地面高度跟随速率', F_SMART, 'stepGroundY(maxRate 默认值)', 3.2, { min: 0, max: 15, unit: 'm/s' }));
-  e.push(num('smart.packWindow', G_SMART, '群体出击提交窗口', F_SMART, 'createSmartPack.canCommit 1.2 秒窗口', 1.2, { min: 0, max: 5, unit: 's' }));
-  e.push(num('smart.packSpacing', G_SMART, '群体出击最小间隔', F_SMART, 'createSmartPack.canCommit 0.35 秒间隔', 0.35, { min: 0, max: 2, unit: 's' }));
-  e.push(num('smart.packSlotSpacing', G_SMART, '群体槽位间隔增量', F_SMART, 'createSmartPack.canCommit 0.025 秒增量', 0.025, { min: 0, max: 0.5, unit: 's' }));
+  e.push(num('beta.smartPackWindow', G_SMART, '群体出击提交窗口', F_BETA, 'BETA_TUNE.smartPackWindow → createSmartPack({window})', BETA_TUNE.smartPackWindow, { min: 0, max: 5, unit: 's' }));
+  e.push(num('beta.smartPackSpacing', G_SMART, '群体出击最小间隔', F_BETA, 'BETA_TUNE.smartPackSpacing → createSmartPack({spacing})', BETA_TUNE.smartPackSpacing, { min: 0, max: 2, unit: 's' }));
+  e.push(num('beta.smartPackSlotSpacing', G_SMART, '群体槽位间隔增量', F_BETA, 'BETA_TUNE.smartPackSlotSpacing → createSmartPack({slotSpacing})', BETA_TUNE.smartPackSlotSpacing, { min: 0, max: 0.5, unit: 's' }));
 
   // 配置导出中其余数值叶子：关卡表、洞穴/避难洞布局、刷新点和岩石障碍。
   // 这些值也参与总览/JSON 导入导出，确保配置文件中没有丢失地图和平衡参数。
@@ -418,7 +425,10 @@ export function buildTuningEntries() {
   e.push(num('misc.fieldW', G_MISC, '场地宽', F_CONFIG, 'FIELD_W', FIELD_W, { min: 20, max: 300, unit: 'm' }));
   e.push(num('misc.fieldH', G_MISC, '场地高', F_CONFIG, 'FIELD_H', FIELD_H, { min: 20, max: 300, unit: 'm' }));
 
-  for (const entry of e) entry.help = describeEntry(entry);
+  for (const entry of e) {
+    entry.capability = tuningCapability(entry);
+    entry.help = describeEntry(entry);
+  }
   return e;
 }
 
