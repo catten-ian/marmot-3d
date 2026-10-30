@@ -1,0 +1,24 @@
+{
+  "case": "multi",
+  "renderer": {
+    "backend": "WebGL2",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "gameTimeAdvanced": 30,
+  "hp": [
+    1000,
+    748
+  ],
+  "commits": 0,
+  "strikes": 0,
+  "hitEvents": 21,
+  "gameHits": [
+    0,
+    21
+  ],
+  "minDist": 0.043,
+  "roleCounts": {
+    "rest": 3
+  },
+  "events": []
+}
