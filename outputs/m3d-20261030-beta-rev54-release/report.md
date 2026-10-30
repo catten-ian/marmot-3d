@@ -52,4 +52,20 @@
 
 ## 发布状态
 
-- 版本戳已生成；待提交、推送、部署和线上复验后补记。
+- 发布提交：`6f5c564320a4eb42448f94f9c8f1ba4c6a91257b`。
+- 已推送：`origin/integ/beta-rev46`，远端 SHA 与本地一致。
+- 部署：`/var/www/marmot3d-beta` 已原子切换到 `/var/www/m3d-releases/beta-rev54-smartfox-paf-202610301315`。
+- 回滚点：`/var/www/.last-beta-link` 保存 rev53 目录 `/var/www/m3d-releases/beta-rev53-touch-pause-202610300100`。
+- 部署方式：rev53 硬链接克隆、50 个增量文件覆盖、原子切链；未复制整站，旧 release 保留。
+- 本地/线上 SHA-256 已逐文件一致：index-public、version、main、SmartFox 核心与实体、PAF 输入/主模块/debug 模块。
+- 线上 HTTP：rev54 shell/version 和关键模块均 200；`index-public.html` 6 处 rev54、0 处 rev53。
+
+## 线上浏览器复验
+
+证据：`online-paf/browser-telemetry.json` 与 `online-paf/browser-telemetry-desktop.json`。
+
+- 1280×720 桌面：TPS 移动生效，A+Space 前摇方向 −60°，实际 catchRadius=1.25，FPV 切换成功。
+- 390×844、DPR3 手机仿真：真实 touch joystick/attack 进入 idle → wind → lunge → recover；方向 0.9505471937 rad 在扑击中保持。
+- 触屏文案为“扑击按下后自动扑出”，无旧长按提示。
+- 线上 console errors：空。
+- 渲染后端：WebGL2 SwiftShader；不作为物理手机或硬件 GPU 性能证据。
