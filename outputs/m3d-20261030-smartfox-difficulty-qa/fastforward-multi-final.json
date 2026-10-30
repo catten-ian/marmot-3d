@@ -1,0 +1,2006 @@
+{
+  "renderer": {
+    "backend": "WebGL2",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "ok": true,
+  "gameTimeBefore": 9.867,
+  "gameTimeAfter": 29.867,
+  "gameTimeAdvanced": 20,
+  "hpBefore": 100,
+  "hpAfter": 0,
+  "setup": {
+    "steps": 223,
+    "gameTime": 6.867,
+    "playerX": -29.943,
+    "playerZ": 7.098
+  },
+  "start": {
+    "player": {
+      "x": -29.70735103573034,
+      "z": 7.164644797226455,
+      "controllerX": -29.70735103573034,
+      "controllerZ": 7.164644797226455
+    },
+    "foxes": [
+      {
+        "slot": 0,
+        "x": -31.28943219429139,
+        "z": 6.720502217916078,
+        "yaw": 1.2971079314833889,
+        "distance": 1.6432417421153669
+      },
+      {
+        "slot": 1,
+        "x": -26.51941071010643,
+        "z": 11.682949191976768,
+        "yaw": -1.078301127287131,
+        "distance": 5.529741234755843
+      },
+      {
+        "slot": 2,
+        "x": -37.17585395845019,
+        "z": 2.1425472181938634,
+        "yaw": 0.9788095202525438,
+        "distance": 8.999999999999996
+      }
+    ]
+  },
+  "gameHitsBefore": 0,
+  "gameHitsAfter": 14,
+  "hitEvents": 9,
+  "minDist": 0.043,
+  "events": [
+    {
+      "t": 10.117,
+      "type": "hit",
+      "hpBefore": 100,
+      "hpAfter": 88,
+      "gameHits": 1
+    },
+    {
+      "t": 11.617,
+      "type": "hit",
+      "hpBefore": 88,
+      "hpAfter": 76,
+      "gameHits": 2
+    },
+    {
+      "t": 13.15,
+      "type": "hit",
+      "hpBefore": 76,
+      "hpAfter": 64,
+      "gameHits": 3
+    },
+    {
+      "t": 14.683,
+      "type": "hit",
+      "hpBefore": 64,
+      "hpAfter": 52,
+      "gameHits": 4
+    },
+    {
+      "t": 14.817,
+      "type": "hit",
+      "hpBefore": 52,
+      "hpAfter": 40,
+      "gameHits": 5
+    },
+    {
+      "t": 16.217,
+      "type": "hit",
+      "hpBefore": 40,
+      "hpAfter": 28,
+      "gameHits": 6
+    },
+    {
+      "t": 17.75,
+      "type": "hit",
+      "hpBefore": 28,
+      "hpAfter": 16,
+      "gameHits": 7
+    },
+    {
+      "t": 19.283,
+      "type": "hit",
+      "hpBefore": 16,
+      "hpAfter": 4,
+      "gameHits": 8
+    },
+    {
+      "t": 20.817,
+      "type": "hit",
+      "hpBefore": 4,
+      "hpAfter": 0,
+      "gameHits": 9
+    }
+  ],
+  "log": [
+    {
+      "t": 9.883,
+      "hp": 100,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 1.2971079314833889,
+          "ground": {
+            "x": 0.9627805319285616,
+            "z": 0.2702843823445151
+          },
+          "distance": 1.643,
+          "angle": 0
+        },
+        {
+          "slot": 1,
+          "role": "flanker",
+          "intent": "pounce",
+          "stage": null,
+          "yaw": -1.0995778071290283,
+          "ground": {
+            "x": -0.5733519297128095,
+            "z": -0.8193091996887363
+          },
+          "distance": 5.527,
+          "angle": 1.431
+        },
+        {
+          "slot": 2,
+          "role": "interceptor",
+          "intent": "feint",
+          "stage": null,
+          "yaw": 0.9777539646969882,
+          "ground": {
+            "x": 0.8298339854902548,
+            "z": 0.5580103552133775
+          },
+          "distance": 8.995,
+          "angle": 0.001
+        }
+      ]
+    },
+    {
+      "t": 10.383,
+      "hp": 88,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 1.2971079314833889,
+          "ground": {
+            "x": 0.9620257021829396,
+            "z": 0.2729588766452231
+          },
+          "distance": 2.061,
+          "angle": 0.003
+        },
+        {
+          "slot": 1,
+          "role": "striker",
+          "intent": "pounce",
+          "stage": null,
+          "yaw": -2.129004193237823,
+          "ground": {
+            "x": -0.38423134623402244,
+            "z": -0.9232368453279964
+          },
+          "distance": 4.647,
+          "angle": 0.618
+        },
+        {
+          "slot": 2,
+          "role": "interceptor",
+          "intent": "feint",
+          "stage": null,
+          "yaw": 0.6769206313636549,
+          "ground": {
+            "x": 0.8765008454143487,
+            "z": 0.4814003198876502
+          },
+          "distance": 7.64,
+          "angle": 0.392
+        }
+      ]
+    },
+    {
+      "t": 10.883,
+      "hp": 88,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 1.2854968203722779,
+          "ground": {
+            "x": 0.9623821546340341,
+            "z": 0.27169944505271626
+          },
+          "distance": 2.216,
+          "angle": 0.01
+        },
+        {
+          "slot": 1,
+          "role": "striker",
+          "intent": "pounce",
+          "stage": null,
+          "yaw": -2.862168369013382,
+          "ground": {
+            "x": -0.2758023083571224,
+            "z": -0.9612143812411895
+          },
+          "distance": 3.871,
+          "angle": 0
+        },
+        {
+          "slot": 2,
+          "role": "interceptor",
+          "intent": "feint",
+          "stage": null,
+          "yaw": 1.0559272189789382,
+          "ground": {
+            "x": 0.9502118014210944,
+            "z": 0.31160476960418715
+          },
+          "distance": 5.137,
+          "angle": 0.198
+        }
+      ]
+    },
+    {
+      "t": 11.383,
+      "hp": 88,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 0.30900136021670366,
+          "ground": {
+            "x": 0.3041074462970205,
+            "z": 0.9526377386534216
+          },
+          "distance": 0.482,
+          "angle": 0
+        },
+        {
+          "slot": 1,
+          "role": "flanker",
+          "intent": "pounce",
+          "stage": null,
+          "yaw": -2.84435794337017,
+          "ground": {
+            "x": -0.24837893160797272,
+            "z": -0.9686629477446125
+          },
+          "distance": 2.619,
+          "angle": 0.046
+        },
+        {
+          "slot": 2,
+          "role": "interceptor",
+          "intent": "feint",
+          "stage": null,
+          "yaw": 1.6779601570553535,
+          "ground": {
+            "x": 0.9109585084629201,
+            "z": 0.4124979949757473
+          },
+          "distance": 2.614,
+          "angle": 0.532
+        }
+      ]
+    },
+    {
+      "t": 11.883,
+      "hp": 76,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 0.331086976299936,
+          "ground": {
+            "x": 0.3306567032958108,
+            "z": 0.9437511030804393
+          },
+          "distance": 0.932,
+          "angle": 0.006
+        },
+        {
+          "slot": 1,
+          "role": "striker",
+          "intent": "pounce",
+          "stage": null,
+          "yaw": -3.0026191354206686,
+          "ground": {
+            "x": -0.10914763696880043,
+            "z": -0.9940255496435326
+          },
+          "distance": 0.52,
+          "angle": 0.03
+        },
+        {
+          "slot": 2,
+          "role": "interceptor",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 0.9392591063100304,
+          "ground": {
+            "x": 0.7709679403779436,
+            "z": 0.6368739552763888
+          },
+          "distance": 2.72,
+          "angle": 0.059
+        }
+      ]
+    },
+    {
+      "t": 12.383,
+      "hp": 76,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 0.6140324262747976,
+          "ground": {
+            "x": 0.298028875123461,
+            "z": 0.954556855086508
+          },
+          "distance": 1.211,
+          "angle": 0.311
+        },
+        {
+          "slot": 1,
+          "role": "striker",
+          "intent": "pounce",
+          "stage": null,
+          "yaw": -3.7898413576428895,
+          "ground": {
+            "x": -0.12399549427157011,
+            "z": 0.9922827809653602
+          },
+          "distance": 1.151,
+          "angle": 2.618
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 0.9392591063100304,
+          "ground": {
+            "x": 0.7138845227751859,
+            "z": 0.7002634419574143
+          },
+          "distance": 3.078,
+          "angle": 0.144
+        }
+      ]
+    },
+    {
+      "t": 12.883,
+      "hp": 76,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -1.4560481697704744,
+          "ground": {
+            "x": -0.9934236509583786,
+            "z": 0.1144965052590057
+          },
+          "distance": 1.49,
+          "angle": 0
+        },
+        {
+          "slot": 1,
+          "role": "striker",
+          "intent": "pounce",
+          "stage": null,
+          "yaw": -4.789841357642886,
+          "ground": {
+            "x": -0.5777895951169671,
+            "z": 0.8161857532293559
+          },
+          "distance": 2.095,
+          "angle": 2.109
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 1.527121688456499,
+          "ground": {
+            "x": 0.30773285054809857,
+            "z": 0.9514728018674742
+          },
+          "distance": 1.775,
+          "angle": 1.214
+        }
+      ]
+    },
+    {
+      "t": 13.383,
+      "hp": 64,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -1.4464583210774917,
+          "ground": {
+            "x": -0.9915410536136856,
+            "z": 0.12979344744116406
+          },
+          "distance": 1.814,
+          "angle": 0.006
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -0.6347665782307802,
+          "ground": {
+            "x": -0.7471214976520894,
+            "z": 0.6646874963064214
+          },
+          "distance": 2.26,
+          "angle": 0.209
+        },
+        {
+          "slot": 2,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -0.3217316895835036,
+          "ground": {
+            "x": -0.4101764648850912,
+            "z": 0.9120061774211672
+          },
+          "distance": 1.78,
+          "angle": 0.101
+        }
+      ]
+    },
+    {
+      "t": 13.883,
+      "hp": 64,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.2321365513439573,
+          "ground": {
+            "x": -0.9924285783853081,
+            "z": 0.12282311184836728
+          },
+          "distance": 2.199,
+          "angle": 0.216
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.8125999115641136,
+          "ground": {
+            "x": -0.8182486012867988,
+            "z": 0.5748645288171794
+          },
+          "distance": 2.608,
+          "angle": 0.146
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -0.3217316895835036,
+          "ground": {
+            "x": -0.6128008843448286,
+            "z": 0.7902373543095745
+          },
+          "distance": 1.954,
+          "angle": 0.338
+        }
+      ]
+    },
+    {
+      "t": 14.383,
+      "hp": 64,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.40080644483508676,
+          "ground": {
+            "x": -0.5258618795559358,
+            "z": -0.850569975739738
+          },
+          "distance": 1.512,
+          "angle": 2.187
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.3238776893418915,
+          "ground": {
+            "x": -0.48636443346431607,
+            "z": 0.8737560516877321
+          },
+          "distance": 0.63,
+          "angle": 0.816
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 0.4863636255729282,
+          "ground": {
+            "x": -0.9999466526054824,
+            "z": -0.010329179207026324
+          },
+          "distance": 1.636,
+          "angle": 2.067
+        }
+      ]
+    },
+    {
+      "t": 14.883,
+      "hp": 40,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -2.619098217142981,
+          "ground": {
+            "x": -0.5277003442268565,
+            "z": -0.8494306014636258
+          },
+          "distance": 2.089,
+          "angle": 0.033
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -0.4237308406601795,
+          "ground": {
+            "x": -0.6507115220998313,
+            "z": -0.7593250391015174
+          },
+          "distance": 0.801,
+          "angle": 2.009
+        },
+        {
+          "slot": 2,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -2.0211947897658886,
+          "ground": {
+            "x": -0.8795762114207282,
+            "z": -0.47575801443880905
+          },
+          "distance": 2.841,
+          "angle": 0.045
+        }
+      ]
+    },
+    {
+      "t": 15.383,
+      "hp": 40,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.5029556832063293,
+          "ground": {
+            "x": -0.5701040177442356,
+            "z": -0.821572522028263
+          },
+          "distance": 3.407,
+          "angle": 0.032
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.5127308406601796,
+          "ground": {
+            "x": -0.6218963197588452,
+            "z": -0.7830995897524173
+          },
+          "distance": 2.22,
+          "angle": 1.958
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -2.0211947897658886,
+          "ground": {
+            "x": -0.804980486613365,
+            "z": -0.5933012861706184
+          },
+          "distance": 3.932,
+          "angle": 0.185
+        }
+      ]
+    },
+    {
+      "t": 15.883,
+      "hp": 40,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.3602671462530855,
+          "ground": {
+            "x": -0.359619025450691,
+            "z": -0.9330992211624096
+          },
+          "distance": 1.653,
+          "angle": 0.413
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.6630086184379581,
+          "ground": {
+            "x": -0.0756500578809604,
+            "z": -0.9971344286216414
+          },
+          "distance": 3.587,
+          "angle": 2.403
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.3335217605328213,
+          "ground": {
+            "x": -0.5967882486361443,
+            "z": -0.8023987701198224
+          },
+          "distance": 3.158,
+          "angle": 1.169
+        }
+      ]
+    },
+    {
+      "t": 16.383,
+      "hp": 28,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -2.825940959014301,
+          "ground": {
+            "x": -0.3124862708167389,
+            "z": -0.9499222760579139
+          },
+          "distance": 1.691,
+          "angle": 0.002
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.0463167830448228,
+          "ground": {
+            "x": 0.20393285826642918,
+            "z": -0.9789848769614802
+          },
+          "distance": 5.967,
+          "angle": 2.301
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.5416665569129127,
+          "ground": {
+            "x": -0.05294097778644914,
+            "z": -0.9985976431331163
+          },
+          "distance": 4.566,
+          "angle": 2.547
+        }
+      ]
+    },
+    {
+      "t": 16.883,
+      "hp": 28,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.848088771985643,
+          "ground": {
+            "x": -0.3137889733809569,
+            "z": -0.949492748884648
+          },
+          "distance": 2.355,
+          "angle": 0.026
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.5712853602192822,
+          "ground": {
+            "x": 0.3311889181906952,
+            "z": -0.9435644654540974
+          },
+          "distance": 8.505,
+          "angle": 2.908
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.148811353293003,
+          "ground": {
+            "x": 0.09632929449504576,
+            "z": -0.9953495200290634
+          },
+          "distance": 6.322,
+          "angle": 3.089
+        }
+      ]
+    },
+    {
+      "t": 17.383,
+      "hp": 28,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.547066901699066,
+          "ground": {
+            "x": -0.05549772518781134,
+            "z": -0.9984588136217628
+          },
+          "distance": 0.518,
+          "angle": 0.539
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.100990915771858,
+          "ground": {
+            "x": -0.011911062439086016,
+            "z": -0.9999290607795996
+          },
+          "distance": 11.001,
+          "angle": 2.915
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.6733219113623845,
+          "ground": {
+            "x": 0.2631512473271617,
+            "z": -0.9647545910904798
+          },
+          "distance": 7.886,
+          "angle": 2.735
+        }
+      ]
+    },
+    {
+      "t": 17.883,
+      "hp": 16,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 2.3894854356226487,
+          "ground": {
+            "x": 0.6778513528129988,
+            "z": -0.7351989822419421
+          },
+          "distance": 0.461,
+          "angle": 0.007
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 0.2610646397836975,
+          "ground": {
+            "x": -0.47682928570349914,
+            "z": -0.8789959227979905
+          },
+          "distance": 13.621,
+          "angle": 2.621
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.7006626501395041,
+          "ground": {
+            "x": 0.16815926395323075,
+            "z": -0.9857598398934233
+          },
+          "distance": 10.651,
+          "angle": 2.809
+        }
+      ]
+    },
+    {
+      "t": 18.383,
+      "hp": 16,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 2.4148250535210902,
+          "ground": {
+            "x": 0.6780550158955132,
+            "z": -0.7350111532615918
+          },
+          "distance": 1.179,
+          "angle": 0.018
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.28681897007050056,
+          "ground": {
+            "x": 0.2360190661405397,
+            "z": -0.9717484244485027
+          },
+          "distance": 16.559,
+          "angle": 3.093
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.444955008108331,
+          "ground": {
+            "x": 0.4820899768775066,
+            "z": -0.8761217119751372
+          },
+          "distance": 13.275,
+          "angle": 2.2
+        }
+      ]
+    },
+    {
+      "t": 18.883,
+      "hp": 16,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 3.2258818013143453,
+          "ground": {
+            "x": 0.5183559978903722,
+            "z": 0.8551649311396465
+          },
+          "distance": 0.946,
+          "angle": 2.681
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.0786741736904102,
+          "ground": {
+            "x": 0.2928040199201828,
+            "z": -0.9561724770764849
+          },
+          "distance": 18.824,
+          "angle": 2.36
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.236810211728238,
+          "ground": {
+            "x": 0.6193598452109973,
+            "z": -0.7851072424453931
+          },
+          "distance": 14.126,
+          "angle": 1.573
+        }
+      ]
+    },
+    {
+      "t": 19.383,
+      "hp": 4,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 0.4310323049557729,
+          "ground": {
+            "x": 0.4193732643906097,
+            "z": 0.9078138934354132
+          },
+          "distance": 1.591,
+          "angle": 0.002
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.8705293773103169,
+          "ground": {
+            "x": 0.41020611958590425,
+            "z": -0.91199283958498
+          },
+          "distance": 19.575,
+          "angle": 1.694
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -3.0286654153481445,
+          "ground": {
+            "x": 0.7562810109754795,
+            "z": -0.6542469200828589
+          },
+          "distance": 13.287,
+          "angle": 0.971
+        }
+      ]
+    },
+    {
+      "t": 19.883,
+      "hp": 4,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 0.4310323049557729,
+          "ground": {
+            "x": 0.421158066716418,
+            "z": 0.906987256161678
+          },
+          "distance": 2.315,
+          "angle": 0.004
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.662384580930224,
+          "ground": {
+            "x": 0.5466684487110374,
+            "z": -0.8373491548833543
+          },
+          "distance": 18.589,
+          "angle": 1.058
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -3.7825206189680523,
+          "ground": {
+            "x": 0.8634084824794438,
+            "z": -0.504505492916127
+          },
+          "distance": 11.273,
+          "angle": 0.401
+        }
+      ]
+    },
+    {
+      "t": 20.383,
+      "hp": 4,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 1.2146383237394769,
+          "ground": {
+            "x": -0.23735850640674896,
+            "z": 0.9714221221674731
+          },
+          "distance": 1.277,
+          "angle": 1.454
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -3.4542397845501305,
+          "ground": {
+            "x": 0.6223093431358881,
+            "z": -0.7827714107233219
+          },
+          "distance": 16.709,
+          "angle": 0.359
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -3.830209155921296,
+          "ground": {
+            "x": 0.9082156506362448,
+            "z": -0.4185024873753828
+          },
+          "distance": 9.006,
+          "angle": 0.45
+        }
+      ]
+    },
+    {
+      "t": 20.883,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -0.7281898406058951,
+          "ground": {
+            "x": -0.6646139773758359,
+            "z": 0.747186898357213
+          },
+          "distance": 1.569,
+          "angle": 0.001
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -3.6712536549526202,
+          "ground": {
+            "x": 0.64260056024738,
+            "z": -0.7662013573270108
+          },
+          "distance": 14.049,
+          "angle": 0.168
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -3.1081714485306495,
+          "ground": {
+            "x": 0.983690318070423,
+            "z": -0.17987039260120094
+          },
+          "distance": 7.342,
+          "angle": 1.423
+        }
+      ]
+    },
+    {
+      "t": 21.383,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -0.7281898406058951,
+          "ground": {
+            "x": -0.6628412146635386,
+            "z": 0.7487599910140531
+          },
+          "distance": 2.313,
+          "angle": 0.004
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -3.2965528598587173,
+          "ground": {
+            "x": 0.6914137417924843,
+            "z": -0.7224590214403278
+          },
+          "distance": 10.857,
+          "angle": 0.608
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.316316244910743,
+          "ground": {
+            "x": 0.9810442817147232,
+            "z": 0.1937836869162172
+          },
+          "distance": 7.746,
+          "angle": 2.591
+        }
+      ]
+    },
+    {
+      "t": 21.883,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 0.0026258312698154568,
+          "ground": {
+            "x": -0.9551786453483815,
+            "z": 0.2960299908293593
+          },
+          "distance": 1.323,
+          "angle": 1.273
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.5047039408039184,
+          "ground": {
+            "x": 0.8259973927384218,
+            "z": -0.5636739369434509
+          },
+          "distance": 9.647,
+          "angle": 1.609
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.742157885632317,
+          "ground": {
+            "x": 0.9668229115391419,
+            "z": 0.25544756354871817
+          },
+          "distance": 9.99,
+          "angle": 3.055
+        }
+      ]
+    },
+    {
+      "t": 22.383,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -1.873416692173384,
+          "ground": {
+            "x": -0.9545655937197075,
+            "z": -0.29800088470764996
+          },
+          "distance": 1.522,
+          "angle": 0
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.7350154038506778,
+          "ground": {
+            "x": 0.9169288404161864,
+            "z": -0.3990507506734299
+          },
+          "distance": 10.718,
+          "angle": 2.567
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.555136015345741,
+          "ground": {
+            "x": 0.9744505570499481,
+            "z": 0.22460211901281316
+          },
+          "distance": 11.692,
+          "angle": 2.899
+        }
+      ]
+    },
+    {
+      "t": 22.883,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -1.873416692173384,
+          "ground": {
+            "x": -0.9545954565035544,
+            "z": -0.2979052104659643
+          },
+          "distance": 2.27,
+          "angle": 0
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.6239935335641016,
+          "ground": {
+            "x": 0.9279072308212544,
+            "z": -0.37281117337015474
+          },
+          "distance": 12.116,
+          "angle": 2.706
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -0.7854474783924993,
+          "ground": {
+            "x": 0.9978406897228487,
+            "z": 0.06568072726020592
+          },
+          "distance": 11.289,
+          "angle": 2.291
+        }
+      ]
+    },
+    {
+      "t": 23.383,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -1.144506897378944,
+          "ground": {
+            "x": -0.7135430204433503,
+            "z": -0.7006114172468079
+          },
+          "distance": 1.415,
+          "angle": 1.203
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.319617213805427,
+          "ground": {
+            "x": 0.9628054731936676,
+            "z": -0.27019552325735907
+          },
+          "distance": 13.735,
+          "angle": 2.119
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 0.006407725227410524,
+          "ground": {
+            "x": 0.9919347128729435,
+            "z": -0.1267498536396439
+          },
+          "distance": 11.986,
+          "angle": 1.691
+        }
+      ]
+    },
+    {
+      "t": 23.883,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -3.0159078810216577,
+          "ground": {
+            "x": -0.12535413384598612,
+            "z": -0.9921120607712229
+          },
+          "distance": 1.57,
+          "angle": 0
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -3.111472417425334,
+          "ground": {
+            "x": 0.9878997087392355,
+            "z": -0.15509405363499096
+          },
+          "distance": 13.893,
+          "angle": 1.445
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 0.7982629288473203,
+          "ground": {
+            "x": 0.9477552446789593,
+            "z": -0.31899842661606626
+          },
+          "distance": 11.507,
+          "angle": 1.097
+        }
+      ]
+    },
+    {
+      "t": 24.383,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": -3.0159078810216577,
+          "ground": {
+            "x": -0.12874546161609576,
+            "z": -0.9916776724890293
+          },
+          "distance": 2.363,
+          "angle": 0.003
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -3.9033276210452406,
+          "ground": {
+            "x": 0.9871242074466252,
+            "z": -0.15995561594664953
+          },
+          "distance": 12.192,
+          "angle": 0.648
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 1.5901181324672278,
+          "ground": {
+            "x": 0.8350730562404095,
+            "z": -0.5501390649111387
+          },
+          "distance": 10.26,
+          "angle": 0.563
+        }
+      ]
+    },
+    {
+      "t": 24.883,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -2.3397884331352117,
+          "ground": {
+            "x": 0.210120502165162,
+            "z": -0.977675495535129
+          },
+          "distance": 1.604,
+          "angle": 1.014
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -4.695182824665148,
+          "ground": {
+            "x": 0.9915740603893115,
+            "z": -0.12954104663408514
+          },
+          "distance": 9.933,
+          "angle": 0.113
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 2.3819733360871345,
+          "ground": {
+            "x": 0.7932043434368371,
+            "z": -0.6089555563035256
+          },
+          "distance": 8.079,
+          "angle": 0.156
+        }
+      ]
+    },
+    {
+      "t": 25.383,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 2.2048922059108538,
+          "ground": {
+            "x": 0.8056076715323741,
+            "z": -0.5924493898791581
+          },
+          "distance": 1.666,
+          "angle": 0
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -5.487038028285054,
+          "ground": {
+            "x": 0.9603709834758716,
+            "z": -0.27872490756584173
+          },
+          "distance": 7.999,
+          "angle": 1.057
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 3.173828539707041,
+          "ground": {
+            "x": 0.8960587948088583,
+            "z": -0.4439353964775689
+          },
+          "distance": 6.249,
+          "angle": 1.143
+        }
+      ]
+    },
+    {
+      "t": 25.883,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 2.205568964763314,
+          "ground": {
+            "x": 0.8030753745318806,
+            "z": -0.5958774562109894
+          },
+          "distance": 2.366,
+          "angle": 0.004
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -6.278893231904961,
+          "ground": {
+            "x": 0.8353107941729851,
+            "z": -0.5497780253321308
+          },
+          "distance": 9.194,
+          "angle": 2.149
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 3.965683743326948,
+          "ground": {
+            "x": 0.9847678634240357,
+            "z": -0.17387425101854492
+          },
+          "distance": 7.594,
+          "angle": 2.22
+        }
+      ]
+    },
+    {
+      "t": 26.383,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 2.8288980657417664,
+          "ground": {
+            "x": 0.9271424804263974,
+            "z": -0.3747089817295382
+          },
+          "distance": 1.74,
+          "angle": 0.874
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -7.070748435524868,
+          "ground": {
+            "x": 0.7675321322953809,
+            "z": -0.641010472530758
+          },
+          "distance": 11.511,
+          "angle": 3.054
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 4.7575389469468545,
+          "ground": {
+            "x": 0.9973685134386746,
+            "z": -0.07249860964962225
+          },
+          "distance": 9.944,
+          "angle": 3.114
+        }
+      ]
+    },
+    {
+      "t": 26.883,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 1.1718271475044408,
+          "ground": {
+            "x": 0.9214619250680499,
+            "z": 0.38846868683316516
+          },
+          "distance": 1.692,
+          "angle": 0
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -7.8626036391447744,
+          "ground": {
+            "x": 0.8008875715329972,
+            "z": -0.5988147441103788
+          },
+          "distance": 13.807,
+          "angle": 2.491
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 5.25806081723343,
+          "ground": {
+            "x": 0.9900637540161071,
+            "z": -0.1406192127112543
+          },
+          "distance": 12.161,
+          "angle": 2.737
+        }
+      ]
+    },
+    {
+      "t": 27.383,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 1.1732876371205634,
+          "ground": {
+            "x": 0.923488451258332,
+            "z": 0.38362622484977144
+          },
+          "distance": 2.331,
+          "angle": 0.004
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -8.654458842764681,
+          "ground": {
+            "x": 0.8982045930071808,
+            "z": -0.4395776485455153
+          },
+          "distance": 15.761,
+          "angle": 1.886
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 5.571749354186673,
+          "ground": {
+            "x": 0.9778886853985197,
+            "z": -0.2091260839052722
+          },
+          "distance": 14.791,
+          "angle": 2.493
+        }
+      ]
+    },
+    {
+      "t": 27.883,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 1.692941921364298,
+          "ground": {
+            "x": 0.8466181627261845,
+            "z": 0.5322007953227239
+          },
+          "distance": 1.841,
+          "angle": 0.683
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -9.446314046384588,
+          "ground": {
+            "x": 0.957470655072516,
+            "z": -0.28853066505140684
+          },
+          "distance": 15.98,
+          "angle": 1.257
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 6.36360455780658,
+          "ground": {
+            "x": 0.9480301309603452,
+            "z": -0.31818056318906524
+          },
+          "distance": 16.325,
+          "angle": 1.814
+        }
+      ]
+    },
+    {
+      "t": 28.383,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "striker",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 0.14456062783893253,
+          "ground": {
+            "x": 0.144057654429283,
+            "z": 0.9895692963104369
+          },
+          "distance": 1.589,
+          "angle": 0
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -10.238169250004495,
+          "ground": {
+            "x": 0.985698245727253,
+            "z": -0.16851993463746662
+          },
+          "distance": 14.597,
+          "angle": 0.588
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 7.155459761426487,
+          "ground": {
+            "x": 0.8941666810866818,
+            "z": -0.44773423638853915
+          },
+          "distance": 16.151,
+          "angle": 1.163
+        }
+      ]
+    },
+    {
+      "t": 28.883,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "observe",
+          "stage": null,
+          "yaw": 0.14715423286295845,
+          "ground": {
+            "x": 0.15029711819597522,
+            "z": 0.9886408732507398
+          },
+          "distance": 2.228,
+          "angle": 0.004
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -10.633592077399435,
+          "ground": {
+            "x": 0.9994197726812919,
+            "z": -0.034060504601001726
+          },
+          "distance": 12.407,
+          "angle": 0.328
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 7.9473149650463935,
+          "ground": {
+            "x": 0.8740819226407233,
+            "z": -0.4857785426639351
+          },
+          "distance": 14.147,
+          "angle": 0.414
+        }
+      ]
+    },
+    {
+      "t": 29.383,
+      "hp": 0,
+      "mode": "play",
+      "foxes": [
+        {
+          "slot": 0,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 0.6140181701986994,
+          "ground": {
+            "x": 0.027561866367909724,
+            "z": 0.9996200995990014
+          },
+          "distance": 1.867,
+          "angle": 0.586
+        },
+        {
+          "slot": 1,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": -10.00334999595147,
+          "ground": {
+            "x": 0.9922904958588823,
+            "z": 0.12393373966815166
+          },
+          "distance": 10.643,
+          "angle": 1.116
+        },
+        {
+          "slot": 2,
+          "role": "rest",
+          "intent": "recover",
+          "stage": null,
+          "yaw": 8.7391701686663,
+          "ground": {
+            "x": 0.8866884874637221,
+            "z": -0.4623673065856807
+          },
+          "distance": 11.695,
+          "angle": 0.405
+        }
+      ]
+    }
+  ],
+  "roleCounts": {
+    "striker": 1,
+    "rest": 2
+  },
+  "finalMode": "play",
+  "foxes": [
+    {
+      "slot": 0,
+      "role": "striker",
+      "intent": "observe",
+      "stage": null,
+      "committed": false,
+      "stamina": 100,
+      "distance": 1.539,
+      "approach": {
+        "phase": "backoff",
+        "ready": false
+      }
+    },
+    {
+      "slot": 1,
+      "role": "rest",
+      "intent": "recover",
+      "stage": null,
+      "committed": false,
+      "stamina": 100,
+      "distance": 10.45,
+      "approach": {
+        "phase": "approach",
+        "ready": false
+      }
+    },
+    {
+      "slot": 2,
+      "role": "rest",
+      "intent": "recover",
+      "stage": null,
+      "committed": false,
+      "stamina": 100,
+      "distance": 10.237,
+      "approach": {
+        "phase": "approach",
+        "ready": false
+      }
+    }
+  ]
+}

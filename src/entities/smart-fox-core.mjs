@@ -510,7 +510,7 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
   const stalkSpeed = options.stalkSpeed ?? 2.4;
   const sprintSpeed = options.sprintSpeed ?? 6.5;
   const recoverSpeed = options.recoverSpeed ?? 4.8;
-  const accel = s.acceleration ?? 18;
+  const accel = options.locomotionAcceleration ?? s.acceleration ?? 18;
   const speed = Math.hypot(s.vx ?? 0, s.vz ?? 0);
   const strikeSpeed = s.pounceStrikeSpeed ?? SMART_POUNCE_TUNE.strikeSpeed;
   const strikeTime = s.pounceStrikeTime ?? SMART_POUNCE_TUNE.strikeTime;
