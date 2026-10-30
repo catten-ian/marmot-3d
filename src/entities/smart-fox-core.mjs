@@ -628,45 +628,139 @@ export function assignFlankSlot(self, peers, slots) {
  *  - flanker / distractor ：其余交替（包抄 / 正面牵制），不提交扑咬
  * 粘性：`prev` 中未过 `holdTime` 的角色优先保留，避免每帧乱跳。
  */
+export const SMART_TEAM_TUNE = Object.freeze({
+  minFoxesForMultiAttackers: 3,
+  maxAttackers: 2,
+  restHpRatio: 0.42,
+  restStaminaRatio: 0.2,
+  restFatigue: 0.86,
+  healthyHpRatio: 0.62,
+  healthyStaminaRatio: 0.35,
+  holdTime: 1.5,
+  switchCooldown: 1.2,
+  interceptorRadius: 7.5,
+});
+
+const finiteRatio = (value, fallback = 1) => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
+
+/**
+ * Deterministic pack roles. The legacy path remains one striker plus flanker /
+ * distractor. Beta enables a bounded attacker budget: healthy foxes get the
+ * striker/flanker slots, while exhausted or surplus foxes rest or intercept.
+ */
 export function assignRoles(foxes, player, prev = {}, now = 0, options = {}) {
-  const hold = options.holdTime ?? 1.5;
+  const hold = Math.max(0, Number(options.holdTime ?? (options.betaTeam ? SMART_TEAM_TUNE.holdTime : 1.5)) || 0);
+  const cooldown = Math.max(0, Number(options.switchCooldown ?? (options.betaTeam ? SMART_TEAM_TUNE.switchCooldown : 0)) || 0);
+  const betaTeam = options.betaTeam === true;
   const out = {};
   const eligible = [];
   for (const f of foxes || []) {
     if (!f) continue;
     const slot = f.slot ?? 0;
     const pe = prev[slot];
-    const hpRatio = f.maxHp ? f.hp / f.maxHp : 1;
-    const injured = hpRatio < (options.retreatHpRatio ?? 0.45)
+    const hpRatio = finiteRatio(f.maxHp ? f.hp / f.maxHp : 1);
+    const staminaRatio = finiteRatio(f.maxStamina ? f.stamina / f.maxStamina : 1);
+    const fatigue = finiteRatio(f.fatigue, 0);
+    const hardRetreat = hpRatio < (options.retreatHpRatio ?? 0.45)
       || f.retreating || f.state === 'rest_safe' || f.state === 'dead' || (f.hp ?? 1) <= 0;
-    if (injured) {
+    const needsRest = betaTeam && !hardRetreat && (hpRatio <= (options.restHpRatio ?? SMART_TEAM_TUNE.restHpRatio)
+      || staminaRatio <= (options.restStaminaRatio ?? SMART_TEAM_TUNE.restStaminaRatio)
+      || fatigue >= (options.restFatigue ?? SMART_TEAM_TUNE.restFatigue)
+      || f.state === 'rest');
+    if (hardRetreat) {
       out[slot] = { role: 'retreat', since: pe?.role === 'retreat' ? pe.since : now };
-    } else eligible.push(f);
+    } else if (needsRest) {
+      out[slot] = { role: 'rest', since: pe?.role === 'rest' ? pe.since : now };
+    } else {
+      eligible.push(f);
+    }
   }
   if (!eligible.length) return out;
+
   const scored = eligible.map((f) => {
-    const d = Math.hypot(f.x - player.x, f.z - player.z);
-    const hpRatio = f.maxHp ? f.hp / f.maxHp : 1;
-    const staminaRatio = f.maxStamina ? f.stamina / f.maxStamina : 1;
-    return { f, score: d - hpRatio * 2 - staminaRatio * 2 };
+    const d = Math.hypot((f.x ?? 0) - (player?.x ?? 0), (f.z ?? 0) - (player?.z ?? 0));
+    const hpRatio = finiteRatio(f.maxHp ? f.hp / f.maxHp : 1);
+    const staminaRatio = finiteRatio(f.maxStamina ? f.stamina / f.maxStamina : 1);
+    const fatigue = finiteRatio(f.fatigue, 0);
+    // Lower is better: nearby, healthy, rested foxes lead the pack.
+    const score = d - hpRatio * 4 - staminaRatio * 2 - (1 - fatigue) * 1.5;
+    return { f, score };
   }).sort((a, b) => a.score - b.score || ((a.f.slot ?? 0) - (b.f.slot ?? 0)));
-  let striker = scored[0].f;
-  for (const { f } of scored) {
+
+  const attackerBudget = betaTeam
+    ? Math.min(Math.max(1, Number(options.maxAttackers ?? SMART_TEAM_TUNE.maxAttackers) || 1),
+      eligible.length >= (options.minFoxesForMultiAttackers ?? SMART_TEAM_TUNE.minFoxesForMultiAttackers) ? 2 : 1)
+    : 1;
+  const healthy = betaTeam ? scored.filter(({ f }) => {
+    const hp = finiteRatio(f.maxHp ? f.hp / f.maxHp : 1);
+    const stamina = finiteRatio(f.maxStamina ? f.stamina / f.maxStamina : 1);
+    const fatigue = finiteRatio(f.fatigue, 0);
+    return hp >= (options.healthyHpRatio ?? SMART_TEAM_TUNE.healthyHpRatio)
+      && stamina >= (options.healthyStaminaRatio ?? SMART_TEAM_TUNE.healthyStaminaRatio)
+      && fatigue <= (options.healthyFatigue ?? 0.72);
+  }) : scored;
+  // If enough healthy foxes exist, only that pool may take attack slots. If
+  // the pack is universally depleted, the deterministic full pool still gives
+  // it one available attacker rather than deadlocking the encounter.
+  const ranked = healthy.length >= attackerBudget ? healthy : scored;
+  const selected = [];
+  const held = ranked.filter(({ f }) => {
     const pe = prev[f.slot ?? 0];
-    if (pe?.role === 'striker' && now - pe.since < hold) { striker = f; break; }
+    return pe && (pe.role === 'striker' || (betaTeam && pe.role === 'flanker'))
+      && now - pe.since < hold + cooldown;
+  }).sort((a, b) => ((prev[a.f.slot ?? 0]?.since ?? 0) - (prev[b.f.slot ?? 0]?.since ?? 0)) || (a.f.slot - b.f.slot));
+  for (const entry of held) {
+    if (selected.length >= attackerBudget) break;
+    selected.push(entry.f);
   }
-  const strikerSlot = striker.slot ?? 0;
-  out[strikerSlot] = { role: 'striker', since: prev[strikerSlot]?.role === 'striker' ? prev[strikerSlot].since : now };
-  eligible.filter((f) => f !== striker)
+  for (const { f } of ranked) {
+    if (selected.length >= attackerBudget || selected.includes(f)) continue;
+    selected.push(f);
+  }
+
+  if (!betaTeam) {
+    const striker = selected[0];
+    const strikerSlot = striker.slot ?? 0;
+    out[strikerSlot] = { role: 'striker', since: prev[strikerSlot]?.role === 'striker' ? prev[strikerSlot].since : now };
+    eligible.filter((f) => f !== striker)
+      .sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0))
+      .forEach((f, i) => {
+        const slot = f.slot ?? 0;
+        const pe = prev[slot];
+        let role = i % 2 === 0 ? 'flanker' : 'distractor';
+        if ((pe?.role === 'flanker' || pe?.role === 'distractor') && now - pe.since < hold) role = pe.role;
+        out[slot] = { role, since: pe?.role === role ? pe.since : now };
+      });
+    return out;
+  }
+
+  selected.forEach((f, index) => {
+    const slot = f.slot ?? 0;
+    const previous = prev[slot];
+    const role = index === 0 ? 'striker' : 'flanker';
+    out[slot] = { role, since: previous?.role === role ? previous.since : now };
+  });
+  eligible.filter((f) => !selected.includes(f))
     .sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0))
-    .forEach((f, i) => {
+    .forEach((f, index) => {
       const slot = f.slot ?? 0;
-      const pe = prev[slot];
-      let role = i % 2 === 0 ? 'flanker' : 'distractor';
-      if ((pe?.role === 'flanker' || pe?.role === 'distractor') && now - pe.since < hold) role = pe.role;
-      out[slot] = { role, since: pe?.role === role ? pe.since : now };
+      const previous = prev[slot];
+      // Interceptors get a stable blocking assignment; they do not enter the
+      // pounce commit ring and remain visibly represented in telemetry.
+      const role = 'interceptor';
+      out[slot] = { role, since: previous?.role === role ? previous.since : now, index };
     });
   return out;
+}
+
+/** Stable blocking point ahead of the marmot's escape direction. */
+export function teamInterceptPoint(player = {}, fox = {}, escapeVelocity = { x: 0, z: 0 }, index = 0, radius = SMART_TEAM_TUNE.interceptorRadius) {
+  const vx = Number(escapeVelocity.x) || 0, vz = Number(escapeVelocity.z) || 0;
+  const speed = Math.hypot(vx, vz);
+  const axis = speed > 0.5 ? Math.atan2(vx, vz) : Math.atan2((fox.x ?? 0) - (player.x ?? 0), (fox.z ?? 0) - (player.z ?? 0));
+  const side = (index % 2 ? -1 : 1) * Math.PI / 5;
+  const angle = axis + side;
+  return { x: (player.x ?? 0) + Math.sin(angle) * radius, z: (player.z ?? 0) + Math.cos(angle) * radius, angle, radius };
 }
 
 /**

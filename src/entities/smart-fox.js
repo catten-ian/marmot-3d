@@ -15,10 +15,17 @@ import {
   smartPounceDistance, smartPounceDashDistance, cancelSmartPounce, SMART_POUNCE_TUNE,
   smartPounceStaminaReserve, smartPounceStaminaDrainPerSec,
   updateSmartMemory, habituateDecayRate, stepInterruptionTimes,  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK, stepSmartContactCooldown,
-  flankSlots, assignFlankSlot, assignRoles, forcedRetreat, assembleSmartAim,
+  flankSlots, assignFlankSlot, assignRoles, forcedRetreat, assembleSmartAim, teamInterceptPoint,
   createSmartPounceApproachState, advanceSmartPounceApproach,
   createSmartMeleeState, advanceSmartMelee, cancelSmartMelee, consumeSmartMeleeHit,
 } from './smart-fox-core.mjs';
+
+
+function rolesIndexFor(self, peers) {
+  const ordered = (peers || []).slice().sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
+  const index = ordered.indexOf(self);
+  return index < 0 ? 0 : index;
+}
 
 /**
  * 沙盒专用智能藏狐：纯效用决策 + 120° 感知锥 + 怀疑度/记忆 + 加减速与最大转向率，
@@ -61,7 +68,7 @@ export class SmartFox extends Fox {
     this._feintPrevIntent = 'observe';
     this._recoverLock = 0;
     // —— 阶段 3 战术层状态 ——
-    this._role = 'flanker';          // striker / flanker / distractor / retreat
+    this._role = 'flanker';          // striker / flanker / interceptor / rest / retreat
     this._flankSlotIndex = null;     // 本帧占用的包抄槽位（供同伴避让）
     this.flankSlotIndex = null;
     this._lastHitAt = -Infinity;     // 最近一次被玩家打中的时刻（_age 时钟）
@@ -72,6 +79,8 @@ export class SmartFox extends Fox {
     this._escVel = { x: 0, z: 0 };   // 玩家速度低通估计（逃跑轴）
     this._lastPlayerPos = null;
     this._pounceApproach = createSmartPounceApproachState();
+    this.teamRole = this._role;
+    this.roleSince = 0;
   }
 
   get meleeState() {
@@ -146,7 +155,11 @@ export class SmartFox extends Fox {
     // —— 体力收支（与普通狐同口径）：扑击消耗体力，喘息/脱离缓慢回血回体力 ——
     {
       const V = FOX.vitals;
-      const resting = this.state === 'rest';
+      const resting = this.state === 'rest' && !this.pounceCommitted && !this.meleePhase;
+      const regenState = this._role === 'rest' || resting ? 'rest'
+        : this._role === 'interceptor' ? 'intercept'
+        : (this.pounceStage === 'recover' || this.intent === 'recover' || this.intent === 'abandon') ? 'recover' : 'roam';
+      const regenAllowed = !this.pounceCommitted && !this.meleePhase;
       const stepped = stepStamina({ stamina: this.stamina, locked: this.staminaLocked, hp: this.hp }, dt, {
         maxStamina: this.maxStamina,
         drainPerSec: smartPounceStaminaDrainPerSec({
@@ -159,8 +172,16 @@ export class SmartFox extends Fox {
           stalkRate: V.stalkStaminaPerSec,
         }),
         regenPerSec: V.restStaminaPerSec,
+        regenPerSecByState: IS_BETA ? {
+          rest: BETA_TUNE.smartRestStaminaRegenPerSec,
+          recover: BETA_TUNE.smartRecoverStaminaRegenPerSec,
+          intercept: BETA_TUNE.smartInterceptStaminaRegenPerSec,
+          roam: BETA_TUNE.smartRoamStaminaRegenPerSec,
+        } : undefined,
+        regenState,
+        regenAllowed,
         resting,
-        hpRegenRatio: V.restHpRegenRatio,
+        hpRegenRatio: resting ? V.restHpRegenRatio : 0,
         hp: this.hp, maxHp: this.maxHp,
         staminaLockSeconds: V.staminaLockSeconds,
       });
@@ -198,9 +219,14 @@ export class SmartFox extends Fox {
     const peers0 = packContext?.smartFoxes || [];
     if (packContext && peers0.length) {
       const store = packContext.tactics || packContext.coordinator || packContext;
-      const roles = assignRoles(peers0, p, store.roles || {}, this._age, { holdTime: 1.5 });
+      const roles = assignRoles(peers0, p, store.roles || {}, this._age, {
+        holdTime: 1.5, switchCooldown: 1.2, betaTeam: IS_BETA,
+      });
       store.roles = roles;
-      this._role = roles[this.slot]?.role || 'flanker';
+      const assigned = roles[this.slot] || { role: 'flanker', since: this._age };
+      this._role = assigned.role;
+      this.teamRole = this._role;
+      this.roleSince = assigned.since;
     }
 
     this._age += dt;
@@ -237,6 +263,8 @@ export class SmartFox extends Fox {
     const debounced = debounceIntent(this._intentCandidate, intent, this._intentHeld, dt);
     this._intentCandidate = debounced.intent; this._intentHeld = debounced.held;
     intent = debounced.intent;
+    if (IS_BETA && this._role === 'rest') intent = 'recover';
+    if (IS_BETA && this._role === 'interceptor') intent = 'feint';
     if (safe) intent = 'recover';
     const tracked = trackFeint({ repeats: this._feintRepeats, side: this._feintSide, prevIntent: this._feintPrevIntent }, intent,
       { side: (this.slot % 2 === 0 ? 1 : -1) });
@@ -271,7 +299,10 @@ export class SmartFox extends Fox {
     const initialTacticalScale = (IS_BETA && intent === 'pounce') ? BETA_TUNE.smartPounceAimOffsetScale : 1;
     let aimX = p.x + separation.x * 2.2 * initialTacticalScale, aimZ = p.z + separation.z * 2.2 * initialTacticalScale;
     if (!this.pounceCommitted) {
-      if (intent === 'recover' || intent === 'abandon') {
+      if (IS_BETA && this._role === 'interceptor') {
+        const block = teamInterceptPoint(p, this, this._escVel, rolesIndexFor(this, peers0), BETA_TUNE.smartPounceObserveRadius + 0.5);
+        aimX = block.x; aimZ = block.z;
+      } else if (intent === 'recover' || intent === 'abandon') {
         const R = STAND[intent];
         aimX = p.x + ux * R; aimZ = p.z + uz * R;
       } else if (intent === 'feint') {
@@ -430,7 +461,8 @@ export class SmartFox extends Fox {
       ? ({ windup: 'wind', strike: 'dash', recover: 'rest' }[this.meleePhase])
       : this.pounceCommitted
       ? (this.pounceStage === 'windup' ? 'wind' : 'dash')
-      : (this.pounceStage === 'recover' || intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam';    this.leap = 0;
+      : (this._role === 'interceptor' ? 'intercept'
+        : (this.pounceStage === 'recover' || intent === 'recover' || intent === 'abandon') ? 'rest' : 'roam');    this.leap = 0;
 
     // 疲劳循环：扑击消耗，喘息快速恢复，其余缓慢恢复，保证下一轮还能再扑。
     const fatRate = this.pounceCommitted ? 0.22
@@ -458,7 +490,7 @@ export class SmartFox extends Fox {
       || (this.pounceCommitted && this.pounceStage === 'dash')
       || (this._smartState.windupRemaining > 0 && intent === 'pounce');
     this._updateWarn(terrainAt);
-    this.telemetry.push({ intent, meleePhase: this.meleePhase, distance, guard, fatigue: this.fatigue, health: this.hp / this.maxHp,
+    this.telemetry.push({ intent, role: this._role, roleSince: this.roleSince, meleePhase: this.meleePhase, distance, guard, fatigue: this.fatigue, health: this.hp / this.maxHp,
       memory: this.memory, suspicion: this.suspicion, scores: { ...this.topScores } });
     if (this.telemetry.length > 192) this.telemetry.shift();
   }
