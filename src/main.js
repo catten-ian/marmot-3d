@@ -35,6 +35,7 @@ import { createRenderer, splatUsable } from './core/renderer.js';
 import { AdaptiveRenderController, getRenderProfile, hasRealTouch } from './core/performance.js';
 import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
 import { TouchControls } from './core/touch-controls.js';
+import { createSettingsPauseHooks } from './core/settings-pause.mjs';
 
 /** 输入模式（设置面板可强制）：auto=设备检测+首次触摸升级，touch=强制触屏，keyboard=强制键鼠。 */
 const inputMode = new InputModeManager();
@@ -2868,12 +2869,15 @@ touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState, audio, () => renderer);
 touchLayout.onEditingStart = () => settingsUI.transferPauseToLayoutEditor();
 // 游戏中打开设置自动暂停；关闭时仅在由设置发起暂停时恢复（已暂停/标题态保持）。
-settingsUI.setPauseHooks({
-  pause: () => pause(),
-  resume: () => { if (game.mode === 'pause') resume(); },
-  isPaused: () => game.mode !== 'play',
-  isPlaying: () => game.mode === 'play',
-});
+settingsUI.setPauseHooks(createSettingsPauseHooks({
+  getPaf: () => playAsFox,
+  normal: {
+    pause: () => pause(),
+    resume: () => { if (game.mode === 'pause') resume(); },
+    isPaused: () => game.mode !== 'play',
+    isPlaying: () => game.mode === 'play',
+  },
+}));
 // 设置面板切换输入模式 → 即时生效；启动时也同步一次（html 属性 / 鼠标兜底 / 布局入口可用性）。
 inputMode.onChange(() => applyInputMode());
 applyInputMode();

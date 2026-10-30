@@ -1,0 +1,132 @@
+{
+  "url": "http://127.0.0.1:8447/index.html?version=beta&webgl=1&pafqa=1&t=1793351278520",
+  "ready": true,
+  "desktop": {
+    "active": true,
+    "visible": true,
+    "rect": {
+      "x": 12,
+      "y": 12,
+      "width": 28,
+      "height": 28,
+      "top": 12,
+      "right": 40,
+      "bottom": 40,
+      "left": 12
+    },
+    "hidden": true,
+    "paused": false,
+    "audio": {
+      "slot": "paf",
+      "assetKey": "paf",
+      "sourceType": "elevenlabs-buffer",
+      "assetPath": "assets/audio/elevenlabs/bgm/paf.mp3",
+      "targetGain": 0.42,
+      "gain": 0.41999998688697815,
+      "duration": 180.03591666666668,
+      "bus": {
+        "master": 0.3199999928474426,
+        "sfx": 1,
+        "bgm": 0.6100000143051147
+      },
+      "contextState": "running"
+    },
+    "ctx": null,
+    "open": {
+      "hidden": true,
+      "paused": false,
+      "active": true
+    },
+    "close": {
+      "hidden": true,
+      "paused": false,
+      "active": true
+    }
+  },
+  "failure": {
+    "active": true,
+    "audio": {
+      "slot": "paf",
+      "assetKey": "paf",
+      "sourceType": "procedural-fallback",
+      "assetPath": null,
+      "targetGain": 0.09983099632204287,
+      "gain": 0.0998309999704361,
+      "duration": null,
+      "bus": {
+        "master": 0.3199999928474426,
+        "sfx": 1,
+        "bgm": 0.6100000143051147
+      },
+      "contextState": "running"
+    }
+  },
+  "recovery": {
+    "active": true,
+    "audio": {
+      "slot": "paf",
+      "assetKey": "paf",
+      "sourceType": "elevenlabs-buffer",
+      "assetPath": "assets/audio/elevenlabs/bgm/paf.mp3",
+      "targetGain": 0.42,
+      "gain": 0.42411211133003235,
+      "duration": 180.03591666666668,
+      "bus": {
+        "master": 0.3199999928474426,
+        "sfx": 1,
+        "bgm": 0.6100000143051147
+      },
+      "contextState": "running"
+    }
+  },
+  "mobile": {
+    "active": true,
+    "visible": true,
+    "rect": {
+      "x": 12,
+      "y": 12,
+      "width": 28,
+      "height": 28,
+      "top": 12,
+      "right": 40,
+      "bottom": 40,
+      "left": 12
+    },
+    "touch": true,
+    "paused": false,
+    "open": {
+      "hidden": false,
+      "paused": true,
+      "active": true
+    }
+  },
+  "network": [
+    {
+      "event": "Network.requestWillBeSent",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/bgm/paf.mp3"
+    },
+    {
+      "event": "Network.responseReceived",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/bgm/paf.mp3",
+      "status": 200
+    },
+    {
+      "event": "Network.requestWillBeSent",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/bgm/paf.mp3"
+    },
+    {
+      "event": "Network.requestWillBeSent",
+      "url": "http://127.0.0.1:8447/assets/audio/elevenlabs/bgm/paf.mp3"
+    },
+    {
+      "event": "Network.requestWillBeSent",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/bgm/paf.mp3"
+    },
+    {
+      "event": "Network.responseReceived",
+      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/bgm/paf.mp3",
+      "status": 200
+    }
+  ],
+  "errors": []
+}
