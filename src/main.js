@@ -565,7 +565,7 @@ const SANDBOX_MODE = new URLSearchParams(location.search).get('sandbox') === '1'
 const SANDBOX_DEBUG_MODE = IS_BETA && new URLSearchParams(location.search).get('sandboxdebug') === '1';
 const sandboxEnterHooks = [];
 const sandboxState = createSandboxState();
- sandboxState.smartPack = createSmartPack();
+ sandboxState.smartPack = createSmartPack(IS_BETA ? { window: BETA_TUNE.smartPackWindow, spacing: BETA_TUNE.smartPackSpacing, slotSpacing: BETA_TUNE.smartPackSlotSpacing } : undefined);
 if (SANDBOX_MODE) sandboxState.active = true;
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
@@ -730,7 +730,7 @@ function disposeAllFoxes() {
   } finally {
     foxes = [];
     sandboxState.dummy = null;
-    sandboxState.smartPack = createSmartPack();
+    sandboxState.smartPack = createSmartPack(IS_BETA ? { window: BETA_TUNE.smartPackWindow, spacing: BETA_TUNE.smartPackSpacing, slotSpacing: BETA_TUNE.smartPackSlotSpacing } : undefined);
   }
 }
 

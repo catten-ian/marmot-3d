@@ -55,7 +55,8 @@ export class TuningPanel {
       <button data-act="export" type="button">导出配置</button>
       <button data-act="copy" type="button">复制到剪贴板</button>
       <label class="import-label">导入配置<input type="file" accept="application/json,.json" hidden></label>
-      <button data-act="resetAll" type="button" class="danger">全部恢复默认</button>`;
+      <button data-act="resetAll" type="button" class="danger">全部恢复默认</button>
+      <span class="capability-legend" aria-label="参数能力说明"><b>运行时生效</b> · <span>仅预览/导出，不影响线上对局</span></span>`;
     this.root.appendChild(bar);
     this.searchInput = bar.querySelector('.search');
     this.searchInput.addEventListener('input', () => this._renderList());
@@ -131,6 +132,11 @@ export class TuningPanel {
     label.querySelector('.cn').textContent = entry.label;
     label.querySelector('code').textContent = entry.source;
     label.title = `${entry.file} · ${entry.source}`;
+    const capability = document.createElement('span');
+    capability.className = `tune-capability ${entry.capability === 'runtime' ? 'runtime' : 'preview'}`;
+    capability.textContent = entry.capability === 'runtime' ? '运行时生效' : '仅预览/导出，不影响线上对局';
+    capability.setAttribute('aria-label', capability.textContent);
+    label.appendChild(capability);
     row.appendChild(label);
 
     const ctrl = document.createElement('div');

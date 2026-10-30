@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-10-30T10:04:13.035Z",
+  "url": "http://127.0.0.1:35535/admin.html",
+  "results": [
+    {
+      "name": "admin__390x844.png",
+      "metrics": {
+        "width": 390,
+        "height": 844,
+        "rows": 604,
+        "runtime": 59,
+        "preview": 545,
+        "legend": "运行时生效 · 仅预览/导出，不影响线上对局"
+      }
+    },
+    {
+      "name": "admin__1280x720.png",
+      "metrics": {
+        "width": 1280,
+        "height": 720,
+        "rows": 604,
+        "runtime": 59,
+        "preview": 545,
+        "legend": "运行时生效 · 仅预览/导出，不影响线上对局"
+      }
+    }
+  ]
+}

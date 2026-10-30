@@ -198,11 +198,14 @@ export function debounceIntent(prev, next, held = 0, dt = 0, options = {}) {
   if (held + dt < (options.hold ?? .25)) return { intent: prev, held: held + dt };
   return { intent: next, held: 0 };
 }
-export function createSmartPack() {
+export function createSmartPack({ window = 1.2, spacing = 0.35, slotSpacing = 0.025 } = {}) {
+  const packWindow = Number.isFinite(window) ? Math.max(0, window) : 1.2;
+  const packSpacing = Number.isFinite(spacing) ? Math.max(0, spacing) : 0.35;
+  const packSlotSpacing = Number.isFinite(slotSpacing) ? Math.max(0, slotSpacing) : 0.025;
   return { lastCommitAt: -Infinity, commits: [], canCommit(slot, now, coordination = 1) {
     if (coordination <= 0) return true;
-    this.commits = this.commits.filter((c) => now - c.at < 1.2);
-    return this.commits.length < 2 && now - this.lastCommitAt >= .35 + ((slot % 3) * .025);
+    this.commits = this.commits.filter((c) => now - c.at < packWindow);
+    return this.commits.length < 2 && now - this.lastCommitAt >= packSpacing + ((slot % 3) * packSlotSpacing);
   }, recordCommit(slot, now) { this.commits.push({ slot, at: now }); this.lastCommitAt = now; } };
 }
 export function flankBias(self, peers, player, coordination = 0) {
