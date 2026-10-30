@@ -1,0 +1,14 @@
+Local release files
+3205de9bfa89d437b9cb0ef30f8c4e225ca5360f718da597166ca6a77faaccb7  index-public.html
+7aa0b938d9da666c564ce77f4758a91734f2e0c991aec2a1e4c9e47d53653b92  src/core/version.js
+ed8a3d5607ff5d4aa243c99335fe17ac48bf560d0d8443fdb5eb9d4e3639bc49  src/core/settings-pause.mjs
+00d6f9074173f0348bfb23352189a7559627b69434752aaef4247174eae5d51a  src/main.js
+26587eb3cf5c3b26b4402245f105c9f760695082484ea41cd91e97839dcc310c  src/systems/audio.js
+7ad8c0e267bdbeff2b09804492fe2113aa32d3ea6140d4e149e9a7b65bc63c12  src/play/play-as-fox.js
+Public HTTP downloaded files
+3205de9bfa89d437b9cb0ef30f8c4e225ca5360f718da597166ca6a77faaccb7  /tmp/m3d-rev55-online/index-public.html
+7aa0b938d9da666c564ce77f4758a91734f2e0c991aec2a1e4c9e47d53653b92  /tmp/m3d-rev55-online/src/core/version.js
+ed8a3d5607ff5d4aa243c99335fe17ac48bf560d0d8443fdb5eb9d4e3639bc49  /tmp/m3d-rev55-online/src/core/settings-pause.mjs
+00d6f9074173f0348bfb23352189a7559627b69434752aaef4247174eae5d51a  /tmp/m3d-rev55-online/src/main.js
+26587eb3cf5c3b26b4402245f105c9f760695082484ea41cd91e97839dcc310c  /tmp/m3d-rev55-online/src/systems/audio.js
+7ad8c0e267bdbeff2b09804492fe2113aa32d3ea6140d4e149e9a7b65bc63c12  /tmp/m3d-rev55-online/src/play/play-as-fox.js
