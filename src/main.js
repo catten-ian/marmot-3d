@@ -3319,7 +3319,9 @@ function frame(now) {
     return;
   }
 
-  update(dt);
+  // QA fast-forward can suspend the real-time tick and drive the same
+  // gameplay update function with a fixed dt; rendering continues normally.
+  if (!(window.__game && window.__game.qaPaused)) update(dt);
   if (IS_BETA) {
     const inRangeFoxes = foxes.filter((fox) => fox.alive && !game.inBurrow
       && Math.hypot(fox.x - game.player.x, fox.z - game.player.z) < 22);
@@ -3482,6 +3484,7 @@ window.__game = {
   audio: IS_BETA ? audio : null,
   testMode: TEST_MODE, sandboxMode: SANDBOX_MODE, sandboxState, enterSandbox, exitSandbox,
   testState, testLogs, recordTestLog, testSnapshot, exportTestLogs,
+  qaStep: (dt) => update(dt), qaPaused: false,
   foxes: () => foxes, berries: () => berries, companion,
   combatStats: () => combatStats(game),
   burrow: BURROW,

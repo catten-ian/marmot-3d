@@ -373,7 +373,12 @@ export class SmartFox extends Fox {
     const commitAim = IS_BETA && intent === 'pounce'
       ? { x: p.x + this._escVel.x * leadScale, z: p.z + this._escVel.z * leadScale }
       : { x: p.x, z: p.z };
-    const betaPounceAlign = IS_BETA && !this.pounceCommitted && intent === 'pounce' && this._pounceApproach.phase === 'align';
+    // The approach FSM uses a small hysteresis tolerance around the ring, so
+    // `phase === align` can still mean just outside the actual commit range.
+    // Only hold position once the strict distance and yaw gates are both true;
+    // otherwise keep creeping inward to make the predicates coincide.
+    const betaPounceAlign = IS_BETA && !this.pounceCommitted && intent === 'pounce'
+      && this._pounceApproach.ready === true;
     // 接近环时按剩余距离比例减速：全速冲进环会带着动量滑过窗口
     // （实测从 9m 冲到 3.7m 才停下，已经越过 4.2m 下限）。
     // 剩余距离越小速度越低，使狐狸能停在环内并完成转正。
@@ -421,7 +426,7 @@ export class SmartFox extends Fox {
         })() } : {}),
         intent: this.intent,
         locomotionIntent: betaPounceAlign ? 'observe' : this.intent,
-        speedTarget: betaPounceAlign ? 0 : undefined,      },
+      },
       navigationAim,
       dt,
       this.intent,
@@ -445,6 +450,16 @@ export class SmartFox extends Fox {
         // 阶段 4 动作集对齐：慢行=stalk（慢/省体力/难被发现），冲刺=sprint
         stalkSpeed: FOX.ACTIONS.stalk.speed,
         sprintSpeed: FOX.ACTIONS.sprint.speed,
+        // The beta pounce approach controller deliberately computes a braking
+        // speed as the fox enters the commit ring. Feed that target into the
+        // motion primitive; selecting `pounce` as a locomotion intent alone
+        // would otherwise choose sprint speed and carry the fox through the
+        // inner boundary before yaw alignment can complete.
+        speedTarget: IS_BETA && !this.pounceCommitted && intent === 'pounce'
+          ? approachSpeed : (betaPounceAlign ? 0 : undefined),
+        // Apply enough braking authority to shed sprint momentum before the
+        // inner edge of the ring; committed dash acceleration remains unchanged.
+        locomotionAcceleration: IS_BETA && !this.pounceCommitted && intent === 'pounce' ? 60 : undefined,
       },    );
     if (!this.pounceCommitted && next.pounceCommitted) {
       packContext?.coordinator?.recordCommit(this.slot, this._age);

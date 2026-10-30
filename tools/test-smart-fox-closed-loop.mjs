@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { utilityScores, updatePerception, debounceIntent, stepSmartMotion } from '../src/entities/smart-fox-core.mjs';
+import { utilityScores, updatePerception, debounceIntent, stepSmartMotion, advanceSmartPounceApproach } from '../src/entities/smart-fox-core.mjs';
 import { BETA_TUNE } from '../src/core/beta-tuning.js';
 
 const beta = true;
@@ -48,3 +48,43 @@ if (process.env.SMARTFOX_ASSERT === '1') {
   assert.ok(facing.commitRate > 0 && facing.hitRate > 0, 'submission and hit rates are independent non-zero assertions');
 }
 console.log(JSON.stringify({beta,results},null,2));
+
+// Regression: a misaligned fox must brake into the ring while it turns, so the
+// distance and angle predicates become true in the same frame and a real
+// stepSmartMotion commit follows. This mirrors the beta controller's live
+// approach path instead of asserting state fields in isolation.
+{
+  let state = {
+    x: 9, z: 0, vx: 0, vz: 0, yaw: Math.PI,
+    pounceCooldown: 0, pounceCommitted: false,
+    pounceMinDistance: BETA_TUNE.smartPounceMinDistance,
+    pounceMaxDistance: BETA_TUNE.smartPounceMaxDistance,
+    pounceMaxAngle: 20 * Math.PI / 180,
+    pounceSpeed: 10.6, pounceDashSpeedMul: 1.18,
+    maxTurnRate: 2.8, acceleration: 18,
+  };
+  let approach = { phase: 'approach', phaseTime: 0, side: 1, missed: 0 };
+  let simultaneous = false, commits = 0;
+  for (let i = 0; i < 600; i++) {
+    const distance = Math.hypot(state.x, state.z);
+    const toPlayer = Math.atan2(-state.x, -state.z);
+    const angle = Math.abs(Math.atan2(Math.sin(toPlayer - state.yaw), Math.cos(toPlayer - state.yaw)));
+    approach = (await import('../src/entities/smart-fox-core.mjs')).advanceSmartPounceApproach(
+      approach, { distance, angle, maxAngle: 20 * Math.PI / 180 }, dt, BETA_TUNE,
+    );
+    const ring = approach.ringRadius ?? ((BETA_TUNE.smartPounceMinDistance + BETA_TUNE.smartPounceMaxDistance) * 0.5);
+    const brake = Math.min(1, Math.max(0, Math.abs(distance - ring) / 2.4));
+    const approachSpeed = Math.min(2.4, BETA_TUNE.smartPounceRingCrawlSpeed + (2.4 - BETA_TUNE.smartPounceRingCrawlSpeed) * brake);
+    const readyTogether = distance >= BETA_TUNE.smartPounceMinDistance
+      && distance <= BETA_TUNE.smartPounceMaxDistance && angle <= 20 * Math.PI / 180;
+    const next = stepSmartMotion(state, { x: 0, z: 0 }, dt, 'pounce', {
+      commitAllowed: true, stalkSpeed: 2.4, sprintSpeed: 6.5,
+      speedTarget: approachSpeed, locomotionAcceleration: 60,
+    });
+    if (readyTogether) simultaneous = true;
+    if (!state.pounceCommitted && next.pounceCommitted) { commits++; break; }
+    state = next;
+  }
+  assert.equal(simultaneous, true, 'distance and yaw alignment must overlap during natural approach');
+  assert.equal(commits, 1, 'natural approach must commit exactly once');
+}
