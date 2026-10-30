@@ -18,6 +18,25 @@ const instantiateMarmot = (dev = false) => instantiate(`./assets/models/${dev ? 
 const tintMarmot = (root) => root?.traverse?.((o) => { if (!o.isMesh || /eye|tongue|teeth|mouth/i.test(o.name || '')) return; const mats = Array.isArray(o.material) ? o.material : [o.material]; mats.forEach((m) => { if (!m) return; const c = m.color; if (c && c.r < 0.08 && c.g < 0.08 && c.b < 0.08) c.set(0xa9834e); }); });
 import { devOn } from '../core/version.js';
 
+let grassTexturePromise = null;
+function loadVerdantGrassTextures() {
+  if (grassTexturePromise) return grassTexturePromise;
+  const loader = new THREE.TextureLoader();
+  grassTexturePromise = Promise.all([
+    loader.loadAsync('./assets/verdant/tiers/low/grass_medium_02_diff_512.jpg'),
+    loader.loadAsync('./assets/verdant/tiers/low/grass_medium_02_alpha_512.png'),
+  ]).then(([diff, alpha]) => {
+    diff.colorSpace = THREE.SRGBColorSpace;
+    alpha.colorSpace = THREE.NoColorSpace;
+    console.info('[food] verdant grass textures loaded', { tier: 'low', diff: 'grass_medium_02_diff_512.jpg', alpha: 'grass_medium_02_alpha_512.png' });
+    return { diff, alpha };
+  }).catch((error) => {
+    console.warn('[food] verdant grass textures unavailable:', error);
+    return null;
+  });
+  return grassTexturePromise;
+}
+
 export class Food {
   /**
    * @param plant dev 版传入植物定义 {name,color,leaf,moisture,linoleic}
@@ -93,6 +112,14 @@ export class Food {
       color: p.color ?? 0x8fa05a, roughness: 0.88,
       emissive: 0x141a0c, emissiveIntensity: 0.25,
       side: THREE.DoubleSide,
+    });
+    // 普通可采集草先以轻量几何占位，随后替换为 Verdant low 档真实草贴图。
+    // 醡浆花模型加载成功后会隐藏整组占位物，不会与真实模型叠加。
+    loadVerdantGrassTextures().then((textures) => {
+      if (!textures || !this.group || this.realModel) return;
+      for (const mat of [stemMat, headMat]) {
+        mat.map = textures.diff; mat.alphaMap = textures.alpha; mat.transparent = true; mat.alphaTest = 0.35; mat.needsUpdate = true;
+      }
     });
 
     const isLegume = /alfalfa|clover|vetch|sainfoin|bean|豌豆|三叶|苜蓿|巢豆/.test(p.key);

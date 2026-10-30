@@ -1,0 +1,812 @@
+{
+  "ready": true,
+  "info": {
+    "ready": true,
+    "dev": true,
+    "base": {
+      "id": "base",
+      "type": "base",
+      "x": -38.60999313354492,
+      "z": -5.1699958801269545,
+      "r": 7.215999999999999,
+      "regenMul": 1,
+      "label": "大本营",
+      "openingRadius": 2.2,
+      "slopeRadius": 3.6,
+      "chamberRadius": 3,
+      "chamberDepth": 3.8,
+      "warmLight": true,
+      "lightColor": 16763256,
+      "lightIntensity": 6.2,
+      "groundY": 1.7354024648666382,
+      "placement": {
+        "x": -38.60999313354492,
+        "y": 1.7354024648666382,
+        "z": -5.1699958801269545,
+        "walkable": true,
+        "component": 0,
+        "surfaceMin": 1.7299628257751465,
+        "surfaceMax": 1.7810280323028564,
+        "surfaceVariation": 0.05106520652770996,
+        "moved": 0,
+        "validation": {
+          "groundDelta": 0,
+          "walkable": true,
+          "fakeZero": false,
+          "component": 0
+        },
+        "centerDistance": 38.95459442957808,
+        "resourceDistance": 57.39704428150354,
+        "groundY": 1.7354024648666382
+      }
+    },
+    "player": {
+      "x": -35.089993133544915,
+      "y": 1.7476223635675345,
+      "z": -3.4099958801269548
+    },
+    "fpsText": null,
+    "inBurrow": false,
+    "foods": [
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      },
+      {
+        "herbivore": true,
+        "real": false
+      }
+    ]
+  },
+  "events": [
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "info",
+        "args": [
+          {
+            "type": "string",
+            "value": "PT mask 1069ms"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317796611.993,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "__pt",
+              "scriptId": "78",
+              "url": "http://127.0.0.1:8352/src/world/verdant-collision.js",
+              "lineNumber": 239,
+              "columnNumber": 30
+            },
+            {
+              "functionName": "buildWalkableField",
+              "scriptId": "78",
+              "url": "http://127.0.0.1:8352/src/world/verdant-collision.js",
+              "lineNumber": 310,
+              "columnNumber": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "info",
+        "args": [
+          {
+            "type": "string",
+            "value": "PT done 1246ms"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317796789.014,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "__pt",
+              "scriptId": "78",
+              "url": "http://127.0.0.1:8352/src/world/verdant-collision.js",
+              "lineNumber": 239,
+              "columnNumber": 30
+            },
+            {
+              "functionName": "",
+              "scriptId": "78",
+              "url": "http://127.0.0.1:8352/src/world/verdant-collision.js",
+              "lineNumber": 370,
+              "columnNumber": 19
+            },
+            {
+              "functionName": "buildWalkableField",
+              "scriptId": "78",
+              "url": "http://127.0.0.1:8352/src/world/verdant-collision.js",
+              "lineNumber": 370,
+              "columnNumber": 59
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "info",
+        "args": [
+          {
+            "type": "string",
+            "value": "[verdant] 可行走高度场:"
+          },
+          {
+            "type": "object",
+            "className": "Object",
+            "description": "Object",
+            "objectId": "-1277393665158207031.2.2",
+            "preview": {
+              "type": "object",
+              "description": "Object",
+              "overflow": true,
+              "properties": [
+                {
+                  "name": "meshCount",
+                  "type": "number",
+                  "value": "2"
+                },
+                {
+                  "name": "triCount",
+                  "type": "number",
+                  "value": "248003"
+                },
+                {
+                  "name": "usedCount",
+                  "type": "number",
+                  "value": "247843"
+                },
+                {
+                  "name": "jsonFilled",
+                  "type": "number",
+                  "value": "820"
+                },
+                {
+                  "name": "solidCells",
+                  "type": "number",
+                  "value": "89105"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317796789.403,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "loadVerdantWorld",
+              "scriptId": "76",
+              "url": "http://127.0.0.1:8352/src/world/verdant.js?v=m20261029boot15",
+              "lineNumber": 332,
+              "columnNumber": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "info",
+        "args": [
+          {
+            "type": "string",
+            "value": "[verdant-placement] baked placements accepted"
+          },
+          {
+            "type": "object",
+            "className": "Object",
+            "description": "Object",
+            "objectId": "-1277393665158207031.2.3",
+            "preview": {
+              "type": "object",
+              "description": "Object",
+              "overflow": false,
+              "properties": [
+                {
+                  "name": "tier",
+                  "type": "string",
+                  "value": "low"
+                },
+                {
+                  "name": "fingerprint",
+                  "type": "string",
+                  "value": "sha256-fdcf6301fdaf63bfb645e49a4c7bb8435db4bd572a49e8cf230f1870030c4f52"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317797176.412,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "validateVerdantPlacementBake",
+              "scriptId": "13",
+              "url": "http://127.0.0.1:8352/src/main.js?v=m20261029boot15",
+              "lineNumber": 358,
+              "columnNumber": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "info",
+        "args": [
+          {
+            "type": "string",
+            "value": "[food] verdant grass textures loaded"
+          },
+          {
+            "type": "object",
+            "className": "Object",
+            "description": "Object",
+            "objectId": "-1277393665158207031.2.4",
+            "preview": {
+              "type": "object",
+              "description": "Object",
+              "overflow": false,
+              "properties": [
+                {
+                  "name": "tier",
+                  "type": "string",
+                  "value": "low"
+                },
+                {
+                  "name": "diff",
+                  "type": "string",
+                  "value": "grass_medium_02_diff_512.jpg"
+                },
+                {
+                  "name": "alpha",
+                  "type": "string",
+                  "value": "grass_medium_02_alpha_512.png"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317798153.921,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "42",
+              "url": "http://127.0.0.1:8352/src/entities/props_entities.js",
+              "lineNumber": 30,
+              "columnNumber": 12
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "info",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] marmotScream 加载成功 [geometry-only] 15,856 面"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317798304.265,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 328,
+              "columnNumber": 16
+            },
+            {
+              "functionName": "",
+              "scriptId": "65",
+              "url": "http://127.0.0.1:8352/vendor/addons/loaders/GLTFLoader.js",
+              "lineNumber": 325,
+              "columnNumber": 5
+            },
+            {
+              "functionName": "",
+              "scriptId": "65",
+              "url": "http://127.0.0.1:8352/vendor/addons/loaders/GLTFLoader.js",
+              "lineNumber": 2748,
+              "columnNumber": 4
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载较慢（15s），继续等待；程序化模型保持可见:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/shrub-sorrel.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317866367.198,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 229,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载较慢（15s），继续等待；程序化模型保持可见:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/marmot.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317866367.264,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 229,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载较慢（15s），继续等待；程序化模型保持可见:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/wolf.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317866367.284,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 229,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载终态超时（60s），清理 pending cache:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/shrub-sorrel.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317866369.544,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 237,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载终态超时（60s），清理 pending cache:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/marmot.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317866369.633,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 237,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载终态超时（60s），清理 pending cache:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/wolf.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317866369.667,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 237,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "info",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 真实模型就绪情况:"
+          },
+          {
+            "type": "object",
+            "className": "Object",
+            "description": "Object",
+            "objectId": "-1277393665158207031.2.5",
+            "preview": {
+              "type": "object",
+              "description": "Object",
+              "overflow": false,
+              "properties": [
+                {
+                  "name": "marmot",
+                  "type": "string",
+                  "value": "timeout"
+                },
+                {
+                  "name": "fox",
+                  "type": "string",
+                  "value": "timeout"
+                }
+              ]
+            }
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317866370.785,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "13",
+              "url": "http://127.0.0.1:8352/src/main.js?v=m20261029boot15",
+              "lineNumber": 891,
+              "columnNumber": 10
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载较慢（15s），继续等待；程序化模型保持可见:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/burrow-main-interior.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317931769.509,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 229,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载较慢（15s），继续等待；程序化模型保持可见:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/wolf.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317931770.232,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 229,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载较慢（15s），继续等待；程序化模型保持可见:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/shrub-sorrel.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317931770.257,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 229,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载终态超时（60s），清理 pending cache:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/burrow-main-interior.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317932136.718,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 237,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载终态超时（60s），清理 pending cache:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/wolf.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317932137.283,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 237,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "warning",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] 加载终态超时（60s），清理 pending cache:"
+          },
+          {
+            "type": "string",
+            "value": "./assets/models/shrub-sorrel.glb"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317932137.657,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 237,
+              "columnNumber": 14
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "Runtime.consoleAPICalled",
+      "params": {
+        "type": "info",
+        "args": [
+          {
+            "type": "string",
+            "value": "[models] burrowMain 加载成功 [geometry-only] 171,009 面"
+          }
+        ],
+        "executionContextId": 2,
+        "timestamp": 1793317938501.613,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "",
+              "scriptId": "31",
+              "url": "http://127.0.0.1:8352/src/models/loader.js",
+              "lineNumber": 328,
+              "columnNumber": 16
+            },
+            {
+              "functionName": "",
+              "scriptId": "65",
+              "url": "http://127.0.0.1:8352/vendor/addons/loaders/GLTFLoader.js",
+              "lineNumber": 325,
+              "columnNumber": 5
+            },
+            {
+              "functionName": "",
+              "scriptId": "65",
+              "url": "http://127.0.0.1:8352/vendor/addons/loaders/GLTFLoader.js",
+              "lineNumber": 2748,
+              "columnNumber": 4
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
