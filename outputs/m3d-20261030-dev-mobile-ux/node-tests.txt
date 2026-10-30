@@ -1,0 +1,72 @@
+SKIP test-action-layout.cjs (browser/CDP)
+PASS test-asset-downloader.cjs
+PASS test-attack-charge-air.cjs
+PASS test-attack-parry.js
+SKIP test-attack.cjs (browser/CDP)
+SKIP test-attacks.cjs (browser/CDP)
+PASS test-beta-contract.cjs
+SKIP test-body-view.cjs (browser/CDP)
+PASS test-combat-realism.cjs
+PASS test-combat-strike-volumes.cjs
+PASS test-combat-wheel.cjs
+PASS test-cooldown-overlay.cjs
+PASS test-damage-text-size.cjs
+PASS test-debug-volumes.cjs
+PASS test-dev-burrow.cjs
+PASS test-dev-grass-assets.cjs
+SKIP test-dev-gs.cjs (browser/CDP)
+SKIP test-dev-turn.cjs (browser/CDP)
+PASS test-drill-reset.cjs
+SKIP test-ecology.cjs (browser/CDP)
+PASS test-feedback-fixes.cjs
+PASS test-feedback.cjs
+SKIP test-fixes.cjs (browser/CDP)
+SKIP test-fox-navigation.cjs (browser/CDP)
+SKIP test-fox-run.cjs (browser/CDP)
+SKIP test-fox-types.cjs (browser/CDP)
+SKIP test-fullscreen.cjs (browser/CDP)
+SKIP test-glb.cjs (browser/CDP)
+SKIP test-gs.cjs (browser/CDP)
+PASS test-input-mode.cjs
+SKIP test-jump-physics.cjs (browser/CDP)
+PASS test-local-pack-resolution.cjs
+PASS test-minimap.cjs
+SKIP test-models.cjs (browser/CDP)
+PASS test-move-facing.cjs
+PASS test-multi-burrow.cjs
+PASS test-normal-fox-sandbox.cjs
+PASS test-parry-window.cjs
+SKIP test-particles.cjs (browser/CDP)
+PASS test-pc-parry.cjs
+SKIP test-posture.cjs (browser/CDP)
+PASS test-procedural-fox.cjs
+SKIP test-repel.cjs (browser/CDP)
+PASS test-resource-loading.cjs
+PASS test-rev12-sandbox-help.cjs
+PASS test-sprint-threshold.cjs
+PASS test-touch-drive.cjs
+PASS test-touch-layout.js
+PASS test-touch-pointers.cjs
+PASS test-tps-drive.cjs
+PASS test-underground-burrow.cjs
+SKIP test-v11.cjs (browser/CDP)
+SKIP test-v12.cjs (browser/CDP)
+PASS test-verdant-download.cjs
+PASS test-verdant-fall-safety.cjs
+PASS test-verdant-grounding.cjs
+PASS test-verdant-loader-progress.cjs
+PASS test-verdant-memory-progress.cjs
+PASS test-verdant-obstacles.cjs
+PASS test-verdant-pack.cjs
+PASS test-verdant-placement.cjs
+PASS test-verdant-tier-guard.cjs
+PASS test-verdant-tier-metadata.cjs
+PASS test-verdant-walkable-bin.cjs
+PASS test-verdant-watchdog.cjs
+PASS test-verdant.cjs
+PASS test-version-badge.cjs
+SKIP test-viewmodel.cjs (browser/CDP)
+PASS test-wolf-verdant-contract.cjs
+
+22 browser/CDP tests skipped (need Chrome): test-action-layout.cjs, test-attack.cjs, test-attacks.cjs, test-body-view.cjs, test-dev-gs.cjs, test-dev-turn.cjs, test-ecology.cjs, test-fixes.cjs, test-fox-navigation.cjs, test-fox-run.cjs, test-fox-types.cjs, test-fullscreen.cjs, test-glb.cjs, test-gs.cjs, test-jump-physics.cjs, test-models.cjs, test-particles.cjs, test-posture.cjs, test-repel.cjs, test-v11.cjs, test-v12.cjs, test-viewmodel.cjs
+OK 47/47
