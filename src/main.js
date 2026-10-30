@@ -17,7 +17,8 @@ import { clamp, terrainHeight, setHeightField, heightFieldActive } from './core/
 import { FirstPersonController } from './core/controls.js';
 import { dampAngle, resolveAttackYaw } from './core/move-facing.mjs';
 import {
-  rollDirection, resolveAttackRelease, isWeakAerialPounce,
+  resolveMarmotRollDirection, resolveRollMovementInput,
+  resolveAttackRelease, isWeakAerialPounce,
   interruptAttackCharge, resolvePendingAerialParry, advanceAttackCharge,
   AERIAL_POUNCE_DAMAGE_MUL, MAX_ATTACK_CHARGE_MS,
   strikeGateOpen, resolveParryOutcome,
@@ -1582,8 +1583,8 @@ function strike(move = 'tap', { fromParryGesture = false, aerialPounceDamageMul 
     boost: game.boost > 0, overdrive: game.overdrive > 0, energy: Number(p.energy.toFixed(1)),
   }, game.totalTime);
   if (move === 'dodge') {
-    const dir = rollDirection({ velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw });
-    controller.roll(dir, 7.2);
+    const dir = resolveCurrentRollDirection();
+    controller.roll({ x: dir.x, z: dir.z }, 7.2);
     p.invuln = Math.max(p.invuln, wheel.invuln || 0.42);
     return true;
   }
@@ -1749,43 +1750,44 @@ function doJump() {
     new THREE.Color(0xbfae8e), 6, 0.7);
 }
 
-// 屏幕平面向量（右+、上+）按相机朝向换算为世界水平单位向量。
-function screenToWorldDir(rightAmt, upAmt) {
-  const yaw = controller.yaw;
-  const fx = -Math.sin(yaw), fz = -Math.cos(yaw);   // 相机前方
-  const rx = Math.cos(yaw), rz = -Math.sin(yaw);     // 相机右方
-  let wx = rx * rightAmt + fx * upAmt;
-  let wz = rz * rightAmt + fz * upAmt;
-  const l = Math.hypot(wx, wz) || 1;
-  return { x: wx / l, z: wz / l };
+// Snapshot held directional actions through the active key scheme and aliases.
+function currentRollMovementInput() {
+  const moveMap = binds.moveMap || {};
+  return resolveRollMovementInput({
+    keys,
+    movementKeys: {
+      forward: binds.keys('forward'), back: binds.keys('back'),
+      left: binds.keys('left'), right: binds.keys('right'),
+    },
+    moveMap,
+    // In driving/turning profiles, the active left/right controls may live in
+    // turnMap instead of moveMap; the roll still interprets them as screen axes.
+    turnMap: binds.turnMap,
+  });
 }
 
-// 翻滚方向：优先拖动定向，其次摇杆推动方向，最后身体朝向。
-function rollDirFromGesture(gesture) {
-  // 1) 独立翻滚键被拖动：按拖动方向（屏幕右+、上拖为负 dy）。
-  if (gesture && gesture.moved && (Math.abs(gesture.dx) > 0 || Math.abs(gesture.dy) > 0)) {
-    return screenToWorldDir(gesture.dx, -gesture.dy);
-  }
-  // 2) 移动摇杆正在推动：按轮盘方向（即便角色刚起步、速度还没起来也成立）。
-  const ax = controller.touchAxes || { x: 0, y: 0 };
-  if (Math.hypot(ax.x, ax.y) > 0.18) {
-    return screenToWorldDir(ax.x, ax.y);
-  }
-  // 3) 回退：实际移动速度方向；静止则身体朝向（yaw=0 朝 -Z）。
-  return rollDirection({
+// Shared by the direct roll action and combat-wheel move='dodge'. Direction is
+// resolved synchronously from current inputs and returned as a fresh snapshot.
+function resolveCurrentRollDirection(gesture = null, touchOrigin = false) {
+  return resolveMarmotRollDirection({
+    gesture, joystick: controller.touchAxes, movement: currentRollMovementInput(),
+    cameraYaw: controller.yaw, touchOrigin,
     velX: controller.velocity.x, velZ: controller.velocity.z, bodyYaw: controller.bodyYaw,
   });
 }
 
-// 翻滚：朝当前移动方向（否则身体朝向）滚动，整段无敌。
-function doRoll(gesture = null) {
+// 翻滚方向只在动作起始时解析并锁存；键鼠空输入向屏幕右，触屏无输入保留旧回退。
+function doRoll(gesture = null, touchOrigin = false) {
   const p = game.player;
   const wheel = PLAYER.combatWheel.dodge;
   if (game.attackCD > 0 || game.inBurrow || (controller.rollT || 0) > 0.02) return false;
   const atkMul = devOn('famineTolerance') ? HERBIVORE.attackCostMul : 1;
   if (p.energy < wheel.cost * atkMul) { hud.say(`${IS_BETA ? '体力' : '储备'}不足，无法翻滚`, 1.2); return false; }
   p.energy -= wheel.cost * atkMul;
-  const dir = rollDirFromGesture(gesture);
+  // The resolver runs once at roll start; controller.roll receives this latched
+  // world vector, so later key/stick/drag changes cannot retarget the impulse.
+  const resolvedDir = resolveCurrentRollDirection(gesture, touchOrigin);
+  const dir = { x: resolvedDir.x, z: resolvedDir.z };
   // 默认 distance=2.2 / invuln=0.42 时精确保持旧 7.2；调试面板改值会同步改变冲量。
   const rollSpeed = 7.2 * (wheel.distance / 2.2) * (0.42 / Math.max(0.05, wheel.invuln));
   controller.roll(dir, rollSpeed);
@@ -2585,7 +2587,7 @@ function triggerRollGesture(ctx) {
   attackCharge.fired = 'roll';
   attackCharge.t = 0;
   hideAttackHint();
-  doRoll({ moved: true, dx: ctx.dx, dy: ctx.dy });
+  doRoll({ moved: true, dx: ctx.dx, dy: ctx.dy }, true);
 }
 
 // 是否处于奔跑姿态：疾跑按键 / 触屏疾跑 / 身体俯伏超过阈值。
@@ -2621,7 +2623,7 @@ touchControls = new TouchControls({
         // button already resolved the move and latched this id against restarting.
         releasedTouchAttackPointers.delete(pointerId);
       }
-    } else if (!pressed && action === 'dodge') doRoll(gesture);
+    } else if (!pressed && action === 'dodge') doRoll(gesture, true);
     else if (pressed && action === 'jump') doJump();
     else if (action === 'interact') {
       if (pressed) {

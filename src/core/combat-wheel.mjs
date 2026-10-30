@@ -148,12 +148,78 @@ export class AttackGesture {
   }
 }
 
-// 翻滚方向：优先当前实际移动方向（速度方向），否则用身体朝向。
-// 返回归一化 {x,z} 与是否朝身体后方。
+// 土拨鼠翻滚的历史触屏无输入回退：沿当前速度，否则按身体朝向。
+// 键鼠默认方向不再使用它；统一 resolver 仅在触屏无方向时保留该回退。
 export function rollDirection({ velX = 0, velZ = 0, bodyYaw = 0 } = {}) {
   const v = Math.hypot(velX, velZ);
   if (v > 0.05) return { x: velX / v, z: velZ / v, moving: true };
   return { x: -Math.sin(bodyYaw), z: -Math.cos(bodyYaw), moving: false };
+}
+
+export const ROLL_JOYSTICK_DEAD_ZONE = 0.18;
+const ROLL_INPUT_EPSILON = 1e-8;
+
+/**
+ * Read the same active direction keys used by the game, plus resolved movement
+ * aliases. In driving control maps A/D-style turn keys carry left/right intent
+ * for a roll, while arrow aliases remain supported in every active map.
+ */
+export function resolveRollMovementInput({
+  keys = new Set(), movementKeys = {}, moveMap = {}, turnMap = null,
+} = {}) {
+  const isDown = (...values) => values.flat(Infinity)
+    .some((code) => typeof code === 'string' && code.length > 0 && keys.has(code));
+  return {
+    forward: isDown(movementKeys.forward, moveMap.forward, moveMap.forwardAlt),
+    back: isDown(movementKeys.back, moveMap.back, moveMap.backAlt),
+    left: isDown(movementKeys.left, moveMap.left, moveMap.leftAlt, turnMap?.left, turnMap?.leftAlt),
+    right: isDown(movementKeys.right, moveMap.right, moveMap.rightAlt, turnMap?.right, turnMap?.rightAlt),
+  };
+}
+
+/** Convert screen/camera-relative axes (right+, up+) to a normalized world vector. */
+export function screenToRollWorldDir(rightAmt = 0, upAmt = 0, cameraYaw = 0) {
+  const rx = Math.cos(cameraYaw), rz = -Math.sin(cameraYaw);
+  const fx = -Math.sin(cameraYaw), fz = -Math.cos(cameraYaw);
+  const x = rx * rightAmt + fx * upAmt;
+  const z = rz * rightAmt + fz * upAmt;
+  const length = Math.hypot(x, z);
+  if (length <= ROLL_INPUT_EPSILON) return { x: 0, z: 0 };
+  return { x: x / length, z: z / length };
+}
+
+/**
+ * Resolve and snapshot one marmot roll direction at action start. Priority is
+ * drag gesture, active movement joystick, held movement directions, then the
+ * mode-specific fallback. Keyboard direction is camera-relative; exact opposing
+ * keys cancel per axis, and a fully cancelled input follows the same fallback
+ * as no direction. Touch's historic velocity/body-facing fallback is retained.
+ */
+export function resolveMarmotRollDirection({
+  gesture = null, joystick = null, movement = {}, cameraYaw = 0,
+  touchOrigin = false, velX = 0, velZ = 0, bodyYaw = 0,
+  joystickDeadZone = ROLL_JOYSTICK_DEAD_ZONE,
+} = {}) {
+  const dx = Number(gesture?.dx) || 0;
+  const dy = Number(gesture?.dy) || 0;
+  if (gesture?.moved && (Math.abs(dx) > 0 || Math.abs(dy) > 0)) {
+    return { ...screenToRollWorldDir(dx, -dy, cameraYaw), source: 'drag' };
+  }
+
+  const jx = Number(joystick?.x) || 0;
+  const jy = Number(joystick?.y) || 0;
+  if (Math.hypot(jx, jy) > Math.max(0, Number(joystickDeadZone) || 0)) {
+    return { ...screenToRollWorldDir(jx, jy, cameraYaw), source: 'joystick' };
+  }
+
+  const right = Number(!!movement.right) - Number(!!movement.left);
+  const up = Number(!!movement.forward) - Number(!!movement.back);
+  if (Math.hypot(right, up) > ROLL_INPUT_EPSILON) {
+    return { ...screenToRollWorldDir(right, up, cameraYaw), source: 'movement' };
+  }
+
+  if (touchOrigin) return { ...rollDirection({ velX, velZ, bodyYaw }), source: 'touch-fallback' };
+  return { ...screenToRollWorldDir(1, 0, cameraYaw), source: 'default-right' };
 }
 
 // ============================================================
