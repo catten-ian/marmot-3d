@@ -38,6 +38,32 @@ Thumbs.db
 assets/verdant/tiers/ultra/verdant-trail-ultra.bin
 assets/verdant/tiers/ultra/textures/rock_07_nor_gl.png
 
+# ══════════════════════════════════════════════════════════════════════════
+# 大体积二进制素材一律不入库：只经火山 TOS 按档位（low/medium/high/ultra）分发。
+# 仓库只保留清单（manifest / pack-manifest）、高度场 JSON 与构建脚本。
+# 磁盘上的实际文件保留（本地开发与 e2e local 模式直接读磁盘），但不被 git 跟踪。
+# ══════════════════════════════════════════════════════════════════════════
+
+# 场景 GLB（各档成套）：运行时按 active tier 从 TOS 取
+assets/verdant/tiers/*/verdant-trail-*.glb
+assets/verdant/verdant-trail.glb
+
+# 角色/生物/道具模型：运行时按 active tier 从 TOS 取
+assets/models/*.glb
+
+# 各档贴图（按档位成套）
+assets/verdant/tiers/*/*.png
+assets/verdant/tiers/*/*.jpg
+assets/verdant/tiers/*/textures/
+
+# 例外：运行时直接相对路径引用、且尚未上 TOS 的小文件，必须留在库内
+!assets/verdant/tiers/low/grass_medium_02_alpha_512.png
+!assets/verdant/tiers/low/grass_medium_02_diff_512.jpg
+
+# 注：assets/splats/scene.spz（高斯泼溅）与 assets/video/*.mp4 暂留库内 ——
+# src/gs/main.js 与 index-public.html 以直接相对路径引用，尚无 TOS 回退通道；
+# 待补上按档位回退后再一并移出。
+
 # 预计算可行走地形（构建期产物，~3.3MB/档）：经火山 TOS 分发，随低档位打包版一起下发，不入库
 assets/verdant/tiers/*/walkable-field.bin
 
