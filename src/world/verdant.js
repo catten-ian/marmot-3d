@@ -5,7 +5,7 @@ import { getAssetCandidates, getAssetCandidatesAsync } from './local-pack.js';
 import { buildWalkableField } from './verdant-collision.js';
 import { parseWalkableFieldBin } from './verdant-walkable-bin.mjs';
 import { createProgressReporter, fetchWithFailover, parseGltfReferences, sourceLabelOf } from './verdant-progress.mjs';
-import { exceedsMemoryBudget, getMemorySnapshot, estimateTextureBytes } from '../core/memory-budget.mjs';
+import { exceedsMemoryBudget, getMemorySnapshot, estimateUniqueTextureBytes } from '../core/memory-budget.mjs';
 
 /** 单个下载源首字节无响应的上限：超过即判定该源故障，切下一个源。 */
 const SOURCE_STALL_MS = 8000;
@@ -174,14 +174,12 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
         restoreDecodeLimit(); parseReject = null; signal?.removeEventListener?.('abort', onAbort);
         if (parseMemoryError) { reject(parseMemoryError); return; }
         stopForMemory(); if (parseMemoryError) { reject(parseMemoryError); return; }
-        let textureBytes = 0; gltf.scene?.traverse?.((obj) => {
+        const textures = []; gltf.scene?.traverse?.((obj) => {
           const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-          for (const mat of mats) for (const key of ['map', 'normalMap', 'roughnessMap', 'alphaMap']) {
-            const image = mat?.[key]?.image;
-            const width = image?.width || image?.naturalWidth || 0, height = image?.height || image?.naturalHeight || 0;
-            textureBytes += estimateTextureBytes({ width, height });
-          }
+          for (const mat of mats) for (const key of ['map', 'normalMap', 'roughnessMap', 'alphaMap']) if (mat?.[key]) textures.push(mat[key]);
         });
+        const textureBytes = estimateUniqueTextureBytes(textures);
+        globalThis.__m3dTextureEstimateBytes = textureBytes;
         if (exceedsMemoryBudget({ snapshot: getMemorySnapshot(), extraBytes: data?.byteLength || 0, extraTextureBytes: textureBytes })) { reject(new Error('Verdant 纹理/GPU 预算不足，已停止解析并建议低档')); return; }
         reportParse('解析 Verdant 场景素材'); resolve(gltf.scene);
       }, (error) => { restoreDecodeLimit(); parseReject = null; signal?.removeEventListener?.('abort', onAbort); reject(error); });
@@ -213,28 +211,26 @@ async function loadSceneAsset({ scenePath, tier, packManifest, onProgress, signa
   reporter.addBytes(gltfResult.bytes.byteLength);
 
   const blobUrls = [];
-  const blobs = new Map();
-  for (const reference of references) {
-    const referenceUrl = new URL(reference, new URL('.', sceneUrl).href).href;
-    const result = await downloadAsset(referenceUrl, { tier, signal, size: sizeByPath.get(reference) || 0, reporter });
-    const blobUrl = URL.createObjectURL(new Blob([result.bytes]));
-    blobUrls.push(blobUrl);
-    blobs.set(reference, blobUrl);
-  }
-
-  // 把外部资源改写为本地 blob，GLTFLoader 直接从内存读，不再回源。
-  const rewritten = {
-    ...json,
-    buffers: (json.buffers || []).map((buffer) => (blobs.has(buffer.uri) ? { ...buffer, uri: blobs.get(buffer.uri) } : buffer)),
-    images: (json.images || []).map((image) => (blobs.has(image.uri) ? { ...image, uri: blobs.get(image.uri) } : image)),
-  };
-
   try {
-    return await parseScene(rewritten, new URL('.', sceneUrl).href);
-  } catch (error) {
-    // blob 路径失败 → 交回原生加载（GLTFLoader 自己按 URL 候选链回源），不因改写而彻底失败。
-    console.warn('[verdant] blob 资源改写失败，回退原生加载:', error?.message || error);
-    return await parseScene(json, new URL('.', sceneUrl).href);
+    const blobs = new Map();
+    for (const reference of references) {
+      const referenceUrl = new URL(reference, new URL('.', sceneUrl).href).href;
+      const result = await downloadAsset(referenceUrl, { tier, signal, size: sizeByPath.get(reference) || 0, reporter });
+      const blobUrl = URL.createObjectURL(new Blob([result.bytes]));
+      blobUrls.push(blobUrl);
+      blobs.set(reference, blobUrl);
+    }
+    const rewritten = {
+      ...json,
+      buffers: (json.buffers || []).map((buffer) => (blobs.has(buffer.uri) ? { ...buffer, uri: blobs.get(buffer.uri) } : buffer)),
+      images: (json.images || []).map((image) => (blobs.has(image.uri) ? { ...image, uri: blobs.get(image.uri) } : image)),
+    };
+    try {
+      return await parseScene(rewritten, new URL('.', sceneUrl).href);
+    } catch (error) {
+      console.warn('[verdant] blob 资源改写失败，回退原生加载:', error?.message || error);
+      return await parseScene(json, new URL('.', sceneUrl).href);
+    }
   } finally {
     for (const blobUrl of blobUrls) URL.revokeObjectURL(blobUrl);
   }

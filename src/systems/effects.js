@@ -4,6 +4,7 @@
  * 必须清晰表达攻击范围，否则玩家无法判断是否打中。
  */
 import * as THREE from 'three';
+import { normalizeParticleColor } from './particle-color.mjs';
 import { clamp, terrainHeight } from '../core/utils.js';
 
 /** 爪击：一道扇形挥砍面，沿调用方提供的真实攻击前向扫出。 */
@@ -178,6 +179,8 @@ export class Particles {
   }
 
   burst(x, y, z, color, count = 10, power = 1) {
+    // Public callers may pass a hex number; normalize once so instanceColor never receives NaN.
+    const c = normalizeParticleColor(color, THREE.Color);
     for (let i = 0; i < count && this.items.length < this.max; i++) {
       const a = Math.random() * Math.PI * 2;
       const up = 0.35 + Math.random() * 0.9;
@@ -190,7 +193,7 @@ export class Particles {
         // 基础几何半径 0.07，这里是相对倍数；控制在 0.45~1.0，
         // 太大会在视野里变成醒目的色块（贴地视角下尤其明显）
         size: 0.45 + Math.random() * 0.55,
-        r: color.r, g: color.g, b: color.b,
+        r: c.r, g: c.g, b: c.b,
       });
     }
   }
@@ -237,6 +240,7 @@ const DAMAGE_TEXT_DPR = 2;
 const DAMAGE_TEXT_BASE_WIDTH = 128;
 const DAMAGE_TEXT_BASE_HEIGHT = 64;
 const DAMAGE_TEXT_PADDING = 16;
+const DAMAGE_TEXT_CACHE_LIMIT = 96;
 
 /**
  * Return the world-space scale multiplier needed to keep a sprite's screen
@@ -300,7 +304,11 @@ export class DamageText {
 
   _texture(text, color) {
     const key = text + '|' + color;
-    if (this._cache.has(key)) return this._cache.get(key);
+    if (this._cache.has(key)) {
+      const hit = this._cache.get(key);
+      this._cache.delete(key); this._cache.set(key, hit);
+      return hit;
+    }
 
     const dpr = DAMAGE_TEXT_DPR;
     const font = `bold ${DAMAGE_TEXT_FONT_SIZE}px "Microsoft YaHei", sans-serif`;
@@ -336,14 +344,27 @@ export class DamageText {
     const entry = {
       tex,
       mat,
+      refs: 0,
       widthScale: dimensions.cssWidth / DAMAGE_TEXT_BASE_WIDTH,
     };
     this._cache.set(key, entry);
     return entry;
   }
 
+  _trimCache() {
+    while (this._cache.size > DAMAGE_TEXT_CACHE_LIMIT) {
+      const unused = [...this._cache.entries()].find(([, candidate]) => candidate.refs === 0);
+      if (!unused) break; // active sprites retain their cloned material/map safely
+      this._cache.delete(unused[0]);
+      unused[1].mat.dispose?.(); unused[1].tex.dispose?.();
+    }
+  }
+
   spawn(x, y, z, text, color = '#ffe8b0') {
-    const { mat, widthScale } = this._texture(text, color);
+    const entry = this._texture(text, color);
+    const { mat, widthScale } = entry;
+    entry.refs++;
+    this._trimCache();
     const sprite = new THREE.Sprite(mat.clone());
     const baseScale = new THREE.Vector3(1.1 * widthScale, 0.55, 1);
     sprite.position.set(x, y, z);
@@ -361,7 +382,7 @@ export class DamageText {
       sprite.updateMatrixWorld(true);
     };
     this.scene.add(sprite);
-    this.items.push({ sprite, t: 0, dur: 1.05, y0: y, baseScale, widthScale });
+    this.items.push({ sprite, t: 0, dur: 1.05, y0: y, baseScale, widthScale, cacheEntry: entry });
   }
 
   update(dt) {
@@ -372,7 +393,9 @@ export class DamageText {
       if (k >= 1) {
         this.scene.remove(it.sprite);
         it.sprite.material.dispose();
+        it.cacheEntry.refs = Math.max(0, it.cacheEntry.refs - 1);
         this.items.splice(i, 1);
+        this._trimCache();
         continue;
       }
       it.sprite.position.y = it.y0 + k * 1.1;

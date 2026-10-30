@@ -24,6 +24,20 @@ export function estimateTextureBytes({ width = 0, height = 0, channels = 4, mipm
   return pixels * Math.max(1, numberOr(channels, 4)) * mipFactor;
 }
 
+/** Sum texture estimates once per texture UUID/object identity. */
+export function estimateUniqueTextureBytes(textures = []) {
+  const seen = new Set(); let total = 0;
+  for (const texture of textures || []) {
+    if (!texture) continue;
+    const identity = texture.uuid || texture;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
+    const image = texture.image || texture;
+    total += estimateTextureBytes({ width: image.width || image.naturalWidth || 0, height: image.height || image.naturalHeight || 0, channels: texture.channels || 4, mipmaps: texture.generateMipmaps !== false });
+  }
+  return total;
+}
+
 export function textureBudgetFor({ snapshot = getMemorySnapshot(), reserveBytes = 256 * 1024 * 1024, maxTextureFraction = 0.24 } = {}) {
   if (!snapshot) return null;
   const deviceBytes = snapshot.deviceMemory > 0 ? snapshot.deviceMemory * 1024 ** 3 : Infinity;
