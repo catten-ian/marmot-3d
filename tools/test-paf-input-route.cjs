@@ -12,16 +12,16 @@ test('摇杆轴映射：死区、前后、左右转向符号及径向归一化',
   assert.deepEqual(mapPafJoystick({ x: 0, y: 0.5, mag: 0.5 }, 0.78),
     { throttle: 0.5, turn: 0, magnitude: 0.5, sprint: false, stalk: true });
   const right = mapPafJoystick({ x: 0.6, y: 0, mag: 0.6 }, 0.78);
-  assert.equal(right.turn, 0.6, '右拖对应 PAF 右转');
+  assert.equal(right.turn, -0.6, '右拖对应减小 yaw 的 PAF 右转');
   assert.equal(right.throttle, 0);
   const left = mapPafJoystick({ x: -0.6, y: 0, mag: 0.6 }, 0.78);
-  assert.equal(left.turn, -0.6, '左拖对应 PAF 左转');
+  assert.equal(left.turn, 0.6, '左拖对应增大 yaw 的 PAF 左转');
   const back = mapPafJoystick({ x: 0, y: -0.4, mag: 0.4 }, 0.78);
   assert.equal(back.throttle, -0.4);
   const diagonal = mapPafJoystick({ x: 1, y: 1, mag: 1 }, 0.78);
   assert.ok(Math.abs(diagonal.magnitude - 1) < 1e-12);
   assert.ok(Math.abs(diagonal.throttle - Math.SQRT1_2) < 1e-12);
-  assert.ok(Math.abs(diagonal.turn - Math.SQRT1_2) < 1e-12);
+  assert.ok(Math.abs(diagonal.turn + Math.SQRT1_2) < 1e-12);
   assert.ok(Math.abs(Math.hypot(diagonal.throttle, diagonal.turn) - 1) < 1e-12);
   assert.deepEqual(mapPafJoystick(null), mapPafJoystick({ x: 0, y: 0 }));
 });
@@ -71,13 +71,13 @@ test('tank drive moves W/S along a fixed nonzero facing and steering never creat
   assert.equal(back.yaw, yaw, 'S does not rotate the body');
   close(back.x, -Math.sin(yaw)); close(back.z, -Math.cos(yaw));
   const left = input.pafTankDriveFromInput({ yaw, keys: { left: true }, dt: 0.1 });
-  assert.ok(left.yaw < yaw, 'left decreases Three.js fox yaw');
+  assert.ok(screenTurnDot(yaw, left.yaw) < 0, 'left turns screen-left');
   assert.equal(left.x, 0); assert.equal(left.z, 0);
   const right = input.pafTankDriveFromInput({ yaw, keys: { right: true }, dt: 0.1 });
-  assert.ok(right.yaw > yaw, 'right increases Three.js fox yaw');
+  assert.ok(screenTurnDot(yaw, right.yaw) > 0, 'right turns screen-right');
   assert.equal(right.x, 0); assert.equal(right.z, 0);
   const forwardRight = input.pafTankDriveFromInput({ yaw, keys: { forward: true, right: true }, dt: 0.1 });
-  assert.ok(forwardRight.yaw > yaw);
+  assert.ok(screenTurnDot(yaw, forwardRight.yaw) > 0);
   close(forwardRight.x, Math.sin(forwardRight.yaw)); close(forwardRight.z, Math.cos(forwardRight.yaw));
   assert.equal(input.pafTankDriveFromInput({ yaw, keys: { forward: true, back: true }, dt: 0.1 }).throttle, 0);
 });
@@ -92,8 +92,8 @@ test('keyboard key aliases map WASD and arrows to throttle/steering with left/ri
     const mapped = input.pafKeyboardDriveInput(binds, new Set([code]));
     assert.equal(mapped[expected], true, `${code} maps to ${expected}`);
     const drive = input.pafTankDriveFromInput({ yaw: 0.73, keys: mapped, dt: 0.1 });
-    if (expected === 'left') { assert.ok(drive.yaw < 0.73); assert.equal(drive.x, 0); assert.equal(drive.z, 0); }
-    if (expected === 'right') { assert.ok(drive.yaw > 0.73); assert.equal(drive.x, 0); assert.equal(drive.z, 0); }
+    if (expected === 'left') { assert.ok(screenTurnDot(0.73, drive.yaw) < 0); assert.equal(drive.x, 0); assert.equal(drive.z, 0); }
+    if (expected === 'right') { assert.ok(screenTurnDot(0.73, drive.yaw) > 0); assert.equal(drive.x, 0); assert.equal(drive.z, 0); }
     if (expected === 'forward') { assert.equal(drive.yaw, 0.73); assert.ok(drive.x > 0 && drive.z > 0); }
     if (expected === 'back') { assert.equal(drive.yaw, 0.73); assert.ok(drive.x < 0 && drive.z < 0); }
   }
@@ -101,16 +101,16 @@ test('keyboard key aliases map WASD and arrows to throttle/steering with left/ri
 
 test('pounce keyboard and touch directions retain their independent arc-clamped selection contract', () => {
   const cases = [
-    [{ forward: true }, 0], [{ forward: true, left: true }, -45],
-    [{ left: true }, -60], [{ right: true }, 60], [{ forward: true, right: true }, 45],
+    [{ forward: true }, 0], [{ forward: true, left: true }, 45],
+    [{ left: true }, 60], [{ right: true }, -60], [{ forward: true, right: true }, -45],
   ];
   for (const [keys, degrees] of cases) {
     const got = pafDirectionFromInput({ cameraYaw: 0, ...keys });
     close(got.offset, degrees * Math.PI / 180);
     assert.ok(Number.isFinite(got.x) && Number.isFinite(got.z));
   }
-  close(pafDirectionFromInput({ arcDeg: 80, right: true }).offset, 40 * Math.PI / 180);
-  close(pafDirectionFromInput({ arcDeg: 240, left: true }).offset, -90 * Math.PI / 180);
+  close(pafDirectionFromInput({ arcDeg: 80, right: true }).offset, -40 * Math.PI / 180);
+  close(pafDirectionFromInput({ arcDeg: 240, left: true }).offset, 90 * Math.PI / 180);
   const touch = pafDirectionFromInput({ cameraYaw: Math.PI / 2, axes: { x: 0, y: 1 } });
   close(touch.yaw, Math.PI / 2);
   const fallback = pafDirectionFromInput({ cameraYaw: 0.7, axes: { x: NaN, y: Infinity } });
@@ -124,17 +124,23 @@ test('touch vertical is throttle, horizontal steering has correct sign, diagonal
   const down = input.pafTankDriveFromInput({ yaw, axes: { x: 0, y: -0.6 }, dt });
   close(down.x, -0.6 * Math.sin(yaw)); close(down.z, -0.6 * Math.cos(yaw));
   const left = input.pafTankDriveFromInput({ yaw, axes: { x: -0.6, y: 0 }, dt, turnRate });
-  assert.ok(left.yaw < yaw); assert.equal(left.throttle, 0); assert.equal(left.x, 0); assert.equal(left.z, 0);
+  assert.ok(screenTurnDot(yaw, left.yaw) < 0); assert.equal(left.throttle, 0); assert.equal(left.x, 0); assert.equal(left.z, 0);
   const right = input.pafTankDriveFromInput({ yaw, axes: { x: 0.6, y: 0 }, dt, turnRate });
-  assert.ok(right.yaw > yaw); assert.equal(right.throttle, 0); assert.equal(right.x, 0); assert.equal(right.z, 0);
+  assert.ok(screenTurnDot(yaw, right.yaw) > 0); assert.equal(right.throttle, 0); assert.equal(right.x, 0); assert.equal(right.z, 0);
   const diagonal = input.pafTankDriveFromInput({ yaw, axes: { x: 1, y: 1 }, dt });
-  close(diagonal.throttle, Math.SQRT1_2); close(diagonal.turn, Math.SQRT1_2);
+  close(diagonal.throttle, Math.SQRT1_2); close(diagonal.turn, -Math.SQRT1_2);
   close(Math.hypot(diagonal.throttle, diagonal.turn), 1);
   close(diagonal.x, diagonal.throttle * Math.sin(diagonal.yaw));
   close(diagonal.z, diagonal.throttle * Math.cos(diagonal.yaw));
   const dead = input.pafTankDriveFromInput({ yaw, axes: { x: 0.09, y: 0.09 }, dt });
   assert.deepEqual({ x: dead.x, z: dead.z, yaw: dead.yaw, active: dead.active }, { x: 0, z: 0, yaw, active: false });
 });
+
+function screenTurnDot(baseYaw, nextYaw) {
+  const dx = Math.sin(nextYaw), dz = Math.cos(nextYaw);
+  const rx = -Math.cos(baseYaw), rz = Math.sin(baseYaw);
+  return dx * rx + dz * rz;
+}
 
 function close(actual, expected, eps = 1e-10) { assert.ok(Math.abs(actual - expected) <= eps, `${actual} != ${expected}`); }
 
@@ -143,13 +149,13 @@ test('pounce direction remains independent: same keyboard/touch intent selects a
   const keys = input.pafKeyboardDriveInput({ isAction: () => false }, new Set(['KeyA', 'KeyW']));
   const normal = input.pafTankDriveFromInput({ yaw: bodyYaw, keys, dt: 0.1 });
   const pounce = pafDirectionFromInput({ cameraYaw: bodyYaw, ...keys });
-  assert.ok(normal.yaw < bodyYaw, 'ordinary A turns left');
+  assert.ok(screenTurnDot(bodyYaw, normal.yaw) < 0, 'ordinary A turns screen-left');
   assert.ok(normal.x > 0 && normal.z > 0, 'W advances along the newly-facing heading');
-  assert.ok(pounce.yaw < bodyYaw, 'pounce keeps its independent A+W direction selection');
-  assert.ok(pounce.x < Math.sin(bodyYaw) && pounce.z > Math.cos(bodyYaw), 'attack selection rotates within its own direction contract');
+  assert.ok(screenTurnDot(bodyYaw, pounce.yaw) < 0, 'pounce keeps its independent A+W direction selection');
+  assert.ok(pounce.x > Math.sin(bodyYaw) && pounce.z < Math.cos(bodyYaw), 'attack selection rotates within its own direction contract');
   const touchPounce = pafDirectionFromInput({ cameraYaw: bodyYaw, axes: { x: 0.6, y: 0.4 } });
   const touchDrive = input.pafTankDriveFromInput({ yaw: bodyYaw, axes: { x: 0.6, y: 0.4 }, dt: 0.1 });
-  assert.ok(touchPounce.yaw > bodyYaw && touchDrive.yaw > bodyYaw);
+  assert.ok(screenTurnDot(bodyYaw, touchPounce.yaw) > 0 && screenTurnDot(bodyYaw, touchDrive.yaw) > 0);
   assert.ok(touchDrive.z > 0, 'touch throttle still advances along facing rather than diagonally strafing');
 });
 

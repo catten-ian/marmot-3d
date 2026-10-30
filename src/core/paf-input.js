@@ -10,8 +10,9 @@ const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallbac
 const clamp = (value, min, max) => value < min ? min : value > max ? max : value;
 
 /**
- * Pounce direction selection. The local frame is x=right, z=forward and
- * yaw=0 points along +Z. Keyboard and touch use the same vector contract;
+ * Pounce direction selection. The local frame uses +Z=forward and the
+ * fox-right vector screenRight(yaw)=(-cos(yaw), 0, sin(yaw)); therefore
+ * right input is a negative local yaw offset. Keyboard and touch use the same vector contract;
  * diagonal input is normalized once and pounce selection is clamped to the
  * configured forward arc. It is deliberately separate from ordinary tank locomotion.
  */
@@ -26,14 +27,16 @@ export function pafDirectionFromInput({
   deadZone = PAF_TOUCH_DEAD_ZONE,
 } = {}) {
   const yaw = finite(cameraYaw, 0);
-  let x = (right ? 1 : 0) - (left ? 1 : 0);
+  let x = (left ? 1 : 0) - (right ? 1 : 0);
   let z = (forward ? 1 : 0) - (back ? 1 : 0);
   let source = 'keyboard';
   if (x === 0 && z === 0) {
     const ax = finite(axes?.x, 0);
     const az = finite(axes?.y, 0);
     if (Math.hypot(ax, az) >= Math.max(0, finite(deadZone, PAF_TOUCH_DEAD_ZONE))) {
-      x = ax; z = az; source = 'touch';
+      // TouchControls.move.x > 0 is a rightward screen drag; in this frame
+      // that is the fox's right and therefore a negative local yaw offset.
+      x = -ax; z = az; source = 'touch';
     } else {
       x = Math.sin(yaw); z = Math.cos(yaw); source = 'fallback';
     }
@@ -64,7 +67,8 @@ export function pafDirectionFromInput({
 /** Tank-style normal locomotion: throttle follows facing and steering never adds lateral motion.
  * Keyboard commands take precedence when present; joystick axes are radial-dead-zoned and
  * clamped to unit length before vertical throttle / horizontal steering are read.
- * Positive yaw turns right and, with yaw=0, forward points along +Z.
+ * Positive yaw turns screen-left in the TPS right-handed frame; decreasing
+ * yaw turns screen-right. With yaw=0, forward points along +Z.
  */
 export function pafTankDriveFromInput({ yaw = 0, keys = {}, axes = null, dt = 0, turnRate = 2.6, deadZone = PAF_TOUCH_DEAD_ZONE } = {}) {
   const facing = finite(yaw, 0);
@@ -76,7 +80,7 @@ export function pafTankDriveFromInput({ yaw = 0, keys = {}, axes = null, dt = 0,
   let source;
   if (held) {
     throttle = Number(!!keys.forward) - Number(!!keys.back);
-    turn = Number(!!keys.right) - Number(!!keys.left);
+    turn = Number(!!keys.left) - Number(!!keys.right);
     magnitude = Math.max(Math.abs(throttle), Math.abs(turn));
     source = 'keyboard';
   } else {
@@ -121,7 +125,8 @@ export function releasePafInput({ keys, touchControls, touchState } = {}) {
   touchControls?.releaseAll?.();
 }
 
-/** 与 TouchControls 相同的径向死区/归一化口径；右拖为正 turn，配合 PAF yaw 转向右侧。 */
+/** 与 TouchControls 相同的径向死区/归一化口径；TouchControls.x>0 表示右拖，
+ * 在 PAF 帧中右拖使 yaw 减小，因此 turn 取 -x。 */
 export function mapPafJoystick(axes = {}, sprintThreshold = 0.78, deadZone = PAF_TOUCH_DEAD_ZONE) {
   let x = Number.isFinite(axes?.x) ? axes.x : 0;
   let y = Number.isFinite(axes?.y) ? axes.y : 0;
@@ -132,7 +137,7 @@ export function mapPafJoystick(axes = {}, sprintThreshold = 0.78, deadZone = PAF
     return { throttle: 0, turn: 0, magnitude: 0, sprint: false, stalk: true };
   }
   const sprint = magnitude >= sprintThreshold;
-  return { throttle: y, turn: x, magnitude, sprint, stalk: !sprint };
+  return { throttle: y, turn: x === 0 ? 0 : -x, magnitude, sprint, stalk: !sprint };
 }
 
 /** 玩家方案优先，同时保留藏狐原有 WASD/方向键/Shift/Space 兜底。 */
@@ -221,7 +226,7 @@ export class PafInputRoute {
       set yaw(next) {
         const previous = yaw;
         yaw = next;
-        // TouchControls 向右拖会减小 yaw；藏狐与普通鼠标一致，向右拖增大朝向。
+        // TouchControls 向右拖会减小 yaw；与藏狐鼠标右移的 yaw -= 约定一致。
         onLook?.(previous - next);
       },
     };
