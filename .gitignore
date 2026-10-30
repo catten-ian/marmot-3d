@@ -46,3 +46,6 @@ node_modules/
 __*.html
 __*.js
 __*.mjs
+
+# ── dev E2E 冒烟运行的原始产物（每次运行数十 MB，仅保留汇总报告与 suite-result） ──
+outputs/m3d-20261030-dev-e2e-smoke/2026-*/
