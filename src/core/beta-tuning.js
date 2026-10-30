@@ -45,6 +45,8 @@ export const BETA_TUNE = {
   smartPounceApproachRadius: 5.0,
   smartPounceObserveRadius: 7.0,
   smartPounceRingTolerance: 0.28,
+  smartPounceRingCrawlSpeed: 1.1, // 接近提交环时的爬行速度上限（避免全速冲穿环窗口）
+  smartPounceAlignCreepSpeed: 0.75, // align 阶段允许的低速微调，使「进环 + 转正」可同时成立
   smartPounceMemoryPenalty: 0.18,
   smartPounceFatiguePenalty: 0.12,
   smartPounceHitRadiusCap: 1.7, // 命中半径上限；默认不小于原始 1.70m 接触半径

@@ -246,7 +246,7 @@ export const SMART_POUNCE_COOLDOWN = 1.2;
 
 
 /** Beta-only approach/align/reposition controller for the pounce commit ring. */
-export const SMART_POUNCE_APPROACH_PHASES = Object.freeze(['approach', 'align', 'reposition', 'commit']);
+export const SMART_POUNCE_APPROACH_PHASES = Object.freeze(['approach', 'align', 'backoff', 'commit']);
 export function createSmartPounceApproachState() {
   return { phase: 'approach', phaseTime: 0, side: 1, missed: 0 };
 }
@@ -263,19 +263,16 @@ export function advanceSmartPounceApproach(state = {}, input = {}, dt = 1 / 60, 
   const maxAngle = Number(input.maxAngle) || SMART_POUNCE.maxAngle;
   const ring = (min + max) * 0.5;
   const tolerance = Number(tune.smartPounceRingTolerance) || 0.28;
+  // 状态语义（Beta 提交环）：
+  // - approach：太远或环内未对正 → 朝玩家行进（朝向天然对正），由速度控制避免冲穿。
+  // - backoff：太近 → 后退拉开，避免贴脸到无法形成提交角。
+  // - align：环内且已对正 → 具备提交条件。
+  // 关键修正：旧实现在「环内但未对正」时先进入 align 并冻结速度，
+  // 而冻结时朝向又朝环上停靠点（而非玩家），于是角度永远收敛不了 → 永久 0 次提交。
   if (d > max + tolerance) { s.phase = 'approach'; s.phaseTime = 0; s.missed = 0; }
-  else if (d < min - tolerance) {
-    if (s.phase !== 'reposition') s.side *= -1;
-    s.phase = 'reposition'; s.phaseTime = 0; s.missed += step;
-  } else if (angle > maxAngle) {
-    s.phase = 'align';
-    s.missed = 0;
-  } else if (Math.abs(d - ring) <= tolerance) {
-    s.phase = 'align';
-    s.missed = 0;
-  } else {
-    s.phase = d > ring ? 'approach' : 'reposition';
-  }
+  else if (d < min - tolerance) { s.phase = 'backoff'; s.phaseTime = 0; s.missed += step; }
+  else if (angle > maxAngle) { s.phase = 'approach'; s.missed = 0; }
+  else { s.phase = 'align'; s.missed = 0; }
   s.ringRadius = ring;
   s.ready = s.phase === 'align' && d >= min && d <= max && angle <= maxAngle;
   return s;
@@ -499,7 +496,14 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
   }
   if (intent === 'pounce' && pounceReady && !s.pounceCommitted && (s.pounceCooldown ?? 0) <= 0) {
     s.windupRemaining = Math.max(0, (s.windupRemaining ?? s.pounceWindup ?? SMART_POUNCE.windup) - dt);
-  } else if (!s.pounceCommitted) s.windupRemaining = s.pounceWindup ?? SMART_POUNCE.windup;
+  } else if (!s.pounceCommitted) {
+    // 前摇计时只在意图离开 pounce 时重置。
+    // 旧实现是「一旦本帧未就绪就立刻重置为满值」，导致智能狐在进环过程中
+    // 反复把 windup 拉回 0.22s，提交条件 (windupRemaining <= 0) 永远无法满足
+    // → 实测 0 次扑击提交。只要还在扑击意图中，就保留已累积的前摇进度。
+    if (intent !== 'pounce') s.windupRemaining = s.pounceWindup ?? SMART_POUNCE.windup;
+    else if (s.windupRemaining == null) s.windupRemaining = s.pounceWindup ?? SMART_POUNCE.windup;
+  }
   const committed = s.pounceCommitted === true;
   const aim = committed ? s.pounceYaw : navDesired;
   // 动作集对齐（阶段 4）：慢行=stalk、冲刺=sprint 的速度语义可由调用方按 FOX.ACTIONS 传入。

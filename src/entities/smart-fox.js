@@ -299,13 +299,18 @@ export class SmartFox extends Fox {
           aimX = p.x + ux * R; aimZ = p.z + uz * R;
         }
       } else {
-        const R = (IS_BETA && intent === 'pounce')
-          ? (this._pounceApproach.ringRadius ?? ((BETA_TUNE.smartPounceMinDistance + BETA_TUNE.smartPounceMaxDistance) * 0.5))
-          : (STAND[intent] ?? STAND.approach);
-        if (IS_BETA && intent === 'pounce' && this._pounceApproach.phase === 'reposition') {
-          const a = toP + this._pounceApproach.side * Math.PI / 2;
-          aimX = p.x + Math.sin(a) * R; aimZ = p.z + Math.cos(a) * R;
-        } else { aimX = p.x + ux * R; aimZ = p.z + uz * R; }
+        // Beta 扑击接近：统一朝玩家行进（朝向天然对正），速度由剩余距离比例控制，
+        // 避免全速冲穿提交窗口。backoff（太近）时反向拉开距离。
+        if (IS_BETA && intent === 'pounce') {
+          if (this._pounceApproach.phase === 'backoff') {
+            aimX = this.x + ux * 3.5; aimZ = this.z + uz * 3.5;
+          } else {
+            aimX = p.x; aimZ = p.z;
+          }
+        } else {
+          const R = STAND[intent] ?? STAND.approach;
+          aimX = p.x + ux * R; aimZ = p.z + uz * R;
+        }
       }
     }
     // 阶段 3：被打后的侧向甩开 —— 不直线背对玩家跑，边撤边横移一段。
@@ -324,10 +329,11 @@ export class SmartFox extends Fox {
     const tacticalScale = (IS_BETA && intent === 'pounce') ? BETA_TUNE.smartPounceAimOffsetScale : 1;
     aimX += (sep.x + Math.cos(toP) * bias * 2) * tacticalScale;
     aimZ += (sep.z - Math.sin(toP) * bias * 2) * tacticalScale;
-    // Beta 提交态最终锁点只取玩家当前坐标；包抄/分离只影响接近阶段。
-    if (IS_BETA && intent === 'pounce') {
-      const lockedAim = assembleSmartAim({ player: p, self: this, intent, separation: sep, flank: bias, pounceOffsetScale: BETA_TUNE.smartPounceAimOffsetScale });
-      aimX = lockedAim.x; aimZ = lockedAim.z;
+    // Beta 接近阶段的移动目标：朝玩家方向行进。
+    // 朝向天然对正玩家（提交角要求 <= 20°），因此只需用速度控制避免冲穿窗口。
+    // 注意：若改为朝环上停靠点行进，朝向会偏离玩家，提交角永远无法收敛。
+    if (IS_BETA && intent === 'pounce' && !this.pounceCommitted) {
+      aimX = p.x; aimZ = p.z;
     }
     // Lead is sampled before commit and then frozen by stepSmartMotion. Keep it
     // short and bounded so moving targets remain dodgeable.
@@ -337,7 +343,21 @@ export class SmartFox extends Fox {
       ? { x: p.x + this._escVel.x * leadScale, z: p.z + this._escVel.z * leadScale }
       : { x: p.x, z: p.z };
     const betaPounceAlign = IS_BETA && !this.pounceCommitted && intent === 'pounce' && this._pounceApproach.phase === 'align';
-    const approachSpeed = betaPounceAlign ? 0 : (IS_BETA && intent === 'pounce' ? Math.min(this._smartState.approachSpeed, FOX.ACTIONS.stalk.speed) : this._smartState.approachSpeed);
+    // 接近环时按剩余距离比例减速：全速冲进环会带着动量滑过窗口
+    // （实测从 9m 冲到 3.7m 才停下，已经越过 4.2m 下限）。
+    // 剩余距离越小速度越低，使狐狸能停在环内并完成转正。
+    let approachSpeed = (IS_BETA && intent === 'pounce' ? Math.min(this._smartState.approachSpeed, FOX.ACTIONS.stalk.speed) : this._smartState.approachSpeed);
+    if (IS_BETA && intent === 'pounce' && !this.pounceCommitted) {
+      const ringR = this._pounceApproach.ringRadius
+        ?? ((BETA_TUNE.smartPounceMinDistance + BETA_TUNE.smartPounceMaxDistance) * 0.5);
+      const toRing = Math.abs(distance - ringR);
+      const brake = Math.min(1, Math.max(0, toRing / 2.4));
+      const crawl = BETA_TUNE.smartPounceRingCrawlSpeed;
+      approachSpeed = Math.min(approachSpeed, crawl + (FOX.ACTIONS.stalk.speed - crawl) * brake);
+      // align（环内且已对正）时停止移动，保持朝向不再被导航避让带偏；
+      // 角度不够时由状态机回到 approach 继续靠近并转正。
+      if (betaPounceAlign) approachSpeed = 0;
+    }
     const ground = !this.pounceCommitted ? this._groundSteer(aimX - this.x, aimZ - this.z, approachSpeed, burrows) : null;
     const navigationAim = ground ? { x: this.x + ground.x * 100, z: this.z + ground.z * 100 } : { x: aimX, z: aimZ };
     const next = meleeActive ? {
@@ -370,8 +390,7 @@ export class SmartFox extends Fox {
         })() } : {}),
         intent: this.intent,
         locomotionIntent: betaPounceAlign ? 'observe' : this.intent,
-        speedTarget: betaPounceAlign ? 0 : undefined,
-      },
+        speedTarget: betaPounceAlign ? 0 : undefined,      },
       navigationAim,
       dt,
       this.intent,

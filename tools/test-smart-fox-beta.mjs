@@ -237,15 +237,44 @@ test('智能狐 contactCd 每帧递减且不低于零', async () => {
   assert.equal(stepSmartContactCooldown(0.1, 0.2), 0);
 });
 
-test('Beta 接近环显式拆分 approach/align/reposition 且错过窗口不穿过玩家', async () => {
+test('Beta 接近环显式拆分 approach/align/backoff 且错过窗口不穿过玩家', async () => {
   const { createSmartPounceApproachState, advanceSmartPounceApproach, SMART_POUNCE_APPROACH_PHASES } = await import('../src/entities/smart-fox-core.mjs');
+  const T = { smartPounceMinDistance: 4.2, smartPounceMaxDistance: 6.2 };
   let s = createSmartPounceApproachState();
-  s = advanceSmartPounceApproach(s, { distance: 8, angle: 0 }, 1 / 60, { smartPounceMinDistance: 4.2, smartPounceMaxDistance: 6.2 });
+  s = advanceSmartPounceApproach(s, { distance: 8, angle: 0 }, 1 / 60, T);
   assert.equal(s.phase, 'approach');
-  s = advanceSmartPounceApproach(s, { distance: 5.2, angle: 0 }, 1 / 60, { smartPounceMinDistance: 4.2, smartPounceMaxDistance: 6.2 });
+  s = advanceSmartPounceApproach(s, { distance: 5.2, angle: 0 }, 1 / 60, T);
   assert.equal(s.phase, 'align'); assert.equal(s.ready, true);
-  s = advanceSmartPounceApproach(s, { distance: 2.8, angle: 0 }, 1 / 60, { smartPounceMinDistance: 4.2, smartPounceMaxDistance: 6.2 });
-  assert.equal(s.phase, 'reposition'); assert.ok(SMART_POUNCE_APPROACH_PHASES.includes(s.phase));
+  s = advanceSmartPounceApproach(s, { distance: 2.8, angle: 0 }, 1 / 60, T);
+  assert.equal(s.phase, 'backoff'); assert.ok(SMART_POUNCE_APPROACH_PHASES.includes(s.phase));
+});
+
+test('Beta 环内但未对正时不得停在 align（否则永远无法提交）', async () => {
+  // 回归：旧实现把「环内 + 角度过大」判成 align 并冻结速度，
+  // 而冻结时朝向又被导航避让带偏，提交角永远收敛不了 → 智能狐 0 次扑击。
+  const { createSmartPounceApproachState, advanceSmartPounceApproach } = await import('../src/entities/smart-fox-core.mjs');
+  const T = { smartPounceMinDistance: 4.2, smartPounceMaxDistance: 6.2 };
+  let s = createSmartPounceApproachState();
+  s = advanceSmartPounceApproach(s, { distance: 5.0, angle: 2.6 }, 1 / 60, T);
+  assert.equal(s.phase, 'approach', '未对正时必须继续靠近/转向，不能停在 align');
+  assert.equal(s.ready, false);
+  // 对正后立刻具备提交条件
+  s = advanceSmartPounceApproach(s, { distance: 5.0, angle: 0.1 }, 1 / 60, T);
+  assert.equal(s.phase, 'align');
+  assert.equal(s.ready, true);
+});
+
+test('Beta 前摇进度不得因瞬时未就绪被重置（否则永远无法提交）', async () => {
+  // 回归：旧实现里，只要某一帧 pounceReady 为假，windupRemaining 就被重置为满值
+  // 0.22s，提交条件 (windupRemaining <= 0) 因此永远无法满足 → 实测 0 次提交。
+  const { stepSmartMotion } = await import('../src/entities/smart-fox-core.mjs');
+  const base = { x: 0, z: -5.2, yaw: 0, vx: 0, vz: 0, pounceMinDistance: 4.2, pounceMaxDistance: 6.2, windupRemaining: 0.22, pounceWindup: 0.22 };
+  let s = { ...base };
+  for (let i = 0; i < 8; i++) s = stepSmartMotion(s, { x: 0, z: 0 }, 1 / 60, 'pounce', { commitAllowed: true });
+  const afterReady = s.windupRemaining;
+  assert.ok(afterReady < base.windupRemaining, '就绪期间前摇应递减');
+  s = stepSmartMotion(s, { x: 0, z: 0 }, 1 / 60, 'pounce', { commitAllowed: true, commitTarget: { x: 40, z: 0 } });
+  assert.ok(s.windupRemaining <= afterReady + 1e-9, '未就绪的一帧不得把前摇重置为满值');
 });
 
 test('Beta 提交与 melee 互斥，提交后仍不可取消', async () => {
