@@ -166,7 +166,10 @@ test('PAF settings entry is visible above the touch controls and gated against p
   const source = fs.readFileSync(path.resolve(__dirname, '../src/play/play-as-fox.js'), 'utf8');
   assert.match(source, /body\.play-as-fox #setBtn\s*\{\s*display:flex !important/);
   assert.match(source, /body\.play-as-fox #setSheet\s*\{\s*z-index:57 !important/);
-  assert.match(source, /if \(!running \|\| paused\) return;/);
+  assert.match(source, /function update\(dt\) \{\s*if \(inputBlocked\(\)\) return;/);
+  assert.match(source, /pafCanStartPounce\(\{ running, paused, settingsOpen: settingsOpen\(\), phase: fox\.phase \}\)/);
+  assert.match(source, /releasePafInput\(\{ keys, touchControls, touchState: touch \}\)/);
   assert.match(source, /document\.exitPointerLock\?\./);
-  assert.match(source, /if \(paused \|\| !document\.getElementById\('setSheet'\)\?\.hidden\) return;/);
+  assert.match(source, /const settingsOpen = \(\) => \{ const sheet = document\.getElementById\('setSheet'\); return !!sheet && !sheet\.hidden; \};/);
+  assert.match(source, /const onMouseDown = \(e\) => \{\s*if \(inputBlocked\(\)\) return;/);
 });
