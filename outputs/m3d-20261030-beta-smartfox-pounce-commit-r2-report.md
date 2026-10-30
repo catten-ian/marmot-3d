@@ -4,7 +4,7 @@
 - Channel: beta
 - Branch: `fix/beta-smartfox-pounce-commit-r2-20261030`
 - Base: `2d72774`
-- Commit: `73ab647`
+- Commit: `17c66b8` (implementation commit; report metadata follow-up is local only)
 - Scope: local source/tests/QA/report only; no push or deploy
 
 ## Diagnosis and fix
