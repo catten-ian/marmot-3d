@@ -142,24 +142,39 @@ export function hpDamageMultiplier(hpRatio, vitals) {
  * @returns {{stamina:number, locked:number, exhausted:boolean, hp:number}}
  */
 export function stepStamina(state, dt, options = {}) {
-  const maxStamina = options.maxStamina ?? FOX.vitals.maxStamina;
-  const lockSeconds = options.staminaLockSeconds ?? FOX.vitals.staminaLockSeconds;
-  let stamina = state.stamina ?? maxStamina;
-  let hp = state.hp ?? options.maxHp ?? 0;
-  let locked = Math.max(0, (state.locked ?? 0) - Math.max(0, dt));
+  const safeDt = Number.isFinite(dt) && dt > 0 ? dt : 0;
+  const finiteNonNegative = (value, fallback = 0) => Number.isFinite(value) ? Math.max(0, value) : fallback;
+  const maxStamina = finiteNonNegative(options.maxStamina ?? FOX.vitals.maxStamina);
+  const lockSeconds = finiteNonNegative(options.staminaLockSeconds ?? FOX.vitals.staminaLockSeconds);
+  let stamina = Math.min(maxStamina, finiteNonNegative(state?.stamina, maxStamina));
+  let hp = finiteNonNegative(state?.hp, finiteNonNegative(options.maxHp));
+  const maxHp = finiteNonNegative(options.maxHp ?? hp);
+  let locked = Math.max(0, finiteNonNegative(state?.locked) - safeDt);
   let exhausted = false;
-  if (options.resting) {
-    stamina = Math.min(maxStamina, stamina + (options.regenPerSec ?? 0) * dt);
-    const maxHp = options.maxHp ?? hp;
-    hp = Math.min(maxHp, hp + maxHp * (options.hpRegenRatio ?? 0) * dt);
-  } else {
-    stamina = Math.max(0, stamina - (options.drainPerSec ?? 0) * dt);
-    if (stamina <= 0 && (options.drainPerSec ?? 0) > 0) {
+  const drainPerSec = finiteNonNegative(options.drainPerSec);
+  const regenByState = options.regenPerSecByState && typeof options.regenPerSecByState === 'object'
+    ? options.regenPerSecByState : {};
+  const stateRegen = finiteNonNegative(regenByState[options.regenState]);
+  const regenPerSec = finiteNonNegative(options.resting ? (options.regenPerSec ?? 0) : stateRegen);
+  const regenAllowed = options.regenAllowed !== false;
+  if (drainPerSec > 0) {
+    stamina = Math.max(0, stamina - drainPerSec * safeDt);
+    if (stamina <= 0 && !options.resting) {
       exhausted = true;
-      locked = lockSeconds;
+      locked = Math.max(locked, lockSeconds);
     }
+  } else if (regenAllowed) {
+    stamina = Math.min(maxStamina, stamina + regenPerSec * safeDt);
   }
-  return { stamina, locked, exhausted, hp };
+  // Health is deliberately tied to resting only; combat locomotion and recovery
+  // can restore stamina but never restore health.
+  if (options.resting) {
+    const hpRate = finiteNonNegative(options.hpRegenRatio);
+    hp = Math.min(maxHp, hp + maxHp * hpRate * safeDt);
+  }
+  return { stamina: Number.isFinite(stamina) ? Math.max(0, Math.min(maxStamina, stamina)) : 0,
+    locked: Number.isFinite(locked) ? Math.max(0, locked) : 0, exhausted,
+    hp: Number.isFinite(hp) ? Math.max(0, Math.min(maxHp, hp)) : 0 };
 }
 
 // ---------- 自主撤退（阶段 2 驱退口径）纯函数 ----------

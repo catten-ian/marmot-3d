@@ -62,6 +62,11 @@ export const BETA_TUNE = {
   smartMeleeRecoverTime: 0.45,
   smartMeleeCooldown: 1.1, // 从进入 recover 起计，避免贴身连续无间隔扣血
   smartMeleeStrikeSpeed: 2.4, // 攻击段约 0.36m 短位移
+  // —— SmartFox team stamina recovery (beta only) ——
+  smartRestStaminaRegenPerSec: 14,
+  smartRecoverStaminaRegenPerSec: 4.5,
+  smartInterceptStaminaRegenPerSec: 2.5,
+  smartRoamStaminaRegenPerSec: 1.2,
   // —— 眩晕递减（仅 Beta）——
   stunDiminishWindow: 3.0,       // 上次施加/结束后，窗口内再次命中会递减
   stunDiminishFactor: 0.55,      // 每层眩晕时长倍率

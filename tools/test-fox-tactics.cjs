@@ -6,10 +6,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-let flankSlots, assignFlankSlot, assignRoles, forcedRetreat;
+let flankSlots, assignFlankSlot, assignRoles, forcedRetreat, teamInterceptPoint;
 
 test.before(async () => {
-  ({ flankSlots, assignFlankSlot, assignRoles, forcedRetreat } = await import('../src/entities/smart-fox-core.mjs'));
+  ({ flankSlots, assignFlankSlot, assignRoles, forcedRetreat, teamInterceptPoint } = await import('../src/entities/smart-fox-core.mjs'));
 });
 
 const wrap = (a) => {
@@ -130,4 +130,39 @@ test('forcedRetreat：刚被打 → true；没被打过 → false；旧事 → f
   assert.equal(forcedRetreat({}, { now: 10 }), false);                 // 没被打过
   assert.equal(forcedRetreat({ lastHitAt: -Infinity }, { now: 10 }), false);
   assert.equal(forcedRetreat({ lastHitAt: 5 }, { now: 10, window: 0.6 }), false); // 很久之前
+});
+
+test('assignRoles beta：健康排序、双攻击上限与拦截剩余狐', () => {
+  const player = { x: 0, z: 0 };
+  const foxes = [
+    { ...mkFox(0, 3, 0, 100, 100), fatigue: 0.1 },
+    { ...mkFox(1, 4, 0, 92, 90), fatigue: 0.2 },
+    { ...mkFox(2, 4.2, 0, 88, 85), fatigue: 0.2 },
+    { ...mkFox(3, 4.1, 0, 86, 80), fatigue: 0.2 },
+  ];
+  const roles = assignRoles(foxes, player, {}, 10, { betaTeam: true });
+  const values = Object.values(roles).map((r) => r.role);
+  assert.equal(values.filter((r) => r === 'striker').length, 1);
+  assert.equal(values.filter((r) => r === 'flanker').length, 1);
+  assert.equal(values.filter((r) => r === 'interceptor').length, 2);
+  assert.equal(roles[0].role, 'striker');
+});
+
+test('assignRoles beta：残血/耗尽休息，保持角色直到 hold/cooldown 结束', () => {
+  const player = { x: 0, z: 0 };
+  const foxes = [mkFox(0, 3, 0, 100, 100), mkFox(1, 4, 0, 100, 100), mkFox(2, 4, 0, 100, 10)];
+  const first = assignRoles(foxes, player, {}, 5, { betaTeam: true });
+  assert.equal(first[2].role, 'rest');
+  foxes[1].x = 1;
+  const held = assignRoles(foxes, player, first, 5.5, { betaTeam: true });
+  assert.equal(held[0].role, first[0].role);
+  assert.equal(held[1].role, first[1].role);
+});
+
+test('teamInterceptPoint：速度与槽位索引产生确定、远离贴脸的拦截点', () => {
+  const a = teamInterceptPoint({ x: 0, z: 0 }, { x: 2, z: 0 }, { x: 0, z: 2 }, 0, 7.5);
+  const b = teamInterceptPoint({ x: 0, z: 0 }, { x: 2, z: 0 }, { x: 0, z: 2 }, 1, 7.5);
+  assert.ok(Math.hypot(a.x, a.z) > 7);
+  assert.ok(Math.hypot(b.x, b.z) > 7);
+  assert.notDeepEqual(a, b);
 });

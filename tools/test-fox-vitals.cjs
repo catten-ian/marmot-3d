@@ -102,3 +102,21 @@ test('stepStamina：纯函数，不修改传入对象', () => {
   assert.deepEqual(state, { stamina: 50, locked: 0, hp: 40 });
   assert.equal(options.drainPerSec, V.sprintStaminaPerSec);
 });
+
+test('stepStamina：非冲刺/扑击状态按状态恢复体力，只有 rest 回血', () => {
+  const base = { stamina: 20, locked: 0, hp: 40 };
+  const rates = { rest: 14, recover: 4.5, intercept: 2.5, roam: 1.2 };
+  const rest = stepStamina(base, 1, { maxStamina: 100, maxHp: 100, regenPerSec: 14, regenPerSecByState: rates, regenState: 'rest', resting: true, hpRegenRatio: 0.035 });
+  const intercept = stepStamina(base, 1, { maxStamina: 100, maxHp: 100, regenPerSecByState: rates, regenState: 'intercept', resting: false, hpRegenRatio: 0.035 });
+  const roam = stepStamina(base, 1, { maxStamina: 100, maxHp: 100, regenPerSecByState: rates, regenState: 'roam', resting: false, hpRegenRatio: 0.035 });
+  const dash = stepStamina(base, 1, { maxStamina: 100, maxHp: 100, drainPerSec: 18, regenPerSecByState: rates, regenState: 'roam', resting: false, hpRegenRatio: 0.035 });
+  assert.equal(rest.stamina, 34); assert.equal(rest.hp, 43.5);
+  assert.equal(intercept.stamina, 22.5); assert.equal(intercept.hp, 40);
+  assert.equal(roam.stamina, 21.2); assert.equal(roam.hp, 40);
+  assert.equal(dash.stamina, 2); assert.equal(dash.hp, 40);
+});
+
+test('stepStamina：NaN/负数/超上限均被安全钳制', () => {
+  const r = stepStamina({ stamina: NaN, locked: NaN, hp: NaN }, NaN, { maxStamina: 100, maxHp: 50, regenPerSecByState: { roam: NaN }, regenState: 'roam' });
+  assert.deepEqual(r, { stamina: 100, locked: 0, exhausted: false, hp: 50 });
+});
