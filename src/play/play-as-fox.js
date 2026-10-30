@@ -34,8 +34,8 @@ import {
   pushOutCircles,
 } from '../core/predator-prey.js';
 import {
-  isPafKey, pafKeyHeld, pafDirectionFromInput, pafMovementFromInput, PafPounceCharge,
-  PafInputRoute,
+  isPafKey, pafKeyHeld, pafKeyboardDriveInput, pafDirectionFromInput, pafTankDriveFromInput,
+  pafInputBlocked, pafCanStartPounce, releasePafInput, PafPounceCharge, PafInputRoute,
 } from '../core/paf-input.js';
 
 /** 扮演藏狐模式全部可调平衡数值（后台滑块直接改这里的运行时副本）。 */
@@ -446,8 +446,11 @@ export function createPlayAsFox(ctx) {
   }
   function toggleView() { setViewMode(viewMode.toggle()); return viewMode.mode; }
 
+  const settingsOpen = () => { const sheet = document.getElementById('setSheet'); return !!sheet && !sheet.hidden; };
+  const inputBlocked = () => pafInputBlocked({ running, paused, settingsOpen: settingsOpen() });
+
   function startPounce() {
-    if (!running || paused || fox.phase !== 'idle') return false;
+    if (!pafCanStartPounce({ running, paused, settingsOpen: settingsOpen(), phase: fox.phase })) return false;
     if (!pounceCharge.press()) return false;
     fox.phase = 'wind'; fox.phaseT = 0;
     fox.windStartYaw = fox.yaw;
@@ -464,10 +467,6 @@ export function createPlayAsFox(ctx) {
 
   // —— 键鼠：玩家方案优先，藏狐原默认键兜底 ——
   const keyHeld = (actions, fallbacks) => pafKeyHeld(binds, keys, actions, fallbacks);
-  const forwardHeld = () => keyHeld('forward', ['KeyW', 'ArrowUp']);
-  const backHeld = () => keyHeld('back', ['KeyS', 'ArrowDown']);
-  const leftHeld = () => keyHeld(['left', 'turnLeft'], ['KeyA', 'ArrowLeft']);
-  const rightHeld = () => keyHeld(['right', 'turnRight'], ['KeyD', 'ArrowRight']);
   const sprintHeld = () => keyHeld('sprint', ['ShiftLeft', 'ShiftRight']);
   const onKeyDown = (e) => {
     if (e.code === 'Escape' && !document.getElementById('setSheet')?.hidden) {
@@ -477,7 +476,7 @@ export function createPlayAsFox(ctx) {
       document.getElementById('setClose')?.click();
       return;
     }
-    if (paused || e.repeat) return;
+    if (inputBlocked() || e.repeat) return;
     keys.add(e.code);
     if (isPafKey(binds, e.code, 'attack', ['Space'])) {
       e.preventDefault();
@@ -494,7 +493,7 @@ export function createPlayAsFox(ctx) {
   const onKeyUp = (e) => keys.delete(e.code);
   const mouseSensitivityScale = (ctx.mouseSensitivity || 0.0022) / 0.0022;
   const onMouseMove = (e) => {
-    if (paused || document.pointerLockElement !== canvas) return;
+    if (inputBlocked() || document.pointerLockElement !== canvas) return;
     if (viewMode.mode === 'fpv') {
       // FPV：鼠标自由视角（pitch 夹紧），不动身体朝向
       // 鼠标右移 = 向右转（与正常模式 controls.js 的 yaw -= movementX 同号约定）
@@ -506,11 +505,11 @@ export function createPlayAsFox(ctx) {
     }
   };
   const onMouseDown = (e) => {
-    if (paused || !document.getElementById('setSheet')?.hidden) return;
+    if (inputBlocked()) return;
     if (e.button === 0 && !touchControls?.controller?.touchEnabled) startPounce();
   };
   const onCanvasClick = () => {
-    if (paused || !document.getElementById('setSheet')?.hidden) return;
+    if (inputBlocked()) return;
     if (!touchControls?.controller?.touchEnabled && document.pointerLockElement !== canvas && ctx.requestLock) ctx.requestLock();
   };
   const onResize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); };
@@ -526,7 +525,7 @@ export function createPlayAsFox(ctx) {
   const touch = { throttle: 0, turn: 0, sprint: false };
   const pafRoute = new PafInputRoute(touchControls);
   const touchAction = (action, pressed) => {
-    if (paused) return;
+    if (inputBlocked()) return;
     if (action === 'attack') {
       if (pressed) startPounce();
     } else if (action === 'dodge') {
@@ -536,7 +535,7 @@ export function createPlayAsFox(ctx) {
     }
   };
   const onTouchLook = (delta) => {
-    if (paused) return;
+    if (inputBlocked()) return;
     if (viewMode.mode === 'fpv') look.yaw += delta;
     else fox.yaw += delta;
   };
@@ -573,24 +572,24 @@ export function createPlayAsFox(ctx) {
   }
 
   function update(dt) {
-    if (!running || paused) return;
+    if (inputBlocked()) return;
     elapsed += dt;
     const keyboardSprint = sprintHeld();
     const axes = pafRoute.controller?.touchAxes || { x: 0, y: 0 };
-    const keyboardInput = {
-      forward: forwardHeld(), back: backHeld(), left: leftHeld(), right: rightHeld(),
-    };
-    const cameraYaw = viewMode.mode === 'fpv' ? look.yaw : fox.yaw;
-    const movement = pafMovementFromInput({ cameraYaw, ...keyboardInput, axes });
-    touch.throttle = movement.active ? movement.magnitude : 0;
-    touch.turn = 0;
+    const keyboardInput = pafKeyboardDriveInput(binds, keys);
+    // Keep pounce direction rooted in the pre-turn body facing, not the separate locomotion yaw step.
+    const pounceCameraYaw = viewMode.mode === 'fpv' ? look.yaw : fox.yaw;
+    const movement = pafTankDriveFromInput({ yaw: fox.yaw, keys: keyboardInput, axes, dt, turnRate: cfg.turnRate });
+    if (fox.phase === 'idle') fox.yaw = movement.yaw;
+    touch.throttle = movement.throttle;
+    touch.turn = movement.turn;
     fox.sprint = keyboardSprint || touch.sprint || !!pafRoute.controller?.touchSprint;
     fox.stalk = !fox.sprint;
 
     // 相位推进；wind 期间方向持续跟随当前键盘/摇杆输入，提交时锁定该方向。
     if (fox.phase === 'wind') {
       fox.phaseT += dt;
-      const selected = pafDirectionFromInput({ cameraYaw, ...keyboardInput, axes, arcDeg: cfg.pounceArcDeg });
+      const selected = pafDirectionFromInput({ cameraYaw: pounceCameraYaw, ...keyboardInput, axes, arcDeg: cfg.pounceArcDeg });
       // Keep the last deliberate selection if the input is released during wind;
       // a committed pounce must not snap back to a cosmetic camera-forward marker.
       if (selected.source !== 'fallback') fox.lungeYaw = selected.yaw;
@@ -612,11 +611,10 @@ export function createPlayAsFox(ctx) {
       if (fox.phaseT >= cfg.recoverTime) fox.phase = 'idle';
     }
 
-    // 常规移动：两种视角都使用同一套相机相对方向；动作键仍由各自状态机处理。
-    const throttle = movement.active ? movement.magnitude : 0;
-    if (fox.phase === 'idle' && movement.active) {
-      const reverseOnly = keyboardInput.back && !keyboardInput.forward && !keyboardInput.left && !keyboardInput.right && !Math.hypot(axes.x || 0, axes.y || 0);
-      const sp = (fox.sprint ? cfg.runSpeed : cfg.stalkSpeed) * (reverseOnly ? cfg.reverseSpeed : 1);
+    // 常规移动：W/S 或摇杆纵轴沿身体朝向前后；A/D 或横轴只改变朝向，绝不侧移。
+    const throttle = movement.throttle;
+    if (fox.phase === 'idle' && Math.abs(throttle) > 1e-9) {
+      const sp = (fox.sprint ? cfg.runSpeed : cfg.stalkSpeed) * (movement.isBackpedal ? cfg.reverseSpeed : 1);
       fox.x += movement.x * sp * dt;
       fox.z += movement.z * sp * dt;
     }
@@ -679,8 +677,8 @@ export function createPlayAsFox(ctx) {
     const phaseLabel = fox.phase === 'wind' ? '蓄力中…' : fox.phase === 'lunge' ? '扑击！' : fox.phase === 'recover' ? '硬直' : fox.sprint ? '冲刺（易被发现）' : '潜行';
     const chargeHint = fox.phase === 'wind' ? ` · 方向锁定 ${Math.round(Math.min(1, fox.phaseT / Math.max(cfg.windTime, 0.0001)) * 100)}%` : '';
     elTip.innerHTML = isTouch
-      ? `左下摇杆移动 · <b>冲刺</b>切换潜行 · <b>扑击</b>按下后自动扑出（${phaseLabel}）${chargeHint}`
-      : `W/A/S/D 相机相对移动 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
+      ? `左下摇杆上下前后、左右转向 · <b>冲刺</b>切换潜行 · <b>扑击</b>按下后自动扑出（${phaseLabel}）${chargeHint}`
+      : `W/S 前后移动 · A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
   }
 
   function setPaused(value) {
@@ -692,9 +690,7 @@ export function createPlayAsFox(ctx) {
       pounceCharge.reset();
       if (document.pointerLockElement === canvas) document.exitPointerLock?.();
       if (fox.phase === 'wind') { fox.phase = 'idle'; fox.phaseT = 0; }
-      keys.clear();
-      touch.throttle = 0; touch.turn = 0; touch.sprint = false;
-      touchControls?.releaseAll?.();
+      releasePafInput({ keys, touchControls, touchState: touch });
     }
     document.body.classList.toggle('paf-settings-paused', paused);
     return true;
@@ -717,8 +713,7 @@ export function createPlayAsFox(ctx) {
     pafRoute.restore();
     for (const item of pafTouchLabelSnapshot) { item.el.setAttribute('aria-label', item.aria || ''); if (item.el.querySelector('b')) item.el.querySelector('b').textContent = item.b; if (item.el.querySelector('small')) item.el.querySelector('small').textContent = item.small; delete item.el.dataset.pafLabel; }
     document.body.classList.remove('paf-touch-route');
-    touch.throttle = 0; touch.turn = 0; touch.sprint = false;
-    keys.clear();
+    releasePafInput({ keys, touchControls, touchState: touch });
     for (const p of prey) p.dispose(scene);
     prey = [];
     scene.remove(foxVisual.group);
