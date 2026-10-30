@@ -24,6 +24,8 @@ export class Minimap {
     this.canvas = this.root.querySelector('canvas');
     this.ctx = this.canvas.getContext('2d');
     this._visible = false;
+    this._nextDrawAt = 0;
+    this._lastKey = '';
   }
 
   update(data) {
@@ -33,6 +35,16 @@ export class Minimap {
     const show = !!data?.visible && now - (this._candidateSince || now) > 220;
     if (show !== this._visible) { this._visible = show; this.root.classList.toggle('on', show); }
     if (!show) return;
+    // The minimap is observational UI; redraw at 12 Hz and skip identical frames.
+    if (now < this._nextDrawAt) return;
+    this._nextDrawAt = now + 83;
+    const p0 = data.player || {};
+    const quantize = (v) => Number.isFinite(v) ? Math.round(v * 20) : v;
+    const berryState = (data.berries || []).map((b) => b.taken ? '1' : '0').join('');
+    const foxState = (data.foxes || []).map((f) => `${quantize(f.x)},${quantize(f.z)},${f.alive ? 1 : 0}`).join(';');
+    const key = [p0.x, p0.z, p0.yaw, data.companion?.x, data.companion?.z, data.companion?.saved ? 1 : 0, berryState, foxState].map((v) => typeof v === 'number' ? quantize(v) : v).join('|');
+    if (key === this._lastKey) return;
+    this._lastKey = key;
     const c = this.ctx, w = this.canvas.width, h = this.canvas.height;
     c.clearRect(0, 0, w, h);
     c.fillStyle = 'rgba(9,20,16,.42)'; c.fillRect(0, 0, w, h);

@@ -25,6 +25,7 @@ import {
 } from './core/combat-wheel.mjs';
 import { objectivesComplete } from './core/objectives.js';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
+import { nextAutomaticVerdantFallback } from './core/verdant-auto-fallback.mjs';
 import { preloadModels, instantiate, normalizeModel, revalidateTextures } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
@@ -105,7 +106,7 @@ import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 import { VERDANT_KILL_PLANE_MARGIN } from './world/verdant-fall-safety.mjs';
-import { findRobustPlacement, findRobustPlacementCooperative, resolveEntityGround, chooseCentralBaseSite, chooseCentralBaseSiteCooperative, fingerprintPlacementField, fingerprintPlacementInputs } from './world/verdant-placement.mjs';
+import { findRobustPlacement, findRobustPlacementCooperative, resolveEntityGround, chooseCentralBaseSite, chooseCentralBaseSiteCooperative, fingerprintPlacementField, fingerprintPlacementInputs, StaticPlacementCache } from './world/verdant-placement.mjs';
 import { tierDisplayRows } from './world/verdant-tier-metadata.mjs';
 
 // =====================================================
@@ -293,6 +294,16 @@ function autoVerdantTier() {
   const mem = Number(navigator.deviceMemory) || 4;
   const cores = Number(navigator.hardwareConcurrency) || 4;
   if (rendererStatus.backend === 'webgpu' && mem >= 16 && cores >= 8) return 'ultra';
+  // WebGL2 exposes no reliable VRAM budget here. Unknown or integrated adapters
+  // therefore start one tier lower; this is a conservative proxy, not a GPU-memory read.
+  const gpuText = `${rendererStatus.gpuName || ''} ${rendererStatus.gpuVendor || ''}`;
+  const integrated = /intel|iris|uhd|mesa|radeon graphics|vega|apu/i.test(gpuText);
+  const discreteKnown = /geforce|nvidia|rtx|gtx|radeon rx|apple m[1-9]|discrete/i.test(gpuText);
+  const unknown = !rendererStatus.hardwareAccelerationKnown || !rendererStatus.hardwareAccelerated || !rendererStatus.gpuName || rendererStatus.gpuName === '未知 GPU' || (!integrated && !discreteKnown);
+  if (rendererStatus.backend !== 'webgpu' && (integrated || unknown)) {
+    if (mem >= 8 && cores >= 6) return 'medium';
+    return mem >= 4 && cores >= 4 ? 'low' : 'low';
+  }
   if (mem >= 8 && cores >= 6) return 'high';
   if (mem >= 4 && cores >= 4) return 'medium';
   return 'low';
@@ -462,7 +473,7 @@ async function loadInitialVerdant(tier = autoVerdantTier(), attempt = null) {
   }, renderer, bitmapMaxSize: (isTouchPrimary() && rendererStatus.backend !== 'webgpu') ? 512 : 0 });
   if (attempt?.cancelled) { disposeVerdantGroup(world?.group); throw new Error('加载已超时，已忽略迟到结果'); }
   await validateVerdantPlacementBake(world);
-  verdantWorld = world; verdantTierActive = world.tier || tier; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
+  verdantWorld = world; verdantTierActive = world.tier || tier; window.__m3dInitialVerdantTier = verdantTierActive; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
   hud.setLoading(94, '挂载 Verdant 场景');
   scene.add(world.group);
   hud.setLoading(94, '预热 WebGL 资源');
@@ -486,6 +497,7 @@ async function ensureVerdantBootGate() {
   try { window.__bootWatchdogPause?.(); } catch (_) {}
   if (window.__m3dBootCancelled) return true;
   let tier = autoVerdantTier(), attempts = 0;
+  window.__m3dInitialVerdantTier = tier; window.__m3dRequestedVerdantTier = verdantTierPreference;
   for (;;) {
     if (attempts++) hud.beginLoadingSession('重试 Verdant 场景下载…');
     const attempt = { startedAt: Date.now(), lastProgressAt: Date.now(), cancelled: false, controller: typeof AbortController === 'function' ? new AbortController() : { signal: null, abort() {} } };
@@ -504,6 +516,22 @@ async function ensureVerdantBootGate() {
       attempt.cancelled = true; attempt.controller.abort(); clearInterval(timer);
       verdantWorld = null; setHeightField(null); setPointScale(1, 0, 0); clearPlayableBounds(); setUndergroundCavesEnabled(true);
       sky.terrain.visible = true; sky.hills.visible = true; delete window.__verdantField;
+      const automatic = verdantTierPreference === 'auto';
+      if (automatic) {
+        const fallback = nextAutomaticVerdantFallback(tier);
+        if (!fallback.useSimpleFallback) {
+          tier = fallback.tier;
+          hud.setLoading(loadInitialVerdant._lastProgress || 15, `自动档位加载失败，正在改用${tier}档重试…`);
+          hud.say(`自动档位无法完成加载，已切换到${tier}档重试。`, 4.5);
+          continue;
+        }
+        // Auto mode must not strand the player on a failure panel after low also
+        // fails; use the existing programmatic-scene path with an explicit notice.
+        verdantBootOverride = true;
+        hud.setLoading(100, '自动档位未能加载，已切换至简化地图');
+        hud.say('自动档位加载失败，已切换到简化地图；可稍后在设置中重试。', 6);
+        return true;
+      }
       showVerdantFailure(error, tier);
       const action = await new Promise((resolve) => { verdantBootReject = resolve; }); verdantBootReject = null;
       if (action.action === 'fallback') { verdantBootOverride = true; return true; }
@@ -607,16 +635,18 @@ async function chooseVerdantBurrowDefinitionCooperative(def, index, placed) {
 }
 
 let verdantCompanionLastPlacement = null;
+const verdantCompanionPlacementCache = new StaticPlacementCache();
 function resolveVerdantCompanion(x, z) {
+  if (verdantCompanionPlacementCache.has(x, z)) return verdantCompanionPlacementCache.get(x, z);
   const field = verdantWorld?.placementField;
-  if (!field) return null;
+  if (!field) { verdantCompanionPlacementCache.set(x, z, null); return null; }
   const exact = resolveEntityGround(field, x, z, {
     radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
     avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
     component: verdantCompanionLastPlacement?.component ?? null,
     referenceY: verdantCompanionLastPlacement?.y,
   });
-  if (exact) { verdantCompanionLastPlacement = exact; return exact; }
+  if (exact) { verdantCompanionLastPlacement = exact; verdantCompanionPlacementCache.set(x, z, exact); return exact; }
   // Search is only used after an invalid move or initial spawn; normal frames
   // stay on the local exact resolver and therefore never scan the full field.
   const recovered = findRobustPlacement(field, {
@@ -624,6 +654,7 @@ function resolveVerdantCompanion(x, z) {
     maxDistance: 14, maxCandidates: VERDANT_PLACEMENT_MAX_CANDIDATES, avoidObstacles: true, hasClearance: verdantWorld.hasPlacementClearance,
   });
   if (recovered) verdantCompanionLastPlacement = recovered;
+  verdantCompanionPlacementCache.set(x, z, recovered);
   return recovered;
 }
 
@@ -634,6 +665,10 @@ async function resolveVerdantCompanionCooperative(x, z) {
   if (bakedTier) {
     const record = Object.values(bakedTier.placements?.companions || {}).find((item) => Math.abs(item.input?.x - x) < 1e-6 && Math.abs(item.input?.z - z) < 1e-6);
     if (record?.exact && !verdantCompanionLastPlacement) { verdantCompanionLastPlacement = record.exact; return record.exact; }
+    // The bake may record a deterministic recovery point when the authored point
+    // is invalid. Use it before any cooperative scan; this preserves cross-layer
+    // component identity while avoiding a startup raycast search.
+    if (record?.recovery && !verdantCompanionLastPlacement) { verdantCompanionLastPlacement = record.recovery; return record.recovery; }
   }
   const exact = resolveEntityGround(field, x, z, {
     radius: PLAYER.radius, bodyHeight: 0.85, maxSurfaceVariation: 0.9,
@@ -674,7 +709,7 @@ async function switchVerdantTier(preference, forceReload = false) {
     if (requestId !== verdantTierLoadRequest || loadController?.signal?.aborted) { disposeVerdantGroup(loaded.group); return; }
     const pose = { x: controller.position.x, z: controller.position.z, yaw: controller.yaw, pitch: controller.pitch };
     scene.remove(old.group); disposeVerdantGroup(old.group);
-    verdantWorld = loaded; verdantCompanionLastPlacement = null; verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
+    verdantWorld = loaded; verdantCompanionLastPlacement = null; verdantCompanionPlacementCache.invalidate(); companion.markPlacementDirty(); verdantTierActive = loaded.tier || next; window.__VERDANT_ACTIVE_TIER__ = verdantTierActive;
     scene.add(loaded.group);
     publishVerdantField(loaded);
     setHeightField(loaded.heightAt, { resolveGround: loaded.resolveGround, solidCollider: true });
@@ -804,6 +839,9 @@ berries = buildFoods(0);
 markBootStage('props', 80, '生成采食点与伙伴');
 const companion = new Companion(scene, { resolvePlacement: resolveVerdantCompanion });
 const minimap = new Minimap();
+const minimapShelters = burrowSet.defs.filter((b) => b.type === 'shelter');
+const minimapFrameData = { visible: true, player: { x: 0, z: 0, yaw: 0 }, base: baseBurrow, shelters: minimapShelters, berries, companion, foxes: [] };
+let nextMinimapUpdateAt = 0;
 let debugVolumes = null;
 let foxes = [];
 markBootStage('entities', 84, '生成实体与模型');
@@ -1945,7 +1983,7 @@ function doInteract() {
 //=====================================================
 const _tmpV = new THREE.Vector3();
 
-function update(dt) {
+function update(dt, rawDt = dt) {
   // controller.update owns the per-frame check during play; retain it while the
   // title/pause path skips controller physics.
   if (game.mode !== 'play') controller.guardVerdantPosition();
@@ -2008,9 +2046,7 @@ function update(dt) {
   // 移动（含疾行）
   let speedMul = stats.speedMul;
   // 疾行：按方案查表，并额外接受任意一侧 Shift（双手都能用）
-  const sprinting = controller.touchSprint || binds.isAction('ShiftLeft', 'sprint')
-    || binds.isAction('ShiftRight', 'sprint')
-    || keys.has('ShiftLeft') || keys.has('ShiftRight');
+  const sprinting = controller.touchSprint || binds.isActionDown('sprint');
   if (sprinting && p.energy > 5) speedMul *= 1.42;
   // 阵风走 controller.externalVelocity.x；洞内先清掉上一帧残留的横向风速，
   // 避免只把本帧 gust 设为 0 却让风继续把玩家拖行。
@@ -2120,7 +2156,7 @@ function update(dt) {
           const fy0 = terrainHeight(p.x, p.z);
           damageText.spawn(p.x, fy0 + 1.5, p.z, '迎击！', '#e7c4ff');
           if (game.sandbox) hud.say('迎击成功：正面顶住了狐狸的冲刺！', 1.6);
-          particles.burst(p.x + toFoxX * 1.2, fy0 + 0.6, p.z + toFoxZ * 1.2, 0xd6a1ff, 18, 1.3);
+          particles.burst(p.x + toFoxX * 1.2, fy0 + 0.6, p.z + toFoxZ * 1.2, new THREE.Color(0xd6a1ff), 18, 1.3);
           audio.parry ? audio.parry() : audio.hit();
           controller.hitShake(0.35, toFoxX * 2.2, toFoxZ * 2.2);
           if (game.overdrive <= 0) game.charge = clamp(game.charge + 10, 0, 100);
@@ -2277,17 +2313,17 @@ function update(dt) {
     overloaded: stats.overloaded, social: game.social > 0, fatigue: game.fatigue > 0,
   });
   updateCooldownButtons();
-  if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(rawFrameDeltaForHud, 0.0001) });
+  if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(rawDt, 0.0001) });
 
   controller.forwardFlat(_fwd);
   hud.updateThreats(foxes, p, camera, _fwd, companion);
-  minimap.update({
-    visible: game.observing,
-    player: { x: p.x, z: p.z, yaw: controller.yaw },
-    base: baseBurrow,
-    shelters: burrowDefs.filter((b) => b.type === 'shelter'),
-    berries, companion, foxes,
-  });
+  if (!game.observing) minimap.update(null);
+  else if (performance.now() >= nextMinimapUpdateAt) {
+    nextMinimapUpdateAt = performance.now() + 83;
+    minimapFrameData.player.x = p.x; minimapFrameData.player.z = p.z; minimapFrameData.player.yaw = controller.yaw;
+    minimapFrameData.berries = berries; minimapFrameData.foxes = foxes;
+    minimap.update(minimapFrameData);
+  }
   debugVolumes?.update?.({ game, controller, foxes, stats, playerAttackAnim, attackYaw: resolveAttackYaw({ thirdPerson: controller.thirdPerson, cameraYaw: controller.yaw, bodyYaw: controller.bodyYaw }), terrainHeight });
 
   // 低血量警告音
@@ -2448,8 +2484,7 @@ function triggerRollGesture(ctx) {
 // 是否处于奔跑姿态：疾跑按键 / 触屏疾跑 / 身体俯伏超过阈值。
 function isSprintingNow() {
   return controller.touchSprint
-    || keys.has('ShiftLeft') || keys.has('ShiftRight')
-    || binds.isAction('ShiftLeft', 'sprint') || binds.isAction('ShiftRight', 'sprint')
+    || binds.isActionDown('sprint')
     || controller.crouch > 0.5;
 }
 
@@ -2509,6 +2544,7 @@ const isBound = (code) => {
 };
 
 window.addEventListener('keydown', (e) => {
+  binds.setKeyDown(e.code, true);
   if (e.repeat) {
     // 长按只记录"按住"状态（攻击/移动需要），不重复触发单次动作
     if (game.mode === 'play' && isBound(e.code)) keys.add(e.code);
@@ -2569,11 +2605,14 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+  binds.setKeyDown(e.code, false);
   keys.delete(e.code);
   if (binds.isAction(e.code, 'attack')) {
     if (attackCharge.via === 'key') releaseAttack();
   }
 });
+
+window.addEventListener('blur', () => { binds.clearDownKeys(); keys.clear(); });
 
 canvas.addEventListener('mousedown', (e) => {
   if (controller.touchEnabled) return;
@@ -2952,15 +2991,19 @@ if (IS_DEV && new URLSearchParams(location.search).get('sandboxdebug') === '1') 
   }).catch((error) => console.warn('[sandbox-debug] disabled:', error));
 }
 
+const cooldownElements = Object.fromEntries(['burst', 'ultimate'].map((id) => {
+  const el = document.querySelector(`[data-touch-action="${id}"]`);
+  return [id, { el, overlay: el?.querySelector('.cooldown-overlay'), label: el?.querySelector('.cooldown-overlay em'), state: null, angle: null, labelText: null }];
+}));
 function updateCooldownButtons() {
   for (const id of ['burst', 'ultimate']) {
-    const el = document.querySelector(`[data-touch-action="${id}"]`);
-    const overlay = el?.querySelector('.cooldown-overlay'); if (!el || !overlay) continue;
+    const cache = cooldownElements[id], { el, overlay } = cache; if (!el || !overlay) continue;
     const isUlt = id === 'ultimate';
     const data = cooldownOverlayData({ remaining: isUlt ? game.overCD : game.boostCD, duration: isUlt ? ULT.cooldown : 12,
       energy: game.player.energy, cost: isUlt ? ULT.cost : 20, charge: game.charge, charging: isUlt });
-    el.classList.toggle('no-energy', data.state === 'no-energy'); overlay.classList.toggle('on', data.state === 'cd' || data.state === 'charging');
-    overlay.style.setProperty('--cd-angle', `${data.angle}deg`); overlay.querySelector('em').textContent = data.state === 'cd' ? Math.ceil(isUlt ? game.overCD : game.boostCD) : '';
+    if (cache.state !== data.state) { el.classList.toggle('no-energy', data.state === 'no-energy'); overlay.classList.toggle('on', data.state === 'cd' || data.state === 'charging'); cache.state = data.state; }
+    const angle = `${data.angle}deg`; if (cache.angle !== angle) { overlay.style.setProperty('--cd-angle', angle); cache.angle = angle; }
+    const label = data.state === 'cd' ? String(Math.ceil(isUlt ? game.overCD : game.boostCD)) : ''; if (cache.labelText !== label) { if (cache.label) cache.label.textContent = label; cache.labelText = label; }
   }
 }
 
@@ -3110,15 +3153,14 @@ canvas.addEventListener('webglcontextrestored', () => {
 // 主循环
 //=====================================================
 let last = performance.now();
+let rafDeltaAcc = 0, rafDeltaCount = 0, rafDeltaTimer = 0;
 let playerBodyYaw = controller.yaw;
-let rawFrameDeltaForHud = 1 / 60;
-let fpsRawElapsed = 0, fpsRawFrames = 0, fpsRawTimer = 0;
 
 function frame(now) {
   const rawDt = Math.max(0, (now - last) / 1000);
   const dt = Math.min(rawDt, 0.05);
-  rawFrameDeltaForHud = rawDt;
   last = now;
+  rafDeltaAcc += rawDt; rafDeltaCount++; rafDeltaTimer += rawDt;
 
   const touchPlaying = TOUCH_DEVICE && game.mode === 'play';
   if (document.body.classList.contains('touch-playing') !== touchPlaying) {
@@ -3128,15 +3170,17 @@ function frame(now) {
   }
   // 暂停态：供设置/帮助/布局编辑器在暂停层之上显示并保持游戏暂停。
   document.body.classList.toggle('paused', game.mode === 'pause');
-  update(dt);
+  update(dt, rawDt);
   playerModel.position.set(controller.position.x, controller.position.y, controller.position.z);
   playerBodyYaw = dampAngle(playerBodyYaw, controller.moveFacingYaw, dt, PLAYER.bodyTurnRate);
   playerModel.rotation.y = playerBodyYaw + Math.PI;
   // dt 传入 sky：天穹云随时间漂移（标题界面作为动态背景也在动）
   sky.update(controller.position, dt);
 
-  // 主场景
+  // 主场景与第一人称 viewmodel 计数分开快照；renderer.info 默认每次 render 重置。
   renderer.render(scene, camera);
+  const mainRenderStats = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, points: renderer.info.render.points, lines: renderer.info.render.lines };
+  window.__m3dLastMainRenderStats = mainRenderStats;
   if (!window.__m3dFirstFrameAt) { window.__m3dFirstFrameAt = Date.now(); window.__m3dBootStage = 'first-frame'; }
 
   // viewmodel（自己的爪子/腿）在独立场景渲染。
@@ -3156,15 +3200,13 @@ function frame(now) {
     viewModel.render(renderer);
   }
 
-  // 性能提示使用 RAF 的原始帧间隔；逻辑 dt 仍限制为 50ms，避免慢帧让物理爆炸。
-  const perfDt = IS_DEV ? rawDt : dt;
-  fpsRawElapsed += perfDt;
-  fpsRawFrames++;
-  fpsRawTimer += perfDt;
-  if (fpsRawTimer > 2) {
-    const fps = Math.round(fpsRawFrames / Math.max(fpsRawElapsed, 0.001));
-    hud.setPerfHint(`${fps} FPS · ${renderer.info.render.triangles.toLocaleString()} 三角面`);
-    fpsRawElapsed = 0; fpsRawFrames = 0; fpsRawTimer = 0;
+  // 性能提示使用未截断的 RAF 帧间隔；主场景与 viewmodel 计数分开。
+  if (rafDeltaTimer > 2) {
+    const fps = Math.round(rafDeltaCount / Math.max(rafDeltaAcc, 1e-6));
+    const vm = renderer.info.render;
+    const vmTriangles = !thirdPerson && (game.mode === 'play' || game.mode === 'pause' || game.mode === 'levelclear') ? vm.triangles : 0;
+    hud.setPerfHint(`${fps} FPS (RAF) · 主场景/帧 ${mainRenderStats.triangles.toLocaleString()} 三角面${vmTriangles ? ` · viewmodel/帧 ${vmTriangles.toLocaleString()}` : ''}`);
+    rafDeltaAcc = 0; rafDeltaCount = 0; rafDeltaTimer = 0;
   }
 
   requestAnimationFrame(frame);

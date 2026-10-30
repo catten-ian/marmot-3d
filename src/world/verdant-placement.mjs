@@ -121,6 +121,36 @@ function sampleLayerHeight(field, x, z, component, referenceY) {
   return (a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz;
 }
 
+/** Small lifecycle cache for a validated stationary placement. */
+export class StaticPlacementCache {
+  constructor({ epsilon = 1e-4 } = {}) { this.epsilon = epsilon; this.entry = null; }
+  has(x, z, dirty = false) {
+    if (dirty || !this.entry || Math.hypot(x - this.entry.x, z - this.entry.z) > this.epsilon) { this.entry = null; return false; }
+    return true;
+  }
+  get(x, z, dirty = false) { return this.has(x, z, dirty) ? this.entry.result : null; }
+  set(x, z, result) {
+    if (!result || ![result.y, result.x, result.z].every(Number.isFinite)) { this.entry = null; return null; }
+    this.entry = { x, z, result }; return result;
+  }
+  invalidate() { this.entry = null; }
+}
+
+/** Resolve a moved entity pose; when blocked, retry its previous safe pose. */
+export function resolvePlacementWithFallback(cache, { x, z, fallbackX = x, fallbackZ = z, dirty = false, resolver } = {}) {
+  if (typeof resolver !== 'function') return { x, z, result: null, reused: false };
+  if (cache?.has(x, z, dirty)) return { x, z, result: cache.get(x, z), reused: true };
+  let result = resolver(x, z), resolvedX = x, resolvedZ = z;
+  if (!result && Number.isFinite(fallbackX) && Number.isFinite(fallbackZ)
+    && Math.hypot(fallbackX - x, fallbackZ - z) > 1e-6) {
+    resolvedX = fallbackX; resolvedZ = fallbackZ;
+    result = resolver(resolvedX, resolvedZ);
+  }
+  if (result) cache?.set(resolvedX, resolvedZ, result);
+  else cache?.invalidate();
+  return { x: resolvedX, z: resolvedZ, result, reused: false };
+}
+
 /**
  * Resolve a circular entity footprint onto one connected mesh layer. A result is
  * rejected if any support probe is missing, on a different layer, obstructed,

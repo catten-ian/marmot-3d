@@ -185,12 +185,25 @@ function createPlacementClearance(sceneRoot) {
   const ray = new THREE.Raycaster();
   const origin = new THREE.Vector3(), direction = new THREE.Vector3(0, 1, 0);
   const offsets = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+  // Conservative uniform-grid broadphase; exact triangle ray tests remain the narrow phase.
+  const cellSize = 2, bins = new Map(), broadphaseOverflow = [];
+  const key = (i, j) => `${i},${j}`;
+  for (const item of meshes) {
+    const b = item.bounds;
+    const i0 = Math.floor(b.min.x / cellSize), i1 = Math.floor(b.max.x / cellSize);
+    const j0 = Math.floor(b.min.z / cellSize), j1 = Math.floor(b.max.z / cellSize);
+    if ((i1 - i0 + 1) * (j1 - j0 + 1) > 256) { broadphaseOverflow.push(item); continue; }
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const k = key(i, j); let list = bins.get(k); if (!list) bins.set(k, list = []); list.push(item);
+    }
+  }
   return ({ x, z, y, radius = 0, height = 1.5 }) => {
     for (const [dx, dz] of offsets) {
       const px = x + dx * radius * 0.78, pz = z + dz * radius * 0.78;
       origin.set(px, y + 0.055, pz);
       ray.set(origin, direction); ray.near = 0; ray.far = Math.max(0, height - 0.055);
-      for (const item of meshes) {
+      const candidates = bins.get(key(Math.floor(px / cellSize), Math.floor(pz / cellSize))) || [];
+      for (const item of candidates.concat(broadphaseOverflow)) {
         const b = item.bounds;
         if (px < b.min.x || px > b.max.x || pz < b.min.z || pz > b.max.z
           || b.max.y <= y + 0.08 || b.min.y >= y + height) continue;

@@ -17,6 +17,8 @@ import { USE_REAL_MODELS } from '../core/version.js';
 const instantiateMarmot = (dev = false) => instantiate(`./assets/models/${dev ? 'marmot-screaming.glb' : 'marmot.glb'}`, dev ? 'marmotScream' : 'marmot');
 const tintMarmot = (root) => root?.traverse?.((o) => { if (!o.isMesh || /eye|tongue|teeth|mouth/i.test(o.name || '')) return; const mats = Array.isArray(o.material) ? o.material : [o.material]; mats.forEach((m) => { if (!m) return; const c = m.color; if (c && c.r < 0.08 && c.g < 0.08 && c.b < 0.08) c.set(0xa9834e); }); });
 import { devOn } from '../core/version.js';
+import { disposeOwnedTree } from './resource-disposal.mjs';
+import { StaticPlacementCache, resolvePlacementWithFallback } from '../world/verdant-placement.mjs';
 
 let grassTexturePromise = null;
 function loadVerdantGrassTextures() {
@@ -261,15 +263,9 @@ export class Food {
   dispose(scene = this.scene) {
     if (!scene || !this.group) return;
     scene.remove(this.group);
-    this.group.traverse((o) => {
-      // 只释放本类自建的基础几何；材质按引用计数难以精确区分，
-      // 这里每实例都 new 了自己的材质，直接释放是安全的。
-      if (o.geometry) o.geometry.dispose?.();
-      if (o.material) {
-        const mats = Array.isArray(o.material) ? o.material : [o.material];
-        for (const m of mats) m.dispose?.();
-      }
-    });
+    // GLTFLoader instantiate 克隆的是节点/实例材质，几何与纹理仍属于共享模型缓存。
+    // 清除只释放程序化 Food 资源，不释放真实 sorrel 子树几何/纹理。
+    disposeOwnedTree(this.group, this.realModel);
     this.group = null;
     this.scene = null;
   }
@@ -299,6 +295,11 @@ export class Companion {
     this._t = 0;
     this.emote = null;
     this.emoteTimer = 0;
+    this._placementDirty = true;
+    this._lastResolvedX = NaN;
+    this._lastResolvedZ = NaN;
+    this._lastResolved = null;
+    this._placementCache = new StaticPlacementCache();
     // 模型加载级别：'procedural' | 'full' | 'geometry-only'
     this.modelLevel = 'procedural';
     this._loadRealModel();
@@ -375,10 +376,25 @@ export class Companion {
     if (this.realModel) this.realModel.visible = useReal;
   }
 
+  markPlacementDirty() { this._placementDirty = true; this._placementCache.invalidate(); }
+
   sync(y = null) {
-    const ground = this.resolvePlacement?.(this.x, this.z);
+    this.markPlacementDirty();
+    let ground = null;
+    if (Number.isFinite(y)) {
+      // A build-time validated/baked support height is already authoritative; do not
+      // repeat a mesh clearance query while attaching the same pose after a rebuild.
+      ground = { x: this.x, y, z: this.z, walkable: true };
+    } else {
+      ground = this.resolvePlacement?.(this.x, this.z);
+    }
+    if (ground) {
+      this.x = ground.x; this.z = ground.z;
+      this._lastResolvedX = this.x; this._lastResolvedZ = this.z; this._lastResolved = ground;
+      this._placementCache.set(this.x, this.z, ground);
+      this._placementDirty = false;
+    }
     const groundY = Number.isFinite(y) ? y : Number.isFinite(ground?.y) ? ground.y : terrainHeight(this.x, this.z);
-    if (ground) { this.x = ground.x; this.z = ground.z; }
     this.group.position.set(this.x, groundY, this.z);
   }
 
@@ -407,9 +423,23 @@ export class Companion {
       this.mesh.rotation.y = Math.atan2(playerPos.x - this.x, playerPos.z - this.z);
     }
 
-    let ground = this.resolvePlacement?.(this.x, this.z);
-    if (this.resolvePlacement && !ground) { this.x = prevX; this.z = prevZ; ground = this.resolvePlacement(this.x, this.z); }
-    else if (ground) { this.x = ground.x; this.z = ground.z; }
+    // Stationary frames reuse the last validated support/clearance. During follow,
+    // refresh only after meaningful displacement or an explicit scene/teleport dirty flag;
+    // failed resolves still use the previous safe pose and retry on the next moved step.
+    let ground = this._lastResolved;
+    const movedSinceResolve = Math.hypot(this.x - this._lastResolvedX, this.z - this._lastResolvedZ);
+    const shouldResolve = !!this.resolvePlacement && (this._placementDirty || !ground || movedSinceResolve > 1e-4);
+    if (shouldResolve) {
+      const resolved = resolvePlacementWithFallback(this._placementCache, {
+        x: this.x, z: this.z, fallbackX: prevX, fallbackZ: prevZ,
+        dirty: this._placementDirty, resolver: this.resolvePlacement,
+      });
+      this.x = resolved.x; this.z = resolved.z; ground = resolved.result;
+      if (ground) {
+        this.x = ground.x; this.z = ground.z;
+        this._lastResolvedX = this.x; this._lastResolvedZ = this.z; this._lastResolved = ground; this._placementDirty = false;
+      }
+    }
     const y = Number.isFinite(ground?.y) ? ground.y : terrainHeight(this.x, this.z);
     const bob = this.rescued && !this.saved
       ? Math.abs(Math.sin(this._t * 7)) * 0.09
