@@ -1,0 +1,37 @@
+[
+  {
+    "t": 0,
+    "decision": {
+      "targetId": "player",
+      "yaw": -1
+    }
+  },
+  {
+    "t": 1,
+    "decision": {
+      "targetId": "player",
+      "yaw": 1
+    }
+  },
+  {
+    "t": 2,
+    "decision": {
+      "targetId": "player",
+      "yaw": -1
+    }
+  },
+  {
+    "t": 3,
+    "decision": {
+      "targetId": "player",
+      "yaw": 1
+    }
+  },
+  {
+    "t": 4,
+    "decision": {
+      "targetId": "player",
+      "yaw": -1
+    }
+  }
+]

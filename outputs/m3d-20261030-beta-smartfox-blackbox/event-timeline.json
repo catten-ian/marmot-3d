@@ -1,0 +1,22 @@
+[
+  {
+    "t": 1,
+    "type": "smart-pounce-commit",
+    "detail": {
+      "t": 1,
+      "type": "smart-pounce-commit",
+      "distance": 1.1,
+      "lockAngleError": 0.8
+    }
+  },
+  {
+    "t": 2,
+    "type": "smart-pounce-commit",
+    "detail": {
+      "t": 2,
+      "type": "smart-pounce-commit",
+      "distance": 1.2,
+      "lockAngleError": 0.7
+    }
+  }
+]

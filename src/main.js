@@ -115,7 +115,7 @@ import { ALARM_INTERVALS, alarmSchedule, companionAlarmLevel, stereoPanFromWorld
 import { HUD } from './ui/hud.js';
 import { SettingsUI } from './ui/settings.js';
 import { adapterPowerPreference, readGraphicsPreference, writeGraphicsPreference } from './core/graphics-preference.js';
-import { FeedbackUI, collectGameSnapshot, initFeedbackFlush } from './ui/feedback.js';
+import { FeedbackUI, collectGameSnapshot, initFeedbackFlush, submitFeedback } from './ui/feedback.js';
 import { FEEDBACK } from './core/config.js';
 import { AccountsApi, buildScorePayload, escapeHtml } from './core/accounts-api.mjs';
 import { clearSession, isUnauthorized, readSession, writeSession, restoreSession } from './core/accounts-session.mjs';
@@ -127,6 +127,7 @@ import { createSandboxState, SANDBOX_LEVEL, placeSandboxDummy, removeSandboxDumm
 import { applySandboxDifficulty, spawnSandboxFoxes, clearSandboxFoxes } from './sandbox/commands.js';
 import { setupSandboxPanel } from './sandbox/panel.js';
 import { SandboxRecorder, downloadTake, renderSummaryText } from './sandbox/recorder.js';
+import { SmartFoxBlackBoxRecorder, exportBlackBoxLocal } from './sandbox/smartfox-blackbox.mjs';
 import { drillRespawnPose, resetDrillFox } from './sandbox/drill.js';
 
 const INTERACT_TEXT = interactionSemantics(IS_BETA);
@@ -434,6 +435,8 @@ try { thirdPerson = localStorage.getItem(VIEW_MODE_KEY) === 'third-person'; } ca
 let viewKeyLabel = 'V';
 // beta 沙盒操作录制器：声明必须在初始化期 setViewMode() 之前，避免 TDZ。
 let sandboxRecorder = null;
+let smartFoxBlackBox = null;
+let lastSmartFoxBlackBox = null;
 
 function setViewMode(enabled, announce = false) {
   thirdPerson = !!enabled;
@@ -2009,15 +2012,30 @@ function update(dt) {
     }
     f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow,
       f.type === 'smart' ? { smartFoxes, coordinator: sandboxState.active ? sandboxState.smartPack : null, tactics: smartTactics } : null);
+    const pounceCommit = f.type === 'smart' && !prevCommitted && f.pounceCommitted ? (() => {
+      const distance = Math.hypot(prevFoxX - p.x, prevFoxZ - p.z);
+      const targetYaw = Math.atan2(p.x - prevFoxX, p.z - prevFoxZ);
+      let lockAngleError = Math.abs(targetYaw - (f._smartState?.pounceYaw ?? f.yaw));
+      while (lockAngleError > Math.PI) lockAngleError -= Math.PI * 2;
+      return {
+        distance,
+        lockAngleError: Math.abs(lockAngleError),
+        leadDistance: Math.hypot((f._smartState?.pounceTargetX ?? p.x) - p.x, (f._smartState?.pounceTargetZ ?? p.z) - p.z),
+      };
+    })() : null;
     if (sandboxRecorder && f.type === 'smart') {
-      if (!prevCommitted && f.pounceCommitted) {
-        const commitDistance = Math.hypot(prevFoxX - p.x, prevFoxZ - p.z);
-        const targetYaw = Math.atan2(p.x - prevFoxX, p.z - prevFoxZ);
-        let lockError = Math.abs(targetYaw - (f._smartState.pounceYaw ?? f.yaw));
-        while (lockError > Math.PI) lockError -= Math.PI * 2;
-        sandboxRecorder.push('smart-pounce-commit', { fox: sandboxRecorder.idFor(f), distance: Number(commitDistance.toFixed(3)), lockAngleError: Number(Math.abs(lockError).toFixed(4)), leadDistance: Number(Math.hypot((f._smartState.pounceTargetX ?? p.x) - p.x, (f._smartState.pounceTargetZ ?? p.z) - p.z).toFixed(3)) }, game.totalTime);
+      if (pounceCommit) {
+        sandboxRecorder.push('smart-pounce-commit', { fox: sandboxRecorder.idFor(f), distance: Number(pounceCommit.distance.toFixed(3)), lockAngleError: Number(pounceCommit.lockAngleError.toFixed(4)), leadDistance: Number(pounceCommit.leadDistance.toFixed(3)) }, game.totalTime);
       }
       if (f.pounceCommitted && f.pounceStriking) sandboxRecorder.push('smart-pounce-strike-frame', { fox: sandboxRecorder.idFor(f), distance: Number(Math.hypot(f.x - p.x, f.z - p.z).toFixed(3)), sweptDistance: Number(segmentPointDistance2D(prevFoxX, prevFoxZ, f.x, f.z, p.x, p.z).toFixed(3)) }, game.totalTime);
+    }
+    if (smartFoxBlackBox && f.type === 'smart') {
+      const foxId = smartFoxBlackBox.idFor(f);
+      if (prevState !== f.state) smartFoxBlackBox.recordEvent('fox-state', { fox: foxId, from: prevState, to: f.state, x: f.x, z: f.z }, game.totalTime);
+      if (pounceCommit) smartFoxBlackBox.recordEvent('pounce-commit', { fox: foxId, distance: pounceCommit.distance, lockAngleError: pounceCommit.lockAngleError }, game.totalTime);
+      smartFoxBlackBox.recordFox({ id: foxId, x: f.x, z: f.z, yaw: f.yaw, state: f.state, intent: f.intent, hp: f.hp, pounceCommitted: !!f.pounceCommitted }, game.totalTime);
+      const telemetry = f.telemetry?.at(-1);
+      if (telemetry) smartFoxBlackBox.recordDecision({ fox: foxId, decision: { ...telemetry, targetId: 'player', yaw: f.yaw }, state: f.state, pounceCommitted: !!f.pounceCommitted }, game.totalTime);
     }
     if (IS_BETA && f.type === 'smart' && prevMeleePhase !== (f.meleePhase ?? null)) {
       recordTestLog('smart-melee-phase', { from: prevMeleePhase, to: f.meleePhase ?? null,
@@ -2418,6 +2436,11 @@ function update(dt) {
   });
   updateCooldownButtons();
   updateKbSkillBar();
+  if (smartFoxBlackBox) {
+    smartFoxBlackBox.recordInput({ keys: Array.from(keys).slice(0, 32), touchAxes: controller.touchAxes, sprint: isSprintingNow(), attack: !!attackCharge.held, position: { x: controller.position.x, z: controller.position.z }, yaw: controller.bodyYaw }, game.totalTime);
+    const completed = smartFoxBlackBox.tick(game.totalTime);
+    if (completed) { lastSmartFoxBlackBox = completed; exportBlackBoxLocal(completed); submitFeedback({ type: 'smartfox-anomaly', description: '', blackbox: completed }, { endpoint: FEEDBACK.endpoint }).catch(() => {}); }
+  }
   if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(dt, 0.0001) });
 
   controller.forwardFlat(_fwd);
@@ -2970,12 +2993,24 @@ function setTestPanelOpen(open) {
 sandboxRecorder = IS_BETA
   ? new SandboxRecorder({ now: () => game.totalTime })
   : null;
+smartFoxBlackBox = IS_BETA ? new SmartFoxBlackBoxRecorder({ now: () => game.totalTime }) : null;
+if (smartFoxBlackBox) smartFoxBlackBox.start({
+  build: { label: VERSION_LABEL, channel: 'beta' },
+  config: { sandbox: true, difficulty: sandboxState.difficulty, betaTune: BETA_TUNE },
+  seed: null,
+  initialSnapshot: { player: { ...game.player }, level: game.level, sandbox: true },
+});
 const sandboxPanelUI = setupSandboxPanel({
   root: testPanel,
   state: sandboxState,
   recorder: sandboxRecorder,
+  blackbox: smartFoxBlackBox,
   onAction: (action) => {
-    if (action === 'recordStart') {
+    if (action === 'captureAnomaly') {
+      const result = smartFoxBlackBox?.captureAnomaly({ description: '', initialSnapshot: { player: { ...game.player }, level: game.level, sandbox: true, foxes: foxes.filter((f) => !f.isSandboxDummy).map((f) => ({ id: f.slot ?? f.type, type: f.type, x: f.x, z: f.z, yaw: f.yaw, state: f.state, intent: f.intent, hp: f.hp })) } }, game.totalTime);
+      if (result?.package) { lastSmartFoxBlackBox = result.package; exportBlackBoxLocal(lastSmartFoxBlackBox); submitFeedback({ type: 'smartfox-anomaly', description: '', blackbox: lastSmartFoxBlackBox }, { endpoint: FEEDBACK.endpoint }).catch(() => {}); hud.say('智能狐异常包已导出', 2.5); }
+      else hud.say('已捕获前 20 秒，继续记录 5 秒后导出', 2.5);
+    } else if (action === 'recordStart') {
       sandboxRecorder?.start(game.totalTime, { level: game.level + 1, sandbox: true, foxCount: foxes.length });
       sandboxState.lastRecordingSummary = '';
       hud.say('开始录制操作：攻击、受击、移动与狐狸状态会写入 JSON', 2.5);

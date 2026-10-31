@@ -1,0 +1,49 @@
+{
+  "synthetic": true,
+  "anomalies": [
+    {
+      "detector": "no-progress-oscillation",
+      "fox": "F1",
+      "span": 7.5,
+      "oscillations": 14,
+      "threshold": {
+        "distance": 0.08,
+        "minSeconds": 2.5,
+        "oscillations": 4
+      }
+    },
+    {
+      "detector": "repeated-reorientation",
+      "target": "player",
+      "repeats": 4,
+      "threshold": {
+        "maxAngle": 0.12,
+        "minRepeats": 3,
+        "windowSeconds": 6
+      }
+    },
+    {
+      "detector": "wasted-invalid-pounce",
+      "attempts": 2,
+      "examples": [
+        {
+          "t": 1,
+          "type": "smart-pounce-commit",
+          "distance": 1.1,
+          "lockAngleError": 0.8
+        },
+        {
+          "t": 2,
+          "type": "smart-pounce-commit",
+          "distance": 1.2,
+          "lockAngleError": 0.7
+        }
+      ],
+      "threshold": {
+        "minDistance": 2.2,
+        "maxLockError": 0.55,
+        "minAttempts": 2
+      }
+    }
+  ]
+}
