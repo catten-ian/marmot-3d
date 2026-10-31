@@ -165,3 +165,5 @@ node tools/smartfox-headless-lab.mjs repro --config /tmp/smartfox-lab-config.jso
 性能/边界：默认固定步长（默认 1/60，可由 `--dt` 覆盖）；`--config FILE` 支持 seed/数量/场景/移动和 tune overrides；上述 12 秒单场 wall time 约 12–15ms，8 秒 matrix 更低于 100ms；无 wall-clock AI 随机，事件 trace 上限 5000。无头结果只证明共享数值战斗逻辑，不替代浏览器视觉/GPU/手机验收。
 
 - 阶段 1 commit：`9b1b0a5` (`test(beta): add headless SmartFox combat lab`)。最终 commits：`6ac0ebb`, `9b1b0a5`。push/deploy：未执行。未完成项：无头实验场不替代浏览器视觉/GPU/手机验收；主控独立验收与上线均未宣称。
+
+最终提交修正：阶段 1 实际提交为 `056ffa4`（无头实验场）与 `689ed36`（`--config` 覆盖入口）；阶段 0 为 `6ac0ebb`。以上均为本地 commit，push/deploy 未执行。
