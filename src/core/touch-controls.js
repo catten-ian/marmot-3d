@@ -137,7 +137,7 @@ export class TouchControls {
   _installGestureBlockers() {
     if (this.gestureBlocked) return;
     this.gestureBlocked = true;
-    const block = (event) => event.preventDefault();
+    const block = (event) => { if (event.cancelable) event.preventDefault(); };
     this._gestureBlock = block;
     document.addEventListener('contextmenu', block);
     document.addEventListener('dblclick', block);
@@ -168,7 +168,7 @@ export class TouchControls {
       this.pointerRoles.set(event.pointerId, 'look');
       this.controller.touchLookActive = true;
       this._capture(this.lookZone, event.pointerId);
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
       event.stopPropagation();
     });
 
@@ -176,7 +176,7 @@ export class TouchControls {
       if (this.useTouchEvents && (event.pointerType === 'touch' || event.pointerType === 'pen')) return;
       if (this.pointerRoles.get(event.pointerId) !== 'look') return;
       this._applyLook(event.clientX, event.clientY, event.pointerId);
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
     });
 
     for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
@@ -190,7 +190,7 @@ export class TouchControls {
       this.pointerRoles.set(event.pointerId, 'move');
       this._capture(this.joystick, event.pointerId);
       this._updateJoystick(event.clientX, event.clientY);
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
       event.stopPropagation();
     });
 
@@ -198,7 +198,7 @@ export class TouchControls {
       if (this.useTouchEvents && (event.pointerType === 'touch' || event.pointerType === 'pen')) return;
       if (this.pointerRoles.get(event.pointerId) !== 'move') return;
       this._updateJoystick(event.clientX, event.clientY);
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
       event.stopPropagation();
     });
 
@@ -211,7 +211,7 @@ export class TouchControls {
       button.addEventListener('pointerdown', (event) => {
         if (this.useTouchEvents && (event.pointerType === 'touch' || event.pointerType === 'pen')) return;
         if (!this.enabled || !this._isTouchPointer(event) || !this.isActive()) return;
-        event.preventDefault();
+        if (event.cancelable) event.preventDefault();
         event.stopPropagation();
         this._capture(button, event.pointerId);
         this.pointerRoles.set(event.pointerId, 'button:' + action);
@@ -234,7 +234,7 @@ export class TouchControls {
           const g = this.dodgePointers.get(event.pointerId);
           if (g) { g.dx = event.clientX - g.x; g.dy = event.clientY - g.y; }
         }
-        event.preventDefault();
+        if (event.cancelable) event.preventDefault();
       });
       button.addEventListener('contextmenu', (event) => event.preventDefault());
     });
@@ -272,7 +272,7 @@ export class TouchControls {
         this.pointerRoles.set(touch.identifier, 'look');
         this.controller.touchLookActive = true;
       }
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
       event.stopPropagation();
     });
 
@@ -281,7 +281,7 @@ export class TouchControls {
         if (this.pointerRoles.get(touch.identifier) !== 'look') continue;
         this._applyLook(touch.clientX, touch.clientY, touch.identifier);
       }
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
       event.stopPropagation();
     });
 
@@ -293,7 +293,7 @@ export class TouchControls {
         this.pointerRoles.set(touch.identifier, 'move');
         this._updateJoystick(touch.clientX, touch.clientY);
       }
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
       event.stopPropagation();
     });
 
@@ -302,7 +302,7 @@ export class TouchControls {
         if (this.pointerRoles.get(touch.identifier) !== 'move') continue;
         this._updateJoystick(touch.clientX, touch.clientY);
       }
-      event.preventDefault();
+      if (event.cancelable) event.preventDefault();
       event.stopPropagation();
     });
 
@@ -321,7 +321,7 @@ export class TouchControls {
           if (action === 'dodge') this.dodgePointers.set(touch.identifier, { x: touch.clientX, y: touch.clientY, dx: 0, dy: 0 });
           this.onAction(action, true, touch.identifier, { dx: 0, dy: 0, moved: false });
         }
-        event.preventDefault();
+        if (event.cancelable) event.preventDefault();
         event.stopPropagation();
       });
       add(button, 'touchmove', (event) => {
@@ -334,7 +334,7 @@ export class TouchControls {
             if (g) { g.dx = touch.clientX - g.x; g.dy = touch.clientY - g.y; }
           }
         }
-        event.preventDefault();
+        if (event.cancelable) event.preventDefault();
       });
       add(button, 'contextmenu', (event) => event.preventDefault());
     });

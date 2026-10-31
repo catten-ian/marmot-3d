@@ -198,7 +198,9 @@ if (WANT_GS) {
     powerPreference: 'high-performance',
     stencil: false,
     // Dev visual QA needs a readable WebGL backbuffer for managed CDP captures.
-    preserveDrawingBuffer: IS_DEV,
+    // Mobile WebGL readback is prohibitively expensive at a high device DPR;
+    // Chrome screenshots capture the compositor surface without this flag.
+    preserveDrawingBuffer: IS_DEV && !TOUCH_DEVICE,
   });
   try {
     const version = String(renderer.getContext()?.getParameter(renderer.getContext().VERSION) || '');
@@ -219,7 +221,6 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // 曝光过高会把贴地的草地照成一片死白，0.92 是既能保留高光又不溢出的值
 renderer.toneMappingExposure = 0.92;
-
 function isSoftwareRenderer(name, vendor) {
   return /swiftshader|llvmpipe|softpipe|microsoft basic render driver|software rasterizer/i.test(`${name || ''} ${vendor || ''}`);
 }
@@ -282,15 +283,15 @@ function autoVerdantTier() {
     mobile, backend: rendererStatus.backend,
     deviceMemory: navigator.deviceMemory, hardwareConcurrency: navigator.hardwareConcurrency,
   });
-  if (requested) return guarded;
-  // 移动端（手机/平板，含微信/QQ 等谎报 pointer 的内置浏览器）auto 一律锁 low 档。
+  if (requested) return requested;
+  // Auto chooses from the same complete tier set on touch and desktop.
   // 旧逻辑只看 deviceMemory/hardwareConcurrency：安卓 Chrome 普遍上报 8GB/8 核（deviceMemory
   // 上限就是 8），会被误分到 medium/high。
   // 20261027 起四档资源都已上传到火山 TOS（low/medium/high/ultra 全覆盖），任何档位都优先走
   // TOS（实测国内 17~37MB/s），不会再回源到经 Cloudflare 的慢服务器（约 1MB/s）。
   // 但 ultra 档包体 2.4GB、high 档 400MB+，移动端流量与耗时仍不现实，所以 auto 继续锁 low。
   // 玩家仍可在设置里手动选更高档；这里只修正 auto 的误判。
-  if (isTouchPrimary()) return 'low';
+  if (isTouchPrimary()) return rendererStatus.backend === 'webgpu' ? 'medium' : 'medium';
   const mem = Number(navigator.deviceMemory) || 4;
   const cores = Number(navigator.hardwareConcurrency) || 4;
   if (rendererStatus.backend === 'webgpu' && mem >= 16 && cores >= 8) return 'ultra';
@@ -1174,23 +1175,71 @@ function disposeAllFoxes() {
 }
 
 let sandboxEnterHooks = [];
+
+/**
+ * Entering the dev sandbox reuses the Verdant world and the level-0 objects
+ * prepared during boot. Re-running loadLevel() here rebuilds the imported
+ * scene's placement graph and can take longer than the fixed E2E settle budget.
+ * The sandbox has no campaign foxes, so only the small mutable game state is
+ * reset and three practice foxes are added after the existing world is kept.
+ */
 async function enterSandbox() {
   hud.beginLoadingSession('正在进入沙盒…');
-  hud.setLoading(20, '重置沙盒状态');
+  hud.setLoading(20, '复用已加载场景');
   await new Promise((resolve) => setTimeout(resolve, 0));
-  hud.hidePanel(); sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
-  game.sandbox = true; game.mode = 'play'; document.body.classList.add('sandbox-active');
+  hud.hidePanel();
+  sandboxState.active = true; sandboxState.godMode = true; sandboxState.freezeTimer = true;
+  game.sandbox = true; game.mode = 'play'; game.level = 0;
+  document.body.classList.add('sandbox-active');
   testModeBtn.hidden = false; testModeBtn.textContent = '沙盒控制';
   testState.godMode = true; testState.freezeTimer = true;
-  hud.setLoading(45, '重建关卡与出生点');
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  await loadLevel(0, false, { cooperativePlacement: true });
+
+  hud.setLoading(42, '重置出生点与沙盒状态');
+  clearPendingAerialParry();
+  cancelAttackCharge();
+  const p = game.player;
+  p.hp = 100; p.energy = 100; p.stress = 0; p.invuln = 2;
+  let spawnX = BURROW_X + 4 * getPointScale();
+  let spawnZ = BURROW_Z + 2 * getPointScale();
+  if (verdantWorld?.nearestWalkable) {
+    const safe = verdantWorld.nearestWalkable(spawnX, spawnZ);
+    if (safe && safe.moved !== -1 && [safe.x, safe.y, safe.z].every(Number.isFinite)) {
+      spawnX = safe.x; spawnZ = safe.z;
+    }
+  }
+  controller.teleport(spawnX, spawnZ, Math.PI * 0.05);
+  if (verdantWorld?.resolveGround) controller._lastGround = verdantWorld.resolveGround(spawnX, spawnZ);
+  controller.yaw = Math.atan2(-controller.position.x, -controller.position.z);
+  controller.pitch = -0.06;
+
+  // Level 0 food is already built during boot; reset its visibility/state in place.
+  berries.forEach((b) => b.reset());
+  scenery.resetBerries();
+  game.foodCount = 0;
+  game.season = devOn('seasonalFood') ? seasonForLevel(0) : null;
+  const [friendX, friendZ] = scalePoint(SANDBOX_LEVEL.friend);
+  const friend = verdantWorld?.nearestWalkable?.(friendX, friendZ);
+  companion.placeAt(friend?.x ?? friendX, friend?.z ?? friendZ, friend?.y ?? null);
+  game.friend = companion;
+
+  // Sandbox has its own environment settings, but does not need a world rebuild.
+  env.gust = 0; env.gustPhase = 0; env.gustDir = 1; env.sandT = 0; env.sandOn = false; env._msgOn = false;
+  applyEnvModifiers(SANDBOX_LEVEL);
+  sky.applyLevel(SANDBOX_LEVEL);
+  scene.fog.near = verdantWorld ? 42 : env.fogBase;
+  scene.fog.far = verdantWorld ? 175 : env.fogFarBase;
+  game.levelRepels = 0; game.bossDown = true; game.time = Infinity; game.elapsed = 0;
+  for (const k of ['boost', 'boostCD', 'attackCD', 'social', 'socialCD', 'overdrive', 'overCD', 'fatigue', 'cortisol', 'drive']) game[k] = 0;
+  game.charge = 100; game.stressWarned = false;
+  applySandboxDifficulty(sandboxState, sandboxState.difficulty);
+
   disposeAllFoxes();
   hud.setLoading(70, '生成沙盒狐狸 0/3');
-  for (let i = 0; i < 3; i++) { spawnSandboxFox('normal', i); hud.setLoading(70 + ((i + 1) / 3) * 20, `生成沙盒狐狸 ${i + 1}/3`); await new Promise((resolve) => setTimeout(resolve, 0)); }
-  game.time = Infinity; game.foodCount = 0; game.levelRepels = 0; game.player.hp = 100; game.player.energy = 100;
-  game.player.stress = 0; game.charge = 100;
-  applySandboxDifficulty(sandboxState, sandboxState.difficulty);
+  for (let i = 0; i < 3; i++) {
+    spawnSandboxFox('normal', i);
+    hud.setLoading(70 + ((i + 1) / 3) * 20, `生成沙盒狐狸 ${i + 1}/3`);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
   if (!controller.touchEnabled) controller.requestLock();
   hud.setLoading(98, '应用沙盒设置');
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -3156,6 +3205,7 @@ let last = performance.now();
 let rafDeltaAcc = 0, rafDeltaCount = 0, rafDeltaTimer = 0;
 let playerBodyYaw = controller.yaw;
 
+
 function frame(now) {
   const rawDt = Math.max(0, (now - last) / 1000);
   const dt = Math.min(rawDt, 0.05);
@@ -3199,7 +3249,6 @@ function frame(now) {
     );
     viewModel.render(renderer);
   }
-
   // 性能提示使用未截断的 RAF 帧间隔；主场景与 viewmodel 计数分开。
   if (rafDeltaTimer > 2) {
     const fps = Math.round(rafDeltaCount / Math.max(rafDeltaAcc, 1e-6));

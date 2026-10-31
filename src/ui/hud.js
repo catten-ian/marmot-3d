@@ -104,17 +104,22 @@ export class HUD {
     if (this.el.loaderBytes) { this.el.loaderBytes.hidden = true; this.el.loaderBytes.textContent = ''; }
     try {
       const v = this.el.loaderVideo;
-      if (v) { v.currentTime = 0; void v.play(); }
+      if (v) {
+        v.currentTime = 0;
+        // Mobile browsers can reject a play() started just before hideLoader()
+        // pauses the element. Consume that expected interruption so E2E sees no
+        // unhandled AbortError while the loader remains fail-soft.
+        const playPromise = v.play();
+        if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+      }
     } catch (_) {}
     this.setLoading(0, label || '准备加载…');
   }
 
   hideLoader() {
     this.el.loader.classList.add('gone');
-    setTimeout(() => {
-      this.el.loader.style.display = 'none';
-      try { this.el.loaderVideo && this.el.loaderVideo.pause(); } catch (_) {}
-    }, 620);
+    try { this.el.loaderVideo && this.el.loaderVideo.pause(); } catch (_) {}
+    setTimeout(() => { this.el.loader.style.display = 'none'; }, 620);
   }
 
   /** 短提示气泡 */
