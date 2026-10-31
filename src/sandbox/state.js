@@ -35,6 +35,8 @@ export function createSandboxState() {
     parryDrill: false,
     fps: 0,
     lastCommand: '',
+    blackboxDownloadStatus: '',
+    blackboxSubmitStatus: '',
   };
 }
 

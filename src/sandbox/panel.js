@@ -31,7 +31,7 @@ export function setupSandboxPanel({ root, state, onAction, onChange, recorder = 
       <button type="button" data-sandbox-action="removeDummy">移除练习木桩</button>
     </div>
     <div class="sandbox-heading">智能狐黑匣子（Beta）</div>
-    <div class="test-actions sandbox-actions"><button type="button" data-sandbox-action="captureAnomaly" id="sandboxCaptureAnomaly">一键捕获智能狐异常</button></div>
+    <div class="test-actions sandbox-actions"><button type="button" data-sandbox-action="captureAnomaly" id="sandboxCaptureAnomaly">一键捕获智能狐异常</button><button type="button" data-sandbox-action="retryBlackbox" id="sandboxRetryBlackbox" disabled>重试下载异常包</button></div>
     <div id="sandboxBlackboxStatus" aria-live="polite">自动保留最近 20 秒；点击后继续记录 5 秒</div>
     <div class="sandbox-heading">操作录制（JSON，不是视频）</div>
     <div class="test-actions sandbox-actions">
@@ -95,8 +95,15 @@ export function setupSandboxPanel({ root, state, onAction, onChange, recorder = 
         summary.hidden = !state.lastRecordingSummary;
       }
       const blackboxStatus = section.querySelector('#sandboxBlackboxStatus');
+      const retryBlackbox = section.querySelector('#sandboxRetryBlackbox');
       const bb = blackbox?.status?.(game.totalTime);
-      if (blackboxStatus && bb) blackboxStatus.textContent = bb.pending ? '已捕获前 20 秒 · 正在记录后 5 秒' : bb.ready ? '异常包已生成，可在本机下载' : '自动保留最近 20 秒；点击后继续记录 5 秒';
+      if (retryBlackbox) retryBlackbox.disabled = !bb?.ready;
+      if (blackboxStatus && bb) {
+        blackboxStatus.textContent = bb.pending ? '已捕获前 20 秒 · 正在记录后 5 秒'
+          : state.blackboxDownloadStatus === 'failed' ? '记录完成 · 下载失败，可点击“重试下载异常包”'
+            : state.blackboxSubmitStatus === 'queued' ? '记录完成 · 提交失败，已暂存本机并等待联网重试'
+              : bb.ready ? '异常包已生成，可在本机下载' : '自动保留最近 20 秒；点击后继续记录 5 秒';
+      }
       const debug = section.querySelector('#sandboxDebug');
       const badge = document.getElementById('sandboxGodBadge');
       if (badge) badge.style.display = state.godMode ? 'block' : 'none';

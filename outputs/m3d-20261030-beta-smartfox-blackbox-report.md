@@ -77,4 +77,38 @@ These are synthetic SVG renders from recorded trajectory fixtures, not real user
 
 Replay is intentionally limited to the Beta free sandbox SmartFox scenario and the same build/update path. It does not guarantee arbitrary-level replay, arbitrary-build compatibility, cross-browser bit identity, or physical-device behavior. The first version exports JSON/SVG evidence and does not require video. Detector findings are heuristics with configurable thresholds and require human review; synthetic fixtures are labeled and cannot be treated as observed player anomalies. This feature instruments and reproduces behavior; it does not claim to make foxes smarter or change AI balance.
 
-Commit: exact final hash is returned in the delivery message; this report is included in that local commit.
+Base SHA: `e1d6c0774cb7af387fd9e7c2c6559f8c5b388d8e`
+
+Commit: `0becec9` (local only; push/deploy not executed).
+
+
+## Rev58 用户实测缺陷返工（2026-10-31）
+
+### 复现与根因证据
+
+用户现场本次没有生成记录：下载目录无 `sf-*.json`/SmartFox 异常包，浏览器离线暂存无 smartfox black-box 条目，反馈服务器最后写入仍为 2026-10-26（7 条旧反馈，smartfox-anomaly_count=0）。该现场证据未用 synthetic fixture 冒充。
+
+在修复前 rev58 的 `finalizeCapture()` 上构造明确 `synthetic:true` 的最大负载（1800 frames + 1800 input + 5000 events，原始字段各约 350 bytes，包明显超过 2 MiB），测得 finalize 约 **13,849 ms**，完成期间反复 `JSON.stringify`、`filter`、`analyzeBlackBox`，并出现约 38 MB heap 增长；这是逐条 shift 的 O(n²) 主线程阻塞机制。较轻负载（约 600-byte telemetry）也测得 640 ms。问题不是单纯缺少 HUD 提示：重复序列化循环可阻塞 renderer，导致 post5 后无法及时 ready/export。
+
+### 修复
+
+- `finalizeCapture()` 先分析一次，再按时间顺序以有界二分裁剪候选数据，仅在最终必要时做极少量 fallback 裁剪；保持 format/version/schema、pre20/post5、脱敏及 2 MiB/1800 frames/5000 events 限制，不通过清空数据或关闭分析达标。
+- 完成阶段使用幂等 guard，连续点击不会重复 finalize/export。
+- 正常 tick 完成后明确提示“记录完成，可下载智能狐异常包”；下载失败不丢 `lastPackage`，面板提供“重试下载异常包”；反馈失败/超时提示本机保留并沿用离线队列自动重试。
+- 新增最坏负载、完成状态和重复 capture 回归测试。
+
+### 性能与契约证据
+
+同一 synthetic 最坏负载修复后 finalize **约 62 ms**（本次测试再次运行约 87 ms，均 <1000 ms），最终 JSON **约 2,096,738 bytes**，仍保留 431 frames、433 input、1801 events，非空且分析仍执行。原始上限未放宽。
+
+命令与结果：
+
+- 分别对 `src/main.js`、`src/sandbox/smartfox-blackbox.mjs`、`src/sandbox/panel.js`、`src/sandbox/state.js`、`tools/test-smartfox-blackbox.mjs` 执行 `node --check`：通过。
+- `outputs/m3d-20261030-beta-smartfox-blackbox/finalize-benchmark.json`：synthetic 前后 benchmark 记录，明确非用户证据。
+- Chrome 147 实际 Beta sandbox 页面：点击后 6.9 秒附近 `status.ready=true` 且界面显示“异常包已生成，可在本机下载”；主线程/页面持续响应。renderer 为 WebGL2 + ANGLE SwiftShader（软件渲染，非硬件 GPU）。未完成下载文件落盘/哈希核验及显式下载失败重试实测，相关行为仅由 fail-soft 单测与代码路径验证。
+- 浏览器首次 run 使用 sandbox 页面时确认计时器因冻结在 0.1 秒步进，造成等待 5 秒逻辑时间超过 9 秒墙钟；现以捕获墙钟 post5 到期兜底，正常更新/tick 中 finalize（不改游戏 timer）。
+- `node tools/test-smartfox-blackbox.mjs`：**9 pass / 0 fail / 0 skip**。
+- `node tools/run-node-tests.cjs`：**94 pass / 0 fail / 22 browser/CDP skipped**；skip 不计通过，较 rev58 基线 93/93 增加 1 项。
+- `git diff --check`：通过。
+
+真实浏览器/实际 Beta sandbox 页面已验证完成状态与响应性（软件渲染）；实际下载文件落盘、大小/哈希及下载失败后的浏览器重试仍未验证。用户现场仍是失败证据，修复后的 synthetic/browser 测试不能替代用户实测。未执行 push/deploy。

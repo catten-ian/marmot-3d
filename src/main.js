@@ -572,6 +572,30 @@ const sandboxEnterHooks = [];
 const sandboxState = createSandboxState();
  sandboxState.smartPack = createSmartPack(IS_BETA ? { window: BETA_TUNE.smartPackWindow, spacing: BETA_TUNE.smartPackSpacing, slotSpacing: BETA_TUNE.smartPackSlotSpacing } : undefined);
 if (SANDBOX_MODE) sandboxState.active = true;
+
+function finishSmartFoxPackage(pkg) {
+  if (!pkg || pkg === lastSmartFoxBlackBox) return false;
+  lastSmartFoxBlackBox = pkg;
+  const exported = exportBlackBoxLocal(pkg);
+  sandboxState.blackboxDownloadStatus = exported.ok ? 'ok' : 'failed';
+  hud.say(exported.ok ? '记录完成，可下载智能狐异常包' : '记录完成；下载未成功，可点击“重试下载异常包”', 3.2);
+  submitFeedback({ type: 'smartfox-anomaly', description: '', blackbox: pkg }, { endpoint: FEEDBACK.endpoint }).then((result) => {
+    sandboxState.blackboxSubmitStatus = result?.ok ? 'ok' : result?.queued ? 'queued' : 'failed';
+    if (!result?.ok) hud.say(result?.queued ? '异常包已保留在本机，联网后自动重试提交' : '异常包已保留在本机，提交失败；可稍后重试', 3.2);
+  }).catch(() => {
+    sandboxState.blackboxSubmitStatus = 'failed';
+    hud.say('异常包已保留在本机，提交失败；可稍后重试', 3.2);
+  });
+  return true;
+}
+
+function retrySmartFoxDownload() {
+  if (!lastSmartFoxBlackBox) return false;
+  const exported = exportBlackBoxLocal(lastSmartFoxBlackBox);
+  sandboxState.blackboxDownloadStatus = exported.ok ? 'ok' : 'failed';
+  hud.say(exported.ok ? '异常包已重新导出' : '重试下载仍失败；记录仍保留在本机', 2.8);
+  return exported.ok;
+}
 const TEST_LOG_LIMIT = 2000;
 const testState = { godMode: TEST_MODE, freezeTimer: TEST_MODE };
 const testLogs = [];
@@ -2439,7 +2463,7 @@ function update(dt) {
   if (smartFoxBlackBox) {
     smartFoxBlackBox.recordInput({ keys: Array.from(keys).slice(0, 32), touchAxes: controller.touchAxes, sprint: isSprintingNow(), attack: !!attackCharge.held, position: { x: controller.position.x, z: controller.position.z }, yaw: controller.bodyYaw }, game.totalTime);
     const completed = smartFoxBlackBox.tick(game.totalTime);
-    if (completed) { lastSmartFoxBlackBox = completed; exportBlackBoxLocal(completed); submitFeedback({ type: 'smartfox-anomaly', description: '', blackbox: completed }, { endpoint: FEEDBACK.endpoint }).catch(() => {}); }
+    if (completed) finishSmartFoxPackage(completed);
   }
   if (game.sandbox && sandboxPanelUI) sandboxPanelUI.update({ game, controller, foxes, fps: 1 / Math.max(dt, 0.0001) });
 
@@ -3008,8 +3032,10 @@ const sandboxPanelUI = setupSandboxPanel({
   onAction: (action) => {
     if (action === 'captureAnomaly') {
       const result = smartFoxBlackBox?.captureAnomaly({ description: '', initialSnapshot: { player: { ...game.player }, level: game.level, sandbox: true, foxes: foxes.filter((f) => !f.isSandboxDummy).map((f) => ({ id: f.slot ?? f.type, type: f.type, x: f.x, z: f.z, yaw: f.yaw, state: f.state, intent: f.intent, hp: f.hp })) } }, game.totalTime);
-      if (result?.package) { lastSmartFoxBlackBox = result.package; exportBlackBoxLocal(lastSmartFoxBlackBox); submitFeedback({ type: 'smartfox-anomaly', description: '', blackbox: lastSmartFoxBlackBox }, { endpoint: FEEDBACK.endpoint }).catch(() => {}); hud.say('智能狐异常包已导出', 2.5); }
+      if (result?.package) { finishSmartFoxPackage(result.package); }
       else hud.say('已捕获前 20 秒，继续记录 5 秒后导出', 2.5);
+    } else if (action === 'retryBlackbox') {
+      retrySmartFoxDownload();
     } else if (action === 'recordStart') {
       sandboxRecorder?.start(game.totalTime, { level: game.level + 1, sandbox: true, foxCount: foxes.length });
       sandboxState.lastRecordingSummary = '';

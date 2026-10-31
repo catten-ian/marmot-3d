@@ -9,6 +9,7 @@ export const BLACKBOX_POST_SECONDS = 5;
 export const BLACKBOX_MAX_FRAMES = 1800;
 export const BLACKBOX_MAX_EVENTS = 5000;
 export const BLACKBOX_MAX_BYTES = 2 * 1024 * 1024;
+const utf8Bytes = (text) => typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(text).byteLength : unescape(encodeURIComponent(text)).length;
 
 const finite = (n, fallback = 0) => Number.isFinite(Number(n)) ? Number(n) : fallback;
 const clean = (value, depth = 0) => {
@@ -81,12 +82,20 @@ export class SmartFoxBlackBoxRecorder {
   }
   captureAnomaly({ description = '', timestamp = new Date().toISOString(), initialSnapshot = this.initialSnapshot } = {}, t = this.now()) {
     if (this.capture?.status === 'pending') return { pending: true, package: null };
-    const at = this._t(t); this.capture = { status: 'pending', at, description: String(description || '').slice(0, 2000), timestamp, initialSnapshot: clean(initialSnapshot) };
+    if (this.capture?.status === 'complete' && this.lastPackage) return { pending: false, package: this.lastPackage, alreadyComplete: true };
+    const at = this._t(t); this.capture = { status: 'pending', at, wallAt: Date.now(), description: String(description || '').slice(0, 2000), timestamp, initialSnapshot: clean(initialSnapshot) };
     this.recordEvent('capture-requested', { description: this.capture.description }, t);
     if (this._t() - at >= BLACKBOX_POST_SECONDS) return this.finalizeCapture();
     return { pending: true, package: null, captureAt: at, finalizeAfter: at + BLACKBOX_POST_SECONDS };
   }
-  tick(t = this.now()) { if (this.capture?.status === 'pending' && this._t(t) >= this.capture.at + BLACKBOX_POST_SECONDS) return this.finalizeCapture(t); return null; }
+  tick(t = this.now()) {
+    if (this.capture?.status === 'pending') {
+      const logicalReady = this._t(t) >= this.capture.at + BLACKBOX_POST_SECONDS;
+      const wallReady = Number.isFinite(this.capture.wallAt) && Date.now() - this.capture.wallAt >= BLACKBOX_POST_SECONDS * 1000;
+      if (logicalReady || wallReady) return this.finalizeCapture(t);
+    }
+    return null;
+  }
   finalizeCapture(t = this.now()) {
     if (!this.capture) return this.lastPackage;
     const c = this.capture; const end = this._t(t); const start = Math.max(0, c.at - BLACKBOX_PRE_SECONDS);
@@ -99,18 +108,43 @@ export class SmartFoxBlackBoxRecorder {
       initialScene: clean(c.initialSnapshot || this.initialSnapshot) || {}, description: c.description || '',
       inputStream: this.input.filter(within), foxTrajectories: this.frames.filter((f) => within(f) && f.kind === 'fox'),
       frames: this.frames.filter(within), aiDecisions: this.events.filter((e) => within(e) && e.type === 'ai-decision'),
-      eventLog: this.events.filter(within), limits: { maxFrames: this.maxFrames, maxEvents: this.maxEvents },
+      eventLog: this.events.filter(within), limits: { maxFrames: this.maxFrames, maxEvents: this.maxEvents, maxBytes: BLACKBOX_MAX_BYTES },
     };
+    // Analyze once, then enforce the byte budget with a bounded binary search over
+    // time-ordered rows. The old implementation shifted one row at a time and
+    // re-serialized/re-analyzed the entire package on every iteration (quadratic).
     pkg.analysis = analyzeBlackBox(pkg);
-    while (JSON.stringify(pkg).length > BLACKBOX_MAX_BYTES && (pkg.frames.length || pkg.inputStream.length || pkg.eventLog.length)) {
-      if (pkg.frames.length) pkg.frames.shift();
-      if (pkg.inputStream.length) pkg.inputStream.shift();
-      if (pkg.eventLog.length) pkg.eventLog.shift();
-      pkg.foxTrajectories = pkg.frames.filter((f) => f.kind === 'fox');
-      pkg.aiDecisions = pkg.eventLog.filter((e) => e.type === 'ai-decision');
-      pkg.analysis = analyzeBlackBox(pkg);
+    const sizeFor = (cut) => {
+      const candidate = { ...pkg,
+        inputStream: pkg.inputStream.slice(cut.input),
+        frames: pkg.frames.slice(cut.frames),
+        eventLog: pkg.eventLog.slice(cut.events),
+      };
+      candidate.foxTrajectories = candidate.frames.filter((f) => f.kind === 'fox');
+      candidate.aiDecisions = candidate.eventLog.filter((e) => e.type === 'ai-decision');
+      candidate.analysis = analyzeBlackBox(candidate);
+      return { candidate, size: utf8Bytes(JSON.stringify(candidate, null, 2)) };
+    };
+    let size = utf8Bytes(JSON.stringify(pkg, null, 2));
+    if (size > BLACKBOX_MAX_BYTES) {
+      const total = pkg.inputStream.length + pkg.frames.length + pkg.eventLog.length;
+      let lo = 0, hi = total;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        const ratio = total ? mid / total : 0;
+        const probe = sizeFor({ input: Math.floor(pkg.inputStream.length * ratio), frames: Math.floor(pkg.frames.length * ratio), events: Math.floor(pkg.eventLog.length * ratio) });
+        if (probe.size <= BLACKBOX_MAX_BYTES) { hi = mid - 1; } else { lo = mid; }
+      }
+      const cutRatio = total ? lo / total : 1;
+      const bounded = sizeFor({ input: Math.floor(pkg.inputStream.length * cutRatio), frames: Math.floor(pkg.frames.length * cutRatio), events: Math.floor(pkg.eventLog.length * cutRatio) });
+      pkg.inputStream = bounded.candidate.inputStream; pkg.frames = bounded.candidate.frames; pkg.eventLog = bounded.candidate.eventLog;
+      pkg.foxTrajectories = bounded.candidate.foxTrajectories; pkg.aiDecisions = bounded.candidate.aiDecisions; pkg.analysis = bounded.candidate.analysis; size = bounded.size;
+      while (size > BLACKBOX_MAX_BYTES && (pkg.frames.length || pkg.inputStream.length || pkg.eventLog.length)) {
+        if (pkg.frames.length) pkg.frames = pkg.frames.slice(1); else if (pkg.inputStream.length) pkg.inputStream = pkg.inputStream.slice(1); else pkg.eventLog = pkg.eventLog.slice(1);
+        pkg.foxTrajectories = pkg.frames.filter((f) => f.kind === 'fox'); pkg.aiDecisions = pkg.eventLog.filter((e) => e.type === 'ai-decision'); pkg.analysis = analyzeBlackBox(pkg); size = utf8Bytes(JSON.stringify(pkg, null, 2));
+      }
     }
-    pkg.limits.maxBytes = BLACKBOX_MAX_BYTES; this.lastPackage = pkg; this.capture = { ...c, status: 'complete', package: pkg }; return pkg;
+    this.lastPackage = pkg; this.capture = { ...c, status: 'complete', package: pkg }; return pkg;
   }
   status(t = this.now()) { return { active: true, pending: this.capture?.status === 'pending', ready: !!this.lastPackage, secondsSinceCapture: this.capture ? Math.max(0, this._t(t) - this.capture.at) : null }; }
 }
@@ -172,10 +206,16 @@ export function compareBlackBoxPackages(a, b, { replayA = null, replayB = null }
   return { sameCase: a?.caseId === b?.caseId, buildA: a?.build || {}, buildB: b?.build || {}, trace: compareReplayTraces(left, right), anomaliesA: a?.analysis?.anomalies || [], anomaliesB: b?.analysis?.anomalies || [], eventCountDelta: (b?.eventLog?.length || 0) - (a?.eventLog?.length || 0) };
 }
 
-export function exportBlackBoxLocal(pkg, { filename = null, download = true } = {}) {
+export function exportBlackBoxLocal(pkg, { filename = null, download = true, onError = null } = {}) {
   try {
+    if (!pkg || !pkg.caseId) throw new Error('missing black-box package');
     const json = JSON.stringify(pkg, null, 2);
+    if (utf8Bytes(json) > BLACKBOX_MAX_BYTES) throw new Error('black-box package exceeds 2 MiB');
     if (!download || typeof document === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined') return { ok: false, json, reason: 'no-browser-download' };
     const blob = new Blob([json], { type: 'application/json' }); const href = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = href; a.download = filename || `${pkg.caseId || 'smartfox-anomaly'}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(href), 1000); return { ok: true, json };
-  } catch (error) { return { ok: false, json: '', reason: String(error?.message || error) }; }
+  } catch (error) {
+    const reason = String(error?.message || error);
+    try { onError?.(reason); } catch (_) { /* export diagnostics are best-effort */ }
+    return { ok: false, json: '', reason };
+  }
 }

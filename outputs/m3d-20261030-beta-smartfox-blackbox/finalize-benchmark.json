@@ -1,0 +1,23 @@
+{
+  "synthetic": true,
+  "generatedAt": "2026-10-31T03:42:17.557Z",
+  "payload": {
+    "frames": 1800,
+    "input": 1800,
+    "events": 5000
+  },
+  "before": {
+    "finalizeMs": 13849,
+    "algorithm": "per-row shift + stringify + filter + analyze"
+  },
+  "after": {
+    "finalizeMs": 87.397,
+    "bytes": 2096121,
+    "maxBytes": 2097152,
+    "frames": 338,
+    "input": 340,
+    "events": 1417,
+    "analysisRetained": true
+  },
+  "note": "Synthetic performance evidence only; not user evidence."
+}

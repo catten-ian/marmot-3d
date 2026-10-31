@@ -63,3 +63,34 @@ test('same package replay produces repeatable trace and explicitly rejects unsup
 test('export failure is fail-soft and does not throw', () => { const old = globalThis.document; globalThis.document = { createElement() { throw new Error('disk full'); } }; assert.doesNotThrow(() => exportBlackBoxLocal({ caseId: 'x' })); globalThis.document = old; });
 
 test('A/B comparison reports build and trace differences', () => { const a = { caseId: 'c', build: { stamp: 'a' }, analysis: { logicTrace: [{ t: 0, intent: 'observe' }], anomalies: [] }, eventLog: [] }; const b = { caseId: 'c', build: { stamp: 'b' }, analysis: { logicTrace: [{ t: 0, intent: 'pounce' }], anomalies: [{ detector: 'x' }] }, eventLog: [{ type: 'x' }] }; const out = compareBlackBoxPackages(a, b); assert.equal(out.sameCase, true); assert.equal(out.trace.identical, false); assert.equal(out.eventCountDelta, 1); });
+
+
+test('worst-case bounded finalize stays under one second without dropping all data', () => {
+  const c = makeClock(); const r = new SmartFoxBlackBoxRecorder({ now: c.now, seed: 99 }); r.start();
+  for (let i = 0; i < 1800; i++) {
+    c.set(i / 60); r.recordInput({ blob: 'i'.repeat(350), index: i }, c.now());
+    r.recordFox({ id: 'F1', x: i * .01, z: i * .02, yaw: i % 3, blob: 'f'.repeat(350) }, c.now());
+  }
+  for (let i = 0; i < 5000; i++) r.recordEvent('synthetic-event', { blob: 'e'.repeat(350), index: i }, c.now());
+  r.captureAnomaly({}, c.now()); c.set(c.now() + BLACKBOX_POST_SECONDS);
+  const started = Date.now(); const pkg = r.tick(); const elapsed = Date.now() - started;
+  assert.ok(elapsed < 1000, `finalize took ${elapsed}ms`);
+  assert.ok(JSON.stringify(pkg).length <= BLACKBOX_MAX_BYTES);
+  assert.ok(pkg.frames.length > 0 && pkg.inputStream.length > 0 && pkg.eventLog.length > 0);
+  assert.equal(r.status().ready, true);
+});
+
+test('repeated capture is idempotent and does not refinalize', () => {
+  const c = makeClock(); const r = new SmartFoxBlackBoxRecorder({ now: c.now, seed: 5 }); r.start();
+  r.captureAnomaly({}, 0); c.set(5); const first = r.tick(); const again = r.captureAnomaly({}, 5);
+  assert.equal(again.package, first); assert.equal(again.alreadyComplete, true); assert.equal(r.tick(6), null); assert.equal(r.lastPackage, first);
+});
+
+test('wall-clock post window completes while a sandbox game clock is frozen', () => {
+  let wall = 1000; const original = Date.now; Date.now = () => wall;
+  try {
+    const r = new SmartFoxBlackBoxRecorder({ now: () => 0, seed: 6 }); r.start(); r.captureAnomaly({}, 0);
+    wall += BLACKBOX_POST_SECONDS * 1000; const pkg = r.tick(0);
+    assert.ok(pkg); assert.equal(r.status(0).ready, true); assert.equal(pkg.window.postSeconds, BLACKBOX_POST_SECONDS);
+  } finally { Date.now = original; }
+});
