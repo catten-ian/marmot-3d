@@ -283,15 +283,18 @@ function autoVerdantTier() {
     mobile, backend: rendererStatus.backend,
     deviceMemory: navigator.deviceMemory, hardwareConcurrency: navigator.hardwareConcurrency,
   });
-  if (requested) return requested;
-  // Auto chooses from the same complete tier set on touch and desktop.
+  if (requested) return guarded;
+  // Touch devices start on the complete low-tier scene. This keeps the same
+  // geometry, animation and render cadence while avoiding the medium-tier
+  // upload/startup cost on mobile WebViews. Users can still choose medium
+  // explicitly when clampVerdantTierForDevice() permits it.
   // 旧逻辑只看 deviceMemory/hardwareConcurrency：安卓 Chrome 普遍上报 8GB/8 核（deviceMemory
   // 上限就是 8），会被误分到 medium/high。
   // 20261027 起四档资源都已上传到火山 TOS（low/medium/high/ultra 全覆盖），任何档位都优先走
   // TOS（实测国内 17~37MB/s），不会再回源到经 Cloudflare 的慢服务器（约 1MB/s）。
   // 但 ultra 档包体 2.4GB、high 档 400MB+，移动端流量与耗时仍不现实，所以 auto 继续锁 low。
   // 玩家仍可在设置里手动选更高档；这里只修正 auto 的误判。
-  if (isTouchPrimary()) return rendererStatus.backend === 'webgpu' ? 'medium' : 'medium';
+  if (isTouchPrimary()) return 'low';
   const mem = Number(navigator.deviceMemory) || 4;
   const cores = Number(navigator.hardwareConcurrency) || 4;
   if (rendererStatus.backend === 'webgpu' && mem >= 16 && cores >= 8) return 'ultra';
