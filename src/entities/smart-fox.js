@@ -264,7 +264,11 @@ export class SmartFox extends Fox {
     this._intentCandidate = debounced.intent; this._intentHeld = debounced.held;
     intent = debounced.intent;
     if (IS_BETA && this._role === 'rest') intent = 'recover';
-    if (IS_BETA && this._role === 'interceptor') intent = 'feint';
+    if (IS_BETA && this._role === 'interceptor') intent = distance > BETA_TUNE.smartPounceApproachRadius ? 'approach' : 'observe';
+    // Every selected Beta attacker gets a real attack path; flankers may commit
+    // pounce/melee instead of being downgraded to a visual feint.
+    if (IS_BETA && this._role === 'flanker' && distance <= BETA_TUNE.smartPounceMaxDistance + 1.5
+      && this._recoverLock <= 0 && !this.pounceCommitted) intent = 'pounce';
     if (safe) intent = 'recover';
     const tracked = trackFeint({ repeats: this._feintRepeats, side: this._feintSide, prevIntent: this._feintPrevIntent }, intent,
       { side: (this.slot % 2 === 0 ? 1 : -1) });
@@ -443,7 +447,7 @@ export class SmartFox extends Fox {
           && this.staminaLocked <= 0
           && canSprint(this.stamina, FOX.vitals.pounceStaminaPerSec, SMART_POUNCE_TUNE.dashDuration)
           && this.stamina >= smartPounceStaminaReserve(FOX.vitals.pounceStaminaPerSec, SMART_POUNCE_TUNE)
-          && (!packContext || this._role === 'striker')
+          && (!packContext || this._role === 'striker' || this._role === 'flanker')
           && this._age >= this._cautiousUntil
           && this._evadeUntil <= 0
           && (!packContext?.coordinator || packContext.coordinator.canCommit(this.slot, this._age, this._smartState.coordination)),

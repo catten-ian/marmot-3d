@@ -548,13 +548,13 @@ export class Fox {
       // 旧口径（d088054 之前）：狐狸是被"打退/吓跑"而不是被杀。
       // startFleeing 跑出视野后 fleeing=false、mesh 隐藏并设置增援计时；
       // 这里在离场期间倒数，到点在出生点附近重新出现。首领一去不返（不倒数、不重生）。
-      const fate = defeatFate(this.type);
+      const fate = defeatFate(this.type, { betaOn: IS_BETA });
       this.mesh.visible = false;
       this.warn.visible = false;
       this.hpBar.visible = false;
       this.staminaBar.visible = false;
       if (fate.respawns) {
-        const cd = stepDefeatCooldown(this.type, this.respawn, dt);
+        const cd = stepDefeatCooldown(this.type, this.respawn, dt, { betaOn: IS_BETA });
         this.respawn = cd.respawn;
         if (cd.shouldRespawn && this.spawnPoint) {
           const [sx, sz] = this.spawnPoint;
@@ -725,6 +725,14 @@ export class Fox {
         const rp = this.restPoint;
         this.warn.visible = false;
         if (!rp) { this._exitRestSafe(); break; }
+        // A pursuing player invalidates a Beta smart shelter; reselect the
+        // farthest legal target instead of stopping nearby to heal.
+        if (IS_BETA && this.type === 'smart'
+          && Math.hypot(rp.x - p.x, rp.z - p.z) < BETA_TUNE.smartRestMinPlayerDistance) {
+          this.retreating = false;
+          this._enterRetreat(p, allBurrows);
+          break;
+        }
         const rdx = rp.x - this.x, rdz = rp.z - this.z;
         const distance = Math.hypot(rdx, rdz);
         if (distance < FOX.retreat.arriveRadius) { this._enterRestSafe('arrival'); break; }
@@ -738,7 +746,7 @@ export class Fox {
             break;
           }
         }
-        this._moveGround(rdx, rdz, FOX.retreat.speed, dt, allBurrows);
+        this._moveGround(rdx, rdz, (IS_BETA && this.type === 'smart' ? BETA_TUNE.smartRetreatSpeed : FOX.retreat.speed), dt, allBurrows);
         break;
       }
 
@@ -1023,7 +1031,9 @@ export class Fox {
     this.restPoint = chooseRestPoint({
       foxX: this.x, foxZ: this.z, playerX: p.x, playerZ: p.z,
       burrows, bounds: roamBounds(), obstacles: IS_BETA ? this._navigationObstacles(burrows) : [],
-    }, FOX.retreat);
+    }, IS_BETA && this.type === 'smart'
+      ? { ...FOX.retreat, betaSmartMinPlayerDistance: BETA_TUNE.smartRestMinPlayerDistance }
+      : FOX.retreat);
     this._retreatProgress = { elapsed: 0, stall: 0, lastDistance: Math.hypot(this.restPoint.x - this.x, this.restPoint.z - this.z) };
     this.retreatResolution = null;
     this.state = 'retreat';

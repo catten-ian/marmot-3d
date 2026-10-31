@@ -132,6 +132,30 @@ test('forcedRetreat：刚被打 → true；没被打过 → false；旧事 → f
   assert.equal(forcedRetreat({ lastHitAt: 5 }, { now: 10, window: 0.6 }), false); // 很久之前
 });
 
+test('assignRoles beta：两只健康狐都获得真实攻击位，撤退者不占位', () => {
+  const player = { x: 0, z: 0 };
+  const foxes = [mkFox(0, 3, 0), mkFox(1, 6, 0)];
+  const roles = assignRoles(foxes, player, {}, 0, { betaTeam: true });
+  const values = Object.values(roles).map((r) => r.role);
+  assert.equal(values.filter((r) => r === 'striker').length, 1);
+  assert.equal(values.filter((r) => r === 'flanker').length, 1);
+  assert.equal(values.filter((r) => r === 'interceptor').length, 0);
+  foxes[1].retreating = true;
+  const covered = assignRoles(foxes, player, {}, 1, { betaTeam: true });
+  assert.equal(covered[1].role, 'retreat');
+  assert.equal(covered[0].role, 'striker');
+});
+
+test('assignRoles beta：三只健康狐至少两只真实攻击，剩余才是拦截', () => {
+  const player = { x: 0, z: 0 };
+  const foxes = [mkFox(0, 3, 0), mkFox(1, 4, 0), mkFox(2, 5, 0)];
+  const roles = assignRoles(foxes, player, {}, 0, { betaTeam: true });
+  const values = Object.values(roles).map((r) => r.role);
+  assert.equal(values.filter((r) => r === 'striker').length, 1);
+  assert.equal(values.filter((r) => r === 'flanker').length, 1);
+  assert.equal(values.filter((r) => r === 'interceptor').length, 1);
+});
+
 test('assignRoles beta：健康排序、双攻击上限与拦截剩余狐', () => {
   const player = { x: 0, z: 0 };
   const foxes = [

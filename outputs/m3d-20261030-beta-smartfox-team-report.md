@@ -58,3 +58,62 @@ Result: `OK 90/90`. The repository harness skipped 22 browser/CDP tests because 
 
 - No live Chrome/CDP evidence was available because the existing harness detected no Chrome session; browser tests are explicitly recorded as skipped by `tools/run-node-tests.cjs`.
 - No push, deployment, public shell, Caddy/systemd, or version-stamp changes were made.
+
+## 2026-10-31 follow-up rework (rev58 base)
+
+- User goal: Beta SmartFox teammates must actively reinforce/attack during a player fight; a retreating fox must leave quickly to a genuinely distant safe rest point under teammate pressure; a defeated Beta SmartFox must remain dead for the current run.
+- Base SHA: `e1d6c0774cb7af387fd9e7c2c6559f8c5b388d8e` (rev58).
+- Modified files: `src/core/fox-motion.js`, `src/core/beta-tuning.js`, `src/entities/fox.js`, `src/entities/smart-fox.js`, `src/entities/smart-fox-core.mjs`, `tools/test-fox-repel.cjs`, `tools/test-fox-tactics.cjs`, and this report.
+
+### Behavior changes
+
+- Beta pack attacker budget now opens at two eligible foxes, capped at two attackers. In a two-fox encounter the roles are `striker` + `flanker`; with three healthy foxes at least those two roles are assigned and only surplus members become `interceptor`. Retreating, dead, rest, and depleted foxes are excluded from attack slots.
+- Beta flankers are mapped to a real `pounce`/melee path and are admitted by the pounce commit gate. Interceptors are no longer forced into `feint`; they approach/observe as pressure while attack slots remain reserved for healthy attackers. The existing coordinator commit window remains in place.
+- `defeatFate`/`stepDefeatCooldown` accept a beta guard. Beta `smart` has `respawns:false`; stable/dev and normal/pup/fast/heavy retain their prior respawn contract.
+- Beta SmartFox retreat tuning uses runtime consumers `beta.smartRestMinPlayerDistance = 60` and `beta.smartRetreatSpeed = 10.5`. Rest-point selection evaluates legal burrow/boundary candidates by player distance, preserves roam bounds and obstacle clearance, returns the farthest reachable fallback when 60m is not attainable, and records `playerDistance`/`reachableMaxPlayerDistance` on fallback data. If the player makes the target unsafe during retreat, a new legal far target is selected. HP recovery remains confined to `rest_safe`.
+
+### Validation
+
+All changed JS/MJS files passed:
+
+```text
+node --check src/core/fox-motion.js
+node --check src/core/beta-tuning.js
+node --check src/entities/fox.js
+node --check src/entities/smart-fox.js
+node --check src/entities/smart-fox-core.mjs
+```
+
+Focused deterministic tests:
+
+```text
+node tools/test-fox-repel.cjs                  # 20/20 passed
+node tools/test-fox-tactics.cjs                # 15/15 passed
+node tools/test-beta-tuning-audit-remainders.mjs # 4/4 passed
+node tools/test-beta-tuning-defects.mjs        # 5/5 passed
+node tools/test-fox-tuning.cjs                 # 7/7 passed
+node tools/test-smart-fox-closed-loop.mjs      # 26/26 passed
+node tools/test-smart-fox-melee.mjs            # 8/8 passed
+node tools/test-smart-fox-beta.mjs             # 26/26 passed
+node tools/test-fox-vitals.cjs                 # 11/11 passed
+node tools/test-fox-navigation.cjs             # passed
+node tools/test-beta-fox-ai.cjs                # passed
+```
+
+Full harness:
+
+```text
+node tools/run-node-tests.cjs
+```
+
+Result: `OK 94/94`; 22 browser/CDP tests were skipped because no Chrome/CDP session was available. No browser or hardware-GPU acceptance is claimed.
+
+```text
+git diff --check
+```
+
+Result: passed.
+
+- Evidence paths: `tools/test-fox-repel.cjs`, `tools/test-fox-tactics.cjs`, and harness output above; no synthetic browser play evidence was available.
+- Unfinished items: live browser verification of teammate attacks, distant retreat visibility, and post-death persistence could not run because Chrome/CDP was unavailable.
+- Push/deploy: not performed.

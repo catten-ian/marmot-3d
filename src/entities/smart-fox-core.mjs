@@ -636,7 +636,7 @@ export function assignFlankSlot(self, peers, slots) {
  * 粘性：`prev` 中未过 `holdTime` 的角色优先保留，避免每帧乱跳。
  */
 export const SMART_TEAM_TUNE = Object.freeze({
-  minFoxesForMultiAttackers: 3,
+  minFoxesForMultiAttackers: 2,
   maxAttackers: 2,
   restHpRatio: 0.42,
   restStaminaRatio: 0.2,

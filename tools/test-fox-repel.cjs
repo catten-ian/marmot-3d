@@ -79,6 +79,15 @@ test('chooseRestPoint：无可用洞穴 → 背离玩家方向，且在边界内
 });
 
 
+test('chooseRestPoint：Beta smart 远撤优先选择玩家 60m 外最远合法点', () => {
+  const rp = chooseRestPoint({
+    foxX: 5, foxZ: 5, playerX: 0, playerZ: 0,
+    burrows: [{ x: 62, z: 0, r: 2 }, { x: -40, z: 0, r: 2 }],
+    bounds: { hw: 74, hh: 44 }, obstacles: [],
+  }, { ...R, betaSmartMinPlayerDistance: 60 });
+  assert.ok(Math.hypot(rp.x, rp.z) >= 60, `Beta smart rest point must be far: ${JSON.stringify(rp)}`);
+});
+
 test('chooseRestPoint：beta 导航余量把休息点放在洞穴避让带外', () => {
   const obstacles = [{ x: 18, z: 13, r: 5.65 }];
   const rp = chooseRestPoint({
@@ -159,12 +168,15 @@ test('exitRestSafe：回到 roam，repelCounted 复位（允许第二次撤退�
   assert.equal(again.justCounted, true);
 });
 
-test('defeatFate：普通狐打不死（会逃跑且增援），首领逃跑但一去不返', () => {
-  for (const type of ['normal', 'pup', 'fast', 'heavy', 'smart']) {
+test('defeatFate：普通狐仍会增援，Beta smart 与 boss 一去不返', () => {
+  for (const type of ['normal', 'pup', 'fast', 'heavy']) {
     const fate = defeatFate(type);
     assert.equal(fate.flees, true, `${type} 血量归零必须先逃跑离场`);
     assert.equal(fate.respawns, true, `${type} 过段时间应增援回来`);
   }
+  const smart = defeatFate('smart', { betaOn: true });
+  assert.equal(smart.flees, true);
+  assert.equal(smart.respawns, false);
   const boss = defeatFate('boss');
   assert.equal(boss.flees, true);      // 首领也有可见逃跑过程
   assert.equal(boss.respawns, false); // 但一去不返
@@ -178,9 +190,9 @@ test('stepDefeatCooldown：普通狐离场后倒数到 0 → shouldRespawn；首
   cd = stepDefeatCooldown('normal', cd.respawn, 5); // 一次性走完
   assert.equal(cd.respawn, 0);
   assert.equal(cd.shouldRespawn, true);
-  // boss：无论推进多久都不倒数、不重生
-  for (let t = 0; t < 10; t++) {
-    const b = stepDefeatCooldown('boss', 99, 1);
+  // Beta smart 与 boss：无论推进多久都不倒数、不重生
+  for (const type of ['smart', 'boss']) for (let t = 0; t < 10; t++) {
+    const b = stepDefeatCooldown(type, 99, 1, { betaOn: true });
     assert.equal(b.shouldRespawn, false);
     assert.equal(b.respawn, 99);
   }

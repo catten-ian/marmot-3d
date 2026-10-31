@@ -72,6 +72,8 @@ export const BETA_TUNE = {
   smartRecoverStaminaRegenPerSec: 4.5,
   smartInterceptStaminaRegenPerSec: 2.5,
   smartRoamStaminaRegenPerSec: 1.2,
+  smartRestMinPlayerDistance: 60,
+  smartRetreatSpeed: 10.5,
   // —— 眩晕递减（仅 Beta）——
   stunDiminishWindow: 3.0,       // 上次施加/结束后，窗口内再次命中会递减
   stunDiminishFactor: 0.55,      // 每层眩晕时长倍率
