@@ -117,3 +117,20 @@ Result: passed.
 - Evidence paths: `tools/test-fox-repel.cjs`, `tools/test-fox-tactics.cjs`, and harness output above; no synthetic browser play evidence was available.
 - Unfinished items: live browser verification of teammate attacks, distant retreat visibility, and post-death persistence could not run because Chrome/CDP was unavailable.
 - Push/deploy: not performed.
+
+## 阶段 0：SmartFox 后台/runtime 收尾 checkpoint（2026-10-31）
+
+- 工作树/分支：`/home/fame/code/marmot3d/m3d-beta-smartfox-team-20261030` / `fix/beta-smartfox-team-20261030`
+- 阶段基线：`e9cb773798b340aa069e8ca96e150bdb64be00f6`
+- 变更范围：仅 Beta SmartFox 后台运行时、出生状态、体力/恢复/撤退读取与测试；未改 PAF、滤镜、黑匣子、rig/动画、public shell、`index-public.html`、线上 active、Caddy/systemd。
+- 独立后台组：`智能狐 · 生命/体力/恢复/撤退`，共 62 个 `beta.smart*` 参数，全部 `runtime` capability。已补齐扑击提交环爬行/对齐、团队提交窗口/间隔、意图去抖等此前遗漏项；默认值来自当前真实消费端。
+- 运行时路径：admin `beta.*` 值经 `runtimePayloadFromAdminConfig` → schemaVersion 1 payload → `sanitizeRuntimeValues`（有限数、非负、比例/上下限 clamp，合法 0 保留）→ active 配置；显式 `?betaConfig=` 覆盖 active，storage 仅作回退。SmartFox 构造时快照 `createSmartFoxTuning/createSmartFoxVitals/createSmartFoxRetreat`，普通狐继续读取共享 `FOX.vitals/FOX.retreat`。
+- 出生根因/修复：此前 `opts.hp` 同时承担上限和当前血量，导致生成后状态混淆；现在默认 `hp=maxHp`、`stamina=maxStamina`、锁定/连击/撤退/死亡均为清零/关闭，只有显式 `initialHp` 进入测试/回放语义并 clamp。新实例读取激活后的新快照，已有实例不半截热更新。
+- 浏览器证据（上一轮已生成，未重复矩阵）：`outputs/m3d-20261030-beta-smartfox-team/vitals-admin/admin-group.png`、`admin-activated.png`、`sandbox-spawn.png`、`state-assertions.json`、`active-config.local-only.json`、`commands.txt`。本地测试服务，未写线上配置；`WebGLRenderer` / WebGL 2.0 / ANGLE SwiftShader 软件渲染，console errors=0。断言覆盖后台保存激活、显式 URL、自定义上限满状态、首帧静置无异常 recover/retreat、多实例独立、真实受击消耗/漫游恢复/撤退阈值/远撤/安全回血/死亡不复活、扑击和近战消耗。
+
+验证结果：
+
+- 指定聚焦测试：admin 6/6；runtime 4/4；fox vitals 11/11；fox tactics 15/15；smart fox beta 26/26；fox tuning 7/7；新增 SmartFox vitals/runtime 10/10；机制文档 4/4。
+- `node tools/run-node-tests.cjs`：`OK 95/95`，22 个 browser/CDP 项按 harness 规则 skipped（需要 Chrome/CDP），不计为通过。
+- `git diff --check`：通过。
+- 阶段 0 checkpoint commit：待本节提交后记录；push/deploy：未执行。

@@ -7,6 +7,48 @@ import { BETA_TUNE } from './beta-tuning.js';
 export const RUNTIME_CONFIG_SCHEMA_VERSION = 1;
 export const RUNTIME_CONFIG_QUERY_KEY = 'betaConfig';
 
+// Key-specific runtime bounds complement the admin schema. They also protect
+// hand-written betaConfig URLs and old active configs, not just UI input.
+const POSITIVE_CAP = { smartMaxHp: [1, 40], smartMaxStamina: [1, 300] };
+const RATIO_KEYS = [
+  'smartRestHpRegenRatio', 'smartLowHpThreshold', 'smartSpeedMulAtZeroHp',
+  'smartDamageMulAtZeroHp', 'smartRetreatHpRatio', 'smartRetreatStaminaRatio',
+  'smartRestSafeHpRegenRatio', 'smartRestHealTarget',
+];
+const SMART_BOUNDS = {
+  ...POSITIVE_CAP,
+  smartPounceAimOffsetScale: [0, 1], smartPounceMinDistance: [1, 15],
+  smartPounceMaxDistance: [1, 20], smartPounceApproachRadius: [2, 10],
+  smartPounceObserveRadius: [4, 12], smartPounceRingTolerance: [.05, 1],
+  smartPounceRingCrawlSpeed: [0, 5], smartPounceAlignCreepSpeed: [0, 5],
+  smartPounceMemoryPenalty: [0, 1], smartPounceFatiguePenalty: [0, 1],
+  smartPounceHitRadiusCap: [1.7, 3], smartPounceLeadSeconds: [0, .5],
+  smartPounceMaxLeadDistance: [0, 3], smartPounceStrikeSpeed: [2, 25],
+  smartPounceStrikeTime: [.05, .8],
+  smartPackWindow: [0, 5], smartPackSpacing: [0, 2],
+  smartPackSlotSpacing: [0, .5], smartDebounceHold: [0, 3],
+  smartMeleeTriggerRange: [.5, 4], smartMeleeHitRange: [.3, 2.5],
+  smartMeleeWindupTime: [.2, .6], smartMeleeStrikeTime: [.1, .3],
+  smartMeleeRecoverTime: [.2, 1.5], smartMeleeCooldown: [.6, 4],
+  smartMeleeStrikeSpeed: [0, 5],
+  smartStalkStaminaPerSec: [0, 60], smartSprintStaminaPerSec: [0, 60],
+  smartPounceStaminaPerSec: [0, 80], smartPounceStaminaCost: [0, 100],
+  smartMeleeStaminaCost: [0, 100], smartPounceRecoverTime: [0, 3],
+  smartPounceCooldown: [0, 10], smartHitStaminaCost: [0, 40],
+  smartStaminaLockSeconds: [0, 10], smartRetreatHitStreak: [1, 20],
+  smartHitStreakDecay: [0, 30], smartRetreatArriveRadius: [.1, 10],
+  smartRetreatSpeed: [0, 30], smartRestSeconds: [0, 60],
+  smartRestMinPlayerDistance: [0, 120],
+  smartRestStaminaRegenPerSec: [0, 60], smartRecoverStaminaRegenPerSec: [0, 60],
+  smartInterceptStaminaRegenPerSec: [0, 60], smartRoamStaminaRegenPerSec: [0, 60],
+  smartTeamRestFatigue: [0, 1], smartTeamHealthyHpRatio: [0, 1],
+  smartTeamHealthyStaminaRatio: [0, 1], smartTeamHoldTime: [0, 10],
+  smartTeamSwitchCooldown: [0, 10],
+};
+SMART_BOUNDS.smartTeamRestHpRatio = [0, 1];
+SMART_BOUNDS.smartTeamRestStaminaRatio = [0, 1];
+for (const key of RATIO_KEYS) SMART_BOUNDS[key] = [0, 1];
+
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
 function safeSessionStorage() {
@@ -26,7 +68,9 @@ export function sanitizeRuntimeValues(values, base = BETA_TUNE) {
       const n = Number(value);
       if (typeof value !== 'number' || !Number.isFinite(n)) { warnings.push(`${key} 必须是有限数字`); continue; }
       // Runtime payloads must not smuggle negative/NaN physics values.
-      out[key] = Math.max(0, n);
+      const bounded = Math.max(0, n);
+      const bounds = SMART_BOUNDS[key];
+      out[key] = bounds ? Math.min(bounds[1], Math.max(bounds[0], bounded)) : bounded;
     } else { ignored.push(key); }
   }
   return { values: out, ignored, warnings };

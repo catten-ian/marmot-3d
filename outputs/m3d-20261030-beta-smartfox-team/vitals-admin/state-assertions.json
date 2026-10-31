@@ -1,0 +1,655 @@
+{
+  "adminEdit": {
+    "beta.smartMaxHp": {
+      "value": "8",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartMaxStamina": {
+      "value": "160",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartPounceStaminaCost": {
+      "value": "13.0",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartMeleeStaminaCost": {
+      "value": "5",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartHitStaminaCost": {
+      "value": "11.0",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartRoamStaminaRegenPerSec": {
+      "value": "6",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartRetreatHpRatio": {
+      "value": "0.8",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartRestMinPlayerDistance": {
+      "value": "70.0",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartRestSafeHpRegenRatio": {
+      "value": "0.2",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartRestHealTarget": {
+      "value": "0.8",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    },
+    "beta.smartRestSeconds": {
+      "value": "11.0",
+      "runtime": "运行时生效",
+      "group": "智能狐 · 生命/体力/恢复/撤退"
+    }
+  },
+  "adminActivation": {
+    "status": "已应用「vitals_qa」到全部 Beta 网站",
+    "saved": "vitals_qa"
+  },
+  "gameUrl": "http://127.0.0.1:8337/index.html?version=beta&sandbox=1&test=1&webgl=1&betaConfig=%257B%2522schemaVersion%2522%253A1%252C%2522values%2522%253A%257B%2522smartMaxHp%2522%253A8%252C%2522smartMaxStamina%2522%253A160%252C%2522smartStalkStaminaPerSec%2522%253A0%252C%2522smartSprintStaminaPerSec%2522%253A0%252C%2522smartPounceStaminaPerSec%2522%253A26%252C%2522smartPounceStaminaCost%2522%253A13%252C%2522smartMeleeStaminaCost%2522%253A5%252C%2522smartHitStaminaCost%2522%253A11%252C%2522smartRestStaminaRegenPerSec%2522%253A14%252C%2522smartRecoverStaminaRegenPerSec%2522%253A4.5%252C%2522smartInterceptStaminaRegenPerSec%2522%253A2.5%252C%2522smartRoamStaminaRegenPerSec%2522%253A6%252C%2522smartPounceRingCrawlSpeed%2522%253A1.1%252C%2522smartPounceAlignCreepSpeed%2522%253A0.75%252C%2522smartPackWindow%2522%253A1.2%252C%2522smartPackSpacing%2522%253A0.35%252C%2522smartPackSlotSpacing%2522%253A0.025%252C%2522smartDebounceHold%2522%253A0.25%252C%2522smartRestHpRegenRatio%2522%253A0.035%252C%2522smartRestSafeHpRegenRatio%2522%253A0.2%252C%2522smartRestHealTarget%2522%253A0.8%252C%2522smartStaminaLockSeconds%2522%253A1.2%252C%2522smartLowHpThreshold%2522%253A0.5%252C%2522smartSpeedMulAtZeroHp%2522%253A0.72%252C%2522smartDamageMulAtZeroHp%2522%253A0.6%252C%2522smartRetreatHpRatio%2522%253A0.8%252C%2522smartRetreatStaminaRatio%2522%253A0.25%252C%2522smartRetreatHitStreak%2522%253A4%252C%2522smartHitStreakDecay%2522%253A6%252C%2522smartRetreatSpeed%2522%253A10.5%252C%2522smartRetreatArriveRadius%2522%253A1.5%252C%2522smartRestSeconds%2522%253A11%252C%2522smartRestMinPlayerDistance%2522%253A70%252C%2522smartPounceRecoverTime%2522%253A0.45%252C%2522smartPounceCooldown%2522%253A1.5%252C%2522smartTeamRestHpRatio%2522%253A0.42%252C%2522smartTeamRestStaminaRatio%2522%253A0.2%252C%2522smartTeamRestFatigue%2522%253A0.86%252C%2522smartTeamHealthyHpRatio%2522%253A0.62%252C%2522smartTeamHealthyStaminaRatio%2522%253A0.35%252C%2522smartTeamHoldTime%2522%253A1.5%252C%2522smartTeamSwitchCooldown%2522%253A1.2%252C%2522smartPounceAimOffsetScale%2522%253A0%252C%2522smartPounceMinDistance%2522%253A4.2%252C%2522smartPounceMaxDistance%2522%253A6.2%252C%2522smartPounceApproachRadius%2522%253A5%252C%2522smartPounceObserveRadius%2522%253A7%252C%2522smartPounceRingTolerance%2522%253A0.28%252C%2522smartPounceMemoryPenalty%2522%253A0.18%252C%2522smartPounceFatiguePenalty%2522%253A0.12%252C%2522smartPounceHitRadiusCap%2522%253A1.7%252C%2522smartPounceLeadSeconds%2522%253A0.1%252C%2522smartPounceMaxLeadDistance%2522%253A0.65%252C%2522smartPounceStrikeSpeed%2522%253A10.8%252C%2522smartPounceStrikeTime%2522%253A0.21%252C%2522smartMeleeTriggerRange%2522%253A2.4%252C%2522smartMeleeHitRange%2522%253A1.55%252C%2522smartMeleeWindupTime%2522%253A0.25%252C%2522smartMeleeStrikeTime%2522%253A0.15%252C%2522smartMeleeRecoverTime%2522%253A0.45%252C%2522smartMeleeCooldown%2522%253A1.1%252C%2522smartMeleeStrikeSpeed%2522%253A2.4%252C%2522moveSpeedMul%2522%253A1.07%252C%2522sprintMoveCost%2522%253A5%252C%2522runMoveCost%2522%253A0.8%252C%2522flowerCount%2522%253A4%252C%2522grassSeconds%2522%253A0.6%252C%2522grazeCoreRadius%2522%253A1.2%252C%2522grazeHaloRadius%2522%253A3%252C%2522grazeRate%2522%253A0.55%252C%2522grassRegrowPerSec%2522%253A0.012%252C%2522grazeRegenPerSec%2522%253A8%252C%2522grazeMoveSpeedMul%2522%253A0.16%252C%2522mouthCapacity%2522%253A120%252C%2522chewPerSec%2522%253A5%252C%2522chewRunSpeedThreshold%2522%253A5.136%252C%2522chewRunRateRatio%2522%253A0.25%252C%2522mainBurrowChewPerSec%2522%253A12%252C%2522temporaryBurrowChewPerSec%2522%253A7.5%252C%2522flowerHpTotal%2522%253A18%252C%2522flowerStaminaTotal%2522%253A28%252C%2522flowerRecoverySeconds%2522%253A8%252C%2522companionFollowSpeed%2522%253A9.6%252C%2522companionFollowGap%2522%253A1.05%252C%2522grazeEyeDropExtra%2522%253A0.12%252C%2522thirdPersonGrazeDrop%2522%253A1.05%252C%2522lungeLockRange%2522%253A9%252C%2522stunDiminishWindow%2522%253A3%252C%2522stunDiminishFactor%2522%253A0.55%252C%2522bgmCombatLatchSeconds%2522%253A35%252C%2522stunDiminishFloor%2522%253A0.15%252C%2522stunDiminishResetSeconds%2522%253A4%252C%2522grazeImmediateShare%2522%253A0.35%252C%2522staminaFatThreshold%2522%253A0.6%252C%2522grazeConeHalfAngle%2522%253A1.0471975511965976%252C%2522lungeLockHalfAngle%2522%253A1.427996660722633%252C%2522flowerInstant%2522%253Atrue%257D%257D",
+  "renderer": {
+    "backend": "WebGLRenderer",
+    "webglVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "vendor": "Google Inc. (Google)",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "profile": {
+      "mobile": false,
+      "lowPower": false,
+      "maxPixelRatio": 2,
+      "pixelRatio": 1,
+      "shadows": true,
+      "shadowMapSize": 2048,
+      "antialias": true,
+      "qualityTier": 0,
+      "adaptive": {
+        "tier": 0,
+        "label": "native",
+        "basePixelRatio": 1,
+        "baseShadowMapSize": 2048,
+        "averageFrameMs": null,
+        "p95FrameMs": null
+      }
+    }
+  },
+  "spawn": {
+    "hp": 8,
+    "maxHp": 8,
+    "stamina": 160,
+    "maxStamina": 160,
+    "staminaLocked": 0,
+    "hitStreak": 0,
+    "retreating": false,
+    "state": "roam",
+    "dead": false,
+    "initialHpSource": "full",
+    "vitals": {
+      "maxHp": 8,
+      "maxStamina": 160,
+      "stalkStaminaPerSec": 0,
+      "sprintStaminaPerSec": 0,
+      "pounceStaminaPerSec": 26,
+      "pounceStaminaCost": 13,
+      "meleeStaminaCost": 5,
+      "pounceRecoverTime": 0.45,
+      "pounceCooldown": 1.5,
+      "restStaminaPerSec": 14,
+      "restHpRegenRatio": 0.035,
+      "hitStaminaCost": 11,
+      "staminaLockSeconds": 1.2,
+      "lowHpThreshold": 0.5,
+      "speedMulAtZeroHp": 0.72,
+      "damageMulAtZeroHp": 0.6
+    },
+    "retreat": {
+      "hpRatio": 0.8,
+      "staminaRatio": 0.25,
+      "hitStreak": 4,
+      "hitStreakDecay": 6,
+      "arriveRadius": 1.5,
+      "speed": 10.5,
+      "restSeconds": {
+        "smart": 11
+      },
+      "regenPerSec": 0.2,
+      "restHealTarget": 0.8
+    },
+    "restMin": 70,
+    "hpFill": 1,
+    "staminaFill": 1
+  },
+  "idle": [
+    {
+      "frame": 0,
+      "hp": 8,
+      "stamina": 160,
+      "state": "roam",
+      "intent": "observe",
+      "retreating": false
+    },
+    {
+      "frame": 299,
+      "hp": 8,
+      "stamina": 160,
+      "state": "roam",
+      "intent": "approach",
+      "retreating": false
+    }
+  ],
+  "multi": [
+    {
+      "hp": 5,
+      "maxHp": 8,
+      "stamina": 17,
+      "maxStamina": 160
+    },
+    {
+      "hp": 8,
+      "maxHp": 8,
+      "stamina": 160,
+      "maxStamina": 160
+    }
+  ],
+  "behavior": {
+    "beforeHit": 160,
+    "afterHit": 149,
+    "hitCost": 11,
+    "beforeRegen": 149,
+    "afterRegen": 155,
+    "regen": 6,
+    "retreat": {
+      "state": "retreat",
+      "retreating": true,
+      "restPoint": {
+        "x": -70,
+        "z": -40,
+        "playerDistance": 80.62257748298549,
+        "preferred": false
+      },
+      "min": 70,
+      "hpRatio": 0.75,
+      "threshold": 0.8
+    },
+    "safeRest": {
+      "hp": 3.6,
+      "maxHp": 8,
+      "timer": 10,
+      "state": "rest_safe"
+    },
+    "death": {
+      "hp": 0,
+      "state": "dead",
+      "retreating": false,
+      "fleeing": false,
+      "respawn": 0
+    }
+  },
+  "actionCosts": {
+    "pounceBefore": 100,
+    "pounceAfter": 87,
+    "pounceCost": 13,
+    "pounceConfigured": 13,
+    "meleeConfigured": 5,
+    "meleeAfter": 95,
+    "meleePhase": "strike",
+    "meleeJustStarted": true
+  },
+  "hotSpawn": {
+    "old": {
+      "maxHp": 8,
+      "maxStamina": 160
+    },
+    "fresh": {
+      "hp": 10,
+      "maxHp": 10,
+      "stamina": 200,
+      "maxStamina": 200
+    }
+  },
+  "consoleErrors": [],
+  "assertions": {
+    "adminGroupAndRuntime": {
+      "pass": true,
+      "detail": {
+        "beta.smartMaxHp": {
+          "value": "8",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartMaxStamina": {
+          "value": "160",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartPounceStaminaCost": {
+          "value": "13.0",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartMeleeStaminaCost": {
+          "value": "5",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartHitStaminaCost": {
+          "value": "11.0",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartRoamStaminaRegenPerSec": {
+          "value": "6",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartRetreatHpRatio": {
+          "value": "0.8",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartRestMinPlayerDistance": {
+          "value": "70.0",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartRestSafeHpRegenRatio": {
+          "value": "0.2",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartRestHealTarget": {
+          "value": "0.8",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        },
+        "beta.smartRestSeconds": {
+          "value": "11.0",
+          "runtime": "运行时生效",
+          "group": "智能狐 · 生命/体力/恢复/撤退"
+        }
+      }
+    },
+    "adminSavedAndActivatedLocally": {
+      "pass": true,
+      "detail": {
+        "status": "已应用「vitals_qa」到全部 Beta 网站",
+        "saved": "vitals_qa"
+      }
+    },
+    "localActiveContainsValues": {
+      "pass": true,
+      "detail": {
+        "smartMaxHp": 8,
+        "smartMaxStamina": 160,
+        "smartStalkStaminaPerSec": 0,
+        "smartSprintStaminaPerSec": 0,
+        "smartPounceStaminaPerSec": 26,
+        "smartPounceStaminaCost": 13,
+        "smartMeleeStaminaCost": 5,
+        "smartHitStaminaCost": 11,
+        "smartRestStaminaRegenPerSec": 14,
+        "smartRecoverStaminaRegenPerSec": 4.5,
+        "smartInterceptStaminaRegenPerSec": 2.5,
+        "smartRoamStaminaRegenPerSec": 6,
+        "smartPounceRingCrawlSpeed": 1.1,
+        "smartPounceAlignCreepSpeed": 0.75,
+        "smartPackWindow": 1.2,
+        "smartPackSpacing": 0.35,
+        "smartPackSlotSpacing": 0.025,
+        "smartDebounceHold": 0.25,
+        "smartRestHpRegenRatio": 0.035,
+        "smartRestSafeHpRegenRatio": 0.2,
+        "smartRestHealTarget": 0.8,
+        "smartStaminaLockSeconds": 1.2,
+        "smartLowHpThreshold": 0.5,
+        "smartSpeedMulAtZeroHp": 0.72,
+        "smartDamageMulAtZeroHp": 0.6,
+        "smartRetreatHpRatio": 0.8,
+        "smartRetreatStaminaRatio": 0.25,
+        "smartRetreatHitStreak": 4,
+        "smartHitStreakDecay": 6,
+        "smartRetreatSpeed": 10.5,
+        "smartRetreatArriveRadius": 1.5,
+        "smartRestSeconds": 11,
+        "smartRestMinPlayerDistance": 70,
+        "smartPounceRecoverTime": 0.45,
+        "smartPounceCooldown": 1.5,
+        "smartTeamRestHpRatio": 0.42,
+        "smartTeamRestStaminaRatio": 0.2,
+        "smartTeamRestFatigue": 0.86,
+        "smartTeamHealthyHpRatio": 0.62,
+        "smartTeamHealthyStaminaRatio": 0.35,
+        "smartTeamHoldTime": 1.5,
+        "smartTeamSwitchCooldown": 1.2,
+        "smartPounceAimOffsetScale": 0,
+        "smartPounceMinDistance": 4.2,
+        "smartPounceMaxDistance": 6.2,
+        "smartPounceApproachRadius": 5,
+        "smartPounceObserveRadius": 7,
+        "smartPounceRingTolerance": 0.28,
+        "smartPounceMemoryPenalty": 0.18,
+        "smartPounceFatiguePenalty": 0.12,
+        "smartPounceHitRadiusCap": 1.7,
+        "smartPounceLeadSeconds": 0.1,
+        "smartPounceMaxLeadDistance": 0.65,
+        "smartPounceStrikeSpeed": 10.8,
+        "smartPounceStrikeTime": 0.21,
+        "smartMeleeTriggerRange": 2.4,
+        "smartMeleeHitRange": 1.55,
+        "smartMeleeWindupTime": 0.25,
+        "smartMeleeStrikeTime": 0.15,
+        "smartMeleeRecoverTime": 0.45,
+        "smartMeleeCooldown": 1.1,
+        "smartMeleeStrikeSpeed": 2.4
+      }
+    },
+    "explicitUrlSpawnFullCustom": {
+      "pass": true,
+      "detail": {
+        "hp": 8,
+        "maxHp": 8,
+        "stamina": 160,
+        "maxStamina": 160,
+        "staminaLocked": 0,
+        "hitStreak": 0,
+        "retreating": false,
+        "state": "roam",
+        "dead": false,
+        "initialHpSource": "full",
+        "vitals": {
+          "maxHp": 8,
+          "maxStamina": 160,
+          "stalkStaminaPerSec": 0,
+          "sprintStaminaPerSec": 0,
+          "pounceStaminaPerSec": 26,
+          "pounceStaminaCost": 13,
+          "meleeStaminaCost": 5,
+          "pounceRecoverTime": 0.45,
+          "pounceCooldown": 1.5,
+          "restStaminaPerSec": 14,
+          "restHpRegenRatio": 0.035,
+          "hitStaminaCost": 11,
+          "staminaLockSeconds": 1.2,
+          "lowHpThreshold": 0.5,
+          "speedMulAtZeroHp": 0.72,
+          "damageMulAtZeroHp": 0.6
+        },
+        "retreat": {
+          "hpRatio": 0.8,
+          "staminaRatio": 0.25,
+          "hitStreak": 4,
+          "hitStreakDecay": 6,
+          "arriveRadius": 1.5,
+          "speed": 10.5,
+          "restSeconds": {
+            "smart": 11
+          },
+          "regenPerSec": 0.2,
+          "restHealTarget": 0.8
+        },
+        "restMin": 70,
+        "hpFill": 1,
+        "staminaFill": 1
+      }
+    },
+    "spawnCleanAndBarsFull": {
+      "pass": true,
+      "detail": {
+        "hp": 8,
+        "maxHp": 8,
+        "stamina": 160,
+        "maxStamina": 160,
+        "staminaLocked": 0,
+        "hitStreak": 0,
+        "retreating": false,
+        "state": "roam",
+        "dead": false,
+        "initialHpSource": "full",
+        "vitals": {
+          "maxHp": 8,
+          "maxStamina": 160,
+          "stalkStaminaPerSec": 0,
+          "sprintStaminaPerSec": 0,
+          "pounceStaminaPerSec": 26,
+          "pounceStaminaCost": 13,
+          "meleeStaminaCost": 5,
+          "pounceRecoverTime": 0.45,
+          "pounceCooldown": 1.5,
+          "restStaminaPerSec": 14,
+          "restHpRegenRatio": 0.035,
+          "hitStaminaCost": 11,
+          "staminaLockSeconds": 1.2,
+          "lowHpThreshold": 0.5,
+          "speedMulAtZeroHp": 0.72,
+          "damageMulAtZeroHp": 0.6
+        },
+        "retreat": {
+          "hpRatio": 0.8,
+          "staminaRatio": 0.25,
+          "hitStreak": 4,
+          "hitStreakDecay": 6,
+          "arriveRadius": 1.5,
+          "speed": 10.5,
+          "restSeconds": {
+            "smart": 11
+          },
+          "regenPerSec": 0.2,
+          "restHealTarget": 0.8
+        },
+        "restMin": 70,
+        "hpFill": 1,
+        "staminaFill": 1
+      }
+    },
+    "firstFrameAndFiveIdleSecondsNoRecoverOrRetreat": {
+      "pass": true,
+      "detail": [
+        {
+          "frame": 0,
+          "hp": 8,
+          "stamina": 160,
+          "state": "roam",
+          "intent": "observe",
+          "retreating": false
+        },
+        {
+          "frame": 299,
+          "hp": 8,
+          "stamina": 160,
+          "state": "roam",
+          "intent": "approach",
+          "retreating": false
+        }
+      ]
+    },
+    "multipleSpawnsDoNotShareState": {
+      "pass": true,
+      "detail": [
+        {
+          "hp": 5,
+          "maxHp": 8,
+          "stamina": 17,
+          "maxStamina": 160
+        },
+        {
+          "hp": 8,
+          "maxHp": 8,
+          "stamina": 160,
+          "maxStamina": 160
+        }
+      ]
+    },
+    "realHitCostUsesAdminValue": {
+      "pass": true,
+      "detail": {
+        "beforeHit": 160,
+        "afterHit": 149,
+        "hitCost": 11,
+        "beforeRegen": 149,
+        "afterRegen": 155,
+        "regen": 6,
+        "retreat": {
+          "state": "retreat",
+          "retreating": true,
+          "restPoint": {
+            "x": -70,
+            "z": -40,
+            "playerDistance": 80.62257748298549,
+            "preferred": false
+          },
+          "min": 70,
+          "hpRatio": 0.75,
+          "threshold": 0.8
+        },
+        "safeRest": {
+          "hp": 3.6,
+          "maxHp": 8,
+          "timer": 10,
+          "state": "rest_safe"
+        },
+        "death": {
+          "hp": 0,
+          "state": "dead",
+          "retreating": false,
+          "fleeing": false,
+          "respawn": 0
+        }
+      }
+    },
+    "realRoamRegenUsesAdminValue": {
+      "pass": true,
+      "detail": {
+        "beforeHit": 160,
+        "afterHit": 149,
+        "hitCost": 11,
+        "beforeRegen": 149,
+        "afterRegen": 155,
+        "regen": 6,
+        "retreat": {
+          "state": "retreat",
+          "retreating": true,
+          "restPoint": {
+            "x": -70,
+            "z": -40,
+            "playerDistance": 80.62257748298549,
+            "preferred": false
+          },
+          "min": 70,
+          "hpRatio": 0.75,
+          "threshold": 0.8
+        },
+        "safeRest": {
+          "hp": 3.6,
+          "maxHp": 8,
+          "timer": 10,
+          "state": "rest_safe"
+        },
+        "death": {
+          "hp": 0,
+          "state": "dead",
+          "retreating": false,
+          "fleeing": false,
+          "respawn": 0
+        }
+      }
+    },
+    "realRetreatThresholdAndFarPoint": {
+      "pass": true,
+      "detail": {
+        "state": "retreat",
+        "retreating": true,
+        "restPoint": {
+          "x": -70,
+          "z": -40,
+          "playerDistance": 80.62257748298549,
+          "preferred": false
+        },
+        "min": 70,
+        "hpRatio": 0.75,
+        "threshold": 0.8
+      }
+    },
+    "safeRestHealRateAndTarget": {
+      "pass": true,
+      "detail": {
+        "hp": 3.6,
+        "maxHp": 8,
+        "timer": 10,
+        "state": "rest_safe"
+      }
+    },
+    "deadDoesNotHealOrRespawn": {
+      "pass": true,
+      "detail": {
+        "hp": 0,
+        "state": "dead",
+        "retreating": false,
+        "fleeing": false,
+        "respawn": 0
+      }
+    },
+    "actualSmartFoxPounceCostUsesRuntime": {
+      "pass": true,
+      "detail": {
+        "pounceBefore": 100,
+        "pounceAfter": 87,
+        "pounceCost": 13,
+        "pounceConfigured": 13,
+        "meleeConfigured": 5,
+        "meleeAfter": 95,
+        "meleePhase": "strike",
+        "meleeJustStarted": true
+      }
+    },
+    "actualSmartFoxMeleeCostUsesRuntime": {
+      "pass": true,
+      "detail": {
+        "pounceBefore": 100,
+        "pounceAfter": 87,
+        "pounceCost": 13,
+        "pounceConfigured": 13,
+        "meleeConfigured": 5,
+        "meleeAfter": 95,
+        "meleePhase": "strike",
+        "meleeJustStarted": true
+      }
+    },
+    "newSpawnUsesNewValuesWithoutPartialHotUpdate": {
+      "pass": true,
+      "detail": {
+        "old": {
+          "maxHp": 8,
+          "maxStamina": 160
+        },
+        "fresh": {
+          "hp": 10,
+          "maxHp": 10,
+          "stamina": 200,
+          "maxStamina": 200
+        }
+      }
+    },
+    "consoleErrorZero": {
+      "pass": true,
+      "detail": []
+    }
+  },
+  "localOnly": true,
+  "chrome": {
+    "binary": "/usr/bin/google-chrome",
+    "headless": true,
+    "softwareRendering": true
+  }
+}

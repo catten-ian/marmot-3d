@@ -69,7 +69,7 @@ test('眩晕递减：stable/dev 旁路保持原始时长', () => {
 
 test('智能狐生成点仅 Beta 显式传 hp=4，stable/dev 不改普通默认血量', async () => {
   const source = await (await import('node:fs/promises')).readFile(new URL('../src/main.js', import.meta.url), 'utf8');
-  assert.match(source, /new SmartFox\(scene, x, z, 0, slot, \{ lureBias: 1\.15, \.\.\.\(IS_BETA \? \{ hp: 4 \} : \{\}\) \}\)/);
+  assert.match(source, /new SmartFox\(scene, x, z, 0, slot, \{ lureBias: 1\.15 \}\)/);
   const config = await (await import('node:fs/promises')).readFile(new URL('../src/core/config.js', import.meta.url), 'utf8');
   assert.match(config, /normal:\s*\{[^}]*hp:\s*6/s);
 });

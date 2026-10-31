@@ -163,7 +163,7 @@ export function cancelSmartPounce(state) {
   s.pounceTime = 0;
   s.vx = 0; s.vz = 0;
   s.pounceStage = 'recover';
-  s.pounceStageTime = SMART_POUNCE_TUNE.recoverTime;
+  s.pounceStageTime = s.pounceRecoverTime ?? SMART_POUNCE_TUNE.recoverTime;
   s.intent = 'recover';
   return s;
 }
@@ -522,7 +522,7 @@ export function stepSmartMotion(state, target, dt = 1 / 60, intent = state.inten
     s.pounceCommitted = false;
     s.pounceStriking = false;
     s.pounceStage = 'recover';
-    s.pounceStageTime = SMART_POUNCE_TUNE.recoverTime;
+    s.pounceStageTime = s.pounceRecoverTime ?? SMART_POUNCE_TUNE.recoverTime;
     s.pounceCooldown = s.pounceCooldownDuration ?? .8;
     s.intent = 'recover';
     s.pounceJustEnded = true;

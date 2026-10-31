@@ -177,6 +177,75 @@ export function buildTuningEntries() {
   e.push(num('geometry.strike.segments', G_GEOMETRY, '攻击扇形圆弧分段数', 'src/systems/debug-volume-data.js', 'strikeVolumeGeometryData(segments 默认值)', 20, { min: 4, max: 128, step: 1 }));
   e.push(num('geometry.fox.defaultDashTime', G_GEOMETRY, '狐狸攻击缺省冲刺时长', 'src/systems/debug-volume-data.js', 'foxAttackGeometryData(dashTime 缺省值)', 0.32, { min: 0.05, max: 2, unit: 's' }));
 
+  const G_SMART = '智能狐 · 生命/体力/恢复/撤退';
+  // 独立 Beta SmartFox 运行时组：默认值来自真实消费端快照，普通狐不共享。
+  for (const [k, label, min, max, step, unit] of [
+    ['smartMaxHp', '生命上限（新生成默认满血）', 1, 40, 1, '生命'],
+    ['smartMaxStamina', '体力上限（新生成默认满体力）', 1, 300, 1, '体力'],
+    ['smartStalkStaminaPerSec', '潜行实际体力消耗', 0, 60, .5, '体力/s'],
+    ['smartSprintStaminaPerSec', '非扑击冲刺实际体力消耗', 0, 60, .5, '体力/s'],
+    ['smartPounceStaminaPerSec', '扑击冲刺阶段实际体力消耗', 0, 80, .5, '体力/s'],
+    ['smartPounceStaminaCost', '扑击命中段一次性体力消耗', 0, 100, 1, '体力'],
+    ['smartMeleeStaminaCost', '近战攻击段一次性体力消耗', 0, 100, 1, '体力'],
+    ['smartHitStaminaCost', '受击额外体力消耗', 0, 40, .5, '体力'],
+    ['smartRestStaminaRegenPerSec', '休息体力恢复速率', 0, 60, .5, '体力/s'],
+    ['smartRecoverStaminaRegenPerSec', 'recover/放弃恢复速率', 0, 60, .5, '体力/s'],
+    ['smartInterceptStaminaRegenPerSec', '拦截体力恢复速率', 0, 60, .5, '体力/s'],
+    ['smartRoamStaminaRegenPerSec', '普通/漫游体力恢复速率', 0, 60, .5, '体力/s'],
+    ['smartPounceRingCrawlSpeed', '扑击提交环爬行速度上限', 0, 5, .05, 'm/s'],
+    ['smartPounceAlignCreepSpeed', '扑击朝向微调速度上限', 0, 5, .05, 'm/s'],
+    ['smartPackWindow', '群体出击提交窗口', 0, 5, .05, 's'],
+    ['smartPackSpacing', '群体出击最小间隔', 0, 2, .01, 's'],
+    ['smartPackSlotSpacing', '群体槽位间隔增量', 0, .5, .005, 's'],
+    ['smartDebounceHold', '智能狐意图切换确认时间', 0, 3, .01, 's'],
+    ['smartRestHpRegenRatio', '普通休息回血比例', 0, 1, .005, '最大生命/s'],
+    ['smartRestSafeHpRegenRatio', '安全休息回血速率', 0, 1, .01, '最大生命/s'],
+    ['smartRestHealTarget', '安全休息回血目标', 0, 1, .01, '最大生命比例'],
+    ['smartStaminaLockSeconds', '体力耗尽锁定时间', 0, 10, .05, 's'],
+    ['smartLowHpThreshold', '低血影响阈值', 0, 1, .01, '生命比例'],
+    ['smartSpeedMulAtZeroHp', '零血速度倍率', 0, 1, .01, '×'],
+    ['smartDamageMulAtZeroHp', '零血伤害倍率', 0, 1, .01, '×'],
+    ['smartRetreatHpRatio', '低血撤退阈值', 0, 1, .01, '生命比例'],
+    ['smartRetreatStaminaRatio', '低体力撤退阈值', 0, 1, .01, '体力比例'],
+    ['smartRetreatHitStreak', '连续受击撤退阈值', 1, 20, 1, '次'],
+    ['smartHitStreakDecay', '连续受击衰减时间', 0, 30, .5, 's'],
+    ['smartRetreatSpeed', '撤退移动速度', 0, 30, .1, 'm/s'],
+    ['smartRetreatArriveRadius', '撤退休息点到达半径', .1, 10, .1, 'm'],
+    ['smartRestSeconds', '智能狐安全休息时长', 0, 60, .5, 's'],
+    ['smartRestMinPlayerDistance', '远撤最小玩家距离', 0, 120, 1, 'm'],
+    ['smartPounceRecoverTime', '扑击 recover 后摇', 0, 3, .05, 's'],
+    ['smartPounceCooldown', '扑击冷却（标准难度基准）', 0, 10, .1, 's'],
+    ['smartTeamRestHpRatio', '团队休整低血阈值', 0, 1, .01, '生命比例'],
+    ['smartTeamRestStaminaRatio', '团队休整体力阈值', 0, 1, .01, '体力比例'],
+    ['smartTeamRestFatigue', '团队休整疲劳阈值', 0, 1, .01, '疲劳比例'],
+    ['smartTeamHealthyHpRatio', '团队攻击位健康血量阈值', 0, 1, .01, '生命比例'],
+    ['smartTeamHealthyStaminaRatio', '团队攻击位健康体力阈值', 0, 1, .01, '体力比例'],
+    ['smartTeamHoldTime', '团队角色保持时间', 0, 10, .1, 's'],
+    ['smartTeamSwitchCooldown', '团队角色切换冷却', 0, 10, .1, 's'],
+  ]) e.push(num(`beta.${k}`, G_SMART, label, F_BETA, `BETA_TUNE.${k}`, BETA_TUNE[k], { min, max, step, unit }));
+  for (const [k, label, min, max, unit] of [
+    ['smartPounceAimOffsetScale', '扑击战术偏移倍率', 0, 1, '×'],
+    ['smartPounceMinDistance', '扑击最小提交距离', 1, 15, 'm'],
+    ['smartPounceMaxDistance', '扑击最大提交距离', 1, 20, 'm'],
+    ['smartPounceApproachRadius', '扑击接近停靠半径', 2, 10, 'm'],
+    ['smartPounceObserveRadius', '观察停靠半径', 4, 12, 'm'],
+    ['smartPounceRingTolerance', '提交环容差', .05, 1, 'm'],
+    ['smartPounceMemoryPenalty', '记忆抑制系数', 0, 1, ''],
+    ['smartPounceFatiguePenalty', '疲劳抑制系数', 0, 1, ''],
+    ['smartPounceHitRadiusCap', '扑击命中半径上限', 1.7, 3, 'm'],
+    ['smartPounceLeadSeconds', '移动目标提前量', 0, .5, 's'],
+    ['smartPounceMaxLeadDistance', '提前量距离上限', 0, 3, 'm'],
+    ['smartPounceStrikeSpeed', '扑击速度', 2, 25, 'm/s'],
+    ['smartPounceStrikeTime', '扑击位移时长', .05, .8, 's'],
+    ['smartMeleeTriggerRange', '近战触发距离', .5, 4, 'm'],
+    ['smartMeleeHitRange', '近战命中距离', .3, 2.5, 'm'],
+    ['smartMeleeWindupTime', '近战前摇', .2, .6, 's'],
+    ['smartMeleeStrikeTime', '近战攻击窗口', .1, .3, 's'],
+    ['smartMeleeRecoverTime', '近战 recover 后摇', .2, 1.5, 's'],
+    ['smartMeleeCooldown', '近战冷却', .6, 4, 's'],
+    ['smartMeleeStrikeSpeed', '近战短位移速度', 0, 5, 'm/s'],
+  ]) e.push(num(`beta.${k}`, G_SMART, label, F_BETA, `BETA_TUNE.${k}`, BETA_TUNE[k], { min, max, unit }));
+
   const G_BETA = 'Beta · 平衡';
   for (const [k, label, min, max, unit] of [
     ['moveSpeedMul', '移动速度倍率', 0.5, 2, ''],
@@ -215,27 +284,6 @@ export function buildTuningEntries() {
   e.push(num('beta.staminaFatThreshold', G_BETA, '体力转储备阈值', F_BETA, 'BETA_TUNE.staminaFatThreshold', BETA_TUNE.staminaFatThreshold, { min: 0, max: 0.99, toView: (v) => v * 100, toStore: (v) => v / 100, unit: '%' }));
   e.push(num('beta.grazeConeHalfAngle', G_BETA, '吃草锥半角', F_BETA, 'BETA_TUNE.grazeConeHalfAngle', BETA_TUNE.grazeConeHalfAngle, { min: 0, max: Math.PI, toView: deg, toStore: (v) => v * Math.PI / 180, unit: '°' }));
   e.push(num('beta.lungeLockHalfAngle', G_BETA, '扑击锁敌半角', F_BETA, 'BETA_TUNE.lungeLockHalfAngle', BETA_TUNE.lungeLockHalfAngle, { min: 0.05, max: Math.PI, toView: deg, toStore: (d) => d * Math.PI / 180, unit: '°' }));
-  e.push(num('beta.smartPounceAimOffsetScale', G_BETA, '智能狐扑击战术偏移倍率', F_BETA, 'BETA_TUNE.smartPounceAimOffsetScale', BETA_TUNE.smartPounceAimOffsetScale, { min: 0, max: 1, unit: '×' }));
-  e.push(num('beta.smartPounceMinDistance', G_BETA, '智能狐扑击最小提交距离', F_BETA, 'BETA_TUNE.smartPounceMinDistance', BETA_TUNE.smartPounceMinDistance, { min: 1, max: 15, unit: 'm' }));
-  e.push(num('beta.smartPounceMaxDistance', G_BETA, '智能狐扑击最大提交距离', F_BETA, 'BETA_TUNE.smartPounceMaxDistance', BETA_TUNE.smartPounceMaxDistance, { min: 1, max: 20, unit: 'm' }));
-  e.push(num('beta.smartPounceApproachRadius', G_BETA, '智能狐扑击接近停靠半径', F_BETA, 'BETA_TUNE.smartPounceApproachRadius', BETA_TUNE.smartPounceApproachRadius, { min: 2, max: 10, unit: 'm' }));
-  e.push(num('beta.smartPounceObserveRadius', G_BETA, '智能狐观察停靠半径', F_BETA, 'BETA_TUNE.smartPounceObserveRadius', BETA_TUNE.smartPounceObserveRadius, { min: 4, max: 12, unit: 'm' }));
-  e.push(num('beta.smartPounceRingTolerance', G_BETA, '智能狐提交环容差', F_BETA, 'BETA_TUNE.smartPounceRingTolerance', BETA_TUNE.smartPounceRingTolerance, { min: 0.05, max: 1, unit: 'm' }));
-  e.push(num('beta.smartPounceMemoryPenalty', G_BETA, '智能狐记忆抑制系数', F_BETA, 'BETA_TUNE.smartPounceMemoryPenalty', BETA_TUNE.smartPounceMemoryPenalty, { min: 0, max: 1 }));
-  e.push(num('beta.smartPounceFatiguePenalty', G_BETA, '智能狐疲劳抑制系数', F_BETA, 'BETA_TUNE.smartPounceFatiguePenalty', BETA_TUNE.smartPounceFatiguePenalty, { min: 0, max: 1 }));
-
-  e.push(num('beta.smartPounceHitRadiusCap', G_BETA, '智能狐扑击命中半径上限', F_BETA, 'BETA_TUNE.smartPounceHitRadiusCap', BETA_TUNE.smartPounceHitRadiusCap, { min: 1.7, max: 3, unit: 'm' }));
-  e.push(num('beta.smartPounceLeadSeconds', G_BETA, '智能狐移动目标提前量', F_BETA, 'BETA_TUNE.smartPounceLeadSeconds', BETA_TUNE.smartPounceLeadSeconds, { min: 0, max: 0.5, unit: 's' }));
-  e.push(num('beta.smartPounceMaxLeadDistance', G_BETA, '智能狐提前量距离上限', F_BETA, 'BETA_TUNE.smartPounceMaxLeadDistance', BETA_TUNE.smartPounceMaxLeadDistance, { min: 0, max: 3, unit: 'm' }));
-  e.push(num('beta.smartPounceStrikeSpeed', G_BETA, '智能狐扑击速度', F_BETA, 'BETA_TUNE.smartPounceStrikeSpeed', BETA_TUNE.smartPounceStrikeSpeed, { min: 2, max: 25, unit: 'm/s' }));
-  e.push(num('beta.smartPounceStrikeTime', G_BETA, '智能狐扑击位移时长', F_BETA, 'BETA_TUNE.smartPounceStrikeTime', BETA_TUNE.smartPounceStrikeTime, { min: 0.05, max: 0.8, unit: 's' }));
-  e.push(num('beta.smartMeleeTriggerRange', G_BETA, '智能狐近战触发距离', F_BETA, 'BETA_TUNE.smartMeleeTriggerRange', BETA_TUNE.smartMeleeTriggerRange, { min: 0.5, max: 4, unit: 'm' }));
-  e.push(num('beta.smartMeleeHitRange', G_BETA, '智能狐近战命中距离', F_BETA, 'BETA_TUNE.smartMeleeHitRange', BETA_TUNE.smartMeleeHitRange, { min: 0.3, max: 2.5, unit: 'm' }));
-  e.push(num('beta.smartMeleeWindupTime', G_BETA, '智能狐近战前摇', F_BETA, 'BETA_TUNE.smartMeleeWindupTime', BETA_TUNE.smartMeleeWindupTime, { min: 0.2, max: 0.6, unit: 's' }));
-  e.push(num('beta.smartMeleeStrikeTime', G_BETA, '智能狐近战攻击窗口', F_BETA, 'BETA_TUNE.smartMeleeStrikeTime', BETA_TUNE.smartMeleeStrikeTime, { min: 0.1, max: 0.3, unit: 's' }));
-  e.push(num('beta.smartMeleeRecoverTime', G_BETA, '智能狐近战收招', F_BETA, 'BETA_TUNE.smartMeleeRecoverTime', BETA_TUNE.smartMeleeRecoverTime, { min: 0.2, max: 1.5, unit: 's' }));
-  e.push(num('beta.smartMeleeCooldown', G_BETA, '智能狐近战冷却', F_BETA, 'BETA_TUNE.smartMeleeCooldown', BETA_TUNE.smartMeleeCooldown, { min: 0.6, max: 4, unit: 's' }));
-  e.push(num('beta.smartMeleeStrikeSpeed', G_BETA, '智能狐近战短位移速度', F_BETA, 'BETA_TUNE.smartMeleeStrikeSpeed', BETA_TUNE.smartMeleeStrikeSpeed, { min: 0, max: 5, unit: 'm/s' }));
   e.push(bool('beta.flowerInstant', G_BETA, '吃花立即完成', F_BETA, 'BETA_TUNE.flowerInstant', BETA_TUNE.flowerInstant));
 
   const G_BURROW = '洞穴与避难';
@@ -307,37 +355,33 @@ export function buildTuningEntries() {
     }
   }
 
-  const G_SMART = '狐狸 · 智能 AI 扑击';
-  e.push(num('smart.pounce.minDistance', G_SMART, '扑击最小距离', F_SMART, 'SMART_POUNCE.minDistance', SMART_POUNCE.minDistance, { min: 0.5, max: 15, unit: 'm' }));
-  e.push(num('smart.pounce.maxDistance', G_SMART, '扑击最大距离', F_SMART, 'SMART_POUNCE.maxDistance', SMART_POUNCE.maxDistance, { min: 1, max: 25, unit: 'm' }));
-  e.push(num('smart.pounce.maxAngle', G_SMART, '扑击最大角度', F_SMART, 'SMART_POUNCE.maxAngle', SMART_POUNCE.maxAngle, { min: 0.02, max: Math.PI / 2, toView: deg, toStore: (d) => d * Math.PI / 180, unit: '°' }));
-  e.push(num('smart.pounce.windup', G_SMART, '扑击前摇', F_SMART, 'SMART_POUNCE.windup', SMART_POUNCE.windup, { min: 0, max: 2, unit: 's' }));
-  e.push(num('smart.pounce.speed', G_SMART, '扑击速度', F_SMART, 'SMART_POUNCE.speed', SMART_POUNCE.speed, { min: 1, max: 25, unit: 'm/s' }));
-  e.push(num('smart.pounce.lockTime', G_SMART, '扑击锁定时长', F_SMART, 'SMART_POUNCE.lockTime', SMART_POUNCE.lockTime, { min: 0.1, max: 3, unit: 's' }));
-  e.push(num('smart.pounceCooldown', G_SMART, '扑击冷却', F_SMART, 'SMART_POUNCE_COOLDOWN', SMART_POUNCE_COOLDOWN, { min: 0, max: 5, unit: 's' }));
-  e.push(num('smart.recoverLock', G_SMART, '恢复锁定', F_SMART, 'RECOVER_LOCK', RECOVER_LOCK, { min: 0, max: 3, unit: 's' }));
+  const G_SMART_AI = '狐狸 · 智能 AI 扑击';
+  e.push(num('smart.pounce.minDistance', G_SMART_AI, '扑击最小距离', F_SMART, 'SMART_POUNCE.minDistance', SMART_POUNCE.minDistance, { min: 0.5, max: 15, unit: 'm' }));
+  e.push(num('smart.pounce.maxDistance', G_SMART_AI, '扑击最大距离', F_SMART, 'SMART_POUNCE.maxDistance', SMART_POUNCE.maxDistance, { min: 1, max: 25, unit: 'm' }));
+  e.push(num('smart.pounce.maxAngle', G_SMART_AI, '扑击最大角度', F_SMART, 'SMART_POUNCE.maxAngle', SMART_POUNCE.maxAngle, { min: 0.02, max: Math.PI / 2, toView: deg, toStore: (d) => d * Math.PI / 180, unit: '°' }));
+  e.push(num('smart.pounce.windup', G_SMART_AI, '扑击前摇', F_SMART, 'SMART_POUNCE.windup', SMART_POUNCE.windup, { min: 0, max: 2, unit: 's' }));
+  e.push(num('smart.pounce.speed', G_SMART_AI, '扑击速度', F_SMART, 'SMART_POUNCE.speed', SMART_POUNCE.speed, { min: 1, max: 25, unit: 'm/s' }));
+  e.push(num('smart.pounce.lockTime', G_SMART_AI, '扑击锁定时长', F_SMART, 'SMART_POUNCE.lockTime', SMART_POUNCE.lockTime, { min: 0.1, max: 3, unit: 's' }));
+  e.push(num('smart.pounceCooldown', G_SMART_AI, '扑击冷却', F_SMART, 'SMART_POUNCE_COOLDOWN', SMART_POUNCE_COOLDOWN, { min: 0, max: 5, unit: 's' }));
+  e.push(num('smart.recoverLock', G_SMART_AI, '恢复锁定', F_SMART, 'RECOVER_LOCK', RECOVER_LOCK, { min: 0, max: 3, unit: 's' }));
   for (const k of Object.keys(SMART_PHASE_MIN)) {
     const pl = { observe: '观察', approach: '接近', wind: '蓄力', pounce: '扑击', recover: '恢复' }[k] || k;
-    e.push(num(`smart.phaseMin.${k}`, G_SMART, `相位最短停留·${pl}`, F_SMART, `SMART_PHASE_MIN.${k}`, SMART_PHASE_MIN[k], { min: 0, max: 3, unit: 's' }));
+    e.push(num(`smart.phaseMin.${k}`, G_SMART_AI, `相位最短停留·${pl}`, F_SMART, `SMART_PHASE_MIN.${k}`, SMART_PHASE_MIN[k], { min: 0, max: 3, unit: 's' }));
   }
 
   for (const [k, value] of Object.entries(SMART_WEIGHTS))
-    e.push(num(`smart.weight.${k}`, G_SMART, `AI 意图权重·${k}`, F_SMART, `SMART_WEIGHTS.${k}`, value, { min: 0, max: 2 }));
+    e.push(num(`smart.weight.${k}`, G_SMART_AI, `AI 意图权重·${k}`, F_SMART, `SMART_WEIGHTS.${k}`, value, { min: 0, max: 2 }));
   // smart-fox-core.mjs 中的默认参数（函数参数默认值，无具名导出常量）。
-  e.push(num('smart.memoryDelay', G_SMART, '中断记忆衰减延迟', F_SMART, 'updateSmartMemory(options.memoryDelay 默认值)', 10, { min: 0, max: 60, unit: 's' }));
-  e.push(num('smart.memoryDecay', G_SMART, '中断记忆衰减速度', F_SMART, 'updateSmartMemory(options.memoryDecay 默认值)', 0.05, { min: 0, max: 1 }));
-  e.push(num('smart.viewRange', G_SMART, '默认感知距离', F_SMART, 'updatePerception(input.viewRange 默认值)', 28, { min: 1, max: 100, unit: 'm' }));
-  e.push(num('smart.detectionRate', G_SMART, '默认警觉上升速度', F_SMART, 'updatePerception(input.detectionRate 默认值)', 1.8, { min: 0, max: 10 }));
-  e.push(num('smart.decayRate', G_SMART, '默认警觉衰减速度', F_SMART, 'updatePerception(input.decayRate 默认值)', 0.48, { min: 0, max: 5 }));
-  e.push(num('smart.pounceAcceleration', G_SMART, '扑击加速度', F_SMART, 'stepSmartMotion(options.acceleration 默认值)', 18, { min: 0, max: 60, unit: 'm/s²' }));
-  e.push(num('smart.defaultSeparationDistance', G_SMART, '群体分离距离', F_SMART, 'separationVector(minDistance 默认值)', 1.8, { min: 0, max: 10, unit: 'm' }));
-  e.push(num('smart.defaultSeparationStrength', G_SMART, '群体分离强度', F_SMART, 'separationVector(strength 默认值)', 2.4, { min: 0, max: 10 }));
-  e.push(num('beta.smartDebounceHold', G_SMART, '意图切换确认时间', F_BETA, 'BETA_TUNE.smartDebounceHold → smart-fox.js debounceIntent({hold})', BETA_TUNE.smartDebounceHold, { min: 0, max: 3, unit: 's' }));
-  e.push(num('smart.defaultWalkableLayerTolerance', G_SMART, '地面层采样容差', F_SMART, 'sampleWalkableGround(layerTolerance 默认值)', 0.28, { min: 0, max: 2, unit: 'm' }));
-  e.push(num('smart.defaultGroundStepRate', G_SMART, '地面高度跟随速率', F_SMART, 'stepGroundY(maxRate 默认值)', 3.2, { min: 0, max: 15, unit: 'm/s' }));
-  e.push(num('beta.smartPackWindow', G_SMART, '群体出击提交窗口', F_BETA, 'BETA_TUNE.smartPackWindow → createSmartPack({window})', BETA_TUNE.smartPackWindow, { min: 0, max: 5, unit: 's' }));
-  e.push(num('beta.smartPackSpacing', G_SMART, '群体出击最小间隔', F_BETA, 'BETA_TUNE.smartPackSpacing → createSmartPack({spacing})', BETA_TUNE.smartPackSpacing, { min: 0, max: 2, unit: 's' }));
-  e.push(num('beta.smartPackSlotSpacing', G_SMART, '群体槽位间隔增量', F_BETA, 'BETA_TUNE.smartPackSlotSpacing → createSmartPack({slotSpacing})', BETA_TUNE.smartPackSlotSpacing, { min: 0, max: 0.5, unit: 's' }));
+  e.push(num('smart.memoryDelay', G_SMART_AI, '中断记忆衰减延迟', F_SMART, 'updateSmartMemory(options.memoryDelay 默认值)', 10, { min: 0, max: 60, unit: 's' }));
+  e.push(num('smart.memoryDecay', G_SMART_AI, '中断记忆衰减速度', F_SMART, 'updateSmartMemory(options.memoryDecay 默认值)', 0.05, { min: 0, max: 1 }));
+  e.push(num('smart.viewRange', G_SMART_AI, '默认感知距离', F_SMART, 'updatePerception(input.viewRange 默认值)', 28, { min: 1, max: 100, unit: 'm' }));
+  e.push(num('smart.detectionRate', G_SMART_AI, '默认警觉上升速度', F_SMART, 'updatePerception(input.detectionRate 默认值)', 1.8, { min: 0, max: 10 }));
+  e.push(num('smart.decayRate', G_SMART_AI, '默认警觉衰减速度', F_SMART, 'updatePerception(input.decayRate 默认值)', 0.48, { min: 0, max: 5 }));
+  e.push(num('smart.pounceAcceleration', G_SMART_AI, '扑击加速度', F_SMART, 'stepSmartMotion(options.acceleration 默认值)', 18, { min: 0, max: 60, unit: 'm/s²' }));
+  e.push(num('smart.defaultSeparationDistance', G_SMART_AI, '群体分离距离', F_SMART, 'separationVector(minDistance 默认值)', 1.8, { min: 0, max: 10, unit: 'm' }));
+  e.push(num('smart.defaultSeparationStrength', G_SMART_AI, '群体分离强度', F_SMART, 'separationVector(strength 默认值)', 2.4, { min: 0, max: 10 }));
+  e.push(num('smart.defaultWalkableLayerTolerance', G_SMART_AI, '地面层采样容差', F_SMART, 'sampleWalkableGround(layerTolerance 默认值)', 0.28, { min: 0, max: 2, unit: 'm' }));
+  e.push(num('smart.defaultGroundStepRate', G_SMART_AI, '地面高度跟随速率', F_SMART, 'stepGroundY(maxRate 默认值)', 3.2, { min: 0, max: 15, unit: 'm/s' }));
 
   // 配置导出中其余数值叶子：关卡表、洞穴/避难洞布局、刷新点和岩石障碍。
   // 这些值也参与总览/JSON 导入导出，确保配置文件中没有丢失地图和平衡参数。
