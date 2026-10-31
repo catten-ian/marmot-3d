@@ -1,0 +1,21 @@
+const assert = require('node:assert/strict');
+(async () => {
+  const { PLAYER, FOX } = await import('../src/core/config.js');
+  const { STRIKE_VOLUME, STRIKE_VOLUMES, strikeVolumeHit } = await import('../src/systems/combat.js');
+  const args = (move, targetBottom, range = 2.4) => strikeVolumeHit({ move, forward: 1.8, lateral: 0, playerBottom: 0, targetBottom, targetHeight: FOX.collisionHeight.normal, range });
+  assert.equal(STRIKE_VOLUME.lower, STRIKE_VOLUMES.tap.lower);
+  assert.equal(STRIKE_VOLUME.upper, STRIKE_VOLUMES.tap.upper);
+  assert.equal(args('tap', 0.65), true);
+  assert.equal(args('stand', 0.65), true);
+  assert.equal(args('tap', 1.5), false, 'tap remains old vertical upper bound');
+  assert.equal(args('stand', 1.5), false, 'stand remains old vertical upper bound');
+  assert.equal(args('lunge', 1.5), true, 'lunge reaches a raised fox');
+  assert.equal(args('tap', 0.65, 2.4), true);
+  assert.equal(args('lunge', 0.65, 2.4), true);
+  assert.equal(strikeVolumeHit({ move: 'lunge', forward: -1, lateral: 0, playerBottom: 0, targetBottom: 0, targetHeight: 1, range: 4 }), false);
+  assert.equal(strikeVolumeHit({ move: 'lunge', forward: 4.1, lateral: 0, playerBottom: 0, targetBottom: 0, targetHeight: 1, range: 4 }), false);
+  const peak = PLAYER.jump.velocity ** 2 / (2 * PLAYER.jump.gravity);
+  assert(peak < STRIKE_VOLUMES.lunge.upper, 'lunge upper covers player jump peak');
+  assert(FOX.attacks.pup.leapHeight < STRIKE_VOLUMES.lunge.upper, 'lunge upper covers fox leap');
+  console.log('strike volume regression ok');
+})();

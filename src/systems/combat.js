@@ -16,6 +16,76 @@ export function verticalHitOverlap(aBottom, aHeight, bBottom, bHeight) {
   return aBottom < bBottom + bHeight && bBottom < aBottom + aHeight;
 }
 
+// 三维近战体：tap / stand 保留旧版柱体；只有 lunge 扑击扩大纵向覆盖。
+// lunge 的 upper=2.0m 覆盖 PLAYER.jump 峰值约 0.86m 与 FOX pup leapHeight=0.9m，
+// 并留出俯冲/高差余量；lower=-0.15m 能跨地形小落差。水平扇形和实际招式距离不变。
+export const STRIKE_VOLUMES = {
+  halfAngle: 78 * Math.PI / 180,
+  tap: { lower: 0.06, upper: 1.18 },
+  stand: { lower: 0.06, upper: 1.18 },
+  lunge: { lower: -0.15, upper: 2.0 },
+};
+
+// 旧版单一体积别名，保留给外部诊断脚本；getter 确保 GUI 改值后也能读取当前数据。
+export const STRIKE_VOLUME = {
+  get halfAngle() { return STRIKE_VOLUMES.halfAngle; },
+  get lower() { return STRIKE_VOLUMES.tap.lower; },
+  get upper() { return STRIKE_VOLUMES.tap.upper; },
+};
+
+/** Resolve exactly the profile used by both strike判定 and debug-volume rendering. */
+export function resolveStrikeProfile({ move = 'tap', baseRange = 0, baseCooldown = 0, wheel = {}, running = false } = {}) {
+  const volume = STRIKE_VOLUMES[move] || STRIKE_VOLUMES.tap;
+  const postureRangeMul = move === 'tap'
+    ? ((running ? wheel.run?.rangeMul : wheel.stand?.rangeMul) ?? 1)
+    : 1;
+  const rangeMul = Number.isFinite(Number(wheel.rangeMul)) ? Number(wheel.rangeMul) : 1;
+  const range = Math.max(0, (baseRange * postureRangeMul + (Number(wheel.range) || 0)) * rangeMul);
+  const cooldownFloor = Math.max(Number(baseCooldown) || 0, Number(wheel.cooldown) || 0.18);
+  const cooldown = cooldownFloor * Math.max(0, Number(wheel.cooldownMul ?? 1))
+    + Math.max(0, Number(wheel.recovery) || 0);
+  return {
+    move, range, rangeMul, postureRangeMul,
+    halfAngle: STRIKE_VOLUMES.halfAngle,
+    lower: volume.lower, upper: volume.upper,
+    damageMul: Number(wheel.damageMul ?? 1),
+    cooldown, recovery: Math.max(0, Number(wheel.recovery) || 0),
+  };
+}
+
+export function strikeVolumeHit({
+  forward, lateral, playerBottom, targetBottom, targetHeight, range,
+  move = 'tap', volume = null,
+}) {
+  const v = volume || {
+    ...STRIKE_VOLUMES[move] || STRIKE_VOLUMES.tap,
+    halfAngle: STRIKE_VOLUMES.halfAngle,
+  };
+  const d = Math.hypot(forward, lateral);
+  if (d > range) return false;
+  // 距离几乎为零时没有可靠的水平朝向差，允许命中；仍必须通过垂直区间。
+  if (d > 1e-6 && forward / d < Math.cos(v.halfAngle)) return false;
+  const clawBottom = playerBottom + v.lower;
+  const clawTop = playerBottom + v.upper;
+  return verticalHitOverlap(clawBottom, clawTop - clawBottom, targetBottom, targetHeight);
+}
+
+export function foxAttackVerticalHit({
+  playerBottom, playerHeight, foxBottom, foxHeight, groundAttackHeight,
+  dodgeHeight = null, mode, state,
+}) {
+  if (state !== 'dash') return false;
+  // 普通冲刺是低位扑咬/擦撞，不随大型模型的耳尖高度抬高攻击盒。
+  // 调节 PLAYER.jump.dodgeHeight 时，按相对旧默认 0.45m 的偏移调整咬击盒；
+  // 默认值下 groundAttackHeight 仍精确等于原判定值，不改变 stable 手感。
+  const defaultDodgeHeight = 0.45;
+  const tunedGroundHeight = Math.max(0, groundAttackHeight
+    + (dodgeHeight == null ? 0 : Number(dodgeHeight) - defaultDodgeHeight));
+  // 跃扑则采用狐狸真实腾空后的类型碰撞盒，仍能覆盖玩家空中轨迹。
+  const attackHeight = mode === 'leap' ? foxHeight : tunedGroundHeight;
+  return verticalHitOverlap(playerBottom, playerHeight, foxBottom, attackHeight);
+}
+
 export function combatStats(g) {
   const p = g.player;
   const tier = g.cortisol >= 60 ? 2 : g.cortisol >= 25 ? 1 : 0;

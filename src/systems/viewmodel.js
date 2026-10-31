@@ -54,8 +54,9 @@ export class ViewModel {
    * @param airborne  是否在空中
    * @param attackAnim 攻击动画进度 0~1（1=刚挥出，0=结束），无则传 -1
    * @param pitch    玩家俯仰（弧度，负=向下看），驱动身体相机同步俯视
+   * @param moveType 动作类型 ''|tap|stand|lunge|dodge
    */
-  update(dt, crouch, speedRatio, airborne, attackAnim = -1, pitch = 0) {
+  update(dt, crouch, speedRatio, airborne, attackAnim = -1, pitch = 0, moveType = '') {
     this.t += dt * (0.2 + Math.max(0, speedRatio) * 1.8);
 
     /**
@@ -122,13 +123,32 @@ export class ViewModel {
       }
     }
 
-    // 攻击动画：爪子向前猛挥
+    // 攻击动作：按类型做不同爪姿，都能在第一人称看到。
     if (attackAnim >= 0) {
       const k = 1 - attackAnim; // 0=刚挥出 1=收回
-      const swingEase = Math.sin(Math.min(1, k) * Math.PI);
-      p.position.z -= swingEase * 0.12;
-      p.position.y += swingEase * 0.022;
-      p.rotation.x -= swingEase * 0.4;
+      const ease = Math.sin(Math.min(1, k) * Math.PI);
+      if (moveType === 'stand') {
+        // 迎击：双爪交叉向前短促硬顶（防御反打姿态）。
+        p.position.z -= ease * 0.07;
+        p.rotation.x -= ease * 0.22;
+        const L = p.userData.left, R = p.userData.right;
+        if (L && R) { L.position.x = -0.03; R.position.x = 0.03; L.rotation.z = 0.5 * ease; R.rotation.z = -0.5 * ease; }
+      } else if (moveType === 'lunge') {
+        // 扑击：身体大幅前探、双爪前伸下压（明显的“扑”）。
+        p.position.z -= ease * 0.22;
+        p.position.y += ease * 0.05;
+        p.rotation.x -= ease * 0.62;
+        this.root.rotation.x -= ease * 0.18;
+      } else if (moveType === 'dodge') {
+        // 翻滚：身体侧倾收肢（动作较短）。
+        this.root.rotation.z += ease * 0.5;
+        p.position.y -= ease * 0.02;
+      } else {
+        // 推击：爪子向前挥推。
+        p.position.z -= ease * 0.12;
+        p.position.y += ease * 0.022;
+        p.rotation.x -= ease * 0.4;
+      }
     }
 
     // ---- 腹部 / 躯干：低头时的主要参照 ----

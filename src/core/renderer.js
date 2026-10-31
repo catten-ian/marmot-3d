@@ -17,18 +17,22 @@ import { getRenderProfile } from './performance.js';
 let cached = null;
 
 /** 检测 WebGPU 是否真正可用（适配器 + 设备都能建起来） */
-export async function probeWebGPU() {
+export async function probeWebGPU({ retainDevice = false, signal = null } = {}) {
   if (typeof navigator === 'undefined' || !('gpu' in navigator)) {
     return { ok: false, reason: '浏览器未提供 navigator.gpu' };
   }
   try {
+    if (signal?.aborted) throw new DOMException('WebGPU 探测已取消', 'AbortError');
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+    if (signal?.aborted) throw new DOMException('WebGPU 探测已取消', 'AbortError');
     if (!adapter) return { ok: false, reason: '没有可用的 GPU 适配器（可能无独显/驱动被禁用）' };
     const device = await adapter.requestDevice();
+    if (signal?.aborted) { device?.destroy?.(); throw new DOMException('WebGPU 探测已取消', 'AbortError'); }
     if (!device) return { ok: false, reason: '无法创建 GPU 设备' };
-    device.destroy?.();
-    return { ok: true, adapter };
+    if (!retainDevice) device.destroy?.();
+    return { ok: true, adapter, device: retainDevice ? device : null };
   } catch (e) {
+    if (e?.name === 'AbortError') return { ok: false, reason: e.message || 'WebGPU 探测已取消' };
     return { ok: false, reason: 'WebGPU 初始化异常：' + (e && e.message || e) };
   }
 }
@@ -45,6 +49,11 @@ export async function createRenderer(canvas, {
   preferWebGPU = true,
   forceWebGL = false,
   onStatus = null,
+  // dev 真机自动化用 headless CDP 截图：需要可读 backbuffer。
+  preserveDrawingBuffer = false,
+  antialias = false,
+  webgpuProbe = null,
+  initTimeoutMs = 10000,
 } = {}) {
   const status = {
     backend: 'webgl',      // 'webgpu' | 'webgl2-fallback' | 'webgl'
@@ -55,21 +64,29 @@ export async function createRenderer(canvas, {
   };
 
   const wantGPU = preferWebGPU && !forceWebGL;
+  const withDeadline = (promise, label) => {
+    let timer;
+    const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} 超时（${initTimeoutMs}ms）`)), initTimeoutMs); });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  };
 
   if (wantGPU) {
-    const gpu = await probeWebGPU();
+    const gpu = webgpuProbe?.ok ? webgpuProbe : await withDeadline(probeWebGPU({ retainDevice: true }), 'WebGPU 探测').catch((error) => ({ ok: false, reason: error?.message || String(error) }));
     status.gpuAvailable = gpu.ok;
     status.gpuReason = gpu.reason || '';
     if (gpu.ok) {
+      let r = null;
       try {
         const THREE = await import('three/webgpu');
-        const r = new THREE.WebGPURenderer({
+        r = new THREE.WebGPURenderer({
           canvas,
-          antialias: false,     // GS 是软边叠加，MSAA 对它无益
+          antialias,     // GS 是软边叠加，MSAA 对它无益；Verdant 由调用方传 true
           alpha: false,
           powerPreference: 'high-performance',
+          preserveDrawingBuffer,
+          ...(gpu.device ? { device: gpu.device } : {}),
         });
-        await r.init();
+        await withDeadline(r.init(), 'WebGPURenderer 初始化');
         // init 之后才知道真实后端（可能内部又退回了 WebGL2）
         status.backend = (r.backend && r.backend.isWebGPUBackend) ? 'webgpu' : 'webgl2-fallback';
         status.supportsSplat = true;
@@ -82,6 +99,8 @@ export async function createRenderer(canvas, {
         cached = status;
         return { renderer: r, THREE, status };
       } catch (e) {
+        try { r?.dispose?.(); } catch (_) {}
+        try { if (gpu.device) gpu.device.destroy?.(); } catch (_) {}
         status.gpuReason = 'WebGPURenderer 创建失败：' + (e && e.message || e);
         status.degraded = true;
         console.warn('[renderer] WebGPU 路径失败，降级到 WebGL:', e);
@@ -94,33 +113,43 @@ export async function createRenderer(canvas, {
   // GaussianSplat 需要 WebGPURenderer 家族，即使底层使用 WebGL2。
   // 不能改用经典 WebGLRenderer，否则 GS 场景会静默缺失。
   if (preferWebGPU) {
-    const THREE = await import('three/webgpu');
-    const r = new THREE.WebGPURenderer({
-      canvas,
-      antialias: false,
-      alpha: false,
-      powerPreference: 'high-performance',
-      forceWebGL: true,
-    });
-    await r.init();
-    status.backend = 'webgl2-fallback';
-    status.degraded = true;
-    status.supportsSplat = true;
-    status.gpuReason = forceWebGL
-      ? '按调试参数强制使用 WebGL2 后端，深度排序改用 CPU'
-      : status.gpuReason || '使用 WebGL2 后备，深度排序改用 CPU';
-    applyCommon(r, THREE, getRenderProfile());
-    if (onStatus) onStatus(status);
-    cached = status;
-    return { renderer: r, THREE, status };
+    let r = null;
+    try {
+      const THREE = await import('three/webgpu');
+      r = new THREE.WebGPURenderer({
+        canvas,
+        antialias,
+        alpha: false,
+        powerPreference: 'high-performance',
+        forceWebGL: true,
+        preserveDrawingBuffer,
+      });
+      await withDeadline(r.init(), 'WebGL2 兼容后端初始化');
+      status.backend = 'webgl2-fallback';
+      status.degraded = true;
+      status.supportsSplat = true;
+      status.gpuReason = forceWebGL
+        ? '按调试参数强制使用 WebGL2 后端，深度排序改用 CPU'
+        : status.gpuReason || '使用 WebGL2 后备，深度排序改用 CPU';
+      applyCommon(r, THREE, getRenderProfile());
+      if (onStatus) onStatus(status);
+      cached = status;
+      return { renderer: r, THREE, status };
+    } catch (e) {
+      try { r?.dispose?.(); } catch (_) {}
+      status.gpuReason = `${status.gpuReason || 'WebGPURenderer WebGL2 兜底失败'}；${e && e.message || e}`;
+      status.degraded = true;
+      console.warn('[renderer] WebGPURenderer WebGL2 兜底失败，改用经典 WebGLRenderer:', e);
+    }
   }
 
   const THREE = await import('three');
   const r = new THREE.WebGLRenderer({
     canvas,
-    antialias: true,
+    antialias: antialias || true,
     powerPreference: 'high-performance',
     stencil: false,
+    preserveDrawingBuffer,
   });
   status.backend = 'webgl';
   status.supportsSplat = false;

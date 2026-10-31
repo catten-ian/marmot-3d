@@ -1,0 +1,1 @@
+{"status":"blocked","reason":"self-owned Chrome 147 headless process exits/segfaults before CDP endpoint; no page timeline was possible","serverPort":8360,"cdpPorts":[9230,9231,9232,9233],"evidence":"chrome-startup-failure.md"}

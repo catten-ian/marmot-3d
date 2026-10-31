@@ -21,5 +21,5 @@ three.js 已本地化到 `vendor/`，可完全离线运行。
 ## 版本开关
 
 - 默认：稳定版（浆果采食）
-- `index.html?version=dev`：旱獭生态学实验版（GS 全场景，需 WebGPU，不支持时自动回退 WebGL2/程序化场景）
+- `index.html?version=dev`：旱獭生态学 + A Verdant Trail 环境实验版（本地 GLB；加载失败时回退程序化场景）
 - `?gs=1 / ?gs=0`：强制开关高斯泼溅全场景；`?models=off`：回退程序化模型

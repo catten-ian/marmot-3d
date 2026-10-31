@@ -1,0 +1,75 @@
+{
+  "url": "http://127.0.0.1:8347/index.html?version=dev&webgl=1&models=off&verdantTier=high&cdpMobile=1&t=1793062709982",
+  "samples": [
+    {
+      "t": 1793062710997,
+      "stage": "",
+      "first": 0,
+      "game": false,
+      "pct": "",
+      "text": "正在筑巢…",
+      "tier": "",
+      "backend": ""
+    },
+    {
+      "t": 1793062713978,
+      "stage": "",
+      "first": 0,
+      "game": false,
+      "pct": "",
+      "text": "正在筑巢…",
+      "tier": "",
+      "backend": ""
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "t": 1793062730992,
+      "stage": "verdant-module",
+      "first": 0,
+      "game": false,
+      "pct": "51.7658%",
+      "text": "加载 Verdant 资源",
+      "tier": "",
+      "backend": ""
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    },
+    {
+      "error": "Error: timeout Runtime.evaluate"
+    }
+  ],
+  "events": [],
+  "final": {
+    "error": "Error: timeout Runtime.evaluate"
+  }
+}

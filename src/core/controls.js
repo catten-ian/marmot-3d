@@ -7,9 +7,12 @@
  *   - 蹲伏（在洞口的低姿态）
  */
 import * as THREE from 'three';
-import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius } from '../core/config.js';
-import { terrainHeight, clamp } from '../core/utils.js';
-import { resolveTouchDrive } from './move-facing.mjs';
+import { PLAYER, ROCKS, DEFAULT_MOVE_MAP, moveBounds, scalePoint, scaleRadius, getGravityScale } from '../core/config.js';
+import { terrainHeight, terrainGround, groundResolveActive, solidColliderActive, clamp } from '../core/utils.js';
+import { undergroundFloorY, undergroundCavesEnabled, undergroundDefs, undergroundProfile } from '../world/underground.js';
+import { findGroundPathBlock, findSegmentLanding, resolveGroundedY, shouldRescueVerdantPosition, VERDANT_SWEEP_STEP } from '../world/verdant-fall-safety.mjs';
+import { resolveObstacleProxies, shouldUseDesignRocks } from '../world/verdant-obstacles.mjs';
+import { resolveMoveIntent, dampAngle, wrapAngle, resolveTouchDrive } from './move-facing.mjs';
 
 export class FirstPersonController {
   constructor(camera, domElement) {
@@ -21,15 +24,27 @@ export class FirstPersonController {
     this.externalVelocity = new THREE.Vector3();
     this.yaw = 0;
     this.bodyYaw = 0;
-    this.moveFacingYaw = 0;
-    this.isBackpedal = false;
-    this.moveSpeedScale = 1;
     this.pitch = 0;
     this.sensitivity = 0.0022;
     this.touchLookSensitivity = 0.006;
     this.touchAxes = { x: 0, y: 0 };
     this.touchSprint = false;
+    this.touchLookActive = false; // 右手正在拉视角：抑制镜头回弹与身体串扰
     this.touchEnabled = false;
+    this.moveFacingYaw = 0;
+    this.isBackpedal = false;
+    this.moveSpeedScale = 1;
+    this.touchUTurn = false;
+    this._thirdPersonStrafeYaw = null;
+    this.movementLocked = false;
+    // dev 沙盒：允许空中反复起跳（配合低重力实现飞行观察）
+    this.allowAirJump = false;
+    // 实体地面台阶最大可步行高度（米）；更高的差必须跳跃越过
+    this.stepUp = 0.42;
+    // Enabled only by the dev Verdant loader; null keeps stable/beta physics unchanged.
+    this.verdantSafety = null;
+    // Camera-only terrain smoothing state; physical Y remains independently grounded.
+    this.visualGroundY = 0;
 
     this.onGroundY = 0;
     this.bobPhase = 0;
@@ -49,8 +64,8 @@ export class FirstPersonController {
     this.shakeDecay = 6;
     this.locked = false;
     this.thirdPerson = false;
-    this.cameraDistance = 3.6;
-    this.cameraHeight = 1.9;
+    this.cameraDistance = 5.4;
+    this.cameraHeight = 2.15;
     this.cameraLookDown = -0.38;
 
     this._forward = new THREE.Vector3();
@@ -100,8 +115,91 @@ export class FirstPersonController {
 
   setThirdPerson(enabled) {
     this.thirdPerson = !!enabled;
-    this.camera.fov = this.baseFov;
+    this.camera.fov = this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson;
     this.camera.updateProjectionMatrix();
+  }
+
+  /** Install the dev-Verdant-only collision/safety contract and resolve the current pose. */
+  setVerdantSafety(config) {
+    if (!config || typeof config.nearestWalkable !== 'function' || typeof config.resolveGround !== 'function') {
+      this.verdantSafety = null;
+    // Camera-only terrain smoothing state; physical Y remains independently grounded.
+    this.visualGroundY = 0;
+      return false;
+    }
+    this.verdantSafety = { ...config, rescueCount: 0, lastRescueReason: '' };
+    return this.syncVerdantGround();
+  }
+
+  /** Synchronously place the player on a real walkable column after spawn/teleport/tier swap. */
+  syncVerdantGround(x = this.position.x, z = this.position.z) {
+    const safety = this.verdantSafety;
+    if (!safety) return false;
+    const finiteXZ = Number.isFinite(x) && Number.isFinite(z);
+    let point = finiteXZ ? safety.nearestWalkable(x, z) : null;
+    if (!this._validVerdantPoint(point)) {
+      const spawn = safety.spawn;
+      point = spawn ? safety.nearestWalkable(spawn.x, spawn.z) : null;
+    }
+    if (!this._validVerdantPoint(point)) return false;
+    const ground = safety.resolveGround(point.x, point.z);
+    const y = Number.isFinite(ground?.y) ? ground.y : point.y;
+    if (!Number.isFinite(y)) return false;
+    this.position.set(point.x, y, point.z);
+    this.visualGroundY = y;
+    this.velocity.set(0, 0, 0);
+    this.externalVelocity.set(0, 0, 0);
+    this.vy = 0;
+    this.grounded = true;
+    this.airHeight = 0;
+    this.onGroundY = y;
+    this._lastGround = { y, walkable: true };
+    this.movingThisFrame = false;
+    return true;
+  }
+
+  _validVerdantPoint(point) {
+    return !!point && point.moved !== -1
+      && Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z);
+  }
+
+  /** Run the conservative out-of-world guard; safe to call while paused/title too. */
+  guardVerdantPosition() {
+    const safety = this.verdantSafety;
+    if (!safety) return false;
+    const ground = [this.position.x, this.position.z].every(Number.isFinite)
+      ? terrainGround(this.position.x, this.position.z) : null;
+    const result = shouldRescueVerdantPosition({
+      position: this.position, ground, bounds: safety.bounds,
+      minWalkableY: safety.minWalkableY, killPlane: safety.killPlane,
+    });
+    return result.rescue && this._rescueVerdant(result.reason);
+  }
+
+  _rescueVerdant(reason) {
+    const safety = this.verdantSafety;
+    if (!safety) return false;
+    const found = Number.isFinite(this.position.x) && Number.isFinite(this.position.z)
+      ? safety.nearestWalkable(this.position.x, this.position.z) : null;
+    const point = this._validVerdantPoint(found) ? found : null;
+    const target = point || (safety.spawn && safety.nearestWalkable(safety.spawn.x, safety.spawn.z));
+    if (!this._validVerdantPoint(target)) return false;
+    const ground = safety.resolveGround(target.x, target.z);
+    const y = Number.isFinite(ground?.y) ? ground.y : target.y;
+    if (!Number.isFinite(y)) return false;
+    this.position.set(target.x, y, target.z);
+    this.visualGroundY = y;
+    this.velocity.set(0, 0, 0);
+    this.externalVelocity.set(0, 0, 0);
+    this.vy = 0;
+    this.grounded = true;
+    this.airHeight = 0;
+    this.onGroundY = y;
+    this._lastGround = { y, walkable: true };
+    this.movingThisFrame = false;
+    safety.rescueCount++;
+    safety.lastRescueReason = reason;
+    return true;
   }
 
   /** 攻击时的镜头前冲 */
@@ -120,6 +218,20 @@ export class FirstPersonController {
   /** 突进/爆发时的推进感 */
   dashForward(power = 1) {
     this.kickZ = 0.5 * power;
+  }
+
+  /**
+   * 翻滚：朝给定水平方向施加一次短促冲量，并进入低姿态。
+   * 无敌帧由调用方写玩家 invuln。dir 为归一化 {x,z}。
+   */
+  roll(dir, speed = 7.2) {
+    this.externalVelocity.x = clamp(this.externalVelocity.x + dir.x * speed, -10, 10);
+    this.externalVelocity.z = clamp(this.externalVelocity.z + dir.z * speed, -10, 10);
+    // 翻滚瞬间身体朝向滚动方向
+    this.bodyYaw = Math.atan2(-dir.x, -dir.z);
+    this.moveFacingYaw = this.bodyYaw;
+    this.rollT = Math.max(this.rollT || 0, PLAYER.combatWheel.dodge.invuln);
+    this.kickPitch = 0.12;
   }
 
   teleport(x, z, yaw = 0) {
@@ -143,10 +255,23 @@ export class FirstPersonController {
     this.grounded = true;
     this.jumpCD = 0;
     this.airHeight = 0;
-    if (this.camera.fov !== this.baseFov) {
-      this.camera.fov = this.baseFov;
+    // 传送后清空上一帧落点缓存，避免实体高度场的台阶/水域阻挡用上一位点误判
+    this._lastGround = null;
+    if (this.verdantSafety) this.syncVerdantGround(x, z);
+    else this.visualGroundY = this.position.y;
+    const baseFov = this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson;
+    if (this.camera.fov !== baseFov) {
+      this.camera.fov = baseFov;
       this.camera.updateProjectionMatrix();
     }
+  }
+
+  /** 请求受控快速落地：只调整竖直速度，不改位置或地面状态。 */
+  requestFastLanding(speed = 5.2) {
+    if (this.grounded) return false;
+    const fallSpeed = Math.max(0, Number(speed) || 0);
+    this.vy = Math.min(this.vy, -fallSpeed);
+    return true;
   }
 
   /**
@@ -157,10 +282,12 @@ export class FirstPersonController {
   jump() {
     const J = PLAYER.jump;
     // 地面才能起跳；滞空时间短，避免连续刷跳
-    if (!this.grounded || this.jumpCD > 0) return false;
-    // 起跳前先把 y 吸附到当前地面高度：否则在斜坡上位置还滞后于地形，
+    if (this.jumpCD > 0) return false;
+    if (!this.grounded && !this.allowAirJump) return false;
+    // 地面起跳前先把 y 吸附到当前地面高度：否则在斜坡上位置还滞后于地形，
     // 会导致起跳基准偏低（滞空高度被"吃掉"一部分）。
-    this.position.y = terrainHeight(this.position.x, this.position.z);
+    // 但 dev 沙盒低重力的空中连跳不能吸附——否则会瞬间被拽回地面、无法升高观察。
+    if (this.grounded) this.position.y = terrainHeight(this.position.x, this.position.z);
     this.vy = J.velocity;
     this.grounded = false;
     this.jumpCD = J.cooldown;
@@ -179,10 +306,15 @@ export class FirstPersonController {
     windAccelX = 0,
     turnMap = null,
   ) {
+    // Repair invalid/deeply out-of-world poses before arithmetic can spread NaNs.
+    if (this.guardVerdantPosition()) {
+      this._applyCamera(this.position.y, 0);
+      return;
+    }
     const base = PLAYER.speed * speedMul;
     if (turnMap) {
       const turn = Number(keys.has(turnMap.left)) - Number(keys.has(turnMap.right));
-      this.yaw += turn * 2.2 * dt;
+      this.yaw += turn * PLAYER.handling.turnRate * dt;
     }
     let mx = 0, mz = 0;
     // 通过键位方案查表取移动键，而不是硬编码 KeyW
@@ -190,14 +322,13 @@ export class FirstPersonController {
     if (keys.has(moveMap.back) || keys.has(moveMap.backAlt)) mz -= 1;
     if (keys.has(moveMap.left) || keys.has(moveMap.leftAlt)) mx -= 1;
     if (keys.has(moveMap.right) || keys.has(moveMap.rightAlt)) mx += 1;
-    const touchActive = Math.hypot(this.touchAxes.x, this.touchAxes.y) > 1e-6;
-    if (!touchActive) {
-      // Keyboard movement keeps the existing strafe and diagonal normalization.
-      this.bodyYaw = this.yaw;
-      this.moveFacingYaw = this.yaw;
-      this.isBackpedal = false;
-      this.moveSpeedScale = 1;
-    }
+    // Touch joystick axes share the same acceleration/collision path as WASD.
+    // The combined vector is normalized below, so mixing keyboard and touch
+    // never increases movement speed beyond the existing diagonal cap.
+    mx += this.touchAxes.x;
+    mz += this.touchAxes.y;
+    const turnActive = !!(turnMap && (keys.has(turnMap.left) || keys.has(turnMap.right)));
+    if (this.movementLocked) { mx = 0; mz = 0; this.velocity.set(0, 0, 0); }
 
     // 外力（阵风、受击）以速度积分；与玩家输入分开，仍共用后续碰撞处理。
     this.externalVelocity.x = clamp(
@@ -209,52 +340,65 @@ export class FirstPersonController {
       this.externalVelocity.z *= drag;
     }
 
-    let moving = false;
-    let targetVx = 0;
-    let targetVz = 0;
-    if (touchActive) {
+    let intent = resolveMoveIntent(mx, mz, this.yaw, PLAYER.backpedalSpeed);
+    const touchActive = Math.hypot(this.touchAxes.x, this.touchAxes.y) > 1e-6;
+    if (touchActive && !turnActive) {
+      // 触屏摇杆：油门 + 连续转向。身体朝向(bodyYaw)与镜头朝向(yaw)分离。
+      // 持续左/右推会让土拨鼠一直转头同时向前跑 → 跑圈；后拉做平滑 U-turn。
+      // 第三人称下移动绝不带动镜头；第一人称镜头跟随身体。
       const drive = resolveTouchDrive({
-        bodyYaw: this.bodyYaw,
-        cameraYaw: this.yaw,
-        x: this.touchAxes.x,
-        y: this.touchAxes.y,
-        dt,
-        turnRate: 2.7,
+        // 拉视角中：第一人称用身体朝向做转向参考，避免手指环视的 yaw 串入 U-turn/回正。
+        bodyYaw: this.bodyYaw, cameraYaw: (!this.thirdPerson && this.touchLookActive) ? this.bodyYaw : this.yaw,
+        x: this.touchAxes.x, y: this.touchAxes.y, dt,
+        turnRate: 2.7, uTurnRate: 3.4, uTurn: this.touchUTurn,
+        thirdPerson: this.thirdPerson,
       });
-      this.bodyYaw = drive.bodyYaw;
-      this.moveFacingYaw = this.bodyYaw;
-      this.isBackpedal = drive.isBackpedal;
-      this.moveSpeedScale = drive.speedScale;
-      const signedThrottle = drive.direction * drive.throttle;
-      targetVx = -Math.sin(this.bodyYaw) * signedThrottle * base * drive.speedScale;
-      targetVz = -Math.cos(this.bodyYaw) * signedThrottle * base * drive.speedScale;
-      moving = drive.throttle > 0;
-      // The right-hand look zone remains the camera authority; the wheel never
-      // writes camera yaw, including while turning in place.
-    } else {
-      moving = mx !== 0 || mz !== 0;
-      if (moving) {
-        const len = Math.hypot(mx, mz);
-        mx /= len; mz /= len;
-        // 前向 = yaw 方向
-        const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
-        const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
-        targetVx = (fx * mz + rx * mx) * base;
-        targetVz = (fz * mz + rz * mx) * base;
+      this.bodyYaw = wrapAngle(drive.bodyYaw);
+      this.touchUTurn = drive.uTurn;
+      const th = drive.throttle;
+      intent = {
+        mx: 0, mz: 0,
+        moveX: -Math.sin(this.bodyYaw) * th,
+        moveZ: -Math.cos(this.bodyYaw) * th,
+        facingYaw: this.bodyYaw,
+        isBackpedal: false,
+        speedScale: 1,
+      };
+      if (this.thirdPerson) {
+        // 第三人称：摇杆只决定身体朝向/移动方向，镜头 yaw 永远不被摇杆回写。
+        // 相机视角只由右手 #touchLookZone 指针（或键鼠视角）改变，两指并行互不抢权。
+        this.moveFacingYaw = this.bodyYaw;
+      } else if (this.touchLookActive) {
+        // 拉视角中：镜头保持在手指拖到的位置，身体按摇杆独立转向，松手后再平滑追上。
+        this.moveFacingYaw = this.bodyYaw;
+      } else {
+        // 第一人称：眼睛即身体，镜头平滑追上身体朝向（无突变）。
+        this.yaw = dampAngle(this.yaw, this.bodyYaw, dt, PLAYER.bodyTurnRate * 1.35);
+        this.moveFacingYaw = this.yaw;
       }
+    } else {
+      // 键盘/鼠标路径：保持原有 strafe + 转向键逻辑；身体朝向移动方向。
+      this.touchUTurn = false;
+      this.bodyYaw = dampAngle(this.bodyYaw, intent.facingYaw, dt, PLAYER.bodyTurnRate);
+      this.moveFacingYaw = intent.facingYaw;
     }
+    this.isBackpedal = intent.isBackpedal;
+    this.moveSpeedScale = intent.speedScale;
+    const moving = intent.mx !== 0 || intent.mz !== 0 || (intent.moveX !== 0 || intent.moveZ !== 0);
     if (moving) {
+      const targetVx = intent.moveX * base * intent.speedScale;
+      const targetVz = intent.moveZ * base * intent.speedScale;
       // 平滑加速，手感更稳
-      const accel = 1 - Math.exp(-14 * dt);
+      const accel = 1 - Math.exp(-PLAYER.handling.accel * dt);
       this.velocity.x += (targetVx - this.velocity.x) * accel;
       this.velocity.z += (targetVz - this.velocity.z) * accel;
     } else {
-      const decel = 1 - Math.exp(-18 * dt);
+      const decel = 1 - Math.exp(-PLAYER.handling.brake * dt);
       this.velocity.x -= this.velocity.x * decel;
       this.velocity.z -= this.velocity.z * decel;
     }
 
-    const prevX = this.position.x, prevZ = this.position.z;
+    const prevX = this.position.x, prevY = this.position.y, prevZ = this.position.z;
     this.position.x += (this.velocity.x + this.externalVelocity.x) * dt;
     this.position.z += (this.velocity.z + this.externalVelocity.z) * dt;
 
@@ -266,7 +410,9 @@ export class FirstPersonController {
     // 岩石碰撞：沿法线推出。
     // ROCKS 是设计坐标，GS 版必须缩放到运行时位置/半径，
     // 否则视觉上缩小的岩石仍按原位大半径碰撞（隐形墙）。
-    for (const rp of ROCKS) {
+    // dev Verdant 实体场景自带真实岩石高度碰撞，设计圆柱在这里是隐形墙，跳过。
+    const useDesignRocks = shouldUseDesignRocks(solidColliderActive());
+    for (const rp of useDesignRocks ? ROCKS : []) {
       const [rx, rz] = scalePoint(rp);
       const rr = scaleRadius(rp[2]);
       const dx = this.position.x - rx, dz = this.position.z - rz;
@@ -290,34 +436,162 @@ export class FirstPersonController {
       }
     }
 
+    // Optional, conservative imported-mesh proxy circles. Disabled by default because
+    // the Blender GLB has no authored walk-path exclusions; QA can opt in with
+    // ?verdantProxy=1 after checking route connectivity. Design ROCKS are skipped
+    // whenever the Verdant field is active, so these proxies are the only rock push.
+    const obstacleProxies = this.verdantSafety?.useObstacleProxies
+      ? this.verdantSafety.obstacleProxies : null;
+    if (obstacleProxies?.length) {
+      const pushed = resolveObstacleProxies({
+        x: this.position.x, z: this.position.z, proxies: obstacleProxies,
+        playerRadius: PLAYER.radius, feetY: prevY, bodyHeight: PLAYER.eyeHeight,
+      });
+      if (pushed.collisions.length) {
+        this.position.x = pushed.x; this.position.z = pushed.z;
+        for (const hit of pushed.collisions) {
+          const inward = this.velocity.x * hit.nx + this.velocity.z * hit.nz;
+          if (inward < 0) { this.velocity.x -= hit.nx * inward; this.velocity.z -= hit.nz * inward; }
+          const externalInward = this.externalVelocity.x * hit.nx + this.externalVelocity.z * hit.nz;
+          if (externalInward < 0) { this.externalVelocity.x -= hit.nx * externalInward; this.externalVelocity.z -= hit.nz * externalInward; }
+        }
+      }
+    }
+
     const actualMoved = Math.hypot(this.position.x - prevX, this.position.z - prevZ);
     this.movingThisFrame = actualMoved > 0.0015;
 
-    // 地形跟随
-    const groundY = terrainHeight(this.position.x, this.position.z);
-    this.onGroundY = groundY;
+    // 地形跟随（实体高度场走 terrainGround；程序化/GS 走地下腔室合成）
+    let groundInfo;
+    const safety = this.verdantSafety;
+    const wasGrounded = this.grounded;
+    if (groundResolveActive()) {
+      // dev Verdant 洞口：进入缩小开口后允许从高度场地表下降到程序化平底。
+      // stable/beta 没有高度场 resolver，因此完全走原路径。
+      let cave = null;
+      if (undergroundCavesEnabled()) {
+        for (const b of undergroundDefs()) {
+          const q = undergroundProfile(b);
+          const d = Math.hypot(this.position.x - b.x, this.position.z - b.z);
+          const surface = terrainHeight(b.x, b.z);
+          if (d < q.slopeRadius && this.position.y <= surface + 0.35) { cave = { b, q, d, surface }; break; }
+        }
+      }
+      if (cave && this.grounded && cave.d < cave.q.openingRadius * 0.9 && this.position.y >= cave.surface - 0.12) {
+        this.grounded = false; this.vy = -2.2; this.position.y = cave.surface - 0.14;
+      }
+      const inCave = cave && this.position.y < cave.surface - 0.1;
+      const caveGroundAt = (x, z) => {
+        const hit = undergroundDefs().find((b) => {
+          const q = undergroundProfile(b);
+          return Math.hypot(x - b.x, z - b.z) <= q.slopeRadius;
+        });
+        return hit ? { y: undergroundFloorY(x, z, [hit]), walkable: true } : terrainGround(x, z);
+      };
+      groundInfo = inCave ? caveGroundAt(this.position.x, this.position.z) : terrainGround(this.position.x, this.position.z);
+      const prevGround = this._lastGround ?? groundInfo;
+      // 低重力飞行观察模式下自由穿行（不被水域/台阶水平阻挡）；高度场 SDF 始终返回有限地面，不会掉出世界。
+      if (!this.allowAirJump) {
+        const blockedByVoid = !groundInfo.walkable;
+        const blockedByStep = this.grounded && (groundInfo.y - prevGround.y) > this.stepUp;
+        const safety = this.verdantSafety;
+        const blockedOnPath = this.grounded && safety && !inCave && actualMoved > 0.025
+          ? findGroundPathBlock({
+            from: { x: prevX, z: prevZ }, to: { x: this.position.x, z: this.position.z },
+            groundAt: terrainGround,
+            maxStep: Math.min(0.16, Math.max(0.05, (safety.cellSize || VERDANT_SWEEP_STEP * 2) * 0.45)),
+            maxStepUp: this.stepUp,
+          }) : null;
+        if (blockedByVoid || blockedByStep || blockedOnPath) {
+          // 水面/外缘不可进入；过高台阶不允许直接走上去（要跳）。
+          // 横向往回推，竖直仍吸附在原可行走面上，任何情况下都不会漏出世界。
+          this.position.x = prevX;
+          this.position.z = prevZ;
+          this.velocity.x = 0; this.velocity.z = 0;
+          this.externalVelocity.x = 0; this.externalVelocity.z = 0;
+          groundInfo = prevGround;
+        }
+      }
+      this._lastGround = groundInfo;
+    } else {
+      groundInfo = { y: undergroundFloorY(this.position.x, this.position.z), walkable: true };
+    }
+    let groundY = groundInfo.y;
 
-    // ---- 垂直运动（跳跃 / 重力）----
+    // ---- 垂直运动（跳跃 / 重力；重力系数供 dev 沙盒低重力注入）----
     const J = PLAYER.jump;
     this.jumpCD = Math.max(0, this.jumpCD - dt);
     if (!this.grounded) {
-      this.vy -= J.gravity * dt;
-      this.position.y += this.vy * dt;
-      // 落到地面：钳位并清零竖直速度，避免反复触发落地
-      if (this.position.y <= groundY) {
+      this.vy -= J.gravity * getGravityScale() * dt;
+      const nextY = this.position.y + this.vy * dt;
+      const safety = this.verdantSafety;
+      // Dev Verdant only: sweep the full descending XZ path at sub-cell intervals,
+      // so high speed / a delayed frame cannot step over a narrow walkable column.
+      const landing = safety && this.vy < 0
+        ? findSegmentLanding({
+          from: { x: prevX, y: prevY, z: prevZ },
+          to: { x: this.position.x, y: nextY, z: this.position.z },
+          groundAt: (x, z) => {
+            const hit = undergroundDefs().find((b) => {
+              const q = undergroundProfile(b);
+              return undergroundCavesEnabled() && Math.hypot(x - b.x, z - b.z) <= q.slopeRadius;
+            });
+            return hit ? { y: undergroundFloorY(x, z, [hit]), walkable: true } : terrainGround(x, z);
+          },
+          maxStep: Math.min(0.16, Math.max(0.05, (safety.cellSize || VERDANT_SWEEP_STEP * 2) * 0.45)),
+        }) : null;
+      if (landing) {
+        this.position.x = landing.x;
+        this.position.z = landing.z;
+        const landingBurrow = undergroundDefs().find((b) => {
+          const q = undergroundProfile(b);
+          return undergroundCavesEnabled() && Math.hypot(landing.x - b.x, landing.z - b.z) <= q.slopeRadius;
+        });
+        groundInfo = landingBurrow ? { y: undergroundFloorY(landing.x, landing.z, [landingBurrow]), walkable: true } : terrainGround(landing.x, landing.z);
+        groundY = groundInfo.y;
         this.position.y = groundY;
         this.vy = 0;
         this.grounded = true;
+        this._lastGround = groundInfo;
+      } else {
+        this.position.y = nextY;
+        // Endpoint check remains for the existing stable/beta path and exact-touch frames.
+        if (this.position.y <= groundY) {
+          this.position.y = groundY;
+          this.vy = 0;
+          this.grounded = true;
+        }
       }
     } else {
-      // 地面状态：跟随地形起伏。
-      // 上坡时留一点滞后（不瞬移，避免视觉抖动），下坡时立即贴地
-      // （否则会出现"悬空"一小段）。
-      const diff = groundY - this.position.y;
-      if (diff < 0) this.position.y = groundY;
-      else this.position.y += diff * (1 - Math.exp(-18 * dt));
+      // DEV Verdant only: physical feet snap to the accepted walkable column.
+      // Step/void sweeps above remain authoritative; visual camera easing is separate.
+      if (safety) {
+        this.position.y = resolveGroundedY(this.position.y, groundY, true);
+      } else {
+        // Preserve the stable/beta procedural terrain response unchanged.
+        const diff = groundY - this.position.y;
+        if (diff < 0) this.position.y = groundY;
+        else this.position.y += diff * (1 - Math.exp(-18 * dt));
+      }
       this.vy = 0;
     }
+
+    // 高度场异常边缘兜底：仅 dev Verdant，正常坡面/洞穴不会触发。
+    if (safety) {
+      const checkGround = [this.position.x, this.position.z].every(Number.isFinite)
+        ? terrainGround(this.position.x, this.position.z) : null;
+      const caveY = undergroundFloorY(this.position.x, this.position.z);
+      const inVirtualCave = undergroundCavesEnabled() && this.position.y < terrainHeight(this.position.x, this.position.z) - 0.1 && caveY < terrainHeight(this.position.x, this.position.z) - 0.1;
+      const result = inVirtualCave ? { rescue: false } : shouldRescueVerdantPosition({
+        position: this.position, ground: checkGround, bounds: safety.bounds,
+        minWalkableY: safety.minWalkableY, killPlane: safety.killPlane,
+      });
+      if (result.rescue && this._rescueVerdant(result.reason)) {
+        groundInfo = this._lastGround;
+        groundY = this.onGroundY;
+      }
+    }
+    this.onGroundY = groundY;
     // 腾空高度（供玩法判断：能否躲开接触伤害）
     this.airHeight = Math.max(0, this.position.y - groundY);
 
@@ -337,7 +611,18 @@ export class FirstPersonController {
 
     // 应用到相机。注意用 this.position.y（含跳跃高度）而非地面高度，
     // 否则起跳瞬间相机会"粘"在地面上。
-    this._applyCamera(this.position.y, speedRatio);
+    let cameraGroundY = this.position.y;
+    if (safety) {
+      if (this.grounded) {
+        if (!wasGrounded) this.visualGroundY = this.position.y; // landing: never hover after a jump
+        else this.visualGroundY += (this.position.y - this.visualGroundY) * (1 - Math.exp(-18 * dt));
+        // Camera easing may trail a downhill drop, but can never fall below the surface.
+        cameraGroundY = Math.max(this.visualGroundY, groundY);
+      } else {
+        this.visualGroundY = this.position.y;
+      }
+    }
+    this._applyCamera(cameraGroundY, speedRatio, groundY);
   }
 
   /**
@@ -366,7 +651,7 @@ export class FirstPersonController {
     this.postureSpeed = speedRatio;
   }
 
-  _applyCamera(groundY, speedRatio) {
+  _applyCamera(groundY, speedRatio, floorY = groundY) {
     const P = PLAYER.posture;
     const c = this.crouch;
 
@@ -374,7 +659,8 @@ export class FirstPersonController {
     // 趴下：视高降低、俯仰下压、视野收窄（冲刺时专注前方）
     const eyeH = PLAYER.eyeHeight - P.eyeDrop * c;
     const pitchBias = -P.pitchDrop * c;
-    const fovNow = this.baseFov - (this.thirdPerson ? 0 : P.fovNarrow * c);
+    const fovNow = (this.thirdPerson ? PLAYER.fov.thirdPerson : PLAYER.fov.firstPerson)
+      - (this.thirdPerson ? 0 : P.fovNarrow * c);
     if (Math.abs(this.camera.fov - fovNow) > 0.01) {
       this.camera.fov = fovNow;
       this.camera.updateProjectionMatrix();
@@ -408,9 +694,11 @@ export class FirstPersonController {
         this.position.z + Math.cos(this.yaw) * horizontalDistance,
       );
     } else {
+      let eyeY = groundY + eyeH + bobY + shakeY;
+      if (this.verdantSafety && this.grounded) eyeY = Math.max(eyeY, floorY + 0.025);
       this.camera.position.set(
         this.position.x + fwdX * kickDist + shakeX,
-        groundY + eyeH + bobY + shakeY,
+        eyeY,
         this.position.z + fwdZ * kickDist,
       );
     }

@@ -23,6 +23,7 @@ export class HUD {
       cortisolStatus: document.getElementById('cortisolStatus'),
       socialStatus: document.getElementById('socialStatus'),
       objective: document.getElementById('objective'),
+      sandboxStatus: document.getElementById('sandboxStatus'),
       toast: document.getElementById('toast'),
       banner: document.getElementById('banner'),
       overlay: document.getElementById('overlay'),
@@ -33,7 +34,23 @@ export class HUD {
       perfHint: document.getElementById('perfHint'),
       loader: document.getElementById('loader'),
       loaderFill: document.getElementById('loaderFill'),
+      loaderText: document.querySelector('.loader-text'),
+      loaderPct: document.getElementById('loaderPct'),
+      loaderBytes: document.getElementById('loaderBytes'),
+      loaderVideo: document.querySelector('.loader-video'),
     };
+    this._loadingMax = -1;
+    // 心跳秒表：诊断加载屏是真冻结（进程挂起，秒表停）还是逻辑卡住（秒表继续跳）。
+    this._loadStartAt = Date.now();
+    const tickEl = document.createElement('span');
+    tickEl.id = 'loaderTick';
+    tickEl.style.opacity = '.55';
+    tickEl.style.marginLeft = '8px';
+    document.querySelector('.loader-meta')?.appendChild(tickEl);
+    this._loaderTickTimer = setInterval(() => {
+      if (this.el.loader?.classList.contains('gone')) { clearInterval(this._loaderTickTimer); tickEl.remove(); return; }
+      tickEl.textContent = `${Math.floor((Date.now() - this._loadStartAt) / 1000)}s`;
+    }, 500);
 
     this.toastTimer = 0;
     this.bannerTimer = 0;
@@ -55,13 +72,54 @@ export class HUD {
     this._ultFlashTimer = null;
   }
 
-  setLoading(pct) {
-    this.el.loaderFill.style.width = pct + '%';
+  /**
+   * 更新加载进度。单调递增、不回退不突跳（同一加载会话内）；
+   * label 同步显示当前正在执行的步骤（读清单 / 高度场 / 加载场景…）。
+   * 任何一次更新都喂狗一次，index.html 的看门狗只在真·静默挂起时报警。
+   */
+  setLoading(pct, label, byteStats = null) {
+    const p = Math.max(0, Math.min(100, Number(pct) || 0));
+    if (p > this._loadingMax) {
+      this._loadingMax = p;
+      this.el.loaderFill.style.width = p + '%';
+      if (this.el.loaderPct) this.el.loaderPct.textContent = Math.round(p) + '%';
+    }
+    if (label) this.el.loaderText.textContent = label;
+    if (this.el.loaderBytes) {
+      if (byteStats?.text) { this.el.loaderBytes.textContent = byteStats.text; this.el.loaderBytes.hidden = false; }
+      else if (byteStats && Number.isFinite(byteStats.totalBytes) && byteStats.totalBytes > 0) {
+        const fmt = (n) => { const b = Math.max(0, Number(n) || 0); if (b < 1024) return `${Math.round(b)} B`; const u = ['KiB','MiB','GiB']; let x = b, i = -1; do { x /= 1024; i++; } while (x >= 1024 && i < u.length - 1); return `${x.toFixed(x >= 100 ? 0 : x >= 10 ? 1 : 2)} ${u[i]}`; };
+        this.el.loaderBytes.textContent = byteStats.cached ? `已缓存 ${fmt(byteStats.totalBytes)}${byteStats.sourceLabel ? ` · ${byteStats.sourceLabel}` : ''}` : `${fmt(byteStats.doneBytes)} / ${fmt(byteStats.totalBytes)}（剩 ${fmt(byteStats.remainingBytes)}）${byteStats.speedBytesPerSecond > 0 ? ` · ${fmt(byteStats.speedBytesPerSecond)}/s` : ''}${byteStats.sourceLabel ? ` · ${byteStats.sourceLabel}` : ''}`;
+        this.el.loaderBytes.hidden = false;
+      }
+    }
+    try { window.dispatchEvent(new Event('app:boot-progress')); } catch (_) {}
+  }
+
+  /** 切档等二次加载：显式开始新会话，允许进度条从低位重新连续爬升。 */
+  beginLoadingSession(label) {
+    this._loadingMax = -1;
+    this.el.loader.style.display = '';
+    this.el.loader.classList.remove('gone');
+    if (this.el.loaderBytes) { this.el.loaderBytes.hidden = true; this.el.loaderBytes.textContent = ''; }
+    try {
+      const v = this.el.loaderVideo;
+      if (v) {
+        v.currentTime = 0;
+        // Mobile browsers can reject a play() started just before hideLoader()
+        // pauses the element. Consume that expected interruption so E2E sees no
+        // unhandled AbortError while the loader remains fail-soft.
+        const playPromise = v.play();
+        if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+      }
+    } catch (_) {}
+    this.setLoading(0, label || '准备加载…');
   }
 
   hideLoader() {
     this.el.loader.classList.add('gone');
-    setTimeout(() => { this.el.loader.style.display = 'none'; }, 600);
+    try { this.el.loaderVideo && this.el.loaderVideo.pause(); } catch (_) {}
+    setTimeout(() => { this.el.loader.style.display = 'none'; }, 620);
   }
 
   /** 短提示气泡 */
@@ -150,10 +208,12 @@ export class HUD {
     this.el.energyText.textContent = Math.round(p.energy) + '/100';
     this.el.stressText.textContent = Math.round(p.stress) + (stats.overloaded ? ' · 过载' : '');
 
-    this.el.mission.innerHTML =
-      `第 <b>${g.level + 1}</b> / ${LEVELS.length} 关 · ${cfg.name}<br>` +
-      `${cfg.subtitle || cfg.brief || ''}<br>` +
-      `${g.freezeTimer ? '测试模式：无时间限制' : `剩余 <b>${Math.ceil(g.time)}</b> 秒`} · 位置：${g.inBurrow ? '<b style="color:#8fe8b0">洞穴内（安全）</b>' : '草地上'}`;
+    // Keep only level identity and live status in the always-visible mission
+    // chip. Instructional text lives in the always-visible objective card.
+    this.el.mission.innerHTML = g.sandbox
+      ? '<b>自由测试 · 无关卡 / 无时间限制</b><br>移动、攻击与狐狸机动均可反复测试'
+      : `第 <b>${g.level + 1}</b> / ${LEVELS.length} 关 · ${cfg.name}<br>` +
+      `${g.freezeTimer ? '测试模式：无时间限制' : `剩余 <b>${Math.ceil(g.time)}</b> 秒`} · 位置：${g.inBaseBurrow ? '<b style="color:#ffd080">大本营内</b>' : g.inBurrow ? '<b style="color:#9bd4dc">临时避难洞内</b>' : '草地上'}`;
 
     const state = g.overdrive > 0 ? '协同大招'
       : g.boost > 0 ? '应急爆发'
@@ -184,39 +244,55 @@ export class HUD {
       + `${Math.round(g.cortisol)}/100`
       + (g.cortisol >= 60 ? ' · 攻击 +2' : g.cortisol >= 25 ? ' · 攻击 +1' : ' · 达 25 后攻击 +1');
     this.el.socialStatus.innerHTML = '<strong>E 陪伴</strong> '
-      + (!g.friend.saved ? '先救伙伴' : g.social > 0 ? `缓压中 ${Math.ceil(g.social)}s` : g.socialCD > 0 ? `冷却 ${Math.ceil(g.socialCD)}s` : '回洞使用');
+      + (!g.friend.saved ? '先救伙伴' : g.social > 0 ? `缓压中 ${Math.ceil(g.social)}s` : g.socialCD > 0 ? `冷却 ${Math.ceil(g.socialCD)}s` : '回大本营使用');
 
     this._updateObjective(g, cfg);
   }
 
   _updateObjective(g, cfg) {
+    if (g.sandbox) {
+      // Keep a defensive fallback for any embedded shell without a dedicated
+      // sandbox card; the canonical beta shells provide #sandboxStatus.
+      if (!this.el.sandboxStatus) {
+        this.el.objective.hidden = false;
+        if (this._lastObjective !== 'sandbox') {
+          this._lastObjective = 'sandbox';
+          this.el.objective.innerHTML = '<div class="obj-title">沙盒状态</div><div class="obj-row done"><span>关卡目标</span><b>关闭</b></div><div class="obj-row done"><span>时间限制</span><b>关闭</b></div>';
+        }
+        return;
+      }
+      this.el.objective.hidden = true;
+      this.el.sandboxStatus.classList.add('on');
+      this.el.sandboxStatus.setAttribute('aria-hidden', 'false');
+      if (this._lastObjective === 'sandbox') return;
+      this._lastObjective = 'sandbox';
+      this.el.sandboxStatus.innerHTML = '<div class="obj-title">沙盒状态</div><div class="obj-row done"><span>关卡目标</span><b>关闭</b></div><div class="obj-row done"><span>时间限制</span><b>关闭</b></div>';
+      return;
+    }
+    this.el.objective.hidden = false;
+    this.el.sandboxStatus?.classList.remove('on');
+    this.el.sandboxStatus?.setAttribute('aria-hidden', 'true');
     const f = g.friend;
-    const key = `${g.foodCount}/${g.levelRepels}/${f.rescued}/${f.saved}/${g.bossDown}/${cfg.goal}/${cfg.repels}/${cfg.boss}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
+    const key = `${g.level}/${g.foodCount}/${f.rescued}/${f.saved}/${g.inBurrow}/${cfg.goal}/${Math.ceil(g.time)}/${g.season ? g.season.season : ''}`;
     if (key === this._lastObjective) return;
     this._lastObjective = key;
 
     const row = (label, cur, need) =>
       `<div class="obj-row ${cur >= need ? 'done' : ''}"><span>${label}</span><b>${cur}/${need}</b></div>`;
 
-    const expanded = this.el.objective.classList.contains('expanded');
-    const toggleLabel = expanded ? '收起本关目标' : '展开本关目标';
-    let html = `<button type="button" class="obj-toggle" aria-expanded="${expanded}" aria-label="${toggleLabel}">`
-      + `<span>本关目标</span><b>采食 ${g.foodCount}/${cfg.goal}</b><i aria-hidden="true">${expanded ? '−' : '+'}</i></button>`;
-    html += '<div class="obj-details">';
+    // 普通关卡：目标卡常驻显示（与沙盒状态卡一致，不再需要点击展开）。
+    let html = '<div class="obj-title">本关目标</div>';
     // dev 版：采食对象随季节变化，标签应随之改变
     const eatLabel = g.season ? `采食 · ${g.season.season}` : '采食浆果';
     html += row(eatLabel, g.foodCount, cfg.goal);
-    html += row('驱退藏狐', g.levelRepels, cfg.repels);
     html += `<div class="obj-row ${f.saved ? 'done' : ''}"><span>伙伴</span><b>${f.saved ? '已到家' : f.rescued ? '跟随中' : '待救援'}</b></div>`;
-    if (cfg.boss) {
-      html += `<div class="obj-row ${g.bossDown ? 'done' : ''}"><span>狐首领</span><b>${g.bossDown ? '已驱退' : '未驱退'}</b></div>`;
-    }
-    html += `<div class="obj-row ${g.inBurrow ? 'done' : ''}"><span>回洞结算</span><b>${g.inBurrow ? '在洞内' : '未回洞'}</b></div>`;
-    // dev 版：显示当季说明，把季节性与进食强度联系起来
+    html += `<div class="obj-row ${g.inBaseBurrow ? 'done' : ''}"><span>回大本营结算</span><b>${g.inBaseBurrow ? '在大本营' : g.inBurrow ? '临时避难中' : '未回洞'}</b></div>`;
+    const levelHint = cfg.subtitle || cfg.brief;
+    if (levelHint) html += `<div class="obj-hint">关卡提示：${levelHint}</div>`;
+    // dev 版：显示当季说明，把季节性与进食强度联系起来（移动端 CSS 隐藏以控制高度）
     if (g.season) {
       html += `<div class="obj-season">${g.season.seasonNote}</div>`;
     }
-    html += '</div>';
     this.el.objective.innerHTML = html;
   }
 
@@ -250,13 +326,8 @@ export class HUD {
       items.push({
         ang: Math.atan2(dx, dz), d,
         kind: 'fox',
-        color: f.type === 'boss' ? '#ff2a1a' : f.state === 'wind' ? '#ff8a2a' : '#ff5a44',
-        // 蓄力/冲刺时标出它的攻击模式名（如"绕行虚晃"），
-        // 玩家从屏幕边缘就能读出"这只接下来会怎么做"，
-        // 而不是靠记忆每种狐的行为 —— 这是攻击模式多样性能被玩懂的前提。
-        label: (f.state === 'wind' || f.state === 'dash')
-          ? ((f.attack && f.attack.label) || '')
-          : '',
+        color: f.state === 'wind' ? '#ff8a2a' : '#ff5a44',
+        label: '',
       });
     }
 

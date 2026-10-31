@@ -14,8 +14,30 @@ import { instantiate, normalizeModel } from '../models/loader.js';
 import { USE_REAL_MODELS } from '../core/version.js';
 
 /** 真实土拨鼠模型（与藏狐同一套分级回退，见 models/loader.js） */
-const instantiateMarmot = () => instantiate('./assets/models/marmot.glb', 'marmot');
+const instantiateMarmot = (dev = false) => instantiate(`./assets/models/${dev ? 'marmot-screaming.glb' : 'marmot.glb'}`, dev ? 'marmotScream' : 'marmot');
+const tintMarmot = (root) => root?.traverse?.((o) => { if (!o.isMesh || /eye|tongue|teeth|mouth/i.test(o.name || '')) return; const mats = Array.isArray(o.material) ? o.material : [o.material]; mats.forEach((m) => { if (!m) return; const c = m.color; if (c && c.r < 0.08 && c.g < 0.08 && c.b < 0.08) c.set(0xa9834e); }); });
 import { devOn } from '../core/version.js';
+import { disposeOwnedTree } from './resource-disposal.mjs';
+import { StaticPlacementCache, resolvePlacementWithFallback } from '../world/verdant-placement.mjs';
+
+let grassTexturePromise = null;
+function loadVerdantGrassTextures() {
+  if (grassTexturePromise) return grassTexturePromise;
+  const loader = new THREE.TextureLoader();
+  grassTexturePromise = Promise.all([
+    loader.loadAsync('./assets/verdant/tiers/low/grass_medium_02_diff_512.jpg'),
+    loader.loadAsync('./assets/verdant/tiers/low/grass_medium_02_alpha_512.png'),
+  ]).then(([diff, alpha]) => {
+    diff.colorSpace = THREE.SRGBColorSpace;
+    alpha.colorSpace = THREE.NoColorSpace;
+    console.info('[food] verdant grass textures loaded', { tier: 'low', diff: 'grass_medium_02_diff_512.jpg', alpha: 'grass_medium_02_alpha_512.png' });
+    return { diff, alpha };
+  }).catch((error) => {
+    console.warn('[food] verdant grass textures unavailable:', error);
+    return null;
+  });
+  return grassTexturePromise;
+}
 
 export class Food {
   /**
@@ -29,7 +51,7 @@ export class Food {
     this.group = new THREE.Group();
     this.group.position.set(x, terrainHeight(x, z) + 0.52, z);
 
-    if (this.herbivore) this._buildHerb();
+    if (this.herbivore) { this._buildHerb(); if (devOn('sorrelFood')) this._loadSorrel(); }
     else this._buildBerry();
 
     scene.add(this.group);
@@ -92,6 +114,14 @@ export class Food {
       color: p.color ?? 0x8fa05a, roughness: 0.88,
       emissive: 0x141a0c, emissiveIntensity: 0.25,
       side: THREE.DoubleSide,
+    });
+    // 普通可采集草先以轻量几何占位，随后替换为 Verdant low 档真实草贴图。
+    // 醡浆花模型加载成功后会隐藏整组占位物，不会与真实模型叠加。
+    loadVerdantGrassTextures().then((textures) => {
+      if (!textures || !this.group || this.realModel) return;
+      for (const mat of [stemMat, headMat]) {
+        mat.map = textures.diff; mat.alphaMap = textures.alpha; mat.transparent = true; mat.alphaTest = 0.35; mat.needsUpdate = true;
+      }
     });
 
     const isLegume = /alfalfa|clover|vetch|sainfoin|bean|豌豆|三叶|苜蓿|巢豆/.test(p.key);
@@ -189,12 +219,26 @@ export class Food {
     }
   }
 
+  async _loadSorrel() {
+    try {
+      const inst = await instantiate('./assets/models/shrub-sorrel.glb', 'sorrel');
+      if (!inst || !this.group) return;
+      const norm = normalizeModel(inst, 0.4, { upAxis: 'z' });
+      norm.wrap.position.y = -0.52;
+      norm.wrap.rotation.y = this.index * 0.73;
+      for (const child of this.group.children) child.visible = false;
+      this.group.add(norm.wrap);
+      this.realModel = norm.wrap;
+      if (this.halo) this.halo.material.opacity = 0.035;
+    } catch (e) { console.warn('[food] sorrel fallback:', e); }
+  }
+
   update(dt) {
-    if (this.taken) return;
+    if (this.taken || !this.group) return;
     this._t += dt;
     const bob = Math.sin(this._t * 2.2) * (this.herbivore ? 0.035 : 0.06);
     this.group.position.y = terrainHeight(this.x, this.z) + 0.52 + bob;
-    this.halo.material.opacity = (this.herbivore ? 0.1 : 0.08) + Math.sin(this._t * 2.6) * (this.herbivore ? 0.04 : 0.04);
+    if (this.halo) this.halo.material.opacity = (this.herbivore ? 0.1 : 0.08) + Math.sin(this._t * 2.6) * (this.herbivore ? 0.04 : 0.04);
     this.group.rotation.y += dt * (this.herbivore ? 0.18 : 0.35);
     if (this.linoleicRing) {
       this.linoleicRing.material.opacity = 0.22 + Math.sin(this._t * 2.8) * 0.1;
@@ -219,15 +263,9 @@ export class Food {
   dispose(scene = this.scene) {
     if (!scene || !this.group) return;
     scene.remove(this.group);
-    this.group.traverse((o) => {
-      // 只释放本类自建的基础几何；材质按引用计数难以精确区分，
-      // 这里每实例都 new 了自己的材质，直接释放是安全的。
-      if (o.geometry) o.geometry.dispose?.();
-      if (o.material) {
-        const mats = Array.isArray(o.material) ? o.material : [o.material];
-        for (const m of mats) m.dispose?.();
-      }
-    });
+    // GLTFLoader instantiate 克隆的是节点/实例材质，几何与纹理仍属于共享模型缓存。
+    // 清除只释放程序化 Food 资源，不释放真实 sorrel 子树几何/纹理。
+    disposeOwnedTree(this.group, this.realModel);
     this.group = null;
     this.scene = null;
   }
@@ -238,7 +276,7 @@ export class Food {
  * 被救后跟随玩家，带回洞穴才算完成救援目标。
  */
 export class Companion {
-  constructor(scene) {
+  constructor(scene, { resolvePlacement = null } = {}) {
     // 与藏狐同样的三层结构：容器 / 程序化 / 真实模型是**兄弟**。
     // 早期版本把 mesh 直接当程序化模型，再把真实模型 add 成它的子节点，
     // 然后 `mesh.visible = false` —— 结果连真实模型一起隐藏，伙伴凭空消失。
@@ -250,12 +288,18 @@ export class Companion {
     this.group.add(this.mesh);
     scene.add(this.group);
     this.scene = scene;
+    this.resolvePlacement = typeof resolvePlacement === 'function' ? resolvePlacement : null;
     this.x = 0; this.z = 0;
     this.rescued = false;
     this.saved = false;
     this._t = 0;
     this.emote = null;
     this.emoteTimer = 0;
+    this._placementDirty = true;
+    this._lastResolvedX = NaN;
+    this._lastResolvedZ = NaN;
+    this._lastResolved = null;
+    this._placementCache = new StaticPlacementCache();
     // 模型加载级别：'procedural' | 'full' | 'geometry-only'
     this.modelLevel = 'procedural';
     this._loadRealModel();
@@ -273,7 +317,7 @@ export class Companion {
     // 早期写成 `=== 'off'` 恒为 false，导致该开关对伙伴完全失效。
     if (!USE_REAL_MODELS) return;
     try {
-      const inst = await instantiateMarmot();
+      const inst = await instantiateMarmot(devOn('screamingMarmot'));
       if (!inst) { this.modelLevel = 'procedural'; return; }
 
       // 归一化姿态：脚底贴地、面朝 +Z。
@@ -281,6 +325,7 @@ export class Companion {
       // Y 就是最大轴，说明土拨鼠**本来就是正立的**，不能像藏狐那样绕 Z 转 90°。
       // 目标高度 0.75 与程序化版本（head.y=0.62 + 头高）对齐，避免切换时跳变。
       const norm = normalizeModel(inst, 0.75, { upAxis: 'z' });
+      if (devOn('screamingMarmot')) tintMarmot(norm.wrap);
       this.mesh.add(norm.wrap);
       this.realModel = norm.wrap;
       this.modelLevel = inst.userData.level || 'full';
@@ -307,17 +352,17 @@ export class Companion {
     }
   }
 
-  placeAt(x, z) {
+  placeAt(x, z, y = null) {
     this.x = x; this.z = z;
     this.rescued = false;
     this.saved = false;
     this._restoreVisibility();
     this.emote = null;
-    this.sync();
+    this.sync(y);
   }
 
   /**
-   * 按当前模型级别恢复可见性。
+   * 按当前模型级别恢复可见性.
    *
    * 不能简单地 `mesh.visible = true` —— 那会把"是否该显示真实模型"
    * 和"是否该显示程序化版本"两件事混在一个开关上，
@@ -331,8 +376,26 @@ export class Companion {
     if (this.realModel) this.realModel.visible = useReal;
   }
 
-  sync() {
-    this.group.position.set(this.x, terrainHeight(this.x, this.z), this.z);
+  markPlacementDirty() { this._placementDirty = true; this._placementCache.invalidate(); }
+
+  sync(y = null) {
+    this.markPlacementDirty();
+    let ground = null;
+    if (Number.isFinite(y)) {
+      // A build-time validated/baked support height is already authoritative; do not
+      // repeat a mesh clearance query while attaching the same pose after a rebuild.
+      ground = { x: this.x, y, z: this.z, walkable: true };
+    } else {
+      ground = this.resolvePlacement?.(this.x, this.z);
+    }
+    if (ground) {
+      this.x = ground.x; this.z = ground.z;
+      this._lastResolvedX = this.x; this._lastResolvedZ = this.z; this._lastResolved = ground;
+      this._placementCache.set(this.x, this.z, ground);
+      this._placementDirty = false;
+    }
+    const groundY = Number.isFinite(y) ? y : Number.isFinite(ground?.y) ? ground.y : terrainHeight(this.x, this.z);
+    this.group.position.set(this.x, groundY, this.z);
   }
 
   showEmote(kind) {
@@ -341,6 +404,7 @@ export class Companion {
   }
 
   update(dt, playerPos, safe) {
+    const prevX = this.x, prevZ = this.z;
     this._t += dt;
     if (this.emoteTimer > 0) {
       this.emoteTimer -= dt;
@@ -359,7 +423,24 @@ export class Companion {
       this.mesh.rotation.y = Math.atan2(playerPos.x - this.x, playerPos.z - this.z);
     }
 
-    const y = terrainHeight(this.x, this.z);
+    // Stationary frames reuse the last validated support/clearance. During follow,
+    // refresh only after meaningful displacement or an explicit scene/teleport dirty flag;
+    // failed resolves still use the previous safe pose and retry on the next moved step.
+    let ground = this._lastResolved;
+    const movedSinceResolve = Math.hypot(this.x - this._lastResolvedX, this.z - this._lastResolvedZ);
+    const shouldResolve = !!this.resolvePlacement && (this._placementDirty || !ground || movedSinceResolve > 1e-4);
+    if (shouldResolve) {
+      const resolved = resolvePlacementWithFallback(this._placementCache, {
+        x: this.x, z: this.z, fallbackX: prevX, fallbackZ: prevZ,
+        dirty: this._placementDirty, resolver: this.resolvePlacement,
+      });
+      this.x = resolved.x; this.z = resolved.z; ground = resolved.result;
+      if (ground) {
+        this.x = ground.x; this.z = ground.z;
+        this._lastResolvedX = this.x; this._lastResolvedZ = this.z; this._lastResolved = ground; this._placementDirty = false;
+      }
+    }
+    const y = Number.isFinite(ground?.y) ? ground.y : terrainHeight(this.x, this.z);
     const bob = this.rescued && !this.saved
       ? Math.abs(Math.sin(this._t * 7)) * 0.09
       : Math.sin(this._t * 2) * 0.03;
@@ -444,11 +525,14 @@ export function buildMarmotMesh(furColor = 0xa9834e) {
   }
 
   const legGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.2, 6);
+  const frontArms = {};
   for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
     const leg = new THREE.Mesh(legGeo, fur);
     leg.position.set(sx * 0.16, 0.1, sz * 0.16);
     g.add(leg);
+    if (sz > 0) frontArms[sx < 0 ? 'left' : 'right'] = leg;
   }
+  g.userData.frontArms = frontArms;
 
   const tail = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), fur);
   tail.position.set(0, 0.2, -0.32);
