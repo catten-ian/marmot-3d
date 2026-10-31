@@ -51,6 +51,7 @@ export class SmartFoxBlackBoxRecorder {
   reset() {
     this.startedAt = finite(this.now()); this.frames = []; this.events = []; this.input = [];
     this.initialSnapshot = null; this.config = {}; this.build = {}; this.capture = null; this.lastPackage = null;
+    this._foxIds = new WeakMap(); this._nextFoxId = 1;
   }
   start({ build = {}, config = {}, seed = this.seed, initialSnapshot = null } = {}) {
     this.reset(); this.startedAt = finite(this.now()); this.seed = makeSeed(seed);
@@ -58,6 +59,12 @@ export class SmartFoxBlackBoxRecorder {
     this.recordEvent('blackbox-start', { seed: this.seed }); return this;
   }
   _t(t = this.now()) { return Math.max(0, finite(t) - this.startedAt); }
+  idFor(fox) {
+    if (!fox || (typeof fox !== 'object' && typeof fox !== 'function')) return String(fox ?? 'fox');
+    let id = this._foxIds.get(fox);
+    if (!id) { id = `F${this._nextFoxId++}`; this._foxIds.set(fox, id); }
+    return id;
+  }
   recordInput(input = {}, t = this.now()) { this.input.push({ t: this._t(t), input: clean(input) || {} }); this._trim(); }
   recordFrame(frame = {}, t = this.now()) {
     const time = this._t(t); const data = clean(frame) || {};

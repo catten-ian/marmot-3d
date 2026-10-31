@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   SmartFoxBlackBoxRecorder, BLACKBOX_PRE_SECONDS, BLACKBOX_POST_SECONDS,
   detectNoProgressOscillation, detectRepeatedReorientation, detectWastedPounces, BLACKBOX_MAX_BYTES,
@@ -17,6 +19,26 @@ test('blackbox keeps a bounded 20s prebuffer and 5s post window with optional de
   assert.ok(JSON.stringify(pkg).length <= BLACKBOX_MAX_BYTES);
   assert.ok(pkg.inputStream[0].t >= 10); assert.ok(pkg.inputStream.at(-1).t <= 35); assert.ok(pkg.inputStream.length <= 26);
   assert.equal(exportBlackBoxLocal(pkg, { download: false }).ok, false, 'node export is fail-soft and returns JSON');
+});
+
+test('wasted-pounce lock-angle criterion fires for safe-distance synthetic commits', () => {
+  const pkg = {
+    format: 'marmot3d-beta-smartfox-blackbox',
+    eventLog: [
+      { t: 1, type: 'pounce-commit', distance: 3.4, lockAngleError: 0.8 },
+      { t: 2, type: 'pounce-commit', distance: 4.1, lockAngleError: 0.7 },
+    ],
+  };
+  const hits = detectWastedPounces(pkg, { minDistance: 2.2, maxLockError: 0.55, minAttempts: 2 });
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].attempts, 2);
+  assert.ok(hits[0].examples.every((event) => event.distance >= 2.2 && event.lockAngleError > 0.55));
+
+  // This guards the production recording path: fe32c13 wrote `lockAngleError: 0`,
+  // making the fixture above impossible to obtain from real pounce commits.
+  const mainSource = fs.readFileSync(path.resolve(new URL('../src/main.js', import.meta.url).pathname), 'utf8');
+  assert.match(mainSource, /smartFoxBlackBox[\s\S]*lockAngleError: pounceCommit\.lockAngleError/);
+  assert.doesNotMatch(mainSource, /smartFoxBlackBox[\s\S]*lockAngleError: 0\b/);
 });
 
 test('three configurable anomaly detectors flag synthetic fixtures and mark no user evidence', () => {

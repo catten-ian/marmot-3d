@@ -1,6 +1,6 @@
 # m3d-20261030-beta-smartfox-blackbox
 
-Implemented on `feat/beta-smartfox-blackbox-20261030`, based on `708472c1b855500096e0978ea239220f3f022593` (Beta rev56). No push or deploy was performed.
+Implemented on `feat/beta-smartfox-blackbox-20261030`, based on `fe32c13` (Beta rev56). No push or deploy was performed.
 
 The Beta sandbox now keeps a bounded SmartFox black-box stream during ordinary play. The panel button `一键捕获智能狐异常` arms a capture with the previous 20 seconds and then records the following 5 seconds. The description is optional and defaults to an empty string. Completion exports a local JSON package and submits the same bounded payload through the existing feedback queue; both paths are fail-soft.
 
@@ -27,6 +27,15 @@ Format: `marmot3d-beta-smartfox-blackbox`, version `1`.
 - Payload is sanitized to remove credential-like/personal fields and bounded to 2 MiB, 1,800 frames, and 5,000 events.
 
 The existing `SandboxRecorder` and feedback queue remain available unchanged; the new recorder is additive.
+
+The main-control review found one real recording defect in the original `fe32c13` delivery: the blackbox `pounce-commit` event wrote `lockAngleError: 0`. That made the detector's configurable `maxLockError` criterion unreachable for real captures; only the distance criterion could fire. The fix computes the commit distance, target yaw, and wrapped absolute lock error once at pounce commit time, then records the measured radian value in the blackbox event. The result is wrapped to `[0, π]` and is shared with the existing sandbox event calculation.
+
+The blackbox path is now independent of `sandboxRecorder`. SmartFox events, fox frames, and AI decisions are recorded whenever the blackbox exists, even if the other recorder is absent. Fox IDs come from the blackbox recorder's own object identity map; the existing sandbox recorder ID behavior is unchanged.
+
+The new regression test uses two pounce commits at distances `3.4 m` and `4.1 m` (both above the `2.2 m` distance threshold) with lock errors `0.8` and `0.7 rad` (both above the `0.55 rad` threshold), and proves `detectWastedPounces()` reports the anomaly. The same test also guards the production recording source against the old hardcoded zero. Running it against an extracted `fe32c13` tree failed (`5 pass, 1 fail`); running it on this fix passed (`6 pass, 0 fail`).
+
+Placeholder audit: the only detector or replay relevant placeholder field found was the blackbox pounce event's `lockAngleError: 0`, and it is fixed. No other hardcoded `0`, `null`, or empty values written into the blackbox package were detector or replay inputs: the random seed call uses `seed: null` intentionally to request a generated seed, the empty description is optional user metadata, `targetId: 'player'` is a real semantic label, and boolean/zero-valued telemetry fields are live state values.
+
 
 ## Replay and A/B evidence
 
@@ -60,9 +69,9 @@ These are synthetic SVG renders from recorded trajectory fixtures, not real user
 
 - `node --check` passed for every changed JS/MJS/CJS file.
 - `node tools/test-sandbox-recorder.mjs`: 2 pass, 0 fail.
-- `node tools/test-feedback.cjs`: pass; offline enqueue and queue flush regression behavior preserved.
-- `node tools/test-smartfox-blackbox.mjs`: 5 pass, 0 fail.
-- `node tools/run-node-tests.cjs`: **93 pass, 0 fail, 22 skipped** (all skips are browser/CDP tests; skips are not counted as passes). No physical-device testing was performed.
+- `node tools/test-feedback.cjs`: **pass, 0 failures**; offline enqueue and queue flush regression behavior preserved (the script reports `feedback tests passed`).
+- `node tools/test-smartfox-blackbox.mjs`: **6 pass, 0 fail, 0 skipped**.
+- `node tools/run-node-tests.cjs`: **93 pass, 0 fail, 22 skipped** (all skips are browser/CDP tests; skips are not counted as passes).
 
 ## Limitations
 

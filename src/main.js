@@ -2012,20 +2012,30 @@ function update(dt) {
     }
     f.update(dt, p, game.inBurrow, cfg, burrowDefs, terrainHeight, game.currentBurrow,
       f.type === 'smart' ? { smartFoxes, coordinator: sandboxState.active ? sandboxState.smartPack : null, tactics: smartTactics } : null);
+    const pounceCommit = f.type === 'smart' && !prevCommitted && f.pounceCommitted ? (() => {
+      const distance = Math.hypot(prevFoxX - p.x, prevFoxZ - p.z);
+      const targetYaw = Math.atan2(p.x - prevFoxX, p.z - prevFoxZ);
+      let lockAngleError = Math.abs(targetYaw - (f._smartState?.pounceYaw ?? f.yaw));
+      while (lockAngleError > Math.PI) lockAngleError -= Math.PI * 2;
+      return {
+        distance,
+        lockAngleError: Math.abs(lockAngleError),
+        leadDistance: Math.hypot((f._smartState?.pounceTargetX ?? p.x) - p.x, (f._smartState?.pounceTargetZ ?? p.z) - p.z),
+      };
+    })() : null;
     if (sandboxRecorder && f.type === 'smart') {
-      if (!prevCommitted && f.pounceCommitted) {
-        const commitDistance = Math.hypot(prevFoxX - p.x, prevFoxZ - p.z);
-        const targetYaw = Math.atan2(p.x - prevFoxX, p.z - prevFoxZ);
-        let lockError = Math.abs(targetYaw - (f._smartState.pounceYaw ?? f.yaw));
-        while (lockError > Math.PI) lockError -= Math.PI * 2;
-        sandboxRecorder.push('smart-pounce-commit', { fox: sandboxRecorder.idFor(f), distance: Number(commitDistance.toFixed(3)), lockAngleError: Number(Math.abs(lockError).toFixed(4)), leadDistance: Number(Math.hypot((f._smartState.pounceTargetX ?? p.x) - p.x, (f._smartState.pounceTargetZ ?? p.z) - p.z).toFixed(3)) }, game.totalTime);
+      if (pounceCommit) {
+        sandboxRecorder.push('smart-pounce-commit', { fox: sandboxRecorder.idFor(f), distance: Number(pounceCommit.distance.toFixed(3)), lockAngleError: Number(pounceCommit.lockAngleError.toFixed(4)), leadDistance: Number(pounceCommit.leadDistance.toFixed(3)) }, game.totalTime);
       }
       if (f.pounceCommitted && f.pounceStriking) sandboxRecorder.push('smart-pounce-strike-frame', { fox: sandboxRecorder.idFor(f), distance: Number(Math.hypot(f.x - p.x, f.z - p.z).toFixed(3)), sweptDistance: Number(segmentPointDistance2D(prevFoxX, prevFoxZ, f.x, f.z, p.x, p.z).toFixed(3)) }, game.totalTime);
-      if (prevState !== f.state) smartFoxBlackBox?.recordEvent('fox-state', { fox: sandboxRecorder.idFor(f), from: prevState, to: f.state, x: f.x, z: f.z }, game.totalTime);
-      if (!prevCommitted && f.pounceCommitted) smartFoxBlackBox?.recordEvent('pounce-commit', { fox: sandboxRecorder.idFor(f), distance: Math.hypot(prevFoxX - p.x, prevFoxZ - p.z), lockAngleError: 0 }, game.totalTime);
-      smartFoxBlackBox?.recordFox({ id: sandboxRecorder.idFor(f), x: f.x, z: f.z, yaw: f.yaw, state: f.state, intent: f.intent, hp: f.hp, pounceCommitted: !!f.pounceCommitted }, game.totalTime);
+    }
+    if (smartFoxBlackBox && f.type === 'smart') {
+      const foxId = smartFoxBlackBox.idFor(f);
+      if (prevState !== f.state) smartFoxBlackBox.recordEvent('fox-state', { fox: foxId, from: prevState, to: f.state, x: f.x, z: f.z }, game.totalTime);
+      if (pounceCommit) smartFoxBlackBox.recordEvent('pounce-commit', { fox: foxId, distance: pounceCommit.distance, lockAngleError: pounceCommit.lockAngleError }, game.totalTime);
+      smartFoxBlackBox.recordFox({ id: foxId, x: f.x, z: f.z, yaw: f.yaw, state: f.state, intent: f.intent, hp: f.hp, pounceCommitted: !!f.pounceCommitted }, game.totalTime);
       const telemetry = f.telemetry?.at(-1);
-      if (telemetry) smartFoxBlackBox?.recordDecision({ fox: sandboxRecorder.idFor(f), decision: { ...telemetry, targetId: 'player', yaw: f.yaw }, state: f.state, pounceCommitted: !!f.pounceCommitted }, game.totalTime);
+      if (telemetry) smartFoxBlackBox.recordDecision({ fox: foxId, decision: { ...telemetry, targetId: 'player', yaw: f.yaw }, state: f.state, pounceCommitted: !!f.pounceCommitted }, game.totalTime);
     }
     if (IS_BETA && f.type === 'smart' && prevMeleePhase !== (f.meleePhase ?? null)) {
       recordTestLog('smart-melee-phase', { from: prevMeleePhase, to: f.meleePhase ?? null,
