@@ -46,6 +46,24 @@ const STATUS = {
 };
 const RESOLUTION_STATUS = new Map();
 function safeResolvedUrl(url) { try { const u = new URL(url, typeof location !== 'undefined' ? location.href : 'http://localhost/'); return u.protocol === 'blob:' ? 'blob://local-pack' : `${u.origin}${u.pathname}`; } catch (_) { return String(url).slice(0, 240); } }
+
+/** Resolve the dev model role to the active tier's distinct TOS object. The
+ * original source path remains a final fallback so offline/local packs keep
+ * working when a tier alias is unavailable. */
+function tierModelAlias(url, tier) {
+  // The local CDP runner rewrites published CDN URLs to this checkout. Keep
+  // local smoke tests on tracked source assets; deployed dev pages use the
+  // tier alias objects from TOS.
+  if (typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return null;
+  if (!['low', 'medium', 'high', 'ultra'].includes(tier)) return null;
+  const match = String(url).match(/^(.*\/assets\/models\/)([^/]+\.glb)([?#].*)?$/i);
+  if (!match) return null;
+  const file = match[2].toLowerCase();
+  const role = file === 'marmot.glb' || file === 'marmot-screaming.glb'
+    ? 'marmot' : (file === 'fox.glb' || file === 'fox-segmented.glb' ? 'fox' : null);
+  if (!role) return null;
+  return `${match[1]}${role}-${tier}.glb${match[3] || ''}`;
+}
 export function getAssetResolutionStatus() { return Object.fromEntries([...RESOLUTION_STATUS].map(([k, v]) => [k, { ...v }])); }
 export function clearModelCache() { cache.clear(); for (const key of Object.keys(STATUS)) STATUS[key] = { ...STATUS[key], level: 'pending', error: null, tris: 0, textured: false }; RESOLUTION_STATUS.clear(); }
 
@@ -240,6 +258,8 @@ export function loadModel(url, key = '') {
     }, FINAL_TIMEOUT_MS);
 
     const tier = typeof window !== 'undefined' ? (window.__VERDANT_ACTIVE_TIER__ || 'medium') : 'medium';
+    const originalUrl = url;
+    const tierUrl = tierModelAlias(url, tier) || url;
     let candidates = [];
     const tryCandidate = (candidateIndex) => {
       if (settled) return;
@@ -340,7 +360,13 @@ export function loadModel(url, key = '') {
         done(null);
       });
     };
-    getAssetCandidatesAsync(new URL(url, location.href).href, tier, false, assetResolver).then((urls) => { candidates = urls; tryCandidate(0); }, () => done(null));
+    getAssetCandidatesAsync(new URL(tierUrl, location.href).href, tier, false, assetResolver).then((urls) => {
+      // Keep the original source path after the tier alias. This supports a
+      // clean checkout without generated aliases while TOS serves real tiered
+      // files whenever the dev pack is configured.
+      candidates = [...new Set([...urls, new URL(originalUrl, location.href).href])];
+      tryCandidate(0);
+    }, () => done(null));
   });
 
   pendingPromise = p;
