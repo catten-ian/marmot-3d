@@ -354,7 +354,13 @@ function bootFail(title, detail) {
       `<div style="font-size:11px;opacity:.75;max-width:280px;margin:0 auto 10px;line-height:1.5">${detail}</div>` +
       `<button id="bootRetry" type="button" style="cursor:pointer;background:#2b3b30;color:#e0c46c;border:1px solid #3d5142;border-radius:6px;padding:7px 16px;font-size:12px">重新加载</button>`;
     const retry = document.getElementById('bootRetry');
-    if (retry) retry.onclick = () => location.replace(`${location.pathname}?${params.toString()}${bust}`);
+    if (retry) retry.onclick = () => {
+      // Stop stale downloads before replacing the document. Some mobile
+      // WebViews otherwise keep the cancelled boot's requests alive while
+      // the new page is trying to start.
+      try { window.stop(); } catch (_) {}
+      location.replace(`${location.pathname}?${params.toString()}${bust}`);
+    };
   }
 }
 
@@ -389,25 +395,15 @@ const watchdog = setInterval(() => {
 }, 1000);
 window.__bootWatchdogPause = () => { clearInterval(watchdog); };
 
-// 首帧独立看门狗：下载完成后若渲染器/纹理上传没有产出首帧，给出可操作的降档提示。
-// 只在主模块已经启动且不再处于 Verdant 网络下载阶段时触发，避免把正常慢网误判成崩溃。
-const firstFrameWatchdog = setInterval(() => {
-  if (params.get('version') !== 'dev' || window.__m3dBootCancelled) return;
-  const started = Number(window.__m3dMainStartedAt) || 0;
-  const stage = String(window.__m3dBootStage || '');
-  if (!started || window.__m3dFirstFrameAt || /^verdant-(module|download|parse|materials|rasterize|ready)$/.test(stage)) return;
-  if (Date.now() - started < 10000) return;
-  clearInterval(firstFrameWatchdog);
-  bootFail('渲染器尚未产出首帧',
-    `启动阶段“${stage || '未知'}”超过 10 秒没有画面。手机可能无法承受当前画质，请重新加载并在 Verdant 设置中选择“低”档。`);
-}, 1000);
+// No wall-clock deadline is imposed on renderer/texture first-frame work.
+// Slow phones may legitimately spend 60s or longer here; the network activity
+// watchdog above still handles an actual download stall or hard timeout.
 
 try {
-  await import('./src/main.js?v=m20261031mobile1');
+  await import('./src/main.js?v=m20261031mobile2');
   // main.js 顶层 await 完成后会自行隐藏 loader，这里只解除看门狗。
   bootSettled = true;
   clearInterval(watchdog);
-  clearInterval(firstFrameWatchdog);
 } catch (err) {
   clearInterval(watchdog);
   console.error('[boot] 模块图加载失败', err);
