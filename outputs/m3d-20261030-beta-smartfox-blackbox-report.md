@@ -69,7 +69,7 @@ These are synthetic SVG renders from recorded trajectory fixtures, not real user
 
 - `node --check` passed for every changed JS/MJS/CJS file.
 - `node tools/test-sandbox-recorder.mjs`: 2 pass, 0 fail.
-- `node tools/test-feedback.cjs`: **pass, 0 failures**; offline enqueue and queue flush regression behavior preserved (the script reports `feedback tests passed`).
+- `node tools/test-feedback.cjs`: **30 assertions passed, 0 failures**; offline enqueue and queue flush regression behavior preserved (the script reports `feedback tests passed`).
 - `node tools/test-smartfox-blackbox.mjs`: **6 pass, 0 fail, 0 skipped**.
 - `node tools/run-node-tests.cjs`: **93 pass, 0 fail, 22 skipped** (all skips are browser/CDP tests; skips are not counted as passes).
 
