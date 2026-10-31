@@ -150,6 +150,7 @@ CLI 示例：
 ```bash
 node tools/smartfox-headless-lab.mjs repro --seed 1003 --scenario parry-tap --movement stationary --foxes 1 --marmots 1 --duration 12 --out outputs/m3d-20261030-beta-smartfox-team/headless/repro-parry.json
 node tools/smartfox-headless-lab.mjs matrix --duration 8 --out outputs/m3d-20261030-beta-smartfox-team/headless/matrix.json
+node tools/smartfox-headless-lab.mjs repro --config /tmp/smartfox-lab-config.json --out outputs/m3d-20261030-beta-smartfox-team/headless/config-repro.json
 ```
 
 场景支持：`faceoff-tap`（面对面持续真实 tap）、`chase-pounce-tap`（追击、生产扑击提交/strike 后持续 tap）、`parry-tap`（只有真实前摇窗口和共享攻击体积/方向满足才记录 `parry_success`，否则场景失败）；移动策略：`stationary/chase/orbit/kite/zigzag`。默认 matrix 代表 1/2/4/8 狐狸与 1/2/4 土拨鼠的单狐、团队、多目标和压力组合。
@@ -161,6 +162,6 @@ node tools/smartfox-headless-lab.mjs matrix --duration 8 --out outputs/m3d-20261
 - 同 seed 修复后：`baseline-faceoff.json` completed，1 次生产扑击提交、4 次真实土拨鼠命中；`baseline-chase.json` completed，1 次生产扑击提交、4 次真实土拨鼠命中；`baseline-parry.json` completed，1 次生产扑击提交、1 次 `parry_success`、6 次真实土拨鼠命中。三者均 `invariants=[]`。
 - `baseline-matrix.json`：5 个代表 case 全部 completed、无 NaN/越界；8 狐/4 土拨鼠压力 case 记录 3 只真实死亡，死亡实体最终 `hp=0,state=dead`，无复活。
 
-性能/边界：默认固定步长 1/60；上述 12 秒单场 wall time 约 12–15ms，8 秒 matrix 更低于 100ms；无 wall-clock AI 随机，事件 trace 上限 5000。无头结果只证明共享数值战斗逻辑，不替代浏览器视觉/GPU/手机验收。
+性能/边界：默认固定步长（默认 1/60，可由 `--dt` 覆盖）；`--config FILE` 支持 seed/数量/场景/移动和 tune overrides；上述 12 秒单场 wall time 约 12–15ms，8 秒 matrix 更低于 100ms；无 wall-clock AI 随机，事件 trace 上限 5000。无头结果只证明共享数值战斗逻辑，不替代浏览器视觉/GPU/手机验收。
 
 - 阶段 1 commit：`9b1b0a5` (`test(beta): add headless SmartFox combat lab`)。最终 commits：`6ac0ebb`, `9b1b0a5`。push/deploy：未执行。未完成项：无头实验场不替代浏览器视觉/GPU/手机验收；主控独立验收与上线均未宣称。

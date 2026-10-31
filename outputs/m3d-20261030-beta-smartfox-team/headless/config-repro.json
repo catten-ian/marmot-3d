@@ -1,0 +1,160 @@
+{
+  "command": "repro",
+  "config": {
+    "seed": 7,
+    "dt": 0.02,
+    "duration": 1,
+    "foxes": 2,
+    "marmots": 1,
+    "scenario": "faceoff-tap",
+    "movement": "stationary",
+    "tune": {
+      "smartHitStaminaCost": 0
+    }
+  },
+  "status": "completed",
+  "failure": null,
+  "scenario": "faceoff-tap",
+  "seed": 7,
+  "dt": 0.02,
+  "duration": 1,
+  "ticks": 50,
+  "foxes": [
+    {
+      "slot": 0,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 0.09,
+      "maxStamina": 100,
+      "state": "recover",
+      "role": "rest",
+      "dead": false
+    },
+    {
+      "slot": 1,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 100,
+      "maxStamina": 100,
+      "state": "roam",
+      "role": "striker",
+      "dead": false
+    }
+  ],
+  "marmots": [
+    {
+      "id": 0,
+      "hp": 12,
+      "stats": {
+        "attempts": 1,
+        "hits": 0,
+        "blocked": 0,
+        "dealt": 0,
+        "taken": 0,
+        "parries": 0
+      }
+    }
+  ],
+  "events": [
+    {
+      "t": 0.24,
+      "type": "fox_pounce_commit",
+      "fox": 0
+    },
+    {
+      "t": 0.5,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "tap",
+      "fox": 0
+    },
+    {
+      "t": 0.74,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.76,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.78,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.8,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.82,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.84,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.86,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.88,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.9,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.92,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.94,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.96,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 0.98,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    }
+  ],
+  "invariants": [],
+  "metrics": {
+    "pounceCommits": 1,
+    "parrySuccesses": 0,
+    "foxRetreats": 0,
+    "foxDeaths": 0,
+    "marmotHits": 0
+  },
+  "wallMs": 5.338,
+  "commit": "056ffa4"
+}
