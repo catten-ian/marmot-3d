@@ -1,0 +1,26 @@
+const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+(async () => {
+  const { serializeWalkableField, parseWalkableFieldBin, resolveWalkableRaster } = await import('../src/world/verdant-walkable-bin.mjs');
+  const nx = 8, nz = 8, layerCount = 4;
+  const bounds = { minX: 0, maxX: 1.76, minZ: 0, maxZ: 1.76 };
+  const top = Float32Array.from({ length: nx * nz }, (_, i) => i % 7 ? i / 10 : NaN);
+  const layers = Float32Array.from({ length: nx * nz * layerCount }, (_, i) => i % 5 ? i / 10 : NaN);
+  const bytes = serializeWalkableField({ top, surfaceLayers: layers, nx, nz, cellSize: 0.22, bounds, layerCount, stats: { meshCount: 1 } });
+  const parsed = parseWalkableFieldBin(bytes, { expected: { nx, nz, cellSize: 0.22, bounds, layerCount } });
+  assert.deepEqual(Array.from(new Uint8Array(parsed.top.buffer)), Array.from(new Uint8Array(top.buffer)));
+  assert.deepEqual(Array.from(new Uint8Array(parsed.surfaceLayers.buffer)), Array.from(new Uint8Array(layers.buffer)));
+  assert.equal(parsed.stats.meshCount, 1);
+  const bad = Uint8Array.from(bytes); bad[bad.length - 1] ^= 1;
+  assert.throws(() => parseWalkableFieldBin(bad), /checksum mismatch/);
+  assert.throws(() => parseWalkableFieldBin(bytes, { expected: { nx: 4, nz, cellSize: 0.22, bounds, layerCount } }), /does not match/);
+  let fallbackCalls = 0, warnings = 0;
+  const fallback = { marker: 'device-raster' };
+  const resolved = resolveWalkableRaster({ precomputed: { ...parsed, header: { ...parsed.header, bounds: { ...bounds, maxX: 9 } } }, bounds, cellSize: 0.22, rasterize: () => { fallbackCalls++; return fallback; }, warn: () => warnings++ });
+  assert.equal(resolved, fallback, 'invalid header falls back to device raster');
+  assert.equal(fallbackCalls, 1); assert.equal(warnings, 1);
+  assert.equal(resolveWalkableRaster({ precomputed: parsed, bounds, cellSize: 0.22, rasterize: () => fallback }), parsed, 'valid header avoids fallback');
+  const digest = crypto.createHash('sha256').update(bytes.subarray(4 + new DataView(bytes.buffer).getUint32(0, true))).digest('hex');
+  assert.equal(parsed.header.checksum, digest);
+  console.log(JSON.stringify({ ok: true, bytes: bytes.byteLength, checksum: digest }));
+})().catch((error) => { console.error(error); process.exit(1); });

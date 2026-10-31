@@ -1,0 +1,106 @@
+{
+  "tier": "high",
+  "shots": [
+    {
+      "file": "/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/01-path-ground.png",
+      "bytes": 1145122,
+      "size": [
+        1280,
+        720
+      ],
+      "mean": 58.35782081886574,
+      "std": 53.475801191508026
+    },
+    {
+      "file": "/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/02-mid-foliage.png",
+      "bytes": 1204630,
+      "size": [
+        1280,
+        720
+      ],
+      "mean": 92.3578682002315,
+      "std": 46.653701436958244
+    },
+    {
+      "file": "/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/03-cliffs-depth.png",
+      "bytes": 779796,
+      "size": [
+        1280,
+        720
+      ],
+      "mean": 61.704912109374995,
+      "std": 37.00589424169309
+    },
+    {
+      "file": "/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/04-third-person.png",
+      "bytes": 805603,
+      "size": [
+        1280,
+        720
+      ],
+      "mean": 38.78758427372685,
+      "std": 31.17807658651854
+    },
+    {
+      "file": "/home/fame/code/marmot3d/marmot-3d/m3d-verdant-hqfox-visual-20261021/outputs/verdant-qa/stage2-high-final3/05-overview.png",
+      "bytes": 783862,
+      "size": [
+        1280,
+        720
+      ],
+      "mean": 40.45691984953704,
+      "std": 33.83247976316727
+    }
+  ],
+  "errors": [],
+  "initial": {
+    "dev": true,
+    "tier": "高",
+    "quality": "high",
+    "meshes": 314,
+    "triangles": 905728,
+    "gpu": {
+      "backend": "webgl2",
+      "supportsSplat": false,
+      "gpuReason": "",
+      "gpuName": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
+      "gpuVendor": "Google Inc. (Intel)",
+      "hardwareAccelerated": true,
+      "hardwareAccelerationKnown": true
+    },
+    "pack": {
+      "sourceObjects": 55,
+      "sourceTriangles": 2783719,
+      "exportTriangles": 413432,
+      "textureCount": 124,
+      "fileBytes": 95192544,
+      "heightBytes": 788347,
+      "textureBytes": 91566724,
+      "sha256": "2b6d26e229460559e4d7fd5e82aca007a1b4b9b9b986fc35f14a57b00875a291",
+      "packBytes": 187549838,
+      "packFileCount": 127,
+      "fileSha256": "2b6d26e229460559e4d7fd5e82aca007a1b4b9b9b986fc35f14a57b00875a291",
+      "heightSha256": "b4a3817b4e7c865f59c8abca691976ca36aa9d34ef83aca642015948ee1439d3"
+    }
+  },
+  "fps": 24,
+  "final": {
+    "meshes": 317,
+    "triangles": 1197871,
+    "maps": 60,
+    "normals": 57,
+    "alpha": 0,
+    "renderer": 34,
+    "gpu": {
+      "backend": "webgl2",
+      "supportsSplat": false,
+      "gpuReason": "",
+      "gpuName": "ANGLE (Intel, Mesa Intel(R) Iris(R) Xe Graphics (ADL GT2), OpenGL 4.6)",
+      "gpuVendor": "Google Inc. (Intel)",
+      "hardwareAccelerated": true,
+      "hardwareAccelerationKnown": true
+    },
+    "height": {}
+  },
+  "pass": true
+}

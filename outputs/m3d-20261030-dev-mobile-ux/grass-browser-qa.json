@@ -1,0 +1,44 @@
+{
+  "url": "http://127.0.0.1:8357/index.html?version=dev&webgl=1&models=off&verdantTier=low&grassqa=1793320160199",
+  "viewport": {
+    "mobile": "390x844 dpr3",
+    "desktop": "1280x720 dpr1"
+  },
+  "data": {
+    "ready": true,
+    "verdant": false,
+    "procedural": {
+      "present": true,
+      "count": 26000
+    },
+    "textured": {
+      "present": true,
+      "count": 900,
+      "userData": {
+        "grassKind": "textured",
+        "edible": false,
+        "betaGrassEating": {
+          "compatible": true,
+          "enabled": false,
+          "reason": "decorative-world-grass"
+        },
+        "source": "assets/verdant/tiers/low/grass_medium_02_diff_512.jpg + grass_medium_02_alpha_512.png",
+        "license": "repository-local Verdant pack; see docs-verdant-local-pack.md"
+      },
+      "map": "http://127.0.0.1:8357/assets/verdant/tiers/low/grass_medium_02_diff_512.jpg",
+      "alphaMap": true
+    },
+    "sceneMeshes": 538
+  },
+  "requests": [
+    {
+      "url": "http://127.0.0.1:8357/assets/verdant/tiers/low/grass_medium_02_diff_512.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8357/assets/verdant/tiers/low/grass_medium_02_alpha_512.png",
+      "status": 200
+    }
+  ],
+  "consoleErrors": []
+}

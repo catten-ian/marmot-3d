@@ -1,34 +1,38 @@
 /**
  * 版本开关：?version=dev
  *
- * 目的：把「按旱獭真实生态学改写」的实验性改动隔离在 dev 版，
+ * 目的：把「A Verdant Trail 环境 + 旱獭真实生态学改写」的实验性改动隔离在 dev 版，
  * 正式版（默认）保持原样，便于随时对照与回退。
  *
  * 用法：
  *   index.html              → 正式版
  *   index.html?version=dev  → dev 版（生态学改写）
  *
- * 设计原则：开关只影响**数据与文案**，不改渲染架构。
+ * 设计原则：dev 独有环境通过显式动态加载隔离；稳定版只走原有渲染与资产路径。
  * dev 独有内容用 DEV_FEATURES 显式列出，正式版读不到它们，
  * 这样即使 dev 分支出问题，也不会污染正式版路径。
  */
+
+import { DEV_VERSION_LABEL, STABLE_VERSION_LABEL, versionBadgeLabel } from './version-labels.mjs';
 
 /** 当前版本模式 */
 export const VERSION = (() => {
   try {
     const q = new URLSearchParams(location.search).get('version');
-    return q === 'dev' ? 'dev' : 'stable';
-  } catch (e) {
-    return 'stable';
-  }
+    const pathname = typeof location.pathname === 'string' ? location.pathname : '';
+    const betaPath = pathname === '/marmot3d-beta' || pathname.startsWith('/marmot3d-beta/');
+    if (q === 'beta' || betaPath) return 'beta';
+    return q?.replace(/\/+$/, '') === 'dev' ? 'dev' : 'stable';
+  } catch (e) { return 'stable'; }
 })();
 
 export const IS_DEV = VERSION === 'dev';
+// This tree exposes stable and dev only; no beta query is a dev trigger.
+export const IS_BETA = VERSION === 'beta';
 
-/** 供 UI 显示当前版本角标 */
-export const VERSION_LABEL = IS_DEV
-  ? 'DEV · 旱獭生态 + GS 全场景'
-  : '神经—体液调节 · 抽象玩法演示';
+/** 供 UI、分析和测试记录使用的当前版本标识。页面底部的产品描述保留在 index.html。 */
+export const VERSION_LABEL = versionBadgeLabel(VERSION);
+export { DEV_VERSION_LABEL, STABLE_VERSION_LABEL, versionBadgeLabel };
 
 /**
  * dev 版专属特性清单。
@@ -44,13 +48,22 @@ export const DEV_FEATURES = {
   /** 富含亚油酸的食物给予额外储备 */
   linoleicBonus: IS_DEV,
   /**
-   * **GS 全场景**：把摄影测量高斯泼溅当作全部场景（含可行走地面）。
+   * **GS 全场景（legacy）**：保留旧诊断路径，正常 dev 改用 Verdant Trail。
    *
-   * 与前四项性质不同 —— 前四项只改数据与文案，这一项改**渲染架构**：
+   * 该路径只供旧诊断覆盖开关使用：
    * 需要 WebGPURenderer（GaussianSplat 不支持经典 WebGLRenderer）。
-   * 因此它需要 index.html 的引导层做异步初始化，不能在同步模块里建渲染器。
    */
-  gsWorld: IS_DEV,
+  gsWorld: false,
+  /** Offline A Verdant Trail render + sampled ground, only for ?version=dev. */
+  verdantWorld: IS_DEV,
+  /** Explicit intelligent fox sandbox control; never available outside DEV. */
+  smartFoxSandbox: IS_DEV,
+  /** dev scanning interiors and grounded cave entry */
+  scannedBurrows: IS_DEV,
+  /** dev screaming marmot for player and companion */
+  screamingMarmot: IS_DEV,
+  /** dev sorrel plant model for gatherables */
+  sorrelFood: IS_DEV,
 };
 
 /** 是否启用某 dev 特性（正式版恒为 false） */
@@ -80,6 +93,32 @@ export const USE_REAL_FOX_MODEL = (() => {
     return USE_REAL_MODELS && new URLSearchParams(location.search).get('foxmodel') !== 'off';
   } catch (e) {
     return true;
+  }
+})();
+
+/** DEV 视景捕食者使用完整 44 骨、idle/run/attack 三段动画狼；非 DEV 永远关闭。 */
+export const USE_DEV_WOLF_MODEL = (() => {
+  try {
+    return IS_DEV && USE_REAL_MODELS && new URLSearchParams(location.search).get('wolfmodel') !== 'off';
+  } catch (e) {
+    return IS_DEV && USE_REAL_MODELS;
+  }
+})();
+
+/**
+ * dev 版捕食者改用带贴图的高质量 fox.glb（约 9.4 万面、内嵌 BaseColor 贴图）。
+ * 仅 dev 生效：stable 继续原外观。fox.glb 是静态网格（无骨骼），
+ * 不再用无贴图的 fox-segmented.glb 程序化摆腿。
+ * `?foxhq=off` 回退到分段藏狐；`?foxmodel=off` 进一步回退到程序化建模。
+ */
+export const USE_DEV_HQ_FOX = (() => {
+  try {
+    return IS_DEV
+      && USE_REAL_MODELS
+      && new URLSearchParams(location.search).get('foxmodel') !== 'off'
+      && new URLSearchParams(location.search).get('foxhq') !== 'off';
+  } catch (e) {
+    return false;
   }
 })();
 

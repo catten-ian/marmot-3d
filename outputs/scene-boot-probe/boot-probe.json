@@ -1,0 +1,15 @@
+{
+  "startedAt": "2026-10-29T05:58:40.337Z",
+  "readyAt": 30,
+  "probe": {
+    "href": "http://127.0.0.1:8351/index.html?version=dev&webgl=1&models=off&verdantTier=low&p=1793253520341",
+    "title": "土拨鼠大作战 3D · 第一人称 · 稳住，别上头！",
+    "ready": true,
+    "body": "♥ 生命\n100/100\n◆ 行动储备\n100/100\n◉ 应激负荷\n0/100\nWebGL2 · 硬件加速已启用\nCAMPAIGN / 12 关草原冒险 · 第一 / 第三人称 3D\n从两只藏狐，到草原守望者。\n自由测试 / 沙盒\n不计关卡 · 无限练习\n\n你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 V 切换为第三人称跟随视角，随时按需选择。\n\n每关完成 采食、救援与陪伴，回洞即可进入下一关。 12 关逐步引入疾行、绕行、雾、强风与沙尘；后段需要同时判断环境和狐狸的攻击预警。\n\n你不会真的杀死藏狐。把它们打到体力耗尽后，它们会 夹着尾巴转身逃跑，逃出草地才会消失 —— 一段时间后可能有同类再次出现。 你要做的是在采食和救援时自卫，随后回洞。\n\nVerdant 本地资源包（仅 DEV）\n\n先解压 verdant_trail.zip，再下载 release/verdant-models.zip 并解压合并到 verdant_trail 文件夹（创建 assets/models/）。确认 assets/verdant/ 下有优化 overlay；若原 ZIP 只有 .blend 与 textures/，请再合并 release/verdant-overlay-runtime.zip。然后打开 https://www.catten.cyou/marmot3d/?version=dev，选择 verdant_trail 文件夹或支持的外层目录。ZIP 必须先解压，不能直接选择。\n\n选择资源包文件夹\n\n必须找到：assets/verdant/manifest.json、ass",
+    "hf": true,
+    "env": true
+  },
+  "failed": [],
+  "consoleErrors": [],
+  "crashed": null
+}

@@ -1,0 +1,231 @@
+{
+  "task": "m3d-20261026-dev-burrow-sorrel-marmot",
+  "url": "http://127.0.0.1:8352/index.html?version=dev&webgl=1&verdantTier=low&t=1793028642248",
+  "tier": "low",
+  "info": {
+    "isDev": true,
+    "isBeta": false,
+    "burrows": [
+      {
+        "id": "base",
+        "type": "base",
+        "x": -45.76,
+        "z": 0
+      },
+      {
+        "id": "shelter-a",
+        "type": "shelter",
+        "x": -10.56,
+        "z": -22
+      },
+      {
+        "id": "shelter-b",
+        "type": "shelter",
+        "x": 15.84,
+        "z": 11.44
+      },
+      {
+        "id": "shelter-c",
+        "type": "shelter",
+        "x": 35.2,
+        "z": 28.16
+      },
+      {
+        "id": "shelter-d",
+        "type": "shelter",
+        "x": -29.92,
+        "z": 24.64
+      }
+    ],
+    "hasBurrowObj": true,
+    "burrowObjKeys": [
+      "label",
+      "mouth",
+      "labelSprite",
+      "interiorGroup",
+      "isBase"
+    ],
+    "companionModel": "geometry-only",
+    "companionHasReal": true,
+    "playerBodyVisible": false,
+    "playerModelChildren": 2,
+    "foodCount": 12,
+    "foodSorrel": 0,
+    "foodHerb": 12,
+    "drawCalls": 3
+  },
+  "stableInfo": {
+    "isDev": false,
+    "hasBeam": true,
+    "hasCap": true,
+    "hasBeacon": false,
+    "hasInterior": false,
+    "label": "大本营"
+  },
+  "errors": [],
+  "requests": [
+    {
+      "url": "http://127.0.0.1:8352/src/world/burrows.js",
+      "status": 200
+    },
+    {
+      "url": "https://marmot.tos-cn-shanghai.volces.com/m3d-dev/20261022/low/assets/models/shrub-sorrel.glb",
+      "status": 404
+    },
+    {
+      "url": "https://marmot.tos-cn-shanghai.volces.com/m3d-dev/20261022/low/assets/models/marmot-screaming.glb",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8352/assets/models/shrub-sorrel.glb",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:8352/assets/models/marmot-screaming.glb",
+      "status": 200
+    },
+    {
+      "url": "https://marmot.tos-cn-shanghai.volces.com/m3d-dev/20261022/low/assets/models/burrow-main-interior.glb",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8352/assets/models/burrow-main-interior.glb",
+      "status": 200
+    },
+    {
+      "url": "https://marmot.tos-cn-shanghai.volces.com/m3d-dev/20261022/low/assets/models/burrow-shelter-interior.glb",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:8352/assets/models/burrow-shelter-interior.glb",
+      "status": 200
+    }
+  ],
+  "results": [
+    {
+      "name": "dev 页面加载到 __game",
+      "pass": true,
+      "detail": "http://127.0.0.1:8352/index.html?version=dev&webgl=1&verdantTier=low&t=1793028642248"
+    },
+    {
+      "name": "dev 通道生效 (IS_DEV)",
+      "pass": true,
+      "detail": "{\"isDev\":true,\"isBeta\":false}"
+    },
+    {
+      "name": "dev 洞口无光柱/顶环/beacon 地标",
+      "pass": true,
+      "detail": "burrowObj 键: label,mouth,labelSprite,interiorGroup,isBase"
+    },
+    {
+      "name": "dev 洞口保留悬浮文字标识",
+      "pass": true,
+      "detail": "labelSprite=true"
+    },
+    {
+      "name": "dev 洞口具备扫描内景容器",
+      "pass": true,
+      "detail": "interiorGroup=true"
+    },
+    {
+      "name": "存在主洞与临时洞定义",
+      "pass": true,
+      "detail": "[{\"id\":\"base\",\"type\":\"base\",\"x\":-45.76,\"z\":0},{\"id\":\"shelter-a\",\"type\":\"shelter\",\"x\":-10.56,\"z\":-22},{\"id\":\"shelter-b\",\"type\":\"shelter\",\"x\":15.84,\"z\":11.44},{\"id\":\"shelter-c\",\"type\":\"shelter\",\"x\":35.2,\"z\":28.16},{\"id\":\"shelter-d\",\"type\":\"shelter\",\"x\":-29.92,\"z\":24.64}]"
+    },
+    {
+      "name": "主洞外观截图产出",
+      "pass": true,
+      "detail": "359963/467952/353468 字节"
+    },
+    {
+      "name": "主洞 可进入（inBurrow）",
+      "pass": true,
+      "detail": "inBurrow=true"
+    },
+    {
+      "name": "主洞 扫描内景 GLB 已请求",
+      "pass": true,
+      "detail": "404 burrow-main-interior.glb"
+    },
+    {
+      "name": "主洞 内景容器非空",
+      "pass": true,
+      "detail": "children=1"
+    },
+    {
+      "name": "主洞内景截图产出",
+      "pass": true,
+      "detail": "278802 字节"
+    },
+    {
+      "name": "临时洞外观截图产出",
+      "pass": true,
+      "detail": "1592919 字节"
+    },
+    {
+      "name": "临时洞 可进入（inBurrow）",
+      "pass": true,
+      "detail": "inBurrow=true"
+    },
+    {
+      "name": "临时洞 扫描内景 GLB 已请求",
+      "pass": true,
+      "detail": "404 burrow-shelter-interior.glb"
+    },
+    {
+      "name": "临时洞 内景容器非空",
+      "pass": true,
+      "detail": "children=1"
+    },
+    {
+      "name": "临时洞内景截图产出",
+      "pass": true,
+      "detail": "332600 字节"
+    },
+    {
+      "name": "可退出洞穴（inBurrow=false）",
+      "pass": true,
+      "detail": "inBurrow=false"
+    },
+    {
+      "name": "可采集草本已替换为 sorrel 模型",
+      "pass": true,
+      "detail": "sorrel=12/12"
+    },
+    {
+      "name": "同伴使用尖叫土拨鼠真模型",
+      "pass": true,
+      "detail": "modelLevel=geometry-only"
+    },
+    {
+      "name": "第三人称玩家使用真模型接管",
+      "pass": true,
+      "detail": "playerBody.visible=false"
+    },
+    {
+      "name": "第三人称玩家截图产出",
+      "pass": true,
+      "detail": "341162 字节"
+    },
+    {
+      "name": "stable 通道 IS_DEV 关闭",
+      "pass": true,
+      "detail": "{\"isDev\":false,\"hasBeam\":true,\"hasCap\":true,\"hasBeacon\":false,\"hasInterior\":false,\"label\":\"大本营\"}"
+    },
+    {
+      "name": "stable 保留原有地标光柱/顶环",
+      "pass": true,
+      "detail": "{\"isDev\":false,\"hasBeam\":true,\"hasCap\":true,\"hasBeacon\":false,\"hasInterior\":false,\"label\":\"大本营\"}"
+    },
+    {
+      "name": "stable 无扫描内景容器",
+      "pass": true,
+      "detail": "{\"isDev\":false,\"hasBeam\":true,\"hasCap\":true,\"hasBeacon\":false,\"hasInterior\":false,\"label\":\"大本营\"}"
+    },
+    {
+      "name": "页面无未捕获异常",
+      "pass": true,
+      "detail": ""
+    }
+  ]
+}

@@ -8,13 +8,45 @@
 export const FIELD_W = 130;
 export const FIELD_H = 78;
 
-export const BURROW = { x: -52, z: 0, r: 8.2 }; // 洞穴：安全区，休息回储备、缓压
+// 静态站点可在部署时填写反馈接收地址；留空时使用本地离线队列。
+export const FEEDBACK = { endpoint: '' };
+
+export const BURROW = { x: -52, z: 0, r: 8.2 }; // 兼容旧调用的主洞定义（安全区/回储备/缓压）
+
+// 地下空间（两段式：小开口竖井 + 底部略宽腔室）。
+// openingRadius 洞口/井壁上口；slopeRadius 洞口外挖掘坡的外缘（贴近 opening，形成陡壁而非缓土碗）；
+// chamberRadius 底部腔室半径（略大于开口，井壁向下微微扩开）；chamberDepth 腔室深度。
+export const UNDERGROUND = {
+  base: { openingRadius: 2.2, slopeRadius: 3.6, chamberRadius: 3.0, chamberDepth: 3.8, warmLight: true, lightColor: 0xffc978, lightIntensity: 6.2 },
+  shelter: { openingRadius: 1.05, slopeRadius: 1.9, chamberRadius: 1.5, chamberDepth: 2.0, warmLight: false, lightColor: 0x8bb8c4, lightIntensity: 0.28 },
+};
+
+// 洞穴布局：BURROW 保留为主洞兼容别名；其余为临时避难洞。
+// 坐标刻意避开现有刷点、浆果点和岩石，运行时统一经 scalePoint/scaleRadius 缩放。
+export const BURROWS = [
+  { id: 'base', type: 'base', x: BURROW.x, z: BURROW.z, r: BURROW.r, regenMul: 1, label: '大本营', ...UNDERGROUND.base },
+  { id: 'shelter-a', type: 'shelter', x: -12, z: -25, r: 3.15, regenMul: 0.18, label: '临时避难洞', ...UNDERGROUND.shelter },
+  { id: 'shelter-b', type: 'shelter', x: 18, z: 13, r: 3.15, regenMul: 0.18, label: '临时避难洞', ...UNDERGROUND.shelter },
+  { id: 'shelter-c', type: 'shelter', x: 40, z: 32, r: 3.0, regenMul: 0.18, label: '临时避难洞', ...UNDERGROUND.shelter },
+  { id: 'shelter-d', type: 'shelter', x: -34, z: 28, r: 3.0, regenMul: 0.18, label: '临时避难洞', ...UNDERGROUND.shelter },
+];
+
+export const BURROW_AI = {
+  lingerBase: 3.6,
+  lingerShelter: 2.8,
+  lingerRadius: 4.5,
+  leaveDistance: 18,
+  exitMemory: 2.4,
+  exitNearOverride: 3.0,
+};
 
 // —— 主角基准参数（米制）——
 export const PLAYER = {
   eyeHeight: 0.46, // 土拨鼠视角：贴地低机位
   radius: 0.42,
   speed: 4.8, // m/s：接近旱獭短距离奔跑速度；疾行倍率后仍保留玩法余量
+  backpedalSpeed: 0.58, // 纯后退速度相对前进速度；适用于键盘与触屏摇杆
+  bodyTurnRate: 10, // 第三人称身体朝向的指数平滑速率（每秒）
   collisionHeight: 0.54, // 玩家用于接触判定的简化躯干高度（米）
   maxHp: 100,
   maxEnergy: 100,
@@ -39,13 +71,40 @@ export const PLAYER = {
 
   /**
    * 跳跃。土拨鼠是挖掘动物，采用短促小跳；碰撞通过双方垂直区间重叠判断。
-   * 峰值高度 = v²/(2g)，当前约 0.52m；滞空时间约 0.65s。
+   * 峰值高度 = v²/(2g)，v=4.1 时约 0.86m；滞空时间约 0.84s，
+   * 足以从贴地扑咬（攻击盒高 0.4m）上方跳过，但跃扑仍能覆盖空中轨迹。
    */
   jump: {
-    velocity: 3.2, // 起跳初速度 m/s；峰值约 0.52m
+    velocity: 4.1, // 起跳初速度 m/s；峰值约 0.86m
     gravity: 9.8, // 重力加速度 m/s²
     cooldown: 0.35, // 两次起跳最小间隔，防止连点刷跳
-    dodgeHeight: 0.3, // 作为有效腾空区间，不再单独授予无条件免疫
+    dodgeHeight: 0.45, // 脚底越过此高度即可躲开贴地扑咬（不给无条件无敌）
+  },
+  // 玩家横向转向/刹车基线，用于保证狐狸高速时明显更难急停。
+  handling: { turnRate: 2.2, accel: 14, brake: 18 },
+  // 玩法手感抽象：攻击键“按住升级”三招 + 独立翻滚的伤害、冲量、无敌与后摇。
+  fov: { firstPerson: 78, thirdPerson: 68 },
+  combatWheel: {
+    tap: {
+      damageMul: 1, costMul: 1, cooldown: 0.58, cooldownMul: 1, recovery: 0,
+      // range 是米制追加距离，rangeMul 在原姿态/增益范围上乘算；默认保持原判定。
+      range: 0, rangeMul: 1,
+      // 推击在站立 / 奔跑两种姿态下的范围与伤害分档：
+      // 站立：短距离、高击退（把扑来的狐狸顶开）；奔跑：更长前伸、更高伤害、击退略低。
+      stand: { rangeMul: 0.92, damageMul: 0.9, knockbackMul: 1.5, stunMul: 1.1 },
+      run:   { rangeMul: 1.22, damageMul: 1.25, knockbackMul: 1.0, stunMul: 0.9 },
+    },
+    dodge: { damageMul: 0, cost: 3, distance: 2.2, invuln: 0.42, recovery: 0.12 },
+    stand: { damageMul: 1.8, cost: 4, stun: 1.2, lock: 0.4, knockback: 2.8,
+      range: 0, rangeMul: 1, cooldown: 0.18, cooldownMul: 1, recovery: 0.35,
+      // 迎击（攻击键按住左滑）：在狐狸冲刺接触前的短暂窗口内正面迎上，抵消伤害并反打。
+      parryWindow: 0.3, parryHalfAngle: 80 * Math.PI / 180 },
+    // 扑击：地面长按攻击键达到 heavyHold 秒后松手触发；空中短按也会结算为弱化扑击。
+    lunge: { damageMul: 1.45, cost: 4, distance: 2.8,
+      range: 0.8, rangeMul: 1, cooldown: 0.18, cooldownMul: 1, recovery: 0.42 },
+    // 攻击只有三种招式：推击(tap) / 迎击(stand，按住左滑) / 扑击(lunge，奔跑长按)。
+    // heavyHold = 奔跑长按扑击阈值（秒）；非奔跑长按不产生第四招，松手落回推击。
+    charge: { heavyHold: 0.65 },
   },
 };
 
@@ -93,7 +152,7 @@ const FOX_ATTACKS = {
   // 幼狐：短距低跃扑；用垂直碰撞区间判断是否真正碰到玩家。
   // 冲刺距 = dashSpeed × (dashTime + 0.22 腾空)，仍须覆盖 windRange 与接触半径。
   pup: {
-    mode: 'leap', windMul: 1.12, dashTime: 0.34, turnRate: 1.4,
+    mode: 'leap', windMul: 1.12, dashTime: 0.34, turnRate: 0.42,
     leapHeight: 0.9, label: '跃扑',
   },
   // 普通狐：标准直线冲刺，作为基准（最好躲）。14.5 × 0.62 ≈ 9.0m
@@ -110,13 +169,13 @@ const FOX_ATTACKS = {
   // 厚皮狐：绕行 + 虚晃，从侧面反复试探才真的冲 —— 「难以预判会从哪一侧来」。
   // 14.5 × 0.65 ≈ 9.4m
   heavy: {
-    mode: 'circle', windMul: 1.3, dashTime: 0.65, turnRate: 0.5,
+    mode: 'circle', windMul: 1.3, dashTime: 0.65, turnRate: 0.28,
     circleTime: 1.15, lureChance: 0.55, label: '绕行虚晃',
   },
   // 首领：三段连冲，每段都能微调方向 —— 「必须连续躲三次，不能一躲了事」。
   // 单段 14.5 × 0.42 × 1.1 ≈ 6.7m，三段连冲保留压迫感。
   boss: {
-    mode: 'combo', windMul: 1.08, dashTime: 0.42, turnRate: 1.3,
+    mode: 'combo', windMul: 1.08, dashTime: 0.42, turnRate: 0.38,
     comboCount: 3, dashSpeedMul: 1.1, label: '三段连冲',
   },
 };
@@ -132,6 +191,8 @@ const FOX_ATTACKS = {
  *   · 体型差异要拉开：幼狐 0.62 ~ 首领 1.6，肉眼可辨。
  */
 export const FOX = {
+  useProcedural: false,
+  proceduralColors: { normal: 0xc4763a, pup: 0xc4763a, fast: 0xd9c294, heavy: 0x9c8770, boss: 0x6b4c31 },
   types: {
     normal: { hp: 3, speed: 1.0, wind: 1.0, mass: 1.0, knockbackMul: 1, label: '', scale: 1.0 },
     // 幼狐：毛色同 normal，仅体型 62%，血量更低、速度略慢
@@ -159,6 +220,13 @@ export const FOX = {
    */
   windRange: 9.2,
   dashSpeed: 14.5,
+  // 狐狸高速冲刺不应拥有玩家级别的急转与急刹能力。
+  handling: {
+    maxTurnRate: 0.78, turnAccel: 1.6, windTurnRate: 1.1, windTurnAccel: 3.8,
+    brakeLerp: 2.8, recoverySpeedMax: 2.8,
+  },
+  recovery: { normal: 1.15, fast: 0.9, leap: 1.05, combo: 1.2, blocked: 0.9 },
+  groundAttackHeight: 0.4,
   /**
    * 被驱退后的逃跑。
    * 藏狐是被吓跑的，不是被杀 —— 所以它必须有一个可见的逃跑过程，
@@ -173,6 +241,8 @@ export const FOX = {
   fleeMaxTime: 4.0,
   // 接触判定：土拨鼠体型小，接触距离相应放大到体型的一半以上才合理
   contact: { boss: 2.2, heavy: 1.95, pup: 1.45, default: 1.7 },
+  // 水平接触按双方半径相加，与旧 contact 触发距离完全等价；可在调试面板中独立调节。
+  collisionRadius: { normal: 1.28, pup: 1.03, fast: 1.28, heavy: 1.53, boss: 1.78 },
   collisionHeight: { normal: 0.48, pup: 0.34, fast: 0.4, heavy: 0.52, boss: 0.68 },
   damage: { boss: 22, heavy: 18, pup: 8, default: 12 },
   /** 攻击模式档案（定义在本文件上方 FOX_ATTACKS） */
@@ -193,7 +263,6 @@ export const FOX = {
  *   count        同屏藏狐数
  *   speed/wind   藏狐接近速度 / 蓄力基准时长（秒）
  *   goal         需要采食（恢复能量）的次数
- *   repels       需要驱退的藏狐数
  *   time         限时（秒）
  *   reinforce    驱退后重新出现的增援间隔（秒）
  *   friend       伙伴被困位置 [x, z]
@@ -213,7 +282,6 @@ export const LEVELS = [
     count: 2,
     speed: 7.2,
     goal: 4,
-    repels: 1,
     time: 115,
     wind: 0.76,
     reinforce: 8,
@@ -228,16 +296,15 @@ export const LEVELS = [
   },
   {
     name: '双翼包抄',
-    brief: '疾行狐蓄力极短就冲，靠拉开距离比靠反应更快',
+    brief: '狐狸蓄力较短就冲，靠拉开距离比靠反应更快',
     count: 3,
     speed: 8.0,
     goal: 5,
-    repels: 2,
     time: 125,
     wind: 0.7,
     reinforce: 7.2,
     friend: [56, 19],
-    types: ['normal', 'fast'],
+    types: ['normal'],
     sky: ['#93a9bd', '#d3d6c8'],
     grass: ['#9cac70', '#778c58'],
     fog: '#9aa596',
@@ -247,16 +314,15 @@ export const LEVELS = [
   },
   {
     name: '持续应战',
-    brief: '厚皮狐会绕到你侧面，还可能中途虚晃骗你出手',
+    brief: '注意狐狸接近时的走位，利用预警线判断出手时机',
     count: 4,
     speed: 8.6,
     goal: 6,
-    repels: 3,
     time: 140,
     wind: 0.66,
     reinforce: 6.5,
     friend: [58, 24],
-    types: ['normal', 'fast', 'heavy'],
+    types: ['normal'],
     lureBias: 1.3,
     sky: ['#b0a679', '#e0d3a0'],
     grass: ['#a6a46a', '#838d5f'],
@@ -273,12 +339,11 @@ export const LEVELS = [
     count: 4,
     speed: 9.0,
     goal: 6,
-    repels: 4,
     time: 150,
     wind: 0.62,
     reinforce: 6.0,
     friend: [57, 19],
-    types: ['normal', 'pup', 'fast'],
+    types: ['normal'],
     fog: '#9aa8ad',
     fogNear: 12,
     fogFar: 68,
@@ -294,12 +359,11 @@ export const LEVELS = [
     count: 6,
     speed: 9.4,
     goal: 7,
-    repels: 5,
     time: 160,
     wind: 0.6,
     reinforce: 5.7,
     friend: [57, 19],
-    types: ['normal', 'pup', 'fast', 'heavy'],
+    types: ['normal'],
     lureBias: 1.2,
     sky: ['#a99a78', '#d8c79a'],
     grass: ['#a39877', '#827c62'],
@@ -316,12 +380,11 @@ export const LEVELS = [
     count: 5,
     speed: 10.2,
     goal: 7,
-    repels: 5,
     time: 165,
     wind: 0.56,
     reinforce: 5.4,
     friend: [60, 22],
-    types: ['fast', 'fast', 'normal', 'heavy'],
+    types: ['normal'],
     windGust: 7.5,
     lureBias: 1.1,
     sky: ['#9db4c0', '#cfd9d6'],
@@ -338,12 +401,11 @@ export const LEVELS = [
     count: 6,
     speed: 10.0,
     goal: 8,
-    repels: 6,
     time: 175,
     wind: 0.55,
     reinforce: 5.2,
     friend: [58, 26],
-    types: ['normal', 'pup', 'fast', 'heavy'],
+    types: ['normal'],
     fog: '#c2ab84',
     fogNear: 16,
     fogFar: 110,
@@ -356,18 +418,17 @@ export const LEVELS = [
     ambient: 0.5,
   },
   {
-    name: '首领围攻',
-    brief: '首领会三段连冲，每段都能修正方向 —— 连续躲三次',
+    name: '群狐围攻',
+    brief: '保持观察预警线，连续躲避来袭的狐狸',
     count: 8,
     speed: 10.6,
     goal: 8,
-    repels: 7,
     time: 190,
     wind: 0.54,
     reinforce: 5,
     friend: [58, 26],
     boss: true,
-    types: ['normal', 'pup', 'fast', 'heavy', 'boss'],
+    types: ['normal'],
     lureBias: 1.2,
     sky: ['#6f8087', '#aeb9b6'],
     grass: ['#839286', '#596d69'],
@@ -378,16 +439,15 @@ export const LEVELS = [
   },
   {
     name: '逆风回巢',
-    brief: '强阵风会持续改变走位，先稳住方向再处理疾行狐',
+    brief: '强阵风会持续改变走位，先稳住方向再应对来袭的狐狸',
     count: 6,
     speed: 10.4,
     goal: 7,
-    repels: 5,
     time: 170,
     wind: 0.56,
     reinforce: 5.2,
     friend: [56, 27],
-    types: ['fast', 'normal', 'fast', 'heavy'],
+    types: ['normal'],
     windGust: 11,
     sky: ['#84979c', '#c6d0c2'],
     grass: ['#899876', '#64745e'],
@@ -395,16 +455,15 @@ export const LEVELS = [
   },
   {
     name: '浓雾伏击',
-    brief: '低能见度中厚皮狐会绕行虚晃，靠预警线判断出手时机',
+    brief: '低能见度中靠预警线判断出手时机',
     count: 7,
     speed: 10.6,
     goal: 8,
-    repels: 6,
     time: 180,
     wind: 0.58,
     reinforce: 5.0,
     friend: [59, 24],
-    types: ['heavy', 'normal', 'fast', 'heavy', 'pup'],
+    types: ['normal'],
     fog: '#879494', fogNear: 8, fogFar: 54,
     lureBias: 1.65,
     sky: ['#77868a', '#a6b2af'],
@@ -417,12 +476,11 @@ export const LEVELS = [
     count: 7,
     speed: 10.8,
     goal: 8,
-    repels: 6,
     time: 185,
     wind: 0.58,
     reinforce: 4.8,
     friend: [58, 29],
-    types: ['fast', 'pup', 'normal', 'heavy', 'fast'],
+    types: ['normal'],
     fog: '#b9a27c', fogNear: 14, fogFar: 96,
     sandstorm: true, windGust: 6.5, lureBias: 1.25,
     sky: ['#b9a276', '#ddc99d'],
@@ -431,17 +489,16 @@ export const LEVELS = [
   },
   {
     name: '草原守望者',
-    brief: '最终考验：首领连冲、疾行狐与沙尘同时施压，保住伙伴并回洞',
+    brief: '最终考验：高压与沙尘同时施压，保住伙伴并回洞',
     count: 9,
     speed: 11.2,
     goal: 9,
-    repels: 8,
     time: 205,
     wind: 0.58,
     reinforce: 4.6,
     friend: [60, 28],
     boss: true,
-    types: ['normal', 'pup', 'fast', 'heavy', 'fast', 'boss'],
+    types: ['normal'],
     fog: '#9a9582', fogNear: 15, fogFar: 105,
     sandstorm: true, windGust: 7.5, lureBias: 1.4,
     sky: ['#777e7b', '#b5b4a5'],
@@ -450,15 +507,9 @@ export const LEVELS = [
   },
 ];
 
-/** 关卡的子类（未显式指定 types 时按索引推断，保持旧关卡兼容） */
-export function typesForLevel(index) {
-  const cfg = LEVELS[index];
-  if (cfg && cfg.types && cfg.types.length) return cfg.types;
-  const pool = ['normal'];
-  if (index >= 1) pool.push('fast');
-  if (index >= 2) pool.push('heavy');
-  if (index >= 3) pool.push('pup');
-  return pool;
+/** Every campaign level now uses the single normal Tibetan fox species. */
+export function typesForLevel(_index) {
+  return ['normal'];
 }
 
 // 浆果与藏狐刷新点位（米制，绕开洞穴）
@@ -490,6 +541,31 @@ export const ROCKS = [
  * 稳定版系数为 1，行为与原来完全一致。
  */
 const POINT_SCALE = { k: 1, cx: 0, cz: 0 };
+// Optional dev-only absolute playable bounds supplied by the imported Verdant environment.
+let PLAYABLE_BOUNDS = null;
+
+/**
+ * 运行时重力系数（dev 沙盒「低重力 / 飞行观察」用）。
+ * 稳定版恒为 1；不写死全局常量，任何关闭动作都能即时恢复 9.8m/s²。
+ */
+let GRAVITY_SCALE = 1;
+export function setGravityScale(v) {
+  const n = Number(v);
+  GRAVITY_SCALE = Number.isFinite(n) && n > 0 ? n : 1;
+  return GRAVITY_SCALE;
+}
+export function getGravityScale() { return GRAVITY_SCALE; }
+
+export function setPlayableBounds(bounds) {
+  if (bounds && Number.isFinite(bounds.minX) && Number.isFinite(bounds.maxX)
+    && Number.isFinite(bounds.minZ) && Number.isFinite(bounds.maxZ)) {
+    PLAYABLE_BOUNDS = { ...bounds };
+  } else {
+    PLAYABLE_BOUNDS = null;
+  }
+}
+
+export function clearPlayableBounds() { PLAYABLE_BOUNDS = null; }
 
 /**
  * 设置点位缩放。
@@ -525,6 +601,10 @@ export function scaleRadius(r) {
 
 /** 活动范围半宽/半高（缩放后） */
 export function fieldHalf() {
+  if (PLAYABLE_BOUNDS) return {
+    hw: (PLAYABLE_BOUNDS.maxX - PLAYABLE_BOUNDS.minX) / 2,
+    hh: (PLAYABLE_BOUNDS.maxZ - PLAYABLE_BOUNDS.minZ) / 2,
+  };
   return { hw: FIELD_W / 2 * POINT_SCALE.k, hh: FIELD_H / 2 * POINT_SCALE.k };
 }
 
@@ -534,6 +614,10 @@ export function fieldHalf() {
  * GS 版缓冲随系数同比缩小，避免边界超出可行走高度场过多。
  */
 export function moveBounds(pad = 12) {
+  if (PLAYABLE_BOUNDS) return {
+    hw: (PLAYABLE_BOUNDS.maxX - PLAYABLE_BOUNDS.minX) / 2,
+    hh: (PLAYABLE_BOUNDS.maxZ - PLAYABLE_BOUNDS.minZ) / 2,
+  };
   const k = POINT_SCALE.k;
   return { hw: (FIELD_W / 2 + pad) * k, hh: (FIELD_H / 2 + pad) * k };
 }
@@ -544,6 +628,10 @@ export function moveBounds(pad = 12) {
  * 否则 GS 版狐狸会跑出缩小后的活动场、增援判定也会失真。
  */
 export function roamBounds() {
+  if (PLAYABLE_BOUNDS) return {
+    hw: (PLAYABLE_BOUNDS.maxX - PLAYABLE_BOUNDS.minX) / 2,
+    hh: (PLAYABLE_BOUNDS.maxZ - PLAYABLE_BOUNDS.minZ) / 2,
+  };
   const k = POINT_SCALE.k;
   return { hw: 74 * k, hh: 44 * k };
 }

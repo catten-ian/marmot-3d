@@ -20,17 +20,52 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
+import { getAssetCandidatesAsync } from '../world/local-pack.js';
 
 const loader = new GLTFLoader();
 const SOFT_TIMEOUT_MS = 15000;
+const FINAL_TIMEOUT_MS = 60000;
 
 /** url -> { level, scene, error, geomOnly } */
 const cache = new Map();
+let assetResolver = null;
+export function setAssetResolver(fn) { assetResolver = typeof fn === 'function' ? fn : null; }
+function resolveAsset(url) {
+  const result = assetResolver ? assetResolver(url) : null;
+  const info = result && typeof result === 'object' ? result : (result ? { url: result, source: 'local' } : null);
+  const logical = String(url).replace(/^.*?(?=assets\/)/, '');
+  const rec = { requestedUrl: url, resolvedUrl: safeResolvedUrl(info?.url || url), source: info?.source || 'server', inPackPath: info?.inPackPath || logical };
+  RESOLUTION_STATUS.set(logical, rec);
+  return info?.url || url;
+}
 /** 全局统计，供 UI 展示 */
 const STATUS = {
-  marmot: { level: 'pending', error: null, tris: 0, textured: false },
-  fox: { level: 'pending', error: null, tris: 0, textured: false },
+  marmot: { key: 'marmot', logical: 'assets/models/marmot.glb', level: 'pending', error: null, tris: 0, textured: false, source: 'server', requestedUrl: '', resolvedUrl: '' },
+  fox: { key: 'fox', logical: 'assets/models/fox-segmented.glb', level: 'pending', error: null, tris: 0, textured: false, source: 'server', requestedUrl: '', resolvedUrl: '' },
 };
+const RESOLUTION_STATUS = new Map();
+function safeResolvedUrl(url) { try { const u = new URL(url, typeof location !== 'undefined' ? location.href : 'http://localhost/'); return u.protocol === 'blob:' ? 'blob://local-pack' : `${u.origin}${u.pathname}`; } catch (_) { return String(url).slice(0, 240); } }
+
+/** Resolve the dev model role to the active tier's distinct TOS object. The
+ * original source path remains a final fallback so offline/local packs keep
+ * working when a tier alias is unavailable. */
+function tierModelAlias(url, tier) {
+  // The local CDP runner rewrites published CDN URLs to this checkout. Keep
+  // local smoke tests on tracked source assets; deployed dev pages use the
+  // tier alias objects from TOS.
+  if (typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return null;
+  if (!['low', 'medium', 'high', 'ultra'].includes(tier)) return null;
+  const match = String(url).match(/^(.*\/assets\/models\/)([^/]+\.glb)([?#].*)?$/i);
+  if (!match) return null;
+  const file = match[2].toLowerCase();
+  const role = file === 'marmot.glb' || file === 'marmot-screaming.glb'
+    ? 'marmot' : (file === 'fox.glb' || file === 'fox-segmented.glb' ? 'fox' : null);
+  if (!role) return null;
+  return `${match[1]}${role}-${tier}.glb${match[3] || ''}`;
+}
+export function getAssetResolutionStatus() { return Object.fromEntries([...RESOLUTION_STATUS].map(([k, v]) => [k, { ...v }])); }
+export function clearModelCache() { cache.clear(); for (const key of Object.keys(STATUS)) STATUS[key] = { ...STATUS[key], level: 'pending', error: null, tris: 0, textured: false }; RESOLUTION_STATUS.clear(); }
 
 export function getModelStatus() {
   return JSON.parse(JSON.stringify(STATUS));
@@ -104,10 +139,8 @@ function stripTextures(root, label) {
       for (const k of ['roughnessMap', 'metalnessMap', 'normalMap', 'emissiveMap', 'aoMap']) {
         if (m[k] && !textureUsable(m[k])) { m[k] = null; m.needsUpdate = true; }
       }
-      // 贴图没了，用顶点色兜底（摄影测量模型一般有顶点色）
-      if (!m.map && m.color) {
-        m.color.set(0x9a8f78);
-      }
+      // 没有贴图时保留 GLB 的 baseColorFactor；若几何带顶点色，Three.js 仍会使用它。
+      // 不强行覆盖材质颜色，否则分块狐狸的棕色 baseColorFactor 会被误改成灰色。
       return m;
     };
     if (Array.isArray(o.material)) o.material = o.material.map(one);
@@ -115,6 +148,64 @@ function stripTextures(root, label) {
   });
   if (stripped) console.warn(`[models] ${label}: ${stripped} 张贴图无法解码，已退到纯色材质`);
   return stripped;
+}
+
+/**
+ * 收集材质上仍在解码（image 尺寸为 0）的贴图。
+ * 真机慢盘/高负载时，createImageBitmap 或 HTMLImageElement 解码可能晚于
+ * GLTFLoader 的 onLoad 回调一拍；此时直接 strip 会把完好贴图永久剥成纯色，
+ * 迟到的解码结果再也换不回来。
+ */
+function collectPendingTextures(root) {
+  const set = new Set();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    for (const m of ms) {
+      if (!m) continue;
+      for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) {
+        if (m[k] && !textureUsable(m[k])) set.add(m[k]);
+      }
+    }
+  });
+  return [...set];
+}
+
+/**
+ * 等待「已挂载但尚未解码完」的贴图就绪。
+ * 贴图对象本身保持挂载：实体材质是它的浅拷贝，解码完成后 needsUpdate
+ * 会让 GPU 重新上传，迟到的真实毛色能自动换上，无需重建实体。
+ * @returns {Promise<{ready:number, failed:Texture[]}>}
+ */
+function waitForPendingTextures(root, { timeoutMs = 10000, intervalMs = 100 } = {}) {
+  return new Promise((resolve) => {
+    let pending = collectPendingTextures(root);
+    if (!pending.length) { resolve({ ready: 0, failed: [] }); return; }
+    const deadline = Date.now() + timeoutMs;
+    const tick = () => {
+      const still = [];
+      let ready = 0;
+      for (const tex of pending) {
+        if (textureUsable(tex)) {
+          tex.needsUpdate = true; // GPU 侧重新上传迟到的解码结果
+          ready++;
+          continue;
+        }
+        const img = tex.image;
+        // HTMLImageElement：主动催促解码；ImageBitmap 没有 decode()。
+        if (img && typeof img.decode === 'function' && !img.__decodeTried) {
+          img.__decodeTried = true;
+          Promise.resolve(img.decode()).then(() => { tex.needsUpdate = true; }).catch(() => {});
+        }
+        still.push(tex);
+      }
+      pending = still;
+      if (!pending.length) { resolve({ ready, failed: [] }); return; }
+      if (Date.now() >= deadline) { resolve({ ready, failed: pending }); return; }
+      setTimeout(tick, intervalMs);
+    };
+    tick();
+  });
 }
 
 /** 统计三角面数（用于状态展示） */
@@ -136,14 +227,17 @@ function countTris(root) {
 export function loadModel(url, key = '') {
   if (cache.has(url)) return cache.get(url);
 
+  let pendingPromise;
   const p = new Promise((resolve) => {
     // 15s 是软超时，不是取消加载：实例已先显示程序化版本，
     // 因此慢模型继续加载也不会阻塞游戏；迟到成功仍应替换回真实模型。
     let settled = false;
+    let finalTimer;
     const done = (v) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(finalTimer);
       resolve(v);
     };
     const timer = setTimeout(() => {
@@ -153,10 +247,30 @@ export function loadModel(url, key = '') {
       }
       console.warn('[models] 加载较慢（15s），继续等待；程序化模型保持可见:', url);
     }, SOFT_TIMEOUT_MS);
+    finalTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (key && STATUS[key]) { STATUS[key].level = 'timeout'; STATUS[key].error = '模型加载超过 60 秒，已释放待加载状态，可重试'; }
+      if (cache.get(url) === pendingPromise) cache.delete(url);
+      console.warn('[models] 加载终态超时（60s），清理 pending cache:', url);
+      resolve(null);
+    }, FINAL_TIMEOUT_MS);
 
-    loader.load(
-      url,
+    const tier = typeof window !== 'undefined' ? (window.__VERDANT_ACTIVE_TIER__ || 'medium') : 'medium';
+    const originalUrl = url;
+    const tierUrl = tierModelAlias(url, tier) || url;
+    let candidates = [];
+    const tryCandidate = (candidateIndex) => {
+      if (settled) return;
+      const candidate = candidates[candidateIndex];
+      if (!candidate) {
+        if (key && STATUS[key]) { STATUS[key].level = 'failed'; STATUS[key].error = 'local → TOS → source 均无法加载'; }
+        done(null); return;
+      }
+      loader.load(candidate,
       (gltf) => {
+        if (settled) { gltf.scene?.traverse?.((o) => { if (o.isMesh) { o.geometry?.dispose?.(); const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach((m) => m?.dispose?.()); } }); return; }
         const root = gltf.scene;
         if (!root) {
           if (key && STATUS[key]) { STATUS[key].level = 'empty'; STATUS[key].error = '场景为空'; }
@@ -165,14 +279,47 @@ export function loadModel(url, key = '') {
         }
 
         // —— L1 判定：贴图是否可用 ——
+        // 注意：贴图「已挂载但还在解码」不能立刻剥掉——真机高负载下解码会
+        // 晚于 onLoad 一拍，立即 strip 会把完好的狼毛色永久退成纯色。
         let textured = false;
         root.traverse((o) => {
           if (!o.isMesh) return;
           const ms = Array.isArray(o.material) ? o.material : [o.material];
           for (const m of ms) if (m && textureUsable(m.map)) textured = true;
         });
-        if (!textured) {
+        let pendingTextures = textured ? [] : collectPendingTextures(root);
+        if (!textured && !pendingTextures.length) {
           stripTextures(root, key || url);
+        } else if (pendingTextures.length) {
+          if (key && STATUS[key]) {
+            STATUS[key].level = 'texture-pending';
+            STATUS[key].error = '贴图解码中，先挂载实体、就绪后自动换上';
+          }
+          console.info(`[models] ${key || url}: ${pendingTextures.length} 张贴图解码中，延迟剥离判定`);
+          // 不 await：模型先给实体使用；贴图对象共享，解码完成后自动换图。
+          waitForPendingTextures(root).then(({ ready, failed }) => {
+            failed.forEach((tex) => { tex.dispose?.(); });
+            // 只剥离最终仍失败的贴图。
+            root.traverse((o) => {
+              if (!o.isMesh) return;
+              const one = (m) => {
+                if (!m) return m;
+                for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) {
+                  if (m[k] && failed.includes(m[k])) { m[k] = null; m.needsUpdate = true; }
+                }
+                return m;
+              };
+              if (Array.isArray(o.material)) o.material = o.material.map(one);
+              else o.material = one(o.material);
+            });
+            const ok = ready > 0;
+            if (key && STATUS[key]) {
+              STATUS[key].level = ok ? 'full' : 'geometry-only';
+              STATUS[key].textured = ok;
+              STATUS[key].error = ok ? null : '贴图解码超时，已退到纯色材质';
+            }
+            console.info(`[models] ${key || url}: 迟到贴图就绪 ${ready} 张，失败 ${failed.length} 张`);
+          });
         }
 
         const tris = countTris(root);
@@ -192,27 +339,37 @@ export function loadModel(url, key = '') {
             '（简化后的摄影测量网格绕序不一致，单面会渲染成空壳）');
         }
 
-        const level = textured ? 'full' : 'geometry-only';
+        const level = textured ? 'full' : (pendingTextures.length ? 'texture-pending' : 'geometry-only');
         if (key && STATUS[key]) {
           STATUS[key].level = level;
-          STATUS[key].error = null;
+          STATUS[key].error = level === 'texture-pending' ? '贴图解码中，就绪后自动换上' : null;
           STATUS[key].tris = tris;
           STATUS[key].textured = textured;
         }
         console.info(`[models] ${key || url} 加载成功 [${level}] ${tris.toLocaleString()} 面`);
-        done({ scene: root, level, textured, tris });
+        done({ scene: root, level, textured: textured || pendingTextures.length > 0, texturesPending: pendingTextures.length, tris, animations: gltf.animations || [] });
       },
       undefined,
       (err) => {
-        clearTimeout(timer);
+        if (settled) return;
         const msg = (err && (err.message || err.type)) || String(err);
-        console.warn('[models] 加载失败，回退到程序化建模:', url, msg);
+        if (candidateIndex + 1 < candidates.length) { console.warn('[models] 资源回退：', candidate, msg); tryCandidate(candidateIndex + 1); return; }
+        clearTimeout(timer);
+        console.warn('[models] local → TOS → source 均加载失败，回退到程序化建模:', url, msg);
         if (key && STATUS[key]) { STATUS[key].level = 'failed'; STATUS[key].error = msg; }
         done(null);
-      },
-    );
+      });
+    };
+    getAssetCandidatesAsync(new URL(tierUrl, location.href).href, tier, false, assetResolver).then((urls) => {
+      // Keep the original source path after the tier alias. This supports a
+      // clean checkout without generated aliases while TOS serves real tiered
+      // files whenever the dev pack is configured.
+      candidates = [...new Set([...urls, new URL(originalUrl, location.href).href])];
+      tryCandidate(0);
+    }, () => done(null));
   });
 
+  pendingPromise = p;
   cache.set(url, p);
   return p;
 }
@@ -224,7 +381,8 @@ export function loadModel(url, key = '') {
 export async function instantiate(url, key = '') {
   const rec = await loadModel(url, key);
   if (!rec) return null;
-  const clone = rec.scene.clone(true);
+  // SkeletonUtils.clone makes each skinned model instance retain an independent bone hierarchy.
+  const clone = cloneSkeleton(rec.scene);
   clone.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true;
@@ -240,6 +398,7 @@ export async function instantiate(url, key = '') {
   });
   clone.userData.level = rec.level;
   clone.userData.textured = rec.textured;
+  clone.userData.animations = rec.animations || [];
   return clone;
 }
 
@@ -288,45 +447,18 @@ export async function revalidateTextures() {
 }
 
 /**
- * 把摄影测量模型摆正：脚底在 y=0、面朝 +Z、高度归一到 targetHeight。
+ * 把 GLB 模型贴地并按高度归一。
  *
- * 层级职责（**必须严格分开**）：
- *   obj    —— 只承担"摆正"：绕 Z 转 -90°（把源 Y 变成竖直），
- *             再按摆正后的包围盒把脚底挪到 y=0、水平居中
- *   inner  —— 只承担"统一高度"（scale）
- *   wrap   —— 只承担"给调用方一个可整体控制的把手"
- *   this.mesh（外部容器）—— 只承担"类型体型"（cfg.scale）
- *
- * ── 为什么必须绕 Z 转 -90°（实测结论）─────────────────────
- * fox.glb 的原始包围盒是 **X=0.933  Y=0.630  Z=0.609**：
- * Y 不是最大轴，说明模型是**横躺**的 —— 源坐标的 +Y 其实是"躯干长度方向"。
- * 实测 6 种候选轴向的归一结果（tools/probe-orient.cjs）：
- *   A 原样          → 1.480 × 1.000 × 0.966   长/宽=1.53  ❌ 横躺
- *   B 绕X转         → 1.532 × 1.000 × 1.035   长/宽=1.48  ❌ 横躺
- *   **C 绕Z转 -90°  → 0.676 × 1.000 × 0.653**  高/宽=1.53  ✅ 四足动物躯干比例
- *   D/E             → 0.676 × 1.000 × 0.653   同上
- * 正确的狐狸应该是"高≈长、宽最窄"的躯干，所以选 **绕 Z 转 -90°**。
- *
- * 历史 bug（本次修复）：之前没转轴向，直接把横躺的模型归一，
- * 结果 `1.48 × 1.0 × 0.97` 的一坨肉块躺在地上 ——
- * 属性检查（visible / 包围盒非零 / 贴图有效）全都"正常"，
- * 但视觉上完全不是狐狸。**这说明属性验证不足以判断模型可用性，必须看画面。**
- *
- * marmot.glb 的原始包围盒是 X=0.535 Y=0.897 Z=0.720，Y 是最大轴，
- * 说明土拨鼠本来就是**正立**的，不该转 —— 所以要按模型分别处理。
+ * GLB 节点自身的姿态必须保留：fox.glb/marmot.glb 的 root 自带 +90° X，
+ * 而 fox-segmented.glb 原生就是 Y-up。这里不覆盖 rotation/quaternion，
+ * 只负责包围盒贴地、水平居中与高度缩放。模型前向修正由调用方放在
+ * 返回的 wrap 层，和实体逻辑 yaw 完全隔离。
  */
 export function normalizeModel(obj, targetHeight = null, opts = {}) {
-  // upAxis: 'z' = 源 Z 是竖直（不转）；'y' = 源 Y 是竖直（绕 Z 转 -90°）
-  const { upAxis = 'y' } = opts;
-
-  // 1) 摆正：把"躯干长度方向"转为竖直
-  if (upAxis === 'y') {
-    obj.rotation.set(0, 0, -Math.PI / 2);
-  }
+  const { upAxis = 'native' } = opts;
   obj.updateMatrixWorld(true);
 
-  // 2) 再按**摆正后**的包围盒把脚底挪到 y=0、水平居中
-  //    顺序不可颠倒：rotation 绕自身原点，先平移后旋转会让平移量跟着转。
+  // 按保留原始节点姿态后的世界包围盒贴地、水平居中。
   const box = new THREE.Box3().setFromObject(obj);
   const size = new THREE.Vector3();
   box.getSize(size);
@@ -335,8 +467,6 @@ export function normalizeModel(obj, targetHeight = null, opts = {}) {
   obj.position.set(-center.x, -box.min.y, -center.z);
   obj.updateMatrixWorld(true);
 
-  // 3) 统一高度：只改 inner 的 scale
-  //    用 size.y（**世界竖直方向**）而不是"最大轴" —— 最大轴可能是躯干长度。
   const inner = new THREE.Group();
   inner.add(obj);
   let appliedScale = 1;

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>土拨鼠 · 战斗与狐狸实验室</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#1c201a;color:#e8e2d0;
+    font-family:"Microsoft YaHei",system-ui,sans-serif;}
+  #view{display:block;width:100vw;height:100vh;touch-action:none;}
+  #hud{position:fixed;top:10px;left:10px;z-index:5;max-width:38vw;
+    background:rgba(12,15,12,.72);border:1px solid rgba(255,255,255,.14);border-radius:10px;
+    padding:10px 13px;font:12px/1.65 ui-monospace,Consolas,monospace;white-space:pre-wrap;pointer-events:none;}
+  #hud b{color:#ffe08a;}
+  #hud .k{color:#8fd0ff;}
+  #tips{position:fixed;bottom:10px;left:10px;z-index:5;color:#b8b0a0;font-size:12px;
+    background:rgba(0,0,0,.4);padding:6px 10px;border-radius:8px;pointer-events:none;}
+  #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:#1c201a;z-index:20;font-size:14px;color:#cdc6b2;}
+  .lil-gui{--background-color:rgba(20,24,19,.92)!important;--title-background-color:#2c3a2e!important;}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three.module.js",
+  "three/addons/": "./vendor/addons/"
+} }
+</script>
+<link rel="stylesheet" href="./vendor/lil-gui/lil-gui.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="hud">加载中…</div>
+<div id="tips">拖动左键旋转 · 滚轮缩放 · 右键平移</div>
+<div id="load">正在加载实验室与模型…</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GUI } from './vendor/lil-gui/lil-gui.esm.js';
+import { PLAYER, FOX } from './src/core/config.js';
+import { STRIKE_VOLUMES, resolveStrikeProfile } from './src/systems/combat.js';
+import { strikeVolumeGeometryData } from './src/systems/debug-volume-data.js';
+
+// ---------- 基础场景 ----------
+const canvas = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x20251e);
+scene.fog = new THREE.Fog(0x20251e, 30, 90);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.05, 400);
+const orbit = { theta: 0.6, phi: 0.35, radius: 12, target: new THREE.Vector3(0, 0.6, -2) };
+function updateCamera() {
+  const cp = Math.cos(orbit.phi);
+  camera.position.set(
+    orbit.target.x + orbit.radius * cp * Math.sin(orbit.theta),
+    orbit.target.y + orbit.radius * Math.sin(orbit.phi),
+    orbit.target.z + orbit.radius * cp * Math.cos(orbit.theta));
+  camera.lookAt(orbit.target);
+}
+updateCamera();
+
+scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x35301f, 0.85));
+const sun = new THREE.DirectionalLight(0xfff2d0, 2.1);
+sun.position.set(8, 14, 6); sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024); sun.shadow.camera.left=-20; sun.shadow.camera.right=20;
+sun.shadow.camera.top=20; sun.shadow.camera.bottom=-20;
+scene.add(sun);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120),
+  new THREE.MeshStandardMaterial({ color: 0x3a4a33, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(120, 60, 0x6b7a5e, 0x39442f);
+grid.position.y = 0.01; scene.add(grid);
+// 坐标轴：红X 绿Y 蓝Z；玩家朝向 -Z
+scene.add(new THREE.AxesHelper(2.2));
+
+// ---------- 极简轨道相机（无 OrbitControls 依赖）----------
+let dragging = false, mode = 0, lx = 0, ly = 0;
+canvas.addEventListener('pointerdown', (e) => { dragging = true; mode = e.button; lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', (e) => { dragging = false; try { canvas.releasePointerCapture(e.pointerId); } catch (_) {} });
+canvas.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+  if (mode === 2) { orbit.target.x -= dx * 0.02 * Math.cos(orbit.theta) + 0; orbit.target.z += dx * 0.02 * Math.sin(orbit.theta); }
+  else { orbit.theta -= dx * 0.006; orbit.phi = Math.max(-0.15, Math.min(1.35, orbit.phi + dy * 0.006)); }
+  updateCamera();
+});
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); orbit.radius = Math.max(3, Math.min(40, orbit.radius * (1 + Math.sign(e.deltaY) * 0.1))); updateCamera(); }, { passive: false });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+// ---------- 可调实验室状态 ----------
+const MODELS = [
+  { file: './assets/models/wolf.glb', label: '狼 wolf.glb（有动画）', anim: true, height: 0.68, heading: Math.PI / 2 },
+  { file: './assets/models/fox-segmented.glb', label: '分块藏狐（静态）', anim: false, height: 0.92, heading: Math.PI / 2 },
+  { file: './assets/models/fox.glb', label: '藏狐 fox.glb（静态）', anim: false, height: 0.92, heading: Math.PI / 2 },
+];
+const state = {
+  modelIndex: 0,
+  pose: 'run',          // idle | run | attack
+  runSpeed: 1,
+  loopAttack: true,
+  foxType: 'normal',
+  foxDistance: 6,      // 狐狸距玩家（玩家在原点，面朝 -Z，狐狸在 -Z）
+  foxYaw: 0,           // 相对「朝向玩家」的偏航
+  playerMove: 'lunge', // tap | stand | lunge
+  running: false,      // 玩家奔跑姿态（影响 tap 距离）
+  baseRange: 2.4,
+  showPlayerAttack: true,
+  showFoxCollision: true,
+  showPlayerCollision: true,
+  showFoxTrack: true,
+  showWindRing: true,
+  showRoamRing: false,
+  showDodge: false,
+  showLabels: true,
+  opacity: 0.6,
+};
+
+// ---------- 模型加载 ----------
+const loader = new GLTFLoader();
+let foxOuter = new THREE.Group(); scene.add(foxOuter);
+let mixer = null, actions = {}, currentAction = null;
+const modelInner = new THREE.Group(); foxOuter.add(modelInner);
+
+function clearModel() {
+  while (modelInner.children.length) {
+    const o = modelInner.children.pop();
+    o.traverse?.((c) => { c.geometry?.dispose?.(); const m = c.material; if (Array.isArray(m)) m.forEach((x) => x.dispose()); else m?.dispose?.(); });
+  }
+  mixer = null; actions = {}; currentAction = null;
+}
+function placeModel(root, targetHeight) {
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  const h = Math.max(1e-4, box.max.y - box.min.y);
+  const s = targetHeight / h;
+  root.scale.setScalar(s);
+  root.position.y -= box.min.y * s;
+  root.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
+}
+async function loadModel() {
+  clearModel();
+  const m = MODELS[state.modelIndex];
+  const gltf = await loader.loadAsync(m.file);
+  const inner = new THREE.Group(); inner.rotation.y = m.heading; inner.add(gltf.scene);
+  placeModel(gltf.scene, m.height);
+  modelInner.add(inner);
+  if (m.anim && gltf.animations?.length) {
+    mixer = new THREE.AnimationMixer(inner);
+    for (const clip of gltf.animations) actions[clip.name.toLowerCase()] = mixer.clipAction(clip);
+    playPose(state.pose);
+  }
+  applyFoxTransform();
+}
+function playPose(name) {
+  if (!mixer) return;
+  const act = actions[name] || actions.idle;
+  if (!act) return;
+  if (currentAction === act) return;
+  if (currentAction) currentAction.fadeOut(0.18);
+  act.reset().fadeIn(0.18);
+  if (name === 'attack') { act.setLoop(state.loopAttack ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); act.clampWhenFinished = !state.loopAttack; }
+  else { act.setLoop(THREE.LoopRepeat, Infinity); act.clampWhenFinished = false; act.timeScale = name === 'run' ? state.runSpeed : 1; }
+  act.play(); currentAction = act;
+}
+
+// ---------- 可视化 ----------
+const viz = new THREE.Group(); viz.renderOrder = 999; scene.add(viz);
+const vPlayer = new THREE.Group(), vFoxCol = new THREE.Group(), vFoxTrack = new THREE.Group(),
+      vRings = new THREE.Group(), vDodge = new THREE.Group(), vLabels = new THREE.Group();
+viz.add(vPlayer, vFoxCol, vFoxTrack, vRings, vDodge, vLabels);
+
+const mat = (color, opacity, wire = false) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthTest: false, side: THREE.DoubleSide, wireframe: wire });
+const lineMat = (color, opacity) => new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthTest: false });
+function disposeGroup(g) { while (g.children.length) { const o = g.children.pop(); o.geometry?.dispose?.(); o.material?.dispose?.(); o.material?.map?.dispose?.(); } }
+
+function label(text, color = '#fff') {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 56;
+  const x = c.getContext('2d'); x.font = '26px sans-serif'; x.fillStyle = color;
+  x.strokeStyle = 'rgba(0,0,0,.85)'; x.lineWidth = 6; x.strokeText(text, 8, 36); x.fillText(text, 8, 36);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, depthWrite: false }));
+  s.scale.set(2.4, 0.52, 1); return s;
+}
+
+function ring(radius, color, opacity, y = 0.03) {
+  const g = new THREE.TorusGeometry(radius, 0.035, 8, 72); g.rotateX(Math.PI / 2);
+  const m = new THREE.Mesh(g, mat(color, opacity)); m.position.y = y; return m;
+}
+
+// 玩家攻击扇形：严格复用游戏 debug-volumes 的几何（弧点 z=-cos·range，朝 -Z），
+// 保证实验室所见与实战判定体逐字一致。
+function strikeFan(profile, color) {
+  const data = strikeVolumeGeometryData(profile);
+  const shape = new THREE.Shape(); shape.moveTo(0, 0);
+  for (const p of data.arc) shape.lineTo(p.x, p.z); // 2D shape 的 y = 数据的 z（负，向前）
+  shape.lineTo(0, 0);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: profile.upper - profile.lower, bevelEnabled: false });
+  geo.rotateX(Math.PI / 2); geo.translate(0, profile.lower, 0);
+  return new THREE.Mesh(geo, mat(color, state.opacity * 0.32));
+}
+
+function foxPos() { return new THREE.Vector3(0, 0, -state.foxDistance); }
+function foxForward() {
+  // 默认朝玩家（+Z，yaw=0）；叠加可调偏航
+  const y = state.foxYaw;
+  return new THREE.Vector3(Math.sin(y), 0, Math.cos(y));
+}
+
+function rebuildViz() {
+  [vPlayer, vFoxCol, vFoxTrack, vRings, vDodge, vLabels].forEach(disposeGroup);
+  const op = state.opacity;
+
+  // 玩家碰撞柱（蓝色）
+  if (state.showPlayerCollision) {
+    const g = new THREE.CylinderGeometry(PLAYER.radius, PLAYER.radius, PLAYER.collisionHeight, 22);
+    const o = new THREE.Mesh(g, mat(0x63c7ff, op, true));
+    o.position.set(0, PLAYER.collisionHeight / 2, 0); vPlayer.add(o);
+    if (state.showLabels) { const l = label('土拨鼠', '#9fd8ff'); l.position.set(0, 1.15, 0); vLabels.add(l); }
+  }
+
+  // 玩家攻击扇形
+  if (state.showPlayerAttack) {
+    const wheel = PLAYER.combatWheel[state.playerMove] || PLAYER.combatWheel.tap;
+    const profile = resolveStrikeProfile({ move: state.playerMove, baseRange: state.baseRange, baseCooldown: 0.58, wheel, running: state.running });
+    const color = state.playerMove === 'lunge' ? 0xffa36f : 0xfff1a9;
+    vPlayer.add(strikeFan(profile, color));
+    if (state.showLabels) {
+      const l = label(`${state.playerMove} r=${profile.range.toFixed(2)} 角=${(profile.halfAngle * 180 / Math.PI).toFixed(0)}°`, state.playerMove === 'lunge' ? '#ffc39a' : '#fff1a9');
+      l.position.set(0, (profile.upper) + 0.35, -profile.range); vLabels.add(l);
+    }
+  }
+
+  // 翻滚距离（绿色，朝 -Z）
+  if (state.showDodge) {
+    const d = PLAYER.combatWheel.dodge.distance;
+    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.04, 0), new THREE.Vector3(0, 0.04, -d)]);
+    vDodge.add(new THREE.Line(geo, lineMat(0x9fe6a0, op)));
+  }
+
+  const fp = foxPos();
+  const typeCfg = FOX.types[state.foxType] || FOX.types.normal;
+
+  // 狐狸碰撞柱（红色）
+  if (state.showFoxCollision) {
+    const r = FOX.collisionRadius[state.foxType] ?? FOX.collisionRadius.normal;
+    const h = FOX.collisionHeight[state.foxType] ?? FOX.collisionHeight.normal;
+    const g = new THREE.CylinderGeometry(r, r, h, 22);
+    const o = new THREE.Mesh(g, mat(0xff6654, op, true));
+    o.position.set(fp.x, h / 2, fp.z); vFoxCol.add(o);
+    if (state.showLabels) { const l = label(`狐·${state.foxType} x${typeCfg.scale.toFixed(2)}`, '#ff9c8c'); l.position.set(fp.x, 1.25, fp.z); vLabels.add(l); }
+  }
+
+  // 蓄力环 windRange / 感知环 roamRange（以狐狸为心）
+  if (state.showWindRing) { const r = ring(FOX.windRange, 0xff8c5a, Math.min(0.8, op)); r.position.set(fp.x, 0.03, fp.z); vRings.add(r); if(state.showLabels){const l=label(`蓄力 ${FOX.windRange.toFixed(1)}m`,'#ffb18a');l.position.set(fp.x,0.3,fp.z-FOX.windRange);vLabels.add(l);} }
+  if (state.showRoamRing) { const r = ring(FOX.roamRange, 0x9ad0ff, Math.min(0.5, op * 0.7)); r.position.set(fp.x, 0.02, fp.z); vRings.add(r); }
+
+  // 狐狸扑击轨迹
+  if (state.showFoxTrack) {
+    const atk = FOX.attackOf(state.foxType);
+    const dash = FOX.dashSpeed * (atk.dashTime || 0.32) * (atk.dashSpeedMul || 1);
+    const fwd = foxForward();
+    const isLeap = atk.mode === 'leap';
+    const pts = [];
+    const seg = 28;
+    for (let i = 0; i <= seg; i++) {
+      const t = i / seg;
+      const x = fp.x + fwd.x * dash * t;
+      const z = fp.z + fwd.z * dash * t;
+      const y = 0.05 + (isLeap ? 4 * (atk.leapHeight || 0) * t * (1 - t) : 0);
+      pts.push(new THREE.Vector3(x, y, z));
+    }
+    const geo = new THREE.BufferGeometry().setFromPoints(pts);
+    vFoxTrack.add(new THREE.Line(geo, lineMat(isLeap ? 0xffc36a : 0xff6654, op)));
+    // 终点攻击柱
+    const end = pts[pts.length - 1];
+    const ah = isLeap ? (FOX.collisionHeight[state.foxType] ?? FOX.collisionHeight.normal) : FOX.groundAttackHeight;
+    const ar = FOX.collisionRadius[state.foxType] ?? FOX.collisionRadius.normal;
+    const cg = new THREE.CylinderGeometry(ar, ar, ah, 20);
+    const co = new THREE.Mesh(cg, mat(isLeap ? 0xffc36a : 0xff6654, op * 0.9, true));
+    co.position.set(end.x, (isLeap ? Math.max(0.05, end.y) : 0) + ah / 2, end.z); vFoxTrack.add(co);
+    if (state.showLabels) {
+      const l = label(`${atk.mode} ${dash.toFixed(1)}m${isLeap ? ' ↑' + (atk.leapHeight || 0).toFixed(2) : ''}`, isLeap ? '#ffd29a' : '#ff9c8c');
+      l.position.set(end.x, (isLeap ? atk.leapHeight : 0.4) + 0.6, end.z); vLabels.add(l);
+    }
+  }
+}
+
+function applyFoxTransform() {
+  const fp = foxPos();
+  foxOuter.position.set(fp.x, 0, fp.z);
+  // heading(PI/2) 已把狼头从 local -X 转到世界 +Z（朝玩家）；再叠加可调偏航 yaw，
+  // 模型面向方向 (sin yaw, cos yaw) 与 foxForward()/扑击轨迹严格一致。
+  modelInner.rotation.y = MODELS[state.modelIndex].heading + state.foxYaw;
+  const typeCfg = FOX.types[state.foxType] || FOX.types.normal;
+  foxOuter.scale.setScalar(typeCfg.scale);
+}
+
+// ---------- HUD ----------
+const hud = document.getElementById('hud');
+function updateHud() {
+  const atk = FOX.attackOf(state.foxType);
+  const wheel = PLAYER.combatWheel[state.playerMove] || PLAYER.combatWheel.tap;
+  const prof = resolveStrikeProfile({ move: state.playerMove, baseRange: state.baseRange, baseCooldown: 0.58, wheel, running: state.running });
+  const r = FOX.collisionRadius[state.foxType] ?? FOX.collisionRadius.normal;
+  const h = FOX.collisionHeight[state.foxType] ?? FOX.collisionHeight.normal;
+  const dash = FOX.dashSpeed * (atk.dashTime || 0.32) * (atk.dashSpeedMul || 1);
+  hud.innerHTML =
+`<span class="k">土拨鼠攻击 [${state.playerMove}${state.running ? '/奔跑' : ''}]</span>
+ 扇形距离 <b>${prof.range.toFixed(2)}m</b> 半角 <b>${(prof.halfAngle*180/Math.PI).toFixed(0)}°</b>
+ 高度 <b>${prof.lower.toFixed(2)}~${prof.upper.toFixed(2)}m</b> 伤害x<b>${prof.damageMul.toFixed(2)}</b>
+ 碰撞 r=<b>${PLAYER.radius}</b> h=<b>${PLAYER.collisionHeight}</b>
+
+<span class="k">狐狸 [${state.foxType}]</span> 模式 <b>${atk.mode}</b>
+ 冲刺 <b>${dash.toFixed(2)}m</b>(${FOX.dashSpeed}x${(atk.dashTime||0.32).toFixed(2)}) 蓄力距 <b>${FOX.windRange}m</b>
+ ${atk.mode==='leap'?'跃高 <b>'+atk.leapHeight+'m</b>　':''}碰撞 r=<b>${r}</b> h=<b>${h}</b>
+ HP <b>${typeHp()}</b> 速度x<b>${(FOX.types[state.foxType]||FOX.types.normal).speed}</b> 伤害 <b>${FOX.damage[state.foxType] ?? FOX.damage.default}</b>`;
+}
+function typeHp(){ const t=FOX.types[state.foxType]||FOX.types.normal; return t.hp; }
+
+// ---------- GUI ----------
+const gui = new GUI({ title: '战斗/狐狸实验室' });
+const tracked = []; const tr = (c)=>{tracked.push(c);return c;};
+const refresh = () => { rebuildViz(); updateHud(); tracked.forEach((c)=>c.updateDisplay()); };
+
+const MODEL_OPT = {}; MODELS.forEach((m, i) => { MODEL_OPT[m.label] = i; });
+const gScene = gui.addFolder('场景 / 姿态');
+gScene.add(state, 'modelIndex', MODEL_OPT).name('模型').onChange(async () => { await loadModel(); });
+gScene.add(state, 'pose', ['idle', 'run', 'attack']).name('姿态').onChange((v) => { if (mixer) playPose(v); });
+gScene.add(state, 'runSpeed', 0.3, 2.5, 0.05).name('奔跑倍速').onChange(() => { if (currentAction && state.pose === 'run') currentAction.timeScale = state.runSpeed; });
+gScene.add(state, 'loopAttack').name('扑击循环').onChange(() => { if (mixer && state.pose === 'attack') playPose('attack'); });
+gScene.add(state, 'foxType', Object.keys(FOX.types)).name('狐狸类型').onChange(() => { applyFoxTransform(); rebuildViz(); updateHud(); });
+gScene.add(state, 'foxDistance', 2, 20, 0.1).name('狐距玩家(m)').onChange(() => { applyFoxTransform(); rebuildViz(); });
+gScene.add(state, 'foxYaw', -Math.PI, Math.PI, 0.01).name('狐狸朝向偏航').onChange(() => { applyFoxTransform(); rebuildViz(); });
+
+const gPA = gui.addFolder('土拨鼠攻击');
+gPA.add(state, 'playerMove', ['tap', 'stand', 'lunge']).name('招式').onChange(refresh);
+gPA.add(state, 'running').name('奔跑姿态').onChange(refresh);
+gPA.add(state, 'baseRange', 1, 6, 0.05).name('基础距离(无增益)').onChange(refresh);
+const gWheel = gPA.addFolder('三招数值');
+tr(gWheel.add(PLAYER.combatWheel.tap.stand, 'rangeMul', 0.2, 3, 0.01).name('tap站立距x').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.tap.run, 'rangeMul', 0.2, 3, 0.01).name('tap奔跑距x').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.tap, 'cooldown', 0.05, 2, 0.01).name('tap冷却').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.stand, 'rangeMul', 0.2, 3, 0.01).name('stand距x').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.stand, 'damageMul', 0, 5, 0.01).name('stand伤害x').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.stand, 'parryWindow', 0.05, 1, 0.01).name('迎击窗口').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.lunge, 'distance', 0, 8, 0.05).name('lunge距离').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.lunge, 'range', -0.5, 5, 0.01).name('lunge追加距').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.lunge, 'rangeMul', 0.2, 3, 0.01).name('lunge距x').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.lunge, 'damageMul', 0, 5, 0.01).name('lunge伤害x').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.dodge, 'distance', 0, 8, 0.05).name('翻滚距离').onChange(refresh));
+tr(gWheel.add(PLAYER.combatWheel.dodge, 'invuln', 0, 2, 0.01).name('无敌时间').onChange(refresh));
+
+const gVol = gui.addFolder('攻击体积');
+tr(gVol.add(STRIKE_VOLUMES, 'halfAngle', 0.1, Math.PI, 0.01).name('扇形半角').onChange(refresh));
+tr(gVol.add(STRIKE_VOLUMES.tap, 'lower', -1, 2, 0.01).name('tap下沿').onChange(refresh));
+tr(gVol.add(STRIKE_VOLUMES.tap, 'upper', 0.1, 3, 0.01).name('tap上沿').onChange(refresh));
+tr(gVol.add(STRIKE_VOLUMES.lunge, 'lower', -1, 2, 0.01).name('lunge下沿').onChange(refresh));
+tr(gVol.add(STRIKE_VOLUMES.lunge, 'upper', 0.1, 4, 0.01).name('lunge上沿').onChange(refresh));
+tr(gVol.add(PLAYER, 'radius', 0.1, 2, 0.01).name('玩家半径').onChange(refresh));
+tr(gVol.add(PLAYER, 'collisionHeight', 0.1, 2, 0.01).name('玩家高度').onChange(refresh));
+
+const gFox = gui.addFolder('狐狸全局');
+tr(gFox.add(FOX, 'windRange', 2, 25, 0.1).name('蓄力距离').onChange(refresh));
+tr(gFox.add(FOX, 'dashSpeed', 4, 30, 0.1).name('冲刺速度').onChange(refresh));
+tr(gFox.add(FOX, 'groundAttackHeight', 0, 2, 0.01).name('地扑高度').onChange(refresh));
+tr(gFox.add(FOX, 'roamRange', 10, 120, 1).name('感知半径').onChange(refresh));
+
+const gFT = gui.addFolder('狐狸类型属性');
+for (const [k, t] of Object.entries(FOX.types)) {
+  const sub = gFT.addFolder(k);
+  tr(sub.add(t, 'hp', 1, 40, 1).name('血量').onChange(refresh));
+  tr(sub.add(t, 'speed', 0.3, 3, 0.02).name('速度x').onChange(refresh));
+  tr(sub.add(t, 'wind', 0.3, 3, 0.02).name('蓄力x'));
+  tr(sub.add(t, 'scale', 0.4, 2.4, 0.02).name('体型').onChange(() => { applyFoxTransform(); rebuildViz(); }));
+  tr(sub.add(FOX.collisionRadius, k, 0.2, 3, 0.01).name('碰撞半径').onChange(refresh));
+  tr(sub.add(FOX.collisionHeight, k, 0.1, 2, 0.01).name('碰撞高度').onChange(refresh));
+}
+
+const gFA = gui.addFolder('狐狸攻击模式');
+for (const [k, a] of Object.entries(FOX.attacks)) {
+  const sub = gFA.addFolder(k);
+  tr(sub.add(a, 'mode', ['leap', 'straight', 'circle', 'combo']).name('模式').onChange(refresh));
+  if (a.dashTime != null) tr(sub.add(a, 'dashTime', 0.05, 2, 0.01).name('冲刺时长').onChange(refresh));
+  if (a.leapHeight != null) tr(sub.add(a, 'leapHeight', 0, 3, 0.01).name('跃扑高度').onChange(refresh));
+  if (a.windMul != null) tr(sub.add(a, 'windMul', 0.3, 3, 0.02).name('蓄力x'));
+  if (a.dashSpeedMul != null) tr(sub.add(a, 'dashSpeedMul', 0.3, 3, 0.02).name('冲刺速x').onChange(refresh));
+}
+
+const gVis = gui.addFolder('显示');
+gVis.add(state, 'showPlayerAttack').name('玩家攻击扇形').onChange(rebuildViz);
+gVis.add(state, 'showPlayerCollision').name('玩家碰撞柱').onChange(rebuildViz);
+gVis.add(state, 'showFoxCollision').name('狐狸碰撞柱').onChange(rebuildViz);
+gVis.add(state, 'showFoxTrack').name('狐狸扑击轨迹').onChange(rebuildViz);
+gVis.add(state, 'showWindRing').name('蓄力距离环').onChange(rebuildViz);
+gVis.add(state, 'showRoamRing').name('感知半径环').onChange(rebuildViz);
+gVis.add(state, 'showDodge').name('翻滚距离').onChange(rebuildViz);
+gVis.add(state, 'showLabels').name('文字标注').onChange(rebuildViz);
+gVis.add(state, 'opacity', 0.1, 1, 0.01).name('透明度').onChange(rebuildViz);
+
+const gOps = gui.addFolder('操作');
+const ops = {
+  replayAttack() { if (actions.attack) { state.pose = 'attack'; playPose('attack'); } },
+  resetDefaults() { location.reload(); },
+};
+gOps.add(ops, 'replayAttack').name('重播一次扑击');
+gOps.add(ops, 'resetDefaults').name('恢复默认（刷新）');
+
+[gWheel, gVol, gFT, gFA].forEach((f) => f.close());
+
+// ---------- 启动 ----------
+let _lastT = performance.now();
+
+// 调试/自动化钩子（只读暴露，供真机 CDP 断言）
+window.__foxlab = {
+  THREE, scene, camera, renderer, viz,
+  groups: { player: vPlayer, foxCol: vFoxCol, foxTrack: vFoxTrack, rings: vRings, dodge: vDodge, labels: vLabels },
+  state, get mixer() { return mixer; }, get actions() { return Object.keys(actions); },
+  get currentAction() { return currentAction?.getClip?.().name || null; },
+  get foxModelVisible() { return foxOuter.visible && modelInner.children.length > 0; },
+  playPose, rebuildViz, applyFoxTransform, updateHud,
+  config: { PLAYER, FOX, STRIKE_VOLUMES, resolveStrikeProfile },
+  countMeshes(obj) {
+    let n = 0; obj.traverse?.((o) => { if (o.isMesh || o.isLine || o.isSprite) n++; }); return n;
+  },
+};
+function tick() {
+  requestAnimationFrame(tick);
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - _lastT) / 1000);
+  _lastT = now;
+  if (mixer) mixer.update(dt);
+  renderer.render(scene, camera);
+}
+tick();
+
+try {
+  await loadModel();
+  rebuildViz(); updateHud();
+  document.getElementById('load').remove();
+} catch (e) {
+  document.getElementById('load').textContent = '模型加载失败：' + (e?.message || e) + '（数值面板仍可用）';
+  console.error(e);
+  rebuildViz(); updateHud();
+  setTimeout(() => document.getElementById('load').remove(), 2500);
+}
+</script>
+</body>
+</html>
