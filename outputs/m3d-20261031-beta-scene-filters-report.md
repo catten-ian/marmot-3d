@@ -4,7 +4,7 @@
 - channel：beta
 - base SHA：`e1d6c0774cb7af387fd9e7c2c6559f8c5b388d8e`（rev58）
 - 当前 renderer/backend：真实 Beta 浏览器路径；`THREE.WebGLRenderer`、WebGL2。视觉 QA 使用 SwiftShader 软件 GPU，仅用于管线/回归证据，不能作为真机 GPU 性能验收。
-- commit：`b67b1b4772abac1942159f41f823e8798d2301bb`
+- commit：`a795ee0bacb34a653d7db3cb8cddc0aa67876457`（实现提交；报告随后单独提交）
 - push/deploy：未执行
 
 ## 设置与预设行为
