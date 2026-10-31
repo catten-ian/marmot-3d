@@ -21,6 +21,7 @@ const assert = require('node:assert/strict');
       },
       audioSettings: { masterVolume: 72, sfxVolume: 55, bgmVolume: 33, sfxEnabled: true, bgmEnabled: false },
       graphicsPreference: 'power-saving', inputModePreference: 'touch', inputModeEffective: 'touch',
+      sceneFilter: { preset: 'verdant', intensity: 68 },
       now: new Date('2026-10-24T12:34:00.000Z'),
     });
     assert.equal(payload.schemaVersion, 1);
@@ -31,6 +32,7 @@ const assert = require('node:assert/strict');
     assert.deepEqual(result.config.audio, payload.audio);
     assert.equal(result.config.graphics, 'power-saving');
     assert.equal(result.config.inputModePreference, 'touch');
+    assert.deepEqual(result.config.sceneFilter, { preset: 'verdant', intensity: 68 });
   });
 
   test('非法字段白名单忽略，数值越界钳制并产生提示', () => {
@@ -45,6 +47,7 @@ const assert = require('node:assert/strict');
       },
       audio: { masterVolume: 150, bgmVolume: 'NaN', madeUp: true },
       graphics: 'invalid',
+      sceneFilter: { preset: 'legacy-blackwhite', intensity: 100 },
     });
     assert.equal(result.ok, true);
     assert.equal(result.config.touchLayout.scale, 1.5);
@@ -55,7 +58,8 @@ const assert = require('node:assert/strict');
     assert.ok(result.ignored.includes('unknownTop'));
     assert.ok(result.ignored.includes('keybinds.custom.nope'));
     assert.ok(result.ignored.includes('touchLayout.cards.nope'));
-    assert.ok(result.warnings.length >= 3);
+    assert.deepEqual(result.config.sceneFilter, { preset: 'none', intensity: 0 });
+    assert.ok(result.warnings.length >= 4);
   });
 
   test('schemaVersion 错误拒绝，键位冲突检测保持原语义', () => {
