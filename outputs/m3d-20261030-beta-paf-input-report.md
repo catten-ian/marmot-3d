@@ -86,3 +86,31 @@ Structured data is in [`browser-telemetry.json`](./m3d-20261030-beta-paf-input/b
 - Browser evidence used headless Chrome with SwiftShader WebGL2. A hardware accelerated desktop GPU path and a physical phone were not available in this environment.
 - The browser sequence exercised W and A on desktop plus a continuous touch joystick direction; every listed keyboard combination is covered by deterministic direction-contract tests.
 - The existing repository PAF FPV harness was also inspected; its older touch-button assumptions do not match the current shared touch layout, so its unrelated tracked artifacts were reverted. The dedicated run above is the authoritative evidence for this change.
+
+## 2026-10-31 追加契约：按住瞄准、松开扑击、后半段命中
+
+本轮沿用同一 JOB，基于 rev58 base `e1d6c0774cb7af387fd9e7c2c6559f8c5b388d8e`。新契约取代旧的“按下即触发 / windTime 到点自动扑出”：按住只进入 wind 预备并显示预测范围，松开才启动一次 lunge；旧 `windTime` 调参项已移除，固定后半段窗口不暴露面板旋钮。
+
+改动文件：
+
+- `src/core/paf-input.js`：`PafPounceCharge` 改为带 pointer identity 的 press/hold/release/cancel 闸门；重复回调、多指、无关 release 均不发招；新增 `pafPounceActiveAt`、`pafPouncePathAt`、`pafPouncePreviewSegment`，统一后半段窗口和真实路径端点。
+- `src/play/play-as-fox.js`：键盘、鼠标左键、TouchControls 攻击统一 hold/release；blur、暂停、设置暂停、退出会取消预备并清理预览；预览使用真实 lunge 半段扫掠胶囊和目标环标记；实际 `canCatch` 仅在 `pafPounceActiveAt(...)` 为真时结算；HUD/触控 aria 更新为“按住瞄准/显示范围，松开扑击”。预览几何与标记在释放、取消、退出时 dispose。
+- `src/play/play-as-fox-debug.js`：移除已不再有运行时意义的旧 windTime 面板项。
+- `tools/test-paf-input-route.cjs`：旧按下自动扑出断言改为新 hold/release、超旧 windTime 不自动攻击、release 去重、pointer identity、后半段边界和路径一致性断言。
+- `tools/test-paf-entry.cjs`：独立触控 DOM 约束改为只检查 DOM id，允许共享纯逻辑函数名。
+- `outputs/m3d-20261030-beta-paf-input-report.md`：追加本轮契约、实现和证据。
+
+确定性验证：
+
+- `node --check src/core/paf-input.js src/play/play-as-fox.js src/play/play-as-fox-debug.js`：通过。
+- `node --test tools/test-paf-input-route.cjs tools/test-paf-camera.cjs tools/test-paf-pounce.cjs tools/test-paf-entry.cjs tools/test-paf-rock-collision.cjs tools/test-paf-fpv-viewmodel.cjs tools/test-paf-admin-sync.test.cjs`：45 passed, 0 failed, 0 skipped。
+- `node tools/run-node-tests.cjs`：94/94 passed；22 browser/CDP tests skipped（需要 Chrome），0 failed。skip 未计入通过。
+- `git diff --check`：通过。
+
+后半段边界已明确覆盖：归一化 `t=0`、`0.25`、`0.499999` 不命中，`t=0.5` 和 `t=1` 允许进入现有 `canCatch` 几何，`t>1` 不命中；recover 不再调用命中。一次攻击通过目标 `caught` 状态只结算一次，预览阶段不改 HP/score/猎物状态。静止目标的预测语义是释放时刻及攻击路径不变则后半段命中；释放后猎物自主移动属于时间语义变化，不算预览错误。
+
+视觉矩阵：本环境存在外部 Chrome CDP，但现有 `tools/qa-paf-stage1.cjs` 和 `tools/qa-paf-fpv-managed.cjs` 仍等待 rev58 的旧“按下自动 lunge”时序，启动后分别停在旧场景/导航等待，已中止以避免伪造证据；本轮没有把 synthetic fixture 当作实机通过。390×844、768×1024、1280×720 的真实 TPS/FPV/触控截图和“按住无捕获、松开攻击”的实机证据因此未验证，记录为阻塞项，不能宣称视觉验收通过。
+
+资源清理：预览 group、CapsuleGeometry、材质和目标环在每次释放/取消/暂停/退出时移除并 dispose；TouchControls 仍由共享 route 管理，退出先 `releaseAll()` 再 restore，避免重复监听或跨次输入残留。未修改 `src/main.js`、智能狐 AI、rig/动画、public shell、版本戳或其他工作树；push/deploy 未执行。
+
+本轮本地实现 commit：交付时 `git rev-parse HEAD`；push/deploy 未执行。

@@ -164,33 +164,59 @@ export function pafKeyboardDriveInput(binds, keys) {
   };
 }
 
-/**
- * PAF moving-pounce phase gate: a press starts a short readable windup and
- * launch is time-based; release state is retained only for route compatibility.
- */
+/** PAF 攻击后半段的统一激活窗口。*/
+export const PAF_POUNCE_ACTIVE_T = 0.5;
+
+export function pafPounceProgress(phaseT, lungeTime) {
+  const duration = Math.max(0.0001, finite(lungeTime, 0));
+  return finite(phaseT, 0) / duration;
+}
+
+export function pafPounceActiveAt(phaseT, lungeTime, activeStart = PAF_POUNCE_ACTIVE_T) {
+  const t = pafPounceProgress(phaseT, lungeTime);
+  return t >= finite(activeStart, PAF_POUNCE_ACTIVE_T) && t <= 1;
+}
+
+/** 与实际 lunge 使用同一条直线轨迹；t 是归一化动作进度。 */
+export function pafPouncePathAt({ startX = 0, startZ = 0, yaw = 0, lungeSpeed = 0, lungeTime = 0, t = 0 } = {}) {
+  const clampedT = clamp(finite(t, 0), 0, 1);
+  const distance = finite(lungeSpeed, 0) * Math.max(0, finite(lungeTime, 0)) * clampedT;
+  return { x: finite(startX, 0) + Math.sin(finite(yaw, 0)) * distance, z: finite(startZ, 0) + Math.cos(finite(yaw, 0)) * distance, t: clampedT };
+}
+
+/** 预览与命中共用的水平扫掠端点。 */
+export function pafPouncePreviewSegment({ startX = 0, startZ = 0, yaw = 0, lungeSpeed = 0, lungeTime = 0, activeStart = PAF_POUNCE_ACTIVE_T, catchRadius = 0 } = {}) {
+  return {
+    start: pafPouncePathAt({ startX, startZ, yaw, lungeSpeed, lungeTime, t: activeStart }),
+    end: pafPouncePathAt({ startX, startZ, yaw, lungeSpeed, lungeTime, t: 1 }),
+    radius: Math.max(0, finite(catchRadius, 0)),
+    activeStart: finite(activeStart, PAF_POUNCE_ACTIVE_T),
+  };
+}
+
+/** 按住预览阶段的 release 闸门；不会因 windTime 或重复回调自动发招。 */
 export class PafPounceCharge {
   constructor() { this.reset(); }
-  reset() { this.active = false; this.held = false; this.released = false; this.elapsed = 0; }
-  press() {
+  reset() { this.active = false; this.held = false; this.released = false; this.elapsed = 0; this.pointerId = null; }
+  press(pointerId = 'default') {
     if (this.active) return false;
-    this.active = true; this.held = true; this.released = false; this.elapsed = 0;
+    this.active = true; this.held = true; this.released = false; this.elapsed = 0; this.pointerId = pointerId;
     return true;
   }
-  release() {
-    if (!this.active) return false;
-    this.held = false; this.released = true;
+  release(pointerId = 'default') {
+    if (!this.active || this.pointerId !== pointerId) return false;
+    this.held = false; this.released = true; this.pointerId = null;
     return true;
   }
-  step(dt, windTime) {
+  cancel(pointerId = null) {
+    if (!this.active || (pointerId !== null && this.pointerId !== pointerId)) return false;
+    this.reset();
+    return true;
+  }
+  step(dt) {
     if (!this.active) return { shouldLunge: false, charge: 0, elapsed: 0 };
     this.elapsed += Math.max(0, finite(dt, 0));
-    const minWind = Math.max(0, finite(windTime, 0));
-    return {
-      // PAF moving pounce is press-to-trigger: release state never gates launch.
-      shouldLunge: this.elapsed >= minWind,
-      charge: Math.min(1, this.elapsed / Math.max(0.0001, minWind)),
-      elapsed: this.elapsed,
-    };
+    return { shouldLunge: false, charge: this.elapsed, elapsed: this.elapsed };
   }
 }
 

@@ -11,7 +11,7 @@ test('PAF reuses the shared TouchControls route and has no independent touch DOM
   assert.match(paf, /new PafInputRoute\(touchControls\)/);
   assert.match(paf, /pafRoute\.activate/);
   assert.match(paf, /pafRoute\.restore/);
-  assert.doesNotMatch(paf, /id=\"pafTouch\"|pafStick|pafPounce|pafSprint|pafLook/);
+  assert.doesNotMatch(paf, /id=\"pafTouch\"|id=\"pafStick\"|id=\"pafPounce\"|id=\"pafSprint\"|id=\"pafLook\"/);
   assert.match(paf, /data-touch-action=\"attack\"/);
   assert.match(paf, /data-touch-action=\"dodge\"/);
   assert.match(paf, /data-touch-action=\"jump\"/);

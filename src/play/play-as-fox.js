@@ -10,7 +10,7 @@
  *  - 镜头：第三人称追尾（看得见自己扮演的藏狐）。
  *  - 移动：坦克式操控，W/S 前后，鼠标 / ←→ / A D 转向；默认潜行（蹲伏、
  *    土拨鼠更近才察觉），按住 Shift 冲刺（快但更早被发现）。
- *  - 扑击：空格 / 左键，短蓄力后沿锁定朝向跃扑，带抛物线腾空；
+ *  - 扑击：空格 / 左键，按住瞄准并显示真实覆盖范围，松开后沿锁定朝向跃扑；
  *    扑击激活帧内水平重叠且处于垂直窗口才捕获土拨鼠；扑完有硬直。
  *  - 猎物：AI 土拨鼠游荡，进入察觉半径会警觉（!）随后逃离，扑击时惊逃更快。
  *
@@ -36,6 +36,7 @@ import {
 import {
   isPafKey, pafKeyHeld, pafKeyboardDriveInput, pafDirectionFromInput, pafTankDriveFromInput,
   pafInputBlocked, pafCanStartPounce, releasePafInput, PafPounceCharge, PafInputRoute,
+  pafPounceActiveAt, pafPouncePathAt, pafPouncePreviewSegment,
 } from '../core/paf-input.js';
 
 /** 扮演藏狐模式全部可调平衡数值（后台滑块直接改这里的运行时副本）。 */
@@ -48,7 +49,6 @@ export const PAF_DEFAULTS = {
   mouseTurn: 0.0024,      // 鼠标每像素转向（默认乘普通控制器灵敏度比例）
   pounceArcDeg: 120,      // wind 期间可选方向总弧度（默认前方 ±60°）
   // 扑击相位
-  windTime: 0.22,         // 蓄力下蹲 s
   lungeTime: 0.42,        // 腾空时长 s
   lungeSpeed: 13.5,       // 腾空速度 m/s
   lungeHeight: 1.05,      // 腾空抛物线高度 m
@@ -331,6 +331,10 @@ export function createPlayAsFox(ctx) {
   let paused = false;
   const keys = new Set();
   const pounceCharge = new PafPounceCharge();
+  let previewGroup = null;
+  let previewMaterial = null;
+  let previewGeometry = null;
+  const previewTargetMarks = new Map();
 
   // —— 视角：默认第三人称；V 键 / 触屏按钮切第一人称（FPV 视线与身体朝向解耦）——
   const viewMode = createViewModeState('tps');
@@ -449,12 +453,79 @@ export function createPlayAsFox(ctx) {
   const settingsOpen = () => { const sheet = document.getElementById('setSheet'); return !!sheet && !sheet.hidden; };
   const inputBlocked = () => pafInputBlocked({ running, paused, settingsOpen: settingsOpen() });
 
-  function startPounce() {
+  function clearPouncePreview() {
+    if (previewGroup) scene.remove(previewGroup);
+    previewGeometry?.dispose?.(); previewMaterial?.dispose?.();
+    previewGroup = null; previewGeometry = null; previewMaterial = null;
+    for (const mark of previewTargetMarks.values()) { scene.remove(mark); mark.geometry?.dispose?.(); mark.material?.dispose?.(); }
+    previewTargetMarks.clear();
+  }
+
+  function previewTargetInRange(p, yaw) {
+    const samples = 16;
+    for (let i = 0; i <= samples; i++) {
+      const t = 0.5 + (i / samples) * 0.5;
+      const pos = pafPouncePathAt({ startX: fox.x, startZ: fox.z, yaw, lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, t });
+      const airY = Math.sin(t * Math.PI) * cfg.lungeHeight;
+      const preyY = terrainHeight(p.x, p.z);
+      const dx = p.x - pos.x, dz = p.z - pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d < cfg.catchRadius && Math.abs(groundYForPreview(pos.x, pos.z) + airY + cfg.catchFoxCenter - (preyY + cfg.preyCenterHeight)) < cfg.catchVerticalTol) return true;
+    }
+    return false;
+  }
+  function groundYForPreview(x, z) { return terrainHeight(x, z); }
+
+  function updatePouncePreview() {
+    if (!pounceCharge.active || fox.phase !== 'wind') { clearPouncePreview(); return; }
+    const seg = pafPouncePreviewSegment({ startX: fox.x, startZ: fox.z, yaw: fox.lungeYaw, lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, catchRadius: cfg.catchRadius });
+    clearPouncePreview();
+    const dx = seg.end.x - seg.start.x, dz = seg.end.z - seg.start.z;
+    const length = Math.hypot(dx, dz);
+    previewGeometry = new THREE.CapsuleGeometry(seg.radius, Math.max(0.01, length), 6, 24);
+    previewMaterial = new THREE.MeshBasicMaterial({ color: 0xffc857, transparent: true, opacity: 0.22, depthWrite: false, depthTest: true });
+    previewGroup = new THREE.Group();
+    const sweep = new THREE.Mesh(previewGeometry, previewMaterial);
+    sweep.rotation.x = Math.PI / 2;
+    sweep.rotation.z = Math.atan2(dx, dz);
+    sweep.position.set((seg.start.x + seg.end.x) / 2, terrainHeight(fox.x, fox.z) + 0.035, (seg.start.z + seg.end.z) / 2);
+    previewGroup.add(sweep);
+    scene.add(previewGroup);
+    for (const p of prey) {
+      if (p.caught) continue;
+      const inRange = previewTargetInRange(p, fox.lungeYaw);
+      let mark = previewTargetMarks.get(p);
+      if (inRange && !mark) {
+        mark = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 20), new THREE.MeshBasicMaterial({ color: 0x9fffa4, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+        mark.rotation.x = -Math.PI / 2; scene.add(mark); previewTargetMarks.set(p, mark);
+      }
+      if (mark) { mark.visible = inRange; mark.position.set(p.x, terrainHeight(p.x, p.z) + 0.06, p.z); }
+    }
+  }
+
+  function commitPounce(pointerId = 'default') {
+    if (!pounceCharge.release(pointerId)) return false;
+    const selected = pafDirectionFromInput({ cameraYaw: viewMode.mode === 'fpv' ? look.yaw : fox.yaw, ...pafKeyboardDriveInput(binds, keys), axes: pafRoute.controller?.touchAxes || { x: 0, y: 0 }, arcDeg: cfg.pounceArcDeg });
+    if (selected.source !== 'fallback') fox.lungeYaw = selected.yaw;
+    pounceCharge.reset();
+    clearPouncePreview();
+    fox.phase = 'lunge'; fox.phaseT = 0;
+    return true;
+  }
+
+  function cancelPounce() {
+    pounceCharge.cancel();
+    clearPouncePreview();
+    if (fox.phase === 'wind') { fox.phase = 'idle'; fox.phaseT = 0; }
+  }
+
+  function startPounce(pointerId = 'default') {
     if (!pafCanStartPounce({ running, paused, settingsOpen: settingsOpen(), phase: fox.phase })) return false;
-    if (!pounceCharge.press()) return false;
+    if (!pounceCharge.press(pointerId)) return false;
     fox.phase = 'wind'; fox.phaseT = 0;
     fox.windStartYaw = fox.yaw;
     fox.lungeYaw = fox.yaw;
+    updatePouncePreview();
     return true;
   }
 
@@ -480,7 +551,7 @@ export function createPlayAsFox(ctx) {
     keys.add(e.code);
     if (isPafKey(binds, e.code, 'attack', ['Space'])) {
       e.preventDefault();
-      startPounce();
+      startPounce(e.code);
     }
     if (e.code.startsWith('Arrow')) e.preventDefault();
     if (e.code === 'KeyV') {
@@ -490,7 +561,12 @@ export function createPlayAsFox(ctx) {
     }
     if (e.code === 'Escape') exit();
   };
-  const onKeyUp = (e) => keys.delete(e.code);
+  const onKeyUp = (e) => {
+    keys.delete(e.code);
+    if (isPafKey(binds, e.code, 'attack', ['Space'])) commitPounce(e.code);
+  };
+  const onWindowBlur = () => { keys.clear(); cancelPounce(); };
+  window.addEventListener('blur', onWindowBlur);
   const mouseSensitivityScale = (ctx.mouseSensitivity || 0.0022) / 0.0022;
   const onMouseMove = (e) => {
     if (inputBlocked() || document.pointerLockElement !== canvas) return;
@@ -506,8 +582,12 @@ export function createPlayAsFox(ctx) {
   };
   const onMouseDown = (e) => {
     if (inputBlocked()) return;
-    if (e.button === 0 && !touchControls?.controller?.touchEnabled) startPounce();
+    if (e.button === 0 && !touchControls?.controller?.touchEnabled) { e.preventDefault(); startPounce('mouse'); }
   };
+  const onMouseUp = (e) => {
+    if (e.button === 0) commitPounce('mouse');
+  };
+  const onPointerCancel = () => cancelPounce();
   const onCanvasClick = () => {
     if (inputBlocked()) return;
     if (!touchControls?.controller?.touchEnabled && document.pointerLockElement !== canvas && ctx.requestLock) ctx.requestLock();
@@ -517,6 +597,8 @@ export function createPlayAsFox(ctx) {
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('mousemove', onMouseMove);
   renderer.domElement.addEventListener('mousedown', onMouseDown);
+  window.addEventListener('mouseup', onMouseUp);
+  window.addEventListener('pointercancel', onPointerCancel);
   renderer.domElement.addEventListener('click', onCanvasClick);
   window.addEventListener('resize', onResize);
 
@@ -524,11 +606,14 @@ export function createPlayAsFox(ctx) {
   const isTouch = isTouchMode();
   const touch = { throttle: 0, turn: 0, sprint: false };
   const pafRoute = new PafInputRoute(touchControls);
-  const touchAction = (action, pressed) => {
-    if (inputBlocked()) return;
+  const touchAction = (action, pressed, pointerId) => {
     if (action === 'attack') {
-      if (pressed) startPounce();
-    } else if (action === 'dodge') {
+      if (pressed) { if (!inputBlocked()) startPounce(pointerId); }
+      else commitPounce(pointerId);
+      return;
+    }
+    if (inputBlocked()) return;
+    if (action === 'dodge') {
       touch.sprint = pressed;
     } else if (action === 'jump' && pressed) {
       toggleView();
@@ -554,7 +639,7 @@ export function createPlayAsFox(ctx) {
     const attack = document.querySelector('[data-touch-action="attack"]');
     const sprint = document.querySelector('[data-touch-action="dodge"]');
     const view = document.querySelector('[data-touch-action="jump"]');
-    if (attack) { attack.dataset.pafLabel = 'attack'; attack.setAttribute('aria-label', '扑击：按下后自动扑出'); attack.querySelector('b')?.replaceChildren('爪'); attack.querySelector('small')?.replaceChildren('扑击'); }
+    if (attack) { attack.dataset.pafLabel = 'attack'; attack.setAttribute('aria-label', '扑击：按住瞄准并显示范围，松开扑击'); attack.querySelector('b')?.replaceChildren('爪'); attack.querySelector('small')?.replaceChildren('按住瞄准'); }
     if (sprint) { sprint.dataset.pafLabel = 'sprint'; sprint.setAttribute('aria-label', '冲刺：按住冲刺'); sprint.querySelector('b')?.replaceChildren('⚡'); sprint.querySelector('small')?.replaceChildren('冲刺'); }
     if (view) { view.dataset.pafLabel = 'view'; view.setAttribute('aria-label', '视角：切换第一人称/第三人称'); view.querySelector('b')?.replaceChildren('◉'); view.querySelector('small')?.replaceChildren('视角'); }
   }
@@ -593,12 +678,8 @@ export function createPlayAsFox(ctx) {
       // Keep the last deliberate selection if the input is released during wind;
       // a committed pounce must not snap back to a cosmetic camera-forward marker.
       if (selected.source !== 'fallback') fox.lungeYaw = selected.yaw;
-      const charge = pounceCharge.step(dt, cfg.windTime);
-      if (charge.shouldLunge) {
-        pounceCharge.reset();
-        fox.phase = 'lunge'; fox.phaseT = 0;
-        if (selected.source !== 'fallback') fox.lungeYaw = selected.yaw;
-      }
+      pounceCharge.step(dt);
+      updatePouncePreview();
     } else if (fox.phase === 'lunge') {
       fox.phaseT += dt;
       const t = fox.phaseT / cfg.lungeTime;
@@ -640,7 +721,7 @@ export function createPlayAsFox(ctx) {
     for (const p of prey) {
       p.update(dt, fox, camera, overlay, bounds, cfg);
       // 扑击激活帧判定捕获（水平接近）
-      if (!p.caught && fox.phase === 'lunge') {
+      if (!p.caught && fox.phase === 'lunge' && pafPounceActiveAt(fox.phaseT, cfg.lungeTime)) {
         // B2：水平半径 + 垂直窗口同时满足；腾空越过头顶不再"吸"中
         const preyTerrainY = terrainHeight(p.x, p.z);
         if (canCatch(p.x - fox.x, p.z - fox.z, fox.airY, preyTerrainY, cfg, groundY)) catchPrey(p);
@@ -675,10 +756,10 @@ export function createPlayAsFox(ctx) {
     // HUD
     elTop.textContent = `扮演藏狐 · 捕猎 ${score} 只 · ${elapsed.toFixed(0)}s`;
     const phaseLabel = fox.phase === 'wind' ? '蓄力中…' : fox.phase === 'lunge' ? '扑击！' : fox.phase === 'recover' ? '硬直' : fox.sprint ? '冲刺（易被发现）' : '潜行';
-    const chargeHint = fox.phase === 'wind' ? ` · 方向锁定 ${Math.round(Math.min(1, fox.phaseT / Math.max(cfg.windTime, 0.0001)) * 100)}%` : '';
+    const chargeHint = fox.phase === 'wind' ? ` · 已瞄准 ${fox.phaseT.toFixed(1)}s` : '';
     elTip.innerHTML = isTouch
-      ? `左下摇杆上下前后、左右转向 · <b>冲刺</b>切换潜行 · <b>扑击</b>按下后自动扑出（${phaseLabel}）${chargeHint}`
-      : `W/S 前后移动 · A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
+      ? `左下摇杆上下前后、左右转向 · <b>冲刺</b>切换潜行 · <b>扑击</b>按住瞄准/显示范围，松开扑击（${phaseLabel}）${chargeHint}`
+      : `W/S 前后移动 · A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 按住瞄准/显示范围，松开扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
   }
 
   function setPaused(value) {
@@ -687,7 +768,7 @@ export function createPlayAsFox(ctx) {
     paused = next;
     ctx.audio?.setPafPaused?.(paused);
     if (paused) {
-      pounceCharge.reset();
+      cancelPounce();
       if (document.pointerLockElement === canvas) document.exitPointerLock?.();
       if (fox.phase === 'wind') { fox.phase = 'idle'; fox.phaseT = 0; }
       releasePafInput({ keys, touchControls, touchState: touch });
@@ -706,10 +787,13 @@ export function createPlayAsFox(ctx) {
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('blur', onWindowBlur);
+    window.removeEventListener('mouseup', onMouseUp);
+    window.removeEventListener('pointercancel', onPointerCancel);
     renderer.domElement.removeEventListener('mousedown', onMouseDown);
     renderer.domElement.removeEventListener('click', onCanvasClick);
     window.removeEventListener('resize', onResize);
-    pounceCharge.reset();
+    cancelPounce();
     pafRoute.restore();
     for (const item of pafTouchLabelSnapshot) { item.el.setAttribute('aria-label', item.aria || ''); if (item.el.querySelector('b')) item.el.querySelector('b').textContent = item.b; if (item.el.querySelector('small')) item.el.querySelector('small').textContent = item.small; delete item.el.dataset.pafLabel; }
     document.body.classList.remove('paf-touch-route');
