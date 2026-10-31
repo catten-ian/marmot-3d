@@ -1,0 +1,10 @@
+{
+  "source": "pre-fix run captured during stage 1 implementation",
+  "commit": "6ac0ebb",
+  "note": "Before the lab adapter fixes: the scenario guard treated a valid static faceoff as no-progress failure; chase/parry setup could not hold a real pounce window, so all three requested openings lacked pounce/parry evidence.",
+  "cases": [
+    {"scenario":"faceoff-tap","seed":1001,"status":"failed","failure":"no_progress","pounceCommits":0,"parrySuccesses":0},
+    {"scenario":"chase-pounce-tap","seed":1002,"status":"failed","failure":"no_progress","pounceCommits":0,"parrySuccesses":0},
+    {"scenario":"parry-tap","seed":1003,"status":"failed","failure":"setup/scenario failed: no real parry_success event","pounceCommits":0,"parrySuccesses":0}
+  ]
+}

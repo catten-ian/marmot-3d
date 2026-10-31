@@ -134,3 +134,33 @@ Result: passed.
 - `node tools/run-node-tests.cjs`：`OK 95/95`，22 个 browser/CDP 项按 harness 规则 skipped（需要 Chrome/CDP），不计为通过。
 - `git diff --check`：通过。
 - 阶段 0 checkpoint commit：待本节提交后记录；push/deploy：未执行。
+
+## 阶段 1：无头 SmartFox combat lab（最终 checkpoint）
+
+阶段 0 commit：`6ac0ebb` (`fix(beta): expose SmartFox vitals in admin runtime`)。
+
+新增无渲染共享适配：
+
+- `src/headless/smartfox-combat-lab.mjs`：纯数值状态，不创建 renderer、不加载模型/贴图/DOM；直接调用生产 `smart-fox-core.mjs` 的 `utilityScores/updatePerception/assignRoles/stepSmartMotion/advanceSmartMelee/smartMeleeContactHit`，生产 `fox-motion.js` 的 `stepStamina/shouldRetreat/chooseRestPoint/stepRestSafe`，生产 `systems/combat.js` 的 `resolveStrikeProfile/strikeVolumeHit`，以及 SmartFox vitals/retreat 构造器。浏览器实体只负责 Three.js 适配。
+- `tools/smartfox-headless-lab.mjs`：`matrix` 与 `repro` CLI，固定 dt、注入 PRNG、seed、数量、移动策略、场景和 JSON 输出；失败场景返回非零退出码。输出含 config、commit、wallMs、ticks、实体最终血量/体力/状态、攻击尝试/命中/迎击、扑击提交、撤退、死亡、不变量和有限事件 trace。
+- `tools/test-smartfox-headless-lab.mjs`：6/6，包含确定性、出生满状态、自定义上限、三种指定开场、数量矩阵、live/headless 共享核心契约、死亡不复活。
+
+CLI 示例：
+
+```bash
+node tools/smartfox-headless-lab.mjs repro --seed 1003 --scenario parry-tap --movement stationary --foxes 1 --marmots 1 --duration 12 --out outputs/m3d-20261030-beta-smartfox-team/headless/repro-parry.json
+node tools/smartfox-headless-lab.mjs matrix --duration 8 --out outputs/m3d-20261030-beta-smartfox-team/headless/matrix.json
+```
+
+场景支持：`faceoff-tap`（面对面持续真实 tap）、`chase-pounce-tap`（追击、生产扑击提交/strike 后持续 tap）、`parry-tap`（只有真实前摇窗口和共享攻击体积/方向满足才记录 `parry_success`，否则场景失败）；移动策略：`stationary/chase/orbit/kite/zigzag`。默认 matrix 代表 1/2/4/8 狐狸与 1/2/4 土拨鼠的单狐、团队、多目标和压力组合。
+
+基线→定位→修复→回归：
+
+- `headless/baseline-before-fix.json` 保留初始失败：静态 faceoff 被错误 no-progress 判失败；追击和迎击没有形成真实扑击窗口（0 pounce / 0 parry）。
+- 修复内容：保留静态 faceoff 为合法场景；为追击/迎击只在真实距离/朝向提交门内冻结前摇，仍由 `stepSmartMotion` 决定 commit；迎击仅在 `pounceStage=windup`、真实距离和攻击方向满足时成功；修正休息安全状态迁移，避免每帧重复 retreat/rest_safe；一次性扑击成本记录并实际扣除。
+- 同 seed 修复后：`baseline-faceoff.json` completed，1 次生产扑击提交、4 次真实土拨鼠命中；`baseline-chase.json` completed，1 次生产扑击提交、4 次真实土拨鼠命中；`baseline-parry.json` completed，1 次生产扑击提交、1 次 `parry_success`、6 次真实土拨鼠命中。三者均 `invariants=[]`。
+- `baseline-matrix.json`：5 个代表 case 全部 completed、无 NaN/越界；8 狐/4 土拨鼠压力 case 记录 3 只真实死亡，死亡实体最终 `hp=0,state=dead`，无复活。
+
+性能/边界：默认固定步长 1/60；上述 12 秒单场 wall time 约 12–15ms，8 秒 matrix 更低于 100ms；无 wall-clock AI 随机，事件 trace 上限 5000。无头结果只证明共享数值战斗逻辑，不替代浏览器视觉/GPU/手机验收。
+
+- 阶段 1 commit：`9b1b0a5` (`test(beta): add headless SmartFox combat lab`)。最终 commits：`6ac0ebb`, `9b1b0a5`。push/deploy：未执行。未完成项：无头实验场不替代浏览器视觉/GPU/手机验收；主控独立验收与上线均未宣称。
