@@ -239,4 +239,4 @@ After matrix 为 **165 completed / 15 failed**。15 例全部是 4 狐 `parry-ta
 - 证据：仅 `outputs/m3d-20261030-beta-smartfox-team/headless/dynamic-attackers/` 与本报告。
 - 剩余：4 狐 parry-tap 的 15 个固定矩阵组合未形成真实迎击，需要后续诊断土拨鼠目标选择/距离与多狐前摇时序；没有为通过矩阵而强制迎击。主控独立验收未执行，本 worker 自报不等于上线。
 
-Commits：实现提交见本节后续 hash 记录/最终交付；push=未执行，deploy=未执行。
+实现 commit：`e1e1e5965595ba97ce104c2ea639a568a365fea8`（含代码、测试与浏览器/矩阵证据）；本报告 hash 记录另作 docs checkpoint。push=未执行，deploy=未执行。
