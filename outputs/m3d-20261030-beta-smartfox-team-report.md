@@ -392,3 +392,5 @@ renderer=`WebGLRenderer`/WebGL2/ANGLE Vulkan **SwiftShader软件渲染**。截�
 - 完整Node harness：**97/97文件通过、0失败，22 browser/CDP文件skipped另列**，没有把skipped计入通过（after-node-tests.txt）。
 - 改动：beta-tuning/fox-motion、Beta守卫下Fox撤退、headless lab、CLI、vitals/lab测试、QA脚本、审计证据/本报告。未改main.js、PAF、普通狐默认、Stable/Dev、rig/动画、滤镜/黑匣子、版本/public shell、其他工作树、线上服务/配置。`.codex-cli-write.lock`保留不stage。
 - 实现与证据commit在提交后追加；push=未执行、deploy=未执行。剩余：完整生产lab共享接线、主控专项独立验收、硬件/手机/完整browser suite。不得据本报告宣称全部原任务已完成或已上线。
+
+本轮提交记录：审计checkpoint `deacc51`；实现/测试/原始证据 `ff16fe8`（`fix(beta): preserve SmartFox health and far retreat navigation`）。提交后在干净代码HEAD再次运行180矩阵，cases与已保存after原始数据逐项完全一致，180/180 completed、每例1土拨鼠；commit/dirty=[]/case数据SHA256见 `rev61-audit/committed-replay-summary.json`。最终docs提交只追加这条提交链与重放摘要；工作区仅保留未跟踪且未stage的`.codex-cli-write.lock`。push/deploy=未执行；完整生产lab对等性仍待后续，不宣称全任务已完成。
