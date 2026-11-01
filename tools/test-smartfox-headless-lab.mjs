@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { runScenario, runMatrix, createSeededRandom } from '../src/headless/smartfox-combat-lab.mjs';
+import { runScenario, runMatrix, createSeededRandom, selectMarmotTarget } from '../src/headless/smartfox-combat-lab.mjs';
 import { BETA_TUNE, createSmartFoxSpawnState, createSmartFoxVitals } from '../src/core/beta-tuning.js';
 
 test('headless lab is deterministic and uses fixed-step seeded scenarios', () => {
@@ -30,14 +30,18 @@ test('three requested openings run through real shared attack events', () => {
 });
 
 test('matrix covers 1/2/4/8 foxes, one marmot, all moves/openings/seeds without NaN', () => {
-  const rows = runMatrix({ seed: 20261031, duration: 4 });
+  const rows = runMatrix({ seed: 20261031, duration: 6 });
   assert.equal(rows.length, 180);
   assert.ok(rows.every((r) => r.invariants.length === 0));
-  const setupFailures = rows.filter((r) => r.status !== 'completed');
-  assert.equal(setupFailures.length, 15, 'retain the observed 4-fox parry setup failures in the matrix');
-  assert.ok(setupFailures.every((r) => r.scenario === 'parry-tap' && r.foxes.length === 4 && /no real parry_success/.test(r.failure)));
-  assert.ok(rows.filter((r) => r.scenario !== 'parry-tap' || r.foxes.length !== 4).every((r) => r.status === 'completed'));
+  assert.ok(rows.every((r) => r.status === 'completed'), JSON.stringify(rows.filter((r) => r.status !== 'completed').map((r) => ({ foxes:r.foxes.length, scenario:r.scenario, movement:r.movement, seed:r.seed, failure:r.failure }))));
   assert.ok(rows.every((r) => r.marmots.length === 1));
+  for (const r of rows.filter((r) => r.scenario === 'parry-tap')) {
+    const successes = r.events.filter((e) => e.type === 'parry_success');
+    assert.equal(successes.length, 1);
+    assert.ok(successes[0].distance <= successes[0].reach, 'success uses real production contact reach');
+    assert.ok(r.events.some((e) => e.type === 'parry_attempt' && e.t <= successes[0].t && e.window > 0));
+    assert.ok(r.events.some((e) => e.type === 'marmot_hit' && e.t > successes[0].t), 'real tap pressure follows the successful parry');
+  }
   assert.deepEqual([...new Set(rows.map((r) => r.foxes.length))].sort((a, b) => a - b), [1, 2, 4, 8]);
   assert.deepEqual([...new Set(rows.map((r) => r.movement))].sort(), ['chase', 'kite', 'orbit', 'stationary', 'zigzag']);
   assert.deepEqual([...new Set(rows.map((r) => r.scenario))].sort(), ['chase-pounce-tap', 'faceoff-tap', 'parry-tap']);
@@ -54,12 +58,23 @@ test('4/8 fox scenarios exceed two distinct real attackers without a global two-
   }
 });
 
+
+test('parry target selection follows a real windup attacker, not a closer idle fox', () => {
+  const m = { x:0, z:0, parryCooldown:0 };
+  const idle = { slot:0, alive:true, x:0, z:1, smart:{ pounceCommitted:false, pounceStage:null } };
+  const attacker = { slot:1, alive:true, x:0, z:2.5, smart:{ pounceCommitted:true, pounceStage:'windup' } };
+  const tooFar = { slot:2, alive:true, x:0, z:8, smart:{ pounceCommitted:true, pounceStage:'windup' } };
+  assert.equal(selectMarmotTarget(m, [idle, attacker, tooFar], 'parry-tap'), attacker);
+  assert.equal(selectMarmotTarget(m, [idle, tooFar], 'parry-tap'), tooFar, 'windup input may be armed at distance; contact still uses production reach');
+  assert.equal(selectMarmotTarget(m, [idle, attacker], 'faceoff-tap'), idle);
+});
+
 test('live SmartFox and headless lab import the same decision core contract', async () => {
   const [live, lab] = await Promise.all([
     readFile(new URL('../src/entities/smart-fox.js', import.meta.url), 'utf8'),
     readFile(new URL('../src/headless/smartfox-combat-lab.mjs', import.meta.url), 'utf8'),
   ]);
-  for (const token of ['utilityScores', 'updatePerception', 'assignRoles', 'stepSmartMotion', 'advanceSmartMelee', 'stepStamina', 'shouldRetreat']) {
+  for (const token of ['utilityScores', 'updatePerception', 'assignRoles', 'stepSmartMotion', 'advanceSmartMelee', 'stepStamina', 'shouldRetreat', 'smartPounceDashDurationForDistance']) {
     assert.match(live, new RegExp(`\\b${token}\\b`), token);
     assert.match(lab, new RegExp(`\\b${token}\\b`), token);
   }

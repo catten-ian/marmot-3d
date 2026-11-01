@@ -155,6 +155,24 @@ export function smartPounceDashDistance(initialSpeed = 0, dashSpeed, acceleratio
   }
   return dist;
 }
+
+/** Shared Beta approach-dash timing: leave the same real strike-distance band
+ * in browser and renderer-free runs instead of using a fixed lab-only dash.
+ */
+export function smartPounceDashDurationForDistance(distance, { pounceSpeed = 10.6, acceleration = 18, dt = 1 / 60, tune = SMART_POUNCE_TUNE } = {}) {
+  const targetDash = Math.max(1.5, Math.min(4.3, distance - tune.maxStrikeDistance));
+  let lo = 0.08, hi = tune.dashDuration;
+  // The old fixed 0.42 s upper bound covers only 1.755 m at default
+  // acceleration, making 5–7 m commits unable to reach their intended strike
+  // band. Extend the approach dash, not the strike hit volume or damage.
+  while (hi < 2 && smartPounceDashDistance(0, pounceSpeed * tune.dashSpeedMul, acceleration, hi, dt) < targetDash) hi *= 2;
+  for (let i = 0; i < 12; i++) {
+    const mid = (lo + hi) * 0.5;
+    if (smartPounceDashDistance(0, pounceSpeed * tune.dashSpeedMul, acceleration, mid, dt) < targetDash) lo = mid;
+    else hi = mid;
+  }
+  return hi;
+}
 /** 撞障/受击取消扑击：当帧取消且（调用方保证）无伤害；进后摇硬直。纯函数。 */
 export function cancelSmartPounce(state) {
   const s = { ...state };

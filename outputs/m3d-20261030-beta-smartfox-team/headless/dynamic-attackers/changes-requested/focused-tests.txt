@@ -1,0 +1,150 @@
+
+===== tools/test-smartfox-headless-lab.mjs =====
+✔ headless lab is deterministic and uses fixed-step seeded scenarios (14.62783ms)
+✔ birth invariant is full and independent for custom limits (0.156681ms)
+✔ three requested openings run through real shared attack events (15.627785ms)
+✔ matrix covers 1/2/4/8 foxes, one marmot, all moves/openings/seeds without NaN (1066.583044ms)
+✔ 4/8 fox scenarios exceed two distinct real attackers without a global two-commit cap (18.731526ms)
+✔ parry target selection follows a real windup attacker, not a closer idle fox (0.20738ms)
+✔ live SmartFox and headless lab import the same decision core contract (4.115209ms)
+✔ dead SmartFox remains dead and is never healed or respawned in the same run (1.050845ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1126.402591
+
+===== tools/test-smart-fox-beta.mjs =====
+ASSERT memory-delay-decay/window-expiry OK
+ASSERT habituation/debounce/stagger/separation OK
+ASSERT utility-weight-snapshot OK
+ASSERT track-feint/repeat-habituation OK
+ASSERT feint-scale/default-equivalence OK
+ASSERT recover-lock/recommit-gate OK
+ASSERT ground-steer/zero-speed-null OK
+{"kind":"standing-pounce-simulation","attempts":1000,"hits":890,"rate":0.89}
+✔ utilityScores 返回全部意图且选出唯一 topIntent (0.872266ms)
+✔ 远距离未察觉时偏好 observe，近距离高怀疑时偏好进攻 (0.135462ms)
+✔ 玩家格挡且有记忆时偏好 feint（虚晃） (0.145076ms)
+✔ 残血高疲劳时偏好 recover/abandon (0.087935ms)
+✔ 感知：进入视野锥且靠近时怀疑度上升，离开后衰减 (0.254152ms)
+✔ 视野锥外（viewDot<cos60°）不积累怀疑 (0.155398ms)
+✔ 扑击一旦提交不可取消，并在约 0.72s 后进入冷却 (0.492787ms)
+✔ 受击打断累加记忆与打断次数 (0.133094ms)
+✔ 统一运动高速转向上限更低且转向时持续前进 (0.401888ms)
+✔ pounce distance integrates acceleration and habituation is capped (3.448194ms)
+✔ pounce rejects misaligned intent and uses readable windup (0.270063ms)
+✔ 记忆延迟后按每秒衰减且打断时间窗会过期 (0.978502ms)
+✔ 佯攻习惯化、防抖、群战错峰与分离纯函数 (0.256842ms)
+✔ 权重快照保持原公式数值 (0.141109ms)
+✔ trackFeint 只统计进入佯攻且受击/扑击清零 (0.162574ms)
+✔ feintScale 按比例作用且默认快照不变 (0.149508ms)
+✔ 扑击自然结束后的 recover 硬直阻止再次 committed (0.424335ms)
+✔ steerGroundDirection 直冲岩石转为切向且零速返回 null (0.231499ms)
+✔ Beta 扑击瞄准纯函数在提交态剔除包抄与分离偏移 (0.144654ms)
+✔ 站立玩家扑击命中率模拟处于可命中但非必中区间 (62.302079ms)
+✔ 提交判定独立于导航扩展目标，并锁定 lead 点 (0.269338ms)
+✔ 智能狐 contactCd 每帧递减且不低于零 (0.250125ms)
+✔ Beta 接近环显式拆分 approach/align/backoff 且错过窗口不穿过玩家 (0.263649ms)
+✔ Beta 环内但未对正时不得停在 align（否则永远无法提交） (0.139502ms)
+✔ Beta 前摇进度不得因瞬时未就绪被重置（否则永远无法提交） (0.276736ms)
+✔ Beta 提交与 melee 互斥，提交后仍不可取消 (0.147063ms)
+✔ Beta 动态攻击群取消两提交窗上限但保留错峰间隔 (0.124766ms)
+✔ Beta 共享 dash 时长能覆盖 5.4m 提交的既定目标带，不改 strike 命中范围 (0.155314ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 79.075133
+
+===== tools/test-fox-tactics.cjs =====
+✔ flankSlots：返回 count 个槽位 (2.451212ms)
+✔ flankSlots：槽位角度互不相同（不重叠） (0.188785ms)
+✔ flankSlots：槽位围绕逃跑轴分布（全部在后半球，不挤在正面） (0.153177ms)
+✔ assignFlankSlot：不同 self 拿到不同槽位（不抢同一个） (0.201834ms)
+✔ assignFlankSlot：没有可用槽位时返回 null（不崩） (0.130402ms)
+✔ assignRoles：只有一只 striker (0.387598ms)
+✔ assignRoles：有伤/撤退中的狐是 retreat (0.115752ms)
+✔ assignRoles：粘性 —— 同样输入两次结果相同，且 holdTime 内不换 striker (0.37317ms)
+✔ assignRoles：单只狐直接是 striker；空数组不崩 (0.173845ms)
+✔ forcedRetreat：刚被打 → true；没被打过 → false；旧事 → false (0.175288ms)
+✔ assignRoles beta：两只健康狐都获得真实攻击位，撤退者不占位 (0.232546ms)
+✔ assignRoles beta：三只健康狐全部获得真实攻击位 (0.143994ms)
+✔ assignRoles beta：健康狐数量动态扩展且忽略旧双攻击上限 (0.128073ms)
+✔ assignRoles beta：残血/耗尽休息，保持角色直到 hold/cooldown 结束 (0.121862ms)
+✔ teamInterceptPoint：速度与槽位索引产生确定、远离贴脸的拦截点 (0.19117ms)
+✔ assignRoles beta：4/8 只健康狐全部获得真实攻击角色，撤退/休息/死亡不占位 (0.200104ms)
+✔ flankSlots：8 狐全圆分布且槽位不重复 (0.10802ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14.974988
+
+===== tools/test-fox-pounce.cjs =====
+✔ 冲刺阶段位移 = smartPounceDashDistance（预警线长度与真实位移一致） (2.335644ms)
+✔ 冲刺阶段时长固定：不同初始距离下 dash 帧数一致 (0.23177ms)
+✔ 冲刺阶段速度略快于普通冲刺（dashSpeedMul>1 且 > ACTIONS.sprint.speed） (0.102121ms)
+✔ 前摇极短(<0.15s)、后摇存在(>0.3s)、扑咬位移真实且只扑近地 (0.323857ms)
+✔ 体力：扑咬一次性扣 staminaCost，体力不足不允许进入冲刺阶段 (0.295926ms)
+✔ 撞障取消：当帧取消扑击，pounceStriking=false（主循环据此不产生伤害） (0.199644ms)
+✔ 可发现性配置与 play-as-fox 对齐，动作能力表语义正确 (0.086941ms)
+✔ 完整时序：dash(固定) → windup → strike → recover，总时长≈各段之和 (0.694031ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15.852093
+
+===== tools/test-parry-window.cjs =====
+parry-window / standing-tap / PC-input: all assertions passed (72 checks)
+
+===== tools/test-fox-vitals.cjs =====
+✔ FOX.vitals 存在且数值方向正确 (1.186185ms)
+✔ canSprint：体力足够 true，不足 false (0.122072ms)
+✔ hpSpeedMultiplier：阈值以上=1，零血=地板，单调递减 (0.13633ms)
+✔ hpDamageMultiplier：阈值以上=1，零血=damageMulAtZeroHp，单调递减 (0.166956ms)
+✔ stepStamina：冲刺 1 秒按 drainPerSec 消耗 (0.208232ms)
+✔ stepStamina：休息 1 秒回体力且按 maxHp 比例回血（封顶） (0.750012ms)
+✔ stepStamina：体力降到 0 → exhausted=true 且 locked>0 (0.106627ms)
+✔ stepStamina：locked 期间递减且不可冲刺 (0.100377ms)
+✔ stepStamina：纯函数，不修改传入对象 (0.581002ms)
+✔ stepStamina：非冲刺/扑击状态按状态恢复体力，只有 rest 回血 (0.208014ms)
+✔ stepStamina：NaN/负数/超上限均被安全钳制 (0.105546ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11.454841
+
+===== tools/test-fox-tuning.cjs =====
+✔ 覆盖层默认值 == 冻结常量默认值 (2.018036ms)
+✔ resetSmartPounceTune() 完全复位 (0.214696ms)
+✔ 改 SMART_POUNCE_TUNE.strikeTime 后扑咬时序真的跟着变 (0.617037ms)
+✔ 改 SMART_POUNCE_TUNE.windupTime 后前摇时长跟着变 (0.288044ms)
+✔ smartPounceDashDistance 默认参数读覆盖层，且 == 逐帧积分（预警线 = 实际位移） (0.363004ms)
+✔ cancelSmartPounce 的后摇读覆盖层 recoverTime (0.141007ms)
+✔ FOX.vitals 改动后 stepStamina 收支随之变化 (0.313166ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12.942407

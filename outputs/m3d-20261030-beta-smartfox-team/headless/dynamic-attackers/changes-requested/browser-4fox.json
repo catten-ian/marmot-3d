@@ -1,0 +1,369 @@
+{
+  "foxCount": 4,
+  "setupSteps": 223,
+  "packDynamic": true,
+  "hpBefore": 100,
+  "maxHp": 100,
+  "hpAfter": 40,
+  "startMode": "play",
+  "gameMode": "play",
+  "godMode": false,
+  "realAttackers": [
+    0,
+    3,
+    1,
+    2
+  ],
+  "committers": [
+    0,
+    3,
+    1,
+    2
+  ],
+  "pounceStrikers": [
+    0,
+    3,
+    1,
+    2
+  ],
+  "meleeStrikers": [
+    0,
+    3,
+    1
+  ],
+  "hitters": [
+    0,
+    3,
+    1,
+    2
+  ],
+  "hitEvents": [
+    {
+      "t": 9.2,
+      "type": "hit",
+      "slot": 0,
+      "attackKind": "pounce",
+      "damage": 12,
+      "hpBefore": 100,
+      "hpAfter": 88,
+      "preventedByGodMode": false
+    },
+    {
+      "t": 9.65,
+      "type": "hit",
+      "slot": 3,
+      "attackKind": "pounce",
+      "damage": 12,
+      "hpBefore": 88,
+      "hpAfter": 76,
+      "preventedByGodMode": false
+    },
+    {
+      "t": 10.133,
+      "type": "hit",
+      "slot": 1,
+      "attackKind": "pounce",
+      "damage": 12,
+      "hpBefore": 76,
+      "hpAfter": 64,
+      "preventedByGodMode": false
+    },
+    {
+      "t": 11.817,
+      "type": "hit",
+      "slot": 0,
+      "attackKind": "melee",
+      "damage": 12,
+      "hpBefore": 64,
+      "hpAfter": 52,
+      "preventedByGodMode": false
+    },
+    {
+      "t": 12.65,
+      "type": "hit",
+      "slot": 2,
+      "attackKind": "pounce",
+      "damage": 12,
+      "hpBefore": 52,
+      "hpAfter": 40,
+      "preventedByGodMode": false
+    }
+  ],
+  "peakConcurrentPounces": 3,
+  "peakAttackRoles": 4,
+  "peakWindowCommits": 3,
+  "events": [
+    {
+      "t": 8.417,
+      "type": "commit",
+      "slot": 0,
+      "role": "striker"
+    },
+    {
+      "t": 8.783,
+      "type": "commit",
+      "slot": 3,
+      "role": "flanker"
+    },
+    {
+      "t": 9.167,
+      "type": "commit",
+      "slot": 1,
+      "role": "flanker"
+    },
+    {
+      "t": 9.2,
+      "type": "pounceStrike",
+      "slot": 0,
+      "role": "striker"
+    },
+    {
+      "t": 9.2,
+      "type": "hit",
+      "slot": 0,
+      "attackKind": "pounce",
+      "damage": 12,
+      "hpBefore": 100,
+      "hpAfter": 88,
+      "preventedByGodMode": false
+    },
+    {
+      "t": 9.567,
+      "type": "pounceStrike",
+      "slot": 3,
+      "role": "flanker"
+    },
+    {
+      "t": 9.65,
+      "type": "hit",
+      "slot": 3,
+      "attackKind": "pounce",
+      "damage": 12,
+      "hpBefore": 88,
+      "hpAfter": 76,
+      "preventedByGodMode": false
+    },
+    {
+      "t": 9.95,
+      "type": "pounceStrike",
+      "slot": 1,
+      "role": "striker"
+    },
+    {
+      "t": 10.133,
+      "type": "hit",
+      "slot": 1,
+      "attackKind": "pounce",
+      "damage": 12,
+      "hpBefore": 76,
+      "hpAfter": 64,
+      "preventedByGodMode": false
+    },
+    {
+      "t": 10.283,
+      "type": "meleeStrike",
+      "slot": 0,
+      "role": "striker"
+    },
+    {
+      "t": 10.65,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "flanker"
+    },
+    {
+      "t": 11.067,
+      "type": "meleeStrike",
+      "slot": 1,
+      "role": "striker"
+    },
+    {
+      "t": 11.817,
+      "type": "meleeStrike",
+      "slot": 0,
+      "role": "striker"
+    },
+    {
+      "t": 11.817,
+      "type": "hit",
+      "slot": 0,
+      "attackKind": "melee",
+      "damage": 12,
+      "hpBefore": 64,
+      "hpAfter": 52,
+      "preventedByGodMode": false
+    },
+    {
+      "t": 11.833,
+      "type": "commit",
+      "slot": 2,
+      "role": "flanker"
+    },
+    {
+      "t": 12.183,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "flanker"
+    },
+    {
+      "t": 12.6,
+      "type": "meleeStrike",
+      "slot": 1,
+      "role": "striker"
+    },
+    {
+      "t": 12.617,
+      "type": "pounceStrike",
+      "slot": 2,
+      "role": "flanker"
+    },
+    {
+      "t": 12.65,
+      "type": "hit",
+      "slot": 2,
+      "attackKind": "pounce",
+      "damage": 12,
+      "hpBefore": 52,
+      "hpAfter": 40,
+      "preventedByGodMode": false
+    }
+  ],
+  "perFox": [
+    {
+      "slot": 0,
+      "commits": 1,
+      "pounceStrikes": 1,
+      "meleeStrikes": 2,
+      "hits": 2,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 79.49915364583329,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 1,
+      "commits": 1,
+      "pounceStrikes": 1,
+      "meleeStrikes": 2,
+      "hits": 1,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 74.8324869791666,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 2,
+      "commits": 1,
+      "pounceStrikes": 1,
+      "meleeStrikes": 0,
+      "hits": 1,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 57.0991536458332,
+      "maxStamina": 100,
+      "state": "dash",
+      "role": "striker",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 3,
+      "commits": 1,
+      "pounceStrikes": 1,
+      "meleeStrikes": 2,
+      "hits": 1,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 74.36582031249993,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    }
+  ],
+  "foxes": [
+    {
+      "slot": 0,
+      "commits": 1,
+      "pounceStrikes": 1,
+      "meleeStrikes": 2,
+      "hits": 2,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 79.49915364583329,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 1,
+      "commits": 1,
+      "pounceStrikes": 1,
+      "meleeStrikes": 2,
+      "hits": 1,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 74.8324869791666,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 2,
+      "commits": 1,
+      "pounceStrikes": 1,
+      "meleeStrikes": 0,
+      "hits": 1,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 57.0991536458332,
+      "maxStamina": 100,
+      "state": "dash",
+      "role": "striker",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 3,
+      "commits": 1,
+      "pounceStrikes": 1,
+      "meleeStrikes": 2,
+      "hits": 1,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 74.36582031249993,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    }
+  ],
+  "consoleErrors": [],
+  "assertions": {
+    "validFullHpLivingStart": true,
+    "productionPackDynamic": true,
+    "moreThanTwoRealAttackers": true,
+    "realProductionHit": true,
+    "consoleErrorZero": true
+  },
+  "renderer": {
+    "backend": "WebGLRenderer",
+    "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "softwareRendering": true
+}

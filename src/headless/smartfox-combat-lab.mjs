@@ -4,13 +4,14 @@
  * volume primitives as the browser entities; this file only adapts them to
  * plain numeric state and deterministic fixed-step actors.
  */
-import { FOX } from '../core/config.js';
-import { combatStats, resolveStrikeProfile, strikeVolumeHit } from '../systems/combat.js';
+import { FOX, PLAYER } from '../core/config.js';
+import { combatStats, resolveStrikeProfile, strikeVolumeHit, foxAttackVerticalHit } from '../systems/combat.js';
+import { resolveParryOutcome } from '../core/combat-wheel.mjs';
 import { stepStamina, shouldRetreat, chooseRestPoint, stepRestSafe, enterRestSafe } from '../core/fox-motion.js';
 import { BETA_TUNE, createSmartFoxRetreat, createSmartFoxSpawnState, createSmartFoxVitals } from '../core/beta-tuning.js';
 import {
   utilityScores, updatePerception, assignRoles, stepSmartMotion, advanceSmartMelee,
-  smartMeleeContactHit, createSmartMeleeState, createSmartPack,
+  smartMeleeContactHit, createSmartMeleeState, createSmartPack, smartPounceDashDurationForDistance,
 } from '../entities/smart-fox-core.mjs';
 
 export const SCENARIOS = Object.freeze(['faceoff-tap', 'chase-pounce-tap', 'parry-tap']);
@@ -56,7 +57,7 @@ function makeFox(slot, x, z, tune) {
 
 function makeMarmot(id, x, z, target, strategy) {
   return { id, x, z, yaw: 0, target, strategy, hp: 12, maxHp: 12, stamina: 100, maxStamina: 100,
-    cooldown: 0, parryCooldown: 0, attackMode: 'tap', facing: 0, alive: true, damage: 1,
+    cooldown: 0, parryCooldown: 0, parryWindowT: 0, parryDone: false, attackMode: 'tap', facing: 0, alive: true, damage: 1,
     stats: { attempts: 0, hits: 0, blocked: 0, dealt: 0, taken: 0, parries: 0 }, phase: 0 };
 }
 
@@ -86,22 +87,56 @@ function facingHit(attacker, target, profile, targetHeight = 1.1) {
   return strikeVolumeHit({ forward, lateral, playerBottom: 0, targetBottom: 0, targetHeight, range: profile.range, move: profile.move, volume: profile });
 }
 
+export function selectMarmotTarget(m, foxes, scenario) {
+  const fallback = nearest(foxes, m);
+  if (scenario !== 'parry-tap' || m.parryCooldown > 0 || m.parryDone || m.parryWindowT > 0) return fallback;
+  // A player may input parry on seeing a windup at any distance. Input alone is
+  // never success: the armed 0.3 s window must later meet a real strike contact.
+  const attackers = foxes.filter((f) => f.alive && f.smart.pounceCommitted && f.smart.pounceStage === 'windup');
+  return attackers.length ? nearest(attackers, m) : fallback;
+}
+
+function marmotParry(m, foxes, ctx, dt) {
+  if (ctx.scenario !== 'parry-tap') return false;
+  m.parryWindowT = Math.max(0, (m.parryWindowT || 0) - dt);
+  const inputTarget = selectMarmotTarget(m, foxes, ctx.scenario);
+  if (inputTarget?.smart.pounceCommitted && inputTarget.smart.pounceStage === 'windup'
+      && !m.parryDone && m.parryCooldown <= 0 && m.parryWindowT <= 0) {
+    m.yaw = yawTo(m, inputTarget);
+    m.parryWindowT = PLAYER.combatWheel.stand.parryWindow || .3;
+    m.stats.attempts++;
+    event(ctx, 'parry_attempt', { marmot:m.id, fox:inputTarget.slot, distance:dist(m, inputTarget), window:m.parryWindowT });
+  }
+  if (m.parryWindowT <= 0) return false;
+  const reach = Math.min(PLAYER.radius + (FOX.collisionRadius.smart ?? FOX.collisionRadius.normal), ctx.tune.smartPounceHitRadiusCap);
+  const contacts = foxes.filter((f) => {
+    if (!f.alive || !f.smart.pounceCommitted || f.smart.pounceStage !== 'strike' || dist(m, f) > reach) return false;
+    return foxAttackVerticalHit({ playerBottom:0, playerHeight:PLAYER.collisionHeight, foxBottom:0,
+      foxHeight:FOX.collisionHeight.smart ?? FOX.collisionHeight.normal,
+      groundAttackHeight:FOX.groundAttackHeight, mode:f.attack?.mode, state:'dash' });
+  }).sort((a, b) => dist(m, a) - dist(m, b) || a.slot - b.slot);
+  const f = contacts[0];
+  if (!f) return true; // Window is armed; do not substitute a normal tap.
+  m.yaw = yawTo(m, f);
+  const d = dist(m, f);
+  const facingDot = d > 1e-6 ? ((f.x - m.x) * Math.sin(m.yaw) + (f.z - m.z) * Math.cos(m.yaw)) / d : 1;
+  const outcome = resolveParryOutcome({ parryWindowT:m.parryWindowT, foxState:'dash', dist:d, reach,
+    facingDot, parryHalfAngle:PLAYER.combatWheel.stand.parryHalfAngle });
+  if (!outcome.success) { event(ctx, 'parry_contact_failed', { marmot:m.id, fox:f.slot, reason:outcome.reason, distance:d, reach }); return true; }
+  m.stats.parries++; m.stats.blocked++; m.parryCooldown = .8; m.parryWindowT = 0; m.parryDone = true;
+  f.smart = { ...f.smart, pounceCommitted:false, pounceStage:'recover', pounceStageTime:.6, pounceCooldown:1.5 };
+  f.state = 'recover'; f.interruptions++;
+  event(ctx, 'parry_success', { marmot:m.id, fox:f.slot, distance:d, reach });
+  return true;
+}
+
 function marmotAttack(m, foxes, ctx, dt) {
   if (!m.alive) return;
   m.cooldown = Math.max(0, m.cooldown - dt); m.parryCooldown = Math.max(0, m.parryCooldown - dt);
+  if (marmotParry(m, foxes, ctx, dt)) return;
   const f = nearest(foxes, m); if (!f) return;
   const d = dist(m, f); m.yaw = yawTo(m, f);
   const scenario = ctx.scenario;
-  const wantsParry = scenario === 'parry-tap' && f.smart.pounceCommitted && f.smart.pounceStage === 'windup';
-  if (wantsParry && m.parryCooldown <= 0 && d <= 3.2) {
-    m.stats.attempts++;
-    const delta = Math.abs(wrap(m.yaw - yawTo(m, f)));
-    if (delta <= 78 * Math.PI / 180 && f.smart.pounceStage === 'windup') {
-      m.stats.parries++; m.stats.blocked++; m.parryCooldown = .8; f.smart = { ...f.smart, pounceCommitted: false, pounceStage: 'recover', pounceStageTime: .6, pounceCooldown: 1.5 };
-      f.state = 'recover'; f.interruptions++; event(ctx, 'parry_success', { marmot: m.id, fox: f.slot });
-      return;
-    }
-  }
   if (m.cooldown > 0 || d > 2.7) return;
   const move = scenario === 'chase-pounce-tap' && m.attackMode === 'pounce' ? 'lunge' : 'tap';
   const profile = resolveStrikeProfile({ move, baseRange: move === 'lunge' ? 3.0 : 2.4, baseCooldown: move === 'lunge' ? .9 : .58 });
@@ -144,14 +179,18 @@ function updateFox(f, foxes, marmots, ctx, dt, roles) {
     const r = stepRestSafe({ timer: f.restTimer, hp: f.hp, maxHp: f.maxHp }, dt, ctx.retreat); f.restTimer = r.timer; f.hp = r.hp;
     if (r.done && f.hp > 0) { f.state = 'roam'; f.hitStreak = 0; event(ctx, 'fox_rest_done', { fox: f.slot }); }
   } else {
-    const motion = stepSmartMotion({ ...f.smart, x: f.x, z: f.z, yaw: f.yaw, vx: f.vx, vz: f.vz, intent }, { x: target.x, z: target.z }, dt, intent, {
+    const motion = stepSmartMotion({ ...f.smart, x: f.x, z: f.z, yaw: f.yaw, vx: f.vx, vz: f.vz, intent,
+      pounceDashDuration: intent === 'pounce' && !f.smart.pounceCommitted
+        ? smartPounceDashDurationForDistance(d, { pounceSpeed:f.smart.pounceSpeed, acceleration:f.smart.acceleration, dt })
+        : f.smart.pounceDashDuration,
+    }, { x: target.x, z: target.z }, dt, intent, {
       betaTeam: true, commitAllowed: canAttack && ctx.pack.canCommit(f.slot, ctx.time), stalkSpeed: 2.4, sprintSpeed: 6.5, speedTarget: intent === 'recover' ? 0 : (intent === 'pounce' && !f.smart.pounceCommitted ? 0 : undefined),
       pounceRecoverTime: ctx.tune.smartPounceRecoverTime,
     });
-    if (motion.pounceStrikeStarted) { motion.pounceStrikeStarted = false; f.stamina = Math.max(0, f.stamina - ctx.tune.smartPounceStaminaCost); f.attackStats.pounceStrikes++; event(ctx, 'fox_pounce_strike', { fox: f.slot }); event(ctx, 'fox_pounce_cost', { fox: f.slot, cost: ctx.tune.smartPounceStaminaCost }); }
+    if (motion.pounceStrikeStarted) { motion.pounceStrikeStarted = false; f.stamina = Math.max(0, f.stamina - ctx.tune.smartPounceStaminaCost); f.attackStats.pounceStrikes++; event(ctx, 'fox_pounce_strike', { fox: f.slot, distance: dist(f, target) }); event(ctx, 'fox_pounce_cost', { fox: f.slot, cost: ctx.tune.smartPounceStaminaCost }); }
     Object.assign(f.smart, motion); f.x = motion.x; f.z = motion.z; f.yaw = motion.yaw; f.vx = motion.vx; f.vz = motion.vz;
     f.state = motion.pounceStage === 'recover' ? 'recover' : (motion.pounceCommitted ? 'pounce' : 'roam');
-    if (motion.pounceCommitted && !f._pounceSeen) { ctx.pack.recordCommit(f.slot, ctx.time); f._pounceSeen = true; f.attackStats.commits++; event(ctx, 'fox_pounce_commit', { fox: f.slot }); }
+    if (motion.pounceCommitted && !f._pounceSeen) { ctx.pack.recordCommit(f.slot, ctx.time); f._pounceSeen = true; f.attackStats.commits++; event(ctx, 'fox_pounce_commit', { fox: f.slot, distance: d, dashDuration: f.smart.pounceDashDuration }); }
     if (!motion.pounceCommitted) f._pounceSeen = false;
     const melee = advanceSmartMelee(f.melee, { distance: d, reachable: true, alive: true, pounceCommitted: motion.pounceCommitted, targetYaw: yawTo(f, target) }, dt, ctx.tune);
     if (melee.justStrikeStarted) f.attackStats.meleeStrikes++;

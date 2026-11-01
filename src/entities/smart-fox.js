@@ -12,7 +12,7 @@ import {
   stepSmartMotion,
   separationVector,
   isSegmentReachable,
-  smartPounceDistance, smartPounceDashDistance, cancelSmartPounce, SMART_POUNCE_TUNE,
+  smartPounceDistance, smartPounceDashDistance, smartPounceDashDurationForDistance, cancelSmartPounce, SMART_POUNCE_TUNE,
   smartPounceStaminaReserve, smartPounceStaminaDrainPerSec,
   updateSmartMemory, habituateDecayRate, stepInterruptionTimes,  debounceIntent, createSmartPack, flankBias, foxSeparation, trackFeint, RECOVER_LOCK, stepSmartContactCooldown,
   flankSlots, assignFlankSlot, assignRoles, forcedRetreat, assembleSmartAim, teamInterceptPoint,
@@ -451,13 +451,11 @@ export class SmartFox extends Fox {
         pounceStrikeTime: IS_BETA ? T.smartPounceStrikeTime : undefined,
         pounceCommitted: this.pounceCommitted,
         pounceCooldown: this._smartState.pounceCooldown || 0,
-        ...(IS_BETA && intent === 'pounce' ? { pounceDashDuration: (() => {
-          const targetDash = Math.max(1.5, Math.min(4.3, distance - SMART_POUNCE_TUNE.maxStrikeDistance));
-          let lo = 0.08, hi = SMART_POUNCE_TUNE.dashDuration;
-          for (let i = 0; i < 12; i++) { const mid = (lo + hi) * 0.5;
-            if (smartPounceDashDistance(0, (this._smartState.pounceSpeed ?? 10.6) * SMART_POUNCE_TUNE.dashSpeedMul, this._smartState.acceleration ?? 18, mid, dt) < targetDash) lo = mid; else hi = mid; }
-          return hi;
-        })() } : {}),
+        ...(IS_BETA && intent === 'pounce' ? { pounceDashDuration: smartPounceDashDurationForDistance(distance, {
+          pounceSpeed: this._smartState.pounceSpeed ?? 10.6,
+          acceleration: this._smartState.acceleration ?? 18,
+          dt,
+        }) } : {}),
         intent: this.intent,
         locomotionIntent: betaPounceAlign ? 'observe' : this.intent,
       },
