@@ -30,6 +30,8 @@ import { ModelLoadCache, loadWithRetry, requireUsableModel } from './model-load-
 const loader = new GLTFLoader();
 const cache = new ModelLoadCache();
 
+export function resetSceneModelCache(url) { cache.entries.delete(url); }
+
 export function loadSceneModel(url) {
   return cache.load(url, () => loadWithRetry({
     attempt: () => new Promise((resolve, reject) => {

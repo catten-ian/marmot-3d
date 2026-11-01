@@ -198,6 +198,10 @@ function loadModelAttempt(url, key) {
 }
 
 /** 同一 URL 共享完整重试序列；重试中/耗尽后程序化模型始终可用。 */
+export function resetModelLoadCache(url, { failedOnly = false } = {}) {
+  if (!failedOnly || cache.entries.get(url)?.failed) cache.entries.delete(url);
+}
+
 export function loadModel(url, key = '') {
   return cache.load(url, () => loadWithRetry({
     attempt: () => loadModelAttempt(url, key),
@@ -243,6 +247,15 @@ export async function instantiate(url, key = '') {
   clone.userData.textured = rec.textured;
   clone.userData.animations = rec.animations || [];
   return clone;
+}
+
+/** Release only instance-owned state; geometry/textures belong to the URL cache. */
+export function disposeModelInstance(root) {
+  root?.traverse((object) => {
+    if (object.isSkinnedMesh) object.skeleton?.dispose?.();
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) material?.dispose?.();
+  });
 }
 
 /**
