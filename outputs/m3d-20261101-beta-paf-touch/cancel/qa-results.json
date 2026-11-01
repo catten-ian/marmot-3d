@@ -1,0 +1,560 @@
+{
+  "startedAt": "2026-11-01T15:09:10.145Z",
+  "target": "http://127.0.0.1:8398/index.html?version=beta&webgl=1&play-as-fox=1&pafqa=1&releaseqa=1793545750598",
+  "cdp": {
+    "managed": false,
+    "endpoint": "local:9498",
+    "browser": "local headless Chrome"
+  },
+  "renderer": {
+    "backend": "WebGLRenderer",
+    "rawGl": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "maxTouchPoints": 5
+  },
+  "scenarios": {},
+  "checks": {
+    "releasing movement preserves another finger attack with a colliding native pointer ID": {
+      "pass": true,
+      "detail": "{\"phase\":\"wind\",\"phaseT\":0.2,\"pos\":{\"x\":0,\"y\":-2.663237371177222,\"z\":-5.4375,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0,\"pitch\":-0.10471975511965977},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":true,\"chargeHeld\":true,\"pounceYaw\":0,\"crouchScale\":1,\"pointers\":{\"move\":null,\"look\":2,\"roles\":[\"look\",\"button:attack\"]}},\"preview\":{\"active\":true,\"path\":{\"lungeSpeed\":13.5,\"lungeTime\":0.42,\"lungeHeight\":1.05,\"catchRadius\":1.25,\"startX\":0,\"startZ\":-5.4375,\"yaw\":0},\"sweepMeshes\":1,\"visibleTargetMarks\":0},\"noise\":{\"mode\":\"stalk\",\"threatening\":true,\"quietPreparation\":true,\"hearingRadius\":0.9,\"noiseCoef\":0.12,\"visionRadius\":6.2},\"score\":0,\"objects\":[{\"kind\":\"Group\",\"color\":\"9fd8ff\",\"opacity\":0.28}],\"cameraDirection\":[0,-0.10452846326765347,0.9945218953682733],\"touch\":null}"
+    },
+    "subsequent attack cancel clears all pointers and preview": {
+      "pass": true,
+      "detail": "{\"phase\":\"idle\",\"phaseT\":0,\"pos\":{\"x\":0,\"y\":-2.663237371177222,\"z\":-5.4375,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0,\"pitch\":-0.10471975511965977},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":0,\"crouchScale\":1,\"pointers\":{\"move\":null,\"look\":null,\"roles\":[]}},\"preview\":{\"active\":false,\"path\":{\"lungeSpeed\":13.5,\"lungeTime\":0.42,\"lungeHeight\":1.05,\"catchRadius\":1.25,\"startX\":0,\"startZ\":0,\"yaw\":0},\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"noise\":{\"mode\":\"stalk\",\"threatening\":false,\"quietPreparation\":false,\"hearingRadius\":3,\"noiseCoef\":0.45,\"visionRadius\":6.2},\"score\":0,\"objects\":[],\"cameraDirection\":[0,-0.10452846326765347,0.9945218953682733],\"touch\":null}"
+    }
+  },
+  "screenshots": [],
+  "errors": [],
+  "events": [
+    {
+      "at": 1793545762790,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 234,
+            "y": 613.578125,
+            "id": 3,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793545764772,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchCancel",
+        "touchPoints": []
+      }
+    },
+    {
+      "at": 1793545765798,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 774,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793545767316,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchMove",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793545767845,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 285,
+            "y": 380,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793545769086,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 285,
+            "y": 380,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 234,
+            "y": 613.578125,
+            "id": 3,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793545770253,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchEnd",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793545771963,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchCancel",
+        "touchPoints": []
+      }
+    }
+  ],
+  "httpErrors": [
+    {
+      "url": "http://127.0.0.1:8398/api/configs/active",
+      "status": 404,
+      "statusText": "Not Found",
+      "headers": {
+        "Transfer-Encoding": "chunked",
+        "Keep-Alive": "timeout=5",
+        "Date": "Sun, 01 Nov 2026 15:09:11 GMT",
+        "Connection": "keep-alive"
+      },
+      "mimeType": "",
+      "charset": "",
+      "connectionReused": true,
+      "connectionId": 544,
+      "remoteIPAddress": "127.0.0.1",
+      "remotePort": 8398,
+      "fromDiskCache": false,
+      "fromServiceWorker": false,
+      "fromPrefetchCache": false,
+      "encodedDataLength": 138,
+      "timing": {
+        "requestTime": 13134606.165296,
+        "proxyStart": -1,
+        "proxyEnd": -1,
+        "dnsStart": -1,
+        "dnsEnd": -1,
+        "connectStart": -1,
+        "connectEnd": -1,
+        "sslStart": -1,
+        "sslEnd": -1,
+        "workerStart": -1,
+        "workerReady": -1,
+        "workerFetchStart": -1,
+        "workerRespondWithSettled": -1,
+        "sendStart": 0.301,
+        "sendEnd": 0.433,
+        "pushStart": 0,
+        "pushEnd": 0,
+        "receiveHeadersStart": 7.766,
+        "receiveHeadersEnd": 7.877
+      },
+      "responseTime": 1793545751138.854,
+      "protocol": "http/1.1",
+      "alternateProtocolUsage": "unspecifiedReason",
+      "securityState": "secure"
+    },
+    {
+      "url": "http://127.0.0.1:8398/marmot3d-beta/api/auth/guest",
+      "status": 404,
+      "statusText": "Not Found",
+      "headers": {
+        "Transfer-Encoding": "chunked",
+        "Keep-Alive": "timeout=5",
+        "Date": "Sun, 01 Nov 2026 15:09:11 GMT",
+        "Connection": "keep-alive"
+      },
+      "mimeType": "",
+      "charset": "",
+      "connectionReused": true,
+      "connectionId": 532,
+      "remoteIPAddress": "127.0.0.1",
+      "remotePort": 8398,
+      "fromDiskCache": false,
+      "fromServiceWorker": false,
+      "fromPrefetchCache": false,
+      "encodedDataLength": 138,
+      "timing": {
+        "requestTime": 13134606.776657,
+        "proxyStart": -1,
+        "proxyEnd": -1,
+        "dnsStart": -1,
+        "dnsEnd": -1,
+        "connectStart": -1,
+        "connectEnd": -1,
+        "sslStart": -1,
+        "sslEnd": -1,
+        "workerStart": -1,
+        "workerReady": -1,
+        "workerFetchStart": -1,
+        "workerRespondWithSettled": -1,
+        "sendStart": 1.206,
+        "sendEnd": 1.276,
+        "pushStart": 0,
+        "pushEnd": 0,
+        "receiveHeadersStart": 6.834,
+        "receiveHeadersEnd": 6.863
+      },
+      "responseTime": 1793545751749.283,
+      "protocol": "http/1.1",
+      "alternateProtocolUsage": "unspecifiedReason",
+      "securityState": "secure"
+    }
+  ],
+  "consoleErrors": [],
+  "exceptions": [],
+  "layout": {
+    "joy": "<div id=\"touchJoystick\" class=\"touch-joystick\" role=\"application\" aria-label=\"虚拟摇杆：第一人称左右转向与前后移动可同时输入；第三人称按屏幕方向移动；推过疾跑环自动疾跑\" style=\"--stick-sprint-radius: 37.44px; --stick-sprint-size: 74.88px; --stick-sprint-offset: -37.44px; left: 70px; top: 774px; bottom: auto; transform: translate(-50%, -50%) scale(1);\">\n    <i class=\"stick-sprint-ring\" aria-hidden=\"true\"></i>\n    <div class=\"touch-stick\" id=\"touchStick\" style=\"transform: translate(0px, 0px);\"></div>\n    <span>移动</span>\n  </div>",
+    "attack": "<b>爪</b>",
+    "look": "<div id=\"touchLookZone\" class=\"touch-look-zone\" aria-label=\"拖动以转动视角\">\n    <span>右侧拖动视角</span>\n  </div>"
+  },
+  "domEvents": [
+    {
+      "type": "pointerdown",
+      "at": 14100.5,
+      "pointerId": 2
+    },
+    {
+      "type": "touchstart",
+      "at": 14150.10000038147,
+      "changed": [
+        {
+          "id": 3,
+          "x": 234,
+          "y": 613.578125
+        }
+      ],
+      "touches": [
+        3
+      ]
+    },
+    {
+      "type": "pointercancel",
+      "at": 15194.80000114441,
+      "pointerId": 2
+    },
+    {
+      "type": "touchcancel",
+      "at": 15195.20000076294,
+      "changed": [
+        {
+          "id": 3,
+          "x": 234,
+          "y": 613.578125
+        }
+      ],
+      "touches": []
+    },
+    {
+      "type": "pointerdown",
+      "at": 16707.39999961853,
+      "target": "touchJoystick",
+      "pointerId": 3
+    },
+    {
+      "type": "touchstart",
+      "at": 16707.60000038147,
+      "target": "touchJoystick",
+      "changed": [
+        {
+          "id": 1,
+          "x": 70,
+          "y": 774
+        }
+      ],
+      "touches": [
+        1
+      ]
+    },
+    {
+      "type": "pointermove",
+      "at": 17238.20000076294,
+      "target": "touchJoystick",
+      "pointerId": 3
+    },
+    {
+      "type": "touchmove",
+      "at": 17238.30000114441,
+      "target": "touchJoystick",
+      "changed": [
+        {
+          "id": 1,
+          "x": 70,
+          "y": 750
+        }
+      ],
+      "touches": [
+        1
+      ]
+    },
+    {
+      "type": "pointerdown",
+      "at": 18478.60000038147,
+      "target": "touchLookZone",
+      "pointerId": 4
+    },
+    {
+      "type": "touchstart",
+      "at": 18478.89999961853,
+      "target": "touchLookZone",
+      "changed": [
+        {
+          "id": 2,
+          "x": 285,
+          "y": 380
+        }
+      ],
+      "touches": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "pointerdown",
+      "at": 19640,
+      "pointerId": 5
+    },
+    {
+      "type": "touchstart",
+      "at": 19640.10000038147,
+      "changed": [
+        {
+          "id": 3,
+          "x": 234,
+          "y": 613.578125
+        }
+      ],
+      "touches": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "type": "pointerup",
+      "at": 20935,
+      "target": "touchJoystick",
+      "pointerId": 3
+    },
+    {
+      "type": "touchend",
+      "at": 20935.20000076294,
+      "target": "touchJoystick",
+      "changed": [
+        {
+          "id": 1,
+          "x": 70,
+          "y": 750
+        }
+      ],
+      "touches": [
+        2,
+        3
+      ]
+    },
+    {
+      "type": "pointercancel",
+      "at": 22636.70000076294,
+      "target": "touchLookZone",
+      "pointerId": 4
+    },
+    {
+      "type": "pointercancel",
+      "at": 22636.80000114441,
+      "pointerId": 5
+    },
+    {
+      "type": "touchcancel",
+      "at": 22636.89999961853,
+      "changed": [
+        {
+          "id": 2,
+          "x": 285,
+          "y": 380
+        },
+        {
+          "id": 3,
+          "x": 234,
+          "y": 613.578125
+        }
+      ],
+      "touches": []
+    },
+    {
+      "type": "touchcancel",
+      "at": 22637.30000114441,
+      "target": "touchLookZone",
+      "changed": [
+        {
+          "id": 2,
+          "x": 285,
+          "y": 380
+        },
+        {
+          "id": 3,
+          "x": 234,
+          "y": 613.578125
+        }
+      ],
+      "touches": []
+    }
+  ],
+  "expectedStaticApiErrors": [
+    {
+      "url": "http://127.0.0.1:8398/api/configs/active",
+      "status": 404,
+      "statusText": "Not Found",
+      "headers": {
+        "Transfer-Encoding": "chunked",
+        "Keep-Alive": "timeout=5",
+        "Date": "Sun, 01 Nov 2026 15:09:11 GMT",
+        "Connection": "keep-alive"
+      },
+      "mimeType": "",
+      "charset": "",
+      "connectionReused": true,
+      "connectionId": 544,
+      "remoteIPAddress": "127.0.0.1",
+      "remotePort": 8398,
+      "fromDiskCache": false,
+      "fromServiceWorker": false,
+      "fromPrefetchCache": false,
+      "encodedDataLength": 138,
+      "timing": {
+        "requestTime": 13134606.165296,
+        "proxyStart": -1,
+        "proxyEnd": -1,
+        "dnsStart": -1,
+        "dnsEnd": -1,
+        "connectStart": -1,
+        "connectEnd": -1,
+        "sslStart": -1,
+        "sslEnd": -1,
+        "workerStart": -1,
+        "workerReady": -1,
+        "workerFetchStart": -1,
+        "workerRespondWithSettled": -1,
+        "sendStart": 0.301,
+        "sendEnd": 0.433,
+        "pushStart": 0,
+        "pushEnd": 0,
+        "receiveHeadersStart": 7.766,
+        "receiveHeadersEnd": 7.877
+      },
+      "responseTime": 1793545751138.854,
+      "protocol": "http/1.1",
+      "alternateProtocolUsage": "unspecifiedReason",
+      "securityState": "secure"
+    },
+    {
+      "url": "http://127.0.0.1:8398/marmot3d-beta/api/auth/guest",
+      "status": 404,
+      "statusText": "Not Found",
+      "headers": {
+        "Transfer-Encoding": "chunked",
+        "Keep-Alive": "timeout=5",
+        "Date": "Sun, 01 Nov 2026 15:09:11 GMT",
+        "Connection": "keep-alive"
+      },
+      "mimeType": "",
+      "charset": "",
+      "connectionReused": true,
+      "connectionId": 532,
+      "remoteIPAddress": "127.0.0.1",
+      "remotePort": 8398,
+      "fromDiskCache": false,
+      "fromServiceWorker": false,
+      "fromPrefetchCache": false,
+      "encodedDataLength": 138,
+      "timing": {
+        "requestTime": 13134606.776657,
+        "proxyStart": -1,
+        "proxyEnd": -1,
+        "dnsStart": -1,
+        "dnsEnd": -1,
+        "connectStart": -1,
+        "connectEnd": -1,
+        "sslStart": -1,
+        "sslEnd": -1,
+        "workerStart": -1,
+        "workerReady": -1,
+        "workerFetchStart": -1,
+        "workerRespondWithSettled": -1,
+        "sendStart": 1.206,
+        "sendEnd": 1.276,
+        "pushStart": 0,
+        "pushEnd": 0,
+        "receiveHeadersStart": 6.834,
+        "receiveHeadersEnd": 6.863
+      },
+      "responseTime": 1793545751749.283,
+      "protocol": "http/1.1",
+      "alternateProtocolUsage": "unspecifiedReason",
+      "securityState": "secure"
+    }
+  ],
+  "unexpectedHttpErrors": [],
+  "pass": true,
+  "finishedAt": "2026-11-01T15:09:34.172Z"
+}

@@ -180,7 +180,7 @@ export class TouchControls {
     });
 
     for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
-      this.lookZone.addEventListener(name, (event) => this._release(event.pointerId));
+      this.lookZone.addEventListener(name, (event) => this._finishPointer(event));
     }
 
     this.joystick.addEventListener('pointerdown', (event) => {
@@ -203,7 +203,7 @@ export class TouchControls {
     });
 
     for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
-      this.joystick.addEventListener(name, (event) => this._release(event.pointerId));
+      this.joystick.addEventListener(name, (event) => this._finishPointer(event));
     }
 
     this.root.querySelectorAll('[data-touch-action]').forEach((button) => {
@@ -223,9 +223,9 @@ export class TouchControls {
         if (action === 'dodge') this.dodgePointers.set(event.pointerId, { x: event.clientX, y: event.clientY, dx: 0, dy: 0 });
         this.onAction(action, true, event.pointerId, { dx: 0, dy: 0, moved: false });
       });
-      button.addEventListener('pointerup', (event) => this._release(event.pointerId));
-      button.addEventListener('pointercancel', (event) => this._release(event.pointerId));
-      button.addEventListener('lostpointercapture', (event) => this._release(event.pointerId));
+      button.addEventListener('pointerup', (event) => this._finishPointer(event));
+      button.addEventListener('pointercancel', (event) => this._finishPointer(event));
+      button.addEventListener('lostpointercapture', (event) => this._finishPointer(event));
       button.addEventListener('pointermove', (event) => {
         const role = this.pointerRoles.get(event.pointerId);
         if (role === 'button:attack') {
@@ -239,8 +239,8 @@ export class TouchControls {
       button.addEventListener('contextmenu', (event) => event.preventDefault());
     });
 
-    window.addEventListener('pointerup', (event) => this._release(event.pointerId));
-    window.addEventListener('pointercancel', (event) => this._release(event.pointerId));
+    window.addEventListener('pointerup', (event) => this._finishPointer(event));
+    window.addEventListener('pointercancel', (event) => this._finishPointer(event));
     window.addEventListener('pointermove', (event) => {
       const role = this.pointerRoles.get(event.pointerId);
       if (role === 'button:attack') {
@@ -350,7 +350,7 @@ export class TouchControls {
           const g = this.dodgePointers.get(touch.identifier);
           if (g) { g.dx = touch.clientX - g.x; g.dy = touch.clientY - g.y; }
         }
-        this._release(touch.identifier);
+        this._release(touch.identifier, event.type === 'touchcancel');
       }
     };
     window.addEventListener('touchend', finishTouches, { passive: false });
@@ -461,7 +461,15 @@ export class TouchControls {
     this.joystick.classList.add('active');
   }
 
-  _release(pointerId) {
+  _finishPointer(event) {
+    // PAF's Touch Events own touch identifiers; compatibility pointer IDs are a
+    // different namespace and can collide with another finger's identifier.
+    // Keep ordinary-mode release wiring unchanged.
+    if (this.controller.pafInputRoute && this.useTouchEvents && (event.pointerType === 'touch' || event.pointerType === 'pen')) return;
+    this._release(event.pointerId, event.type !== 'pointerup');
+  }
+
+  _release(pointerId, canceled = false) {
     const role = this.pointerRoles.get(pointerId);
     if (!role) return;
     this.pointerRoles.delete(pointerId);
@@ -495,7 +503,8 @@ export class TouchControls {
       } else {
         data = { dx: 0, dy: 0, moved: false };
       }
-      this.onAction(action, false, pointerId, data);
+      if (canceled && this.onCancel) this.onCancel(action, pointerId);
+      else this.onAction(action, false, pointerId, data);
       this.attackPointers.delete(pointerId);
       this.dodgePointers.delete(pointerId);
       const button = this.root.querySelector('[data-touch-action="' + action + '"]');
@@ -511,7 +520,7 @@ export class TouchControls {
 
   releaseAll() {
     const ids = Array.from(this.pointerRoles.keys());
-    for (const pointerId of ids) this._release(pointerId);
+    for (const pointerId of ids) this._release(pointerId, true);
     this.move.x = 0;
     this.move.y = 0;
     this.move.mag = 0;

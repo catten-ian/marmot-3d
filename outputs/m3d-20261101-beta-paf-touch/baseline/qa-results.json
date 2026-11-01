@@ -1,0 +1,983 @@
+{
+  "startedAt": "2026-11-01T14:22:47.512Z",
+  "target": "http://127.0.0.1:8397/index.html?version=beta&webgl=1&play-as-fox=1&pafqa=1&releaseqa=1793542967809",
+  "cdp": {
+    "managed": false,
+    "endpoint": "local:9497",
+    "browser": "local headless Chrome"
+  },
+  "renderer": {
+    "backend": "WebGLRenderer",
+    "rawGl": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "maxTouchPoints": 5
+  },
+  "scenarios": {
+    "fpv": {
+      "initial": {
+        "phase": "idle",
+        "phaseT": 0,
+        "pos": {
+          "x": 0,
+          "y": -2.624782481812682,
+          "z": -6,
+          "yaw": 0,
+          "airY": 0
+        },
+        "look": {
+          "yaw": 0,
+          "pitch": -0.10471975511965977
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "objects": [],
+        "cameraDirection": [
+          0,
+          -0.10452846326765347,
+          0.9945218953682733
+        ],
+        "touch": null
+      },
+      "stationary": {
+        "phase": "wind",
+        "phaseT": 0.3,
+        "pos": {
+          "x": 0,
+          "y": -2.624782481812682,
+          "z": -6,
+          "yaw": 0,
+          "airY": 0
+        },
+        "look": {
+          "yaw": 0,
+          "pitch": -0.165983853746446
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": true,
+          "chargeHeld": true,
+          "pounceYaw": 0,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 0
+        },
+        "objects": [
+          {
+            "kind": "Group",
+            "color": "ffc857",
+            "opacity": 0.22
+          }
+        ],
+        "cameraDirection": [
+          0,
+          -0.16522274273287432,
+          0.9862562776904522
+        ],
+        "touch": null
+      },
+      "cancel": {
+        "phase": "idle",
+        "phaseT": 0,
+        "pos": {
+          "x": 0,
+          "y": -2.624782481812682,
+          "z": -6,
+          "yaw": 0,
+          "airY": 0
+        },
+        "look": {
+          "yaw": 0,
+          "pitch": -0.17028758195481697
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "objects": [],
+        "cameraDirection": [
+          0,
+          -0.16946577846101868,
+          0.9855360723639703
+        ],
+        "touch": null
+      },
+      "before": {
+        "phase": "wind",
+        "phaseT": 0.05,
+        "pos": {
+          "x": 0,
+          "y": -2.6531438332802404,
+          "z": -5.625,
+          "yaw": 0,
+          "airY": 0
+        },
+        "look": {
+          "yaw": 0,
+          "pitch": -0.17154128237818428
+        },
+        "input": {
+          "touch": {
+            "throttle": 0.5,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": true,
+          "chargeHeld": true,
+          "pounceYaw": 0,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 0
+        },
+        "objects": [
+          {
+            "kind": "Group",
+            "color": "ffc857",
+            "opacity": 0.22
+          }
+        ],
+        "cameraDirection": [
+          0,
+          -0.17070121194836407,
+          0.985322838586095
+        ],
+        "touch": null
+      },
+      "held": {
+        "phase": "wind",
+        "phaseT": 0.49999999999999994,
+        "pos": {
+          "x": 0,
+          "y": -2.6531438332802404,
+          "z": -5.625,
+          "yaw": 0,
+          "airY": 0
+        },
+        "look": {
+          "yaw": 0.1575,
+          "pitch": -0.17440472694171594
+        },
+        "input": {
+          "touch": {
+            "throttle": 0.5,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": true,
+          "chargeHeld": true,
+          "pounceYaw": 0.1575,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 0
+        },
+        "objects": [
+          {
+            "kind": "Group",
+            "color": "ffc857",
+            "opacity": 0.22
+          }
+        ],
+        "cameraDirection": [
+          0.15447023501189056,
+          -0.1735219256022179,
+          0.972640266404116
+        ],
+        "touch": null
+      },
+      "steered": {
+        "phase": "wind",
+        "phaseT": 1.1833333333333331,
+        "pos": {
+          "x": 0,
+          "y": -2.6531438332802404,
+          "z": -5.625,
+          "yaw": 0,
+          "airY": 0
+        },
+        "look": {
+          "yaw": -0.5247897509332059,
+          "pitch": -0.17453185242886188
+        },
+        "input": {
+          "touch": {
+            "throttle": 0.5,
+            "turn": -0.25,
+            "sprint": false
+          },
+          "charging": true,
+          "chargeHeld": true,
+          "pounceYaw": -0.8515166988226329,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 0
+        },
+        "objects": [
+          {
+            "kind": "Group",
+            "color": "ffc857",
+            "opacity": 0.22
+          }
+        ],
+        "cameraDirection": [
+          -0.4934193657673004,
+          -0.17364712119405493,
+          0.8522816475712782
+        ],
+        "touch": null
+      },
+      "released": {
+        "phase": "lunge",
+        "phaseT": 0.05,
+        "pos": {
+          "x": -0.6650864969426953,
+          "y": -2.247911820386507,
+          "z": -5.509739635674295,
+          "yaw": 0,
+          "airY": 0.3836080755847148
+        },
+        "look": {
+          "yaw": -1.0724723953787223,
+          "pitch": -0.17453266065746711
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.3991993432681493,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "objects": [],
+        "cameraDirection": [
+          -0.8650402792622178,
+          -0.17364791714394542,
+          0.47069280441229766
+        ],
+        "touch": null
+      },
+      "completed": {
+        "phase": "idle",
+        "phaseT": 0.5166666666666666,
+        "pos": {
+          "x": -5.58672657431864,
+          "y": -1.6896392413658003,
+          "z": -4.656812939664083,
+          "yaw": 0,
+          "airY": 0
+        },
+        "look": {
+          "yaw": -1.3710049031287777,
+          "pitch": -0.17453290237115793
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -1.3991993432681493,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "objects": [],
+        "cameraDirection": [
+          -0.9652179554051453,
+          -0.173648155185468,
+          0.19544978067062346
+        ],
+        "touch": null
+      }
+    },
+    "cleanup": {
+      "blurred": {
+        "phase": "lunge",
+        "phaseT": 0.05,
+        "pos": {
+          "x": -5.888595751281112,
+          "y": -1.5168143596547852,
+          "z": 1.6169254142608602,
+          "yaw": 0,
+          "airY": 0.3836080755847148
+        },
+        "look": {
+          "yaw": -1.3710049031287777,
+          "pitch": -0.17453290237115793
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -0.4636476090008061,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "objects": [],
+        "cameraDirection": [
+          -0.02097108944100139,
+          -0.20439422936747836,
+          0.9786639936203498
+        ],
+        "touch": null
+      },
+      "afterBlur": {
+        "phase": "lunge",
+        "phaseT": 0.3833333333333333,
+        "pos": {
+          "x": -7.901056931030922,
+          "y": -1.2368584952711061,
+          "z": 5.641847773760482,
+          "yaw": 0,
+          "airY": 0.2843824915501557
+        },
+        "look": {
+          "yaw": -1.3710049031287777,
+          "pitch": -0.17453290237115793
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": -0.4636476090008061,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "objects": [],
+        "cameraDirection": [
+          -0.04659563032348676,
+          -0.2432970830771949,
+          0.9688319651007009
+        ],
+        "touch": null
+      },
+      "reentered": {
+        "phase": "idle",
+        "phaseT": 0,
+        "pos": {
+          "x": 0,
+          "y": -2.624782481812682,
+          "z": -6,
+          "yaw": 0,
+          "airY": 0
+        },
+        "look": {
+          "yaw": 0,
+          "pitch": 0
+        },
+        "input": {
+          "touch": {
+            "throttle": 0,
+            "turn": 0,
+            "sprint": false
+          },
+          "charging": false,
+          "chargeHeld": false,
+          "pounceYaw": 0,
+          "crouchScale": 1
+        },
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "objects": [],
+        "cameraDirection": [
+          0.9970184829243325,
+          -0.07693779818091122,
+          0.005892361015434446
+        ],
+        "touch": null
+      }
+    }
+  },
+  "checks": {
+    "stationary preparation quieter than stalking": {
+      "pass": false,
+      "detail": ""
+    },
+    "touchcancel cancels instead of committing": {
+      "pass": true,
+      "detail": "{\"phase\":\"idle\",\"phaseT\":0,\"pos\":{\"x\":0,\"y\":-2.624782481812682,\"z\":-6,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0,\"pitch\":-0.17028758195481697},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":0,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[0,-0.16946577846101868,0.9855360723639703],\"touch\":null}"
+    },
+    "three-finger hold continues moving": {
+      "pass": false,
+      "detail": "{\"before\":{\"phase\":\"wind\",\"phaseT\":0.05,\"pos\":{\"x\":0,\"y\":-2.6531438332802404,\"z\":-5.625,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0,\"pitch\":-0.17154128237818428},\"input\":{\"touch\":{\"throttle\":0.5,\"turn\":0,\"sprint\":false},\"charging\":true,\"chargeHeld\":true,\"pounceYaw\":0,\"crouchScale\":1},\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":0},\"objects\":[{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}],\"cameraDirection\":[0,-0.17070121194836407,0.985322838586095],\"touch\":null},\"held\":{\"phase\":\"wind\",\"phaseT\":0.49999999999999994,\"pos\":{\"x\":0,\"y\":-2.6531438332802404,\"z\":-5.625,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0.1575,\"pitch\":-0.17440472694171594},\"input\":{\"touch\":{\"throttle\":0.5,\"turn\":0,\"sprint\":false},\"charging\":true,\"chargeHeld\":true,\"pounceYaw\":0.1575,\"crouchScale\":1},\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":0},\"objects\":[{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}],\"cameraDirection\":[0.15447023501189056,-0.1735219256022179,0.972640266404116],\"touch\":null}}"
+    },
+    "FPV right drag turns right and upward drag raises pitch": {
+      "pass": false,
+      "detail": "{\"before\":{\"yaw\":0,\"pitch\":-0.17154128237818428},\"after\":{\"yaw\":0.1575,\"pitch\":-0.17440472694171594}}"
+    },
+    "joystick steering and FPV heading remain coupled while charging": {
+      "pass": false,
+      "detail": "{\"steerBefore\":{\"phase\":\"wind\",\"phaseT\":0.8000000000000002,\"pos\":{\"x\":0,\"y\":-2.6531438332802404,\"z\":-5.625,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0.1575,\"pitch\":-0.17451722649868467},\"input\":{\"touch\":{\"throttle\":0.5,\"turn\":0,\"sprint\":false},\"charging\":true,\"chargeHeld\":true,\"pounceYaw\":0.1575,\"crouchScale\":1},\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":0},\"objects\":[{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}],\"cameraDirection\":[0.15446717215059408,-0.17363271744332404,0.9726209807324977],\"touch\":null},\"steered\":{\"phase\":\"wind\",\"phaseT\":1.1833333333333331,\"pos\":{\"x\":0,\"y\":-2.6531438332802404,\"z\":-5.625,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":-0.5247897509332059,\"pitch\":-0.17453185242886188},\"input\":{\"touch\":{\"throttle\":0.5,\"turn\":-0.25,\"sprint\":false},\"charging\":true,\"chargeHeld\":true,\"pounceYaw\":-0.8515166988226329,\"crouchScale\":1},\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":0},\"objects\":[{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}],\"cameraDirection\":[-0.4934193657673004,-0.17364712119405493,0.8522816475712782],\"touch\":null}}"
+    },
+    "preview is translucent light blue": {
+      "pass": false,
+      "detail": "[{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}]"
+    },
+    "release keeps preview through flight": {
+      "pass": false,
+      "detail": "{\"phase\":\"lunge\",\"phaseT\":0.05,\"pos\":{\"x\":-0.6650864969426953,\"y\":-2.247911820386507,\"z\":-5.509739635674295,\"yaw\":0,\"airY\":0.3836080755847148},\"look\":{\"yaw\":-1.0724723953787223,\"pitch\":-0.17453266065746711},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":-1.3991993432681493,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[-0.8650402792622178,-0.17364791714394542,0.47069280441229766],\"touch\":null}"
+    },
+    "attack release leaves joystick and look independent": {
+      "pass": true,
+      "detail": "{\"phase\":\"recover\",\"phaseT\":0.05,\"pos\":{\"x\":-5.58672657431864,\"y\":-1.6896392413658003,\"z\":-4.656812939664083,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":-1.3710049031287777,\"pitch\":-0.17453290237115793},\"input\":{\"touch\":{\"throttle\":0.5,\"turn\":-0.25,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":-1.3991993432681493,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[-0.9652179554051453,-0.173648155185468,0.19544978067062346],\"touch\":null}"
+    },
+    "completed recovery removes preview": {
+      "pass": true,
+      "detail": "{\"phase\":\"idle\",\"phaseT\":0.5166666666666666,\"pos\":{\"x\":-5.58672657431864,\"y\":-1.6896392413658003,\"z\":-4.656812939664083,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":-1.3710049031287777,\"pitch\":-0.17453290237115793},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":-1.3991993432681493,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[-0.9652179554051453,-0.173648155185468,0.19544978067062346],\"touch\":null}"
+    },
+    "TPS release lifecycle matches FPV": {
+      "pass": false,
+      "detail": "{\"phase\":\"lunge\",\"phaseT\":0.05,\"pos\":{\"x\":-5.58672657431864,\"y\":-1.3517706658739173,\"z\":-3.981812939664083,\"yaw\":0,\"airY\":0.3836080755847148},\"look\":{\"yaw\":-1.3710049031287777,\"pitch\":-0.17453290237115793},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":0,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[0.000012482890600936282,-0.20920487292135112,0.9778718325988016],\"touch\":null}"
+    },
+    "blur clears charge and all held motion": {
+      "pass": false,
+      "detail": "{\"blurred\":{\"phase\":\"lunge\",\"phaseT\":0.05,\"pos\":{\"x\":-5.888595751281112,\"y\":-1.5168143596547852,\"z\":1.6169254142608602,\"yaw\":0,\"airY\":0.3836080755847148},\"look\":{\"yaw\":-1.3710049031287777,\"pitch\":-0.17453290237115793},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":-0.4636476090008061,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[-0.02097108944100139,-0.20439422936747836,0.9786639936203498],\"touch\":null},\"afterBlur\":{\"phase\":\"lunge\",\"phaseT\":0.3833333333333333,\"pos\":{\"x\":-7.901056931030922,\"y\":-1.2368584952711061,\"z\":5.641847773760482,\"yaw\":0,\"airY\":0.2843824915501557},\"look\":{\"yaw\":-1.3710049031287777,\"pitch\":-0.17453290237115793},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":-0.4636476090008061,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[-0.04659563032348676,-0.2432970830771949,0.9688319651007009],\"touch\":null}}"
+    },
+    "exit and reentry have no pointer or preview residue": {
+      "pass": true,
+      "detail": "{\"phase\":\"idle\",\"phaseT\":0,\"pos\":{\"x\":0,\"y\":-2.624782481812682,\"z\":-6,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0,\"pitch\":0},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":0,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[0.9970184829243325,-0.07693779818091122,0.005892361015434446],\"touch\":null}"
+    }
+  },
+  "screenshots": [
+    "390x844-fpv-hold.png",
+    "390x844-fpv-release-in-flight.png",
+    "390x844-fpv-completed.png",
+    "390x844-tps-hold.png",
+    "390x844-tps-release-in-flight.png",
+    "390x844-tps-completed.png"
+  ],
+  "errors": [
+    "FAILED stationary preparation quieter than stalking: ",
+    "FAILED three-finger hold continues moving: {\"before\":{\"phase\":\"wind\",\"phaseT\":0.05,\"pos\":{\"x\":0,\"y\":-2.6531438332802404,\"z\":-5.625,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0,\"pitch\":-0.17154128237818428},\"input\":{\"touch\":{\"throttle\":0.5,\"turn\":0,\"sprint\":false},\"charging\":true,\"chargeHeld\":true,\"pounceYaw\":0,\"crouchScale\":1},\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":0},\"objects\":[{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}],\"cameraDirection\":[0,-0.17070121194836407,0.985322838586095],\"touch\":null},\"held\":{\"phase\":\"wind\",\"phaseT\":0.49999999999999994,\"pos\":{\"x\":0,\"y\":-2.6531438332802404,\"z\":-5.625,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0.1575,\"pitch\":-0.17440472694171594},\"input\":{\"touch\":{\"throttle\":0.5,\"turn\":0,\"sprint\":false},\"charging\":true,\"chargeHeld\":true,\"pounceYaw\":0.1575,\"crouchScale\":1},\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":0},\"objects\":[{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}],\"cameraDirection\":[0.15447023501189056,-0.1735219256022179,0.972640266404116],\"touch\":null}}",
+    "FAILED FPV right drag turns right and upward drag raises pitch: {\"before\":{\"yaw\":0,\"pitch\":-0.17154128237818428},\"after\":{\"yaw\":0.1575,\"pitch\":-0.17440472694171594}}",
+    "FAILED joystick steering and FPV heading remain coupled while charging: {\"steerBefore\":{\"phase\":\"wind\",\"phaseT\":0.8000000000000002,\"pos\":{\"x\":0,\"y\":-2.6531438332802404,\"z\":-5.625,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":0.1575,\"pitch\":-0.17451722649868467},\"input\":{\"touch\":{\"throttle\":0.5,\"turn\":0,\"sprint\":false},\"charging\":true,\"chargeHeld\":true,\"pounceYaw\":0.1575,\"crouchScale\":1},\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":0},\"objects\":[{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}],\"cameraDirection\":[0.15446717215059408,-0.17363271744332404,0.9726209807324977],\"touch\":null},\"steered\":{\"phase\":\"wind\",\"phaseT\":1.1833333333333331,\"pos\":{\"x\":0,\"y\":-2.6531438332802404,\"z\":-5.625,\"yaw\":0,\"airY\":0},\"look\":{\"yaw\":-0.5247897509332059,\"pitch\":-0.17453185242886188},\"input\":{\"touch\":{\"throttle\":0.5,\"turn\":-0.25,\"sprint\":false},\"charging\":true,\"chargeHeld\":true,\"pounceYaw\":-0.8515166988226329,\"crouchScale\":1},\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":0},\"objects\":[{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}],\"cameraDirection\":[-0.4934193657673004,-0.17364712119405493,0.8522816475712782],\"touch\":null}}",
+    "FAILED preview is translucent light blue: [{\"kind\":\"Group\",\"color\":\"ffc857\",\"opacity\":0.22}]",
+    "FAILED release keeps preview through flight: {\"phase\":\"lunge\",\"phaseT\":0.05,\"pos\":{\"x\":-0.6650864969426953,\"y\":-2.247911820386507,\"z\":-5.509739635674295,\"yaw\":0,\"airY\":0.3836080755847148},\"look\":{\"yaw\":-1.0724723953787223,\"pitch\":-0.17453266065746711},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":-1.3991993432681493,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[-0.8650402792622178,-0.17364791714394542,0.47069280441229766],\"touch\":null}",
+    "FAILED TPS release lifecycle matches FPV: {\"phase\":\"lunge\",\"phaseT\":0.05,\"pos\":{\"x\":-5.58672657431864,\"y\":-1.3517706658739173,\"z\":-3.981812939664083,\"yaw\":0,\"airY\":0.3836080755847148},\"look\":{\"yaw\":-1.3710049031287777,\"pitch\":-0.17453290237115793},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":0,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[0.000012482890600936282,-0.20920487292135112,0.9778718325988016],\"touch\":null}",
+    "FAILED blur clears charge and all held motion: {\"blurred\":{\"phase\":\"lunge\",\"phaseT\":0.05,\"pos\":{\"x\":-5.888595751281112,\"y\":-1.5168143596547852,\"z\":1.6169254142608602,\"yaw\":0,\"airY\":0.3836080755847148},\"look\":{\"yaw\":-1.3710049031287777,\"pitch\":-0.17453290237115793},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":-0.4636476090008061,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[-0.02097108944100139,-0.20439422936747836,0.9786639936203498],\"touch\":null},\"afterBlur\":{\"phase\":\"lunge\",\"phaseT\":0.3833333333333333,\"pos\":{\"x\":-7.901056931030922,\"y\":-1.2368584952711061,\"z\":5.641847773760482,\"yaw\":0,\"airY\":0.2843824915501557},\"look\":{\"yaw\":-1.3710049031287777,\"pitch\":-0.17453290237115793},\"input\":{\"touch\":{\"throttle\":0,\"turn\":0,\"sprint\":false},\"charging\":false,\"chargeHeld\":false,\"pounceYaw\":-0.4636476090008061,\"crouchScale\":1},\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"objects\":[],\"cameraDirection\":[-0.04659563032348676,-0.2432970830771949,0.9688319651007009],\"touch\":null}}"
+  ],
+  "events": [
+    {
+      "at": 1793542975390,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 234,
+            "y": 613.578125,
+            "id": 3,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793542977131,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchCancel",
+        "touchPoints": []
+      }
+    },
+    {
+      "at": 1793542978153,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 774,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793542979184,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchMove",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793542980175,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 285,
+            "y": 380,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793542981155,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 285,
+            "y": 380,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 234,
+            "y": 613.578125,
+            "id": 3,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793542982569,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchMove",
+        "touchPoints": [
+          {
+            "x": 70,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 320,
+            "y": 360,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 234,
+            "y": 613.578125,
+            "id": 3,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793542986687,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchMove",
+        "touchPoints": [
+          {
+            "x": 82,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 320,
+            "y": 360,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 234,
+            "y": 613.578125,
+            "id": 3,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793542988216,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchEnd",
+        "touchPoints": [
+          {
+            "x": 82,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 320,
+            "y": 360,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793542991643,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchMove",
+        "touchPoints": [
+          {
+            "x": 82,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 332,
+            "y": 360,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793542992800,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchEnd",
+        "touchPoints": []
+      }
+    },
+    {
+      "at": 1793542996775,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 234,
+            "y": 613.578125,
+            "id": 3,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793543000172,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchEnd",
+        "touchPoints": []
+      }
+    },
+    {
+      "at": 1793543005712,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 82,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 332,
+            "y": 360,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 234,
+            "y": 613.578125,
+            "id": 3,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793543007420,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchEnd",
+        "touchPoints": []
+      }
+    },
+    {
+      "at": 1793543009035,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchStart",
+        "touchPoints": [
+          {
+            "x": 82,
+            "y": 750,
+            "id": 1,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 332,
+            "y": 360,
+            "id": 2,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          },
+          {
+            "x": 234,
+            "y": 613.578125,
+            "id": 3,
+            "radiusX": 2,
+            "radiusY": 2,
+            "force": 1
+          }
+        ]
+      }
+    },
+    {
+      "at": 1793543010689,
+      "method": "Input.dispatchTouchEvent",
+      "params": {
+        "type": "touchEnd",
+        "touchPoints": []
+      }
+    }
+  ],
+  "httpErrors": [
+    {
+      "url": "http://127.0.0.1:8397/api/configs/active",
+      "status": 404,
+      "statusText": "Not Found",
+      "headers": {
+        "Transfer-Encoding": "chunked",
+        "Keep-Alive": "timeout=5",
+        "Date": "Sun, 01 Nov 2026 14:22:48 GMT",
+        "Connection": "keep-alive"
+      },
+      "mimeType": "",
+      "charset": "",
+      "connectionReused": true,
+      "connectionId": 160,
+      "remoteIPAddress": "127.0.0.1",
+      "remotePort": 8397,
+      "fromDiskCache": false,
+      "fromServiceWorker": false,
+      "fromPrefetchCache": false,
+      "encodedDataLength": 138,
+      "timing": {
+        "requestTime": 13131823.087184,
+        "proxyStart": -1,
+        "proxyEnd": -1,
+        "dnsStart": -1,
+        "dnsEnd": -1,
+        "connectStart": -1,
+        "connectEnd": -1,
+        "sslStart": -1,
+        "sslEnd": -1,
+        "workerStart": -1,
+        "workerReady": -1,
+        "workerFetchStart": -1,
+        "workerRespondWithSettled": -1,
+        "sendStart": 0.153,
+        "sendEnd": 0.205,
+        "pushStart": 0,
+        "pushEnd": 0,
+        "receiveHeadersStart": 0.899,
+        "receiveHeadersEnd": 0.941
+      },
+      "responseTime": 1793542968053.875,
+      "protocol": "http/1.1",
+      "alternateProtocolUsage": "unspecifiedReason",
+      "securityState": "secure"
+    },
+    {
+      "url": "http://127.0.0.1:8397/marmot3d-beta/api/auth/guest",
+      "status": 404,
+      "statusText": "Not Found",
+      "headers": {
+        "Transfer-Encoding": "chunked",
+        "Keep-Alive": "timeout=5",
+        "Date": "Sun, 01 Nov 2026 14:22:48 GMT",
+        "Connection": "keep-alive"
+      },
+      "mimeType": "",
+      "charset": "",
+      "connectionReused": true,
+      "connectionId": 284,
+      "remoteIPAddress": "127.0.0.1",
+      "remotePort": 8397,
+      "fromDiskCache": false,
+      "fromServiceWorker": false,
+      "fromPrefetchCache": false,
+      "encodedDataLength": 138,
+      "timing": {
+        "requestTime": 13131823.332083,
+        "proxyStart": -1,
+        "proxyEnd": -1,
+        "dnsStart": -1,
+        "dnsEnd": -1,
+        "connectStart": -1,
+        "connectEnd": -1,
+        "sslStart": -1,
+        "sslEnd": -1,
+        "workerStart": -1,
+        "workerReady": -1,
+        "workerFetchStart": -1,
+        "workerRespondWithSettled": -1,
+        "sendStart": 1.566,
+        "sendEnd": 1.591,
+        "pushStart": 0,
+        "pushEnd": 0,
+        "receiveHeadersStart": 2.296,
+        "receiveHeadersEnd": 2.319
+      },
+      "responseTime": 1793542968300.171,
+      "protocol": "http/1.1",
+      "alternateProtocolUsage": "unspecifiedReason",
+      "securityState": "secure"
+    }
+  ],
+  "consoleErrors": [],
+  "exceptions": [],
+  "layout": {
+    "joy": "<div id=\"touchJoystick\" class=\"touch-joystick\" role=\"application\" aria-label=\"虚拟摇杆：第一人称左右转向与前后移动可同时输入；第三人称按屏幕方向移动；推过疾跑环自动疾跑\" style=\"--stick-sprint-radius: 37.44px; --stick-sprint-size: 74.88px; --stick-sprint-offset: -37.44px; left: 70px; top: 774px; bottom: auto; transform: translate(-50%, -50%) scale(1);\">\n    <i class=\"stick-sprint-ring\" aria-hidden=\"true\"></i>\n    <div class=\"touch-stick\" id=\"touchStick\" style=\"transform: translate(0px, 0px);\"></div>\n    <span>移动</span>\n  </div>",
+    "attack": "<b>爪</b>",
+    "look": "<div id=\"touchLookZone\" class=\"touch-look-zone\" aria-label=\"拖动以转动视角\">\n    <span>右侧拖动视角</span>\n  </div>"
+  },
+  "pass": false,
+  "finishedAt": "2026-11-01T14:23:34.036Z"
+}

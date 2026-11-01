@@ -11,6 +11,7 @@
  * 数据全部来自 window.__playAsFox（见 play-as-fox.js 暴露的只读 + cfg 调试钩子）。
  */
 import * as THREE from 'three';
+import { pafPounceFootprint, pafPouncePreviewActive } from '../core/paf-pounce.js';
 import { GUI } from '../../vendor/lil-gui/lil-gui.esm.js';
 import { buildTuningEntries, toView, toStored, clampStored } from '../admin/tuning-schema.mjs';
 import { createAdminSync, apiBaseFromLocation } from './paf-admin-sync.mjs';
@@ -39,7 +40,7 @@ class PafDebugView {
     this.group.renderOrder = 999;
     scene.add(this.group);
 
-    this.catchRing = this._ring(0xff8a4a, 0.95);   // 扑击范围（橙）
+    this.catchRing = this._ring(0x9fd8ff, 0.65);   // 后半段水平扫掠包络（垂直判定见浅蓝实填区）
     this.detectRing = this._ring(0xffd24a, 0.55);  // 视觉察觉半径（黄）
     this.hearRing = this._ring(0x7fd8ff, 0.4);     // 听觉半径（蓝，全向）
     this.foxCyl = this._cylinder(0x63c7ff);        // 藏狐碰撞（蓝）
@@ -84,22 +85,19 @@ class PafDebugView {
       this.foxCyl.position.set(pos.x, pos.y + cfg.foxHeight / 2, pos.z);
     }
 
-    // 扑击水平范围（仅扑击相位显示；实际捕获还需通过垂直窗口）
-    const pouncing = api.phase === 'lunge' || api.phase === 'wind';
-    this.catchRing.visible = !!view.catchRange;
-    if (view.catchRange) {
-      this.catchRing.scale.set(cfg.catchRadius, 1, cfg.catchRadius);
-      this.catchRing.position.set(pos.x, pos.y + 0.03, pos.z);
-      (this.catchRing.material).opacity = pouncing ? 0.95 : 0.35;
+    // Directional horizontal envelope of the shared pounce path; no independent circular reach.
+    this.catchRing.visible = !!view.catchRange && pafPouncePreviewActive(api.phase);
+    if (this.catchRing.visible) {
+      const footprint = pafPounceFootprint(api.preview.path);
+      this.catchRing.geometry.setFromPoints(footprint.points.map(p => new THREE.Vector3(p.x, api.terrainHeightAt(p.x,p.z) + 0.055, p.z)));
     }
 
-    // 当前视觉/听觉察觉半径（档位：潜行 / 冲刺 / wind+lunge）
+    // Uses the live PAF policy, including quiet stationary preparation.
     this.detectRing.visible = !!view.detect;
     this.hearRing.visible = !!view.detect;
     if (view.detect) {
-      const threat = api.phase === 'wind' || api.phase === 'lunge';
-      const vr = threat ? cfg.visionRadiusLunge : api.sprint ? cfg.detectSprint : cfg.detectStalk;
-      const hr = threat ? cfg.detectLunge : api.sprint ? cfg.hearRadiusSprint : cfg.hearRadiusStalk;
+      const vr = api.noise.visionRadius;
+      const hr = api.noise.hearingRadius;
       this.detectRing.scale.set(vr, 1, vr);
       this.detectRing.position.set(pos.x, pos.y + 0.02, pos.z);
       this.hearRing.scale.set(hr, 1, hr);
@@ -297,6 +295,8 @@ export function attachPlayAsFoxDebug(api, hooks = {}) {
   // A1 多线索察觉
   track(fPrey.add(cfg, 'visionHalfAngleDeg', 20, 180, 1).name('视锥半角°(全锥2倍)'));
   track(fPrey.add(cfg, 'visionRadiusLunge', 1, 40, 0.2).name('扑击视觉半径'));
+  track(fPrey.add(cfg, 'hearRadiusPrepare', 0, 1.4, 0.05).name('静止准备听觉半径（上限潜行一半）'));
+  track(fPrey.add(cfg, 'noiseCoefPrepare', 0, 0.2, 0.01).name('静止准备听觉系数'));
   track(fPrey.add(cfg, 'hearRadiusStalk', 0, 20, 0.2).name('潜行听觉半径'));
   track(fPrey.add(cfg, 'hearRadiusSprint', 0, 30, 0.2).name('冲刺听觉半径'));
   track(fPrey.add(cfg, 'visionFalloffInner', 0, 1, 0.02).name('视觉满强度内圈'));
