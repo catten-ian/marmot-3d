@@ -29,6 +29,12 @@ class FakeOscillator extends FakeSource {
 class FakeContext {
   constructor() { this.currentTime = 5; this.sampleRate = 44100; this.state = 'running'; this.destination = new FakeNode(); this.sources = []; }
   createGain() { return new FakeNode(); }
+  createDynamicsCompressor() {
+    const node = new FakeNode();
+    for (const key of ['threshold', 'knee', 'ratio', 'attack', 'release']) node[key] = new FakeParam();
+    return node;
+  }
+  createWaveShaper() { return new FakeNode(); }
   createBufferSource() { const source = new FakeSource(); this.sources.push(source); return source; }
   createOscillator() { const source = new FakeOscillator(); this.sources.push(source); return source; }
   decodeAudioData() { return Promise.resolve({ duration: 0.4 }); }
@@ -48,14 +54,15 @@ test('beta audio buses, percent clamp, settings persistence round trip', async (
   assert.ok(audio.buses.master && audio.buses.sfx && audio.buses.bgm);
   assert.deepEqual(audio.buses.sfx.connections, [audio.buses.master]);
   assert.deepEqual(audio.buses.bgm.connections, [audio.buses.master]);
-  assert.deepEqual(audio.buses.master.connections, [audio.ctx.destination]);
-  assert.deepEqual(audio.getBusLevels(), { master: 0.32, sfx: 1, bgm: 0.61 });
+  assert.deepEqual(audio.buses.master.connections, [audio.buses.protection.compressorInput]);
+  assert.deepEqual(audio.buses.protection.guard.connections, [audio.ctx.destination]);
+  assert.deepEqual(audio.getBusLevels(), { master: 0.48, sfx: 1, bgm: 0.61 });
   const stored = audio.setSettings({ masterVolume: 180, sfxVolume: -20, bgmVolume: 62, sfxEnabled: false });
-  assert.equal(stored.masterVolume, 100);
+  assert.equal(stored.masterVolume, 150);
   assert.equal(stored.sfxVolume, 0);
   assert.equal(stored.bgmVolume, 62);
   assert.equal(stored.sfxEnabled, false);
-  assert.deepEqual(audio.getBusLevels(), { master: 0.32, sfx: 0, bgm: 0.62 });
+  assert.deepEqual(audio.getBusLevels(), { master: 0.72, sfx: 0, bgm: 0.62 });
   const restored = mod.readAudioSettings(storage);
   assert.deepEqual(restored, stored);
   assert.equal(mod.AUDIO_SETTINGS_KEY, 'marmot3d.audio.beta.v1');

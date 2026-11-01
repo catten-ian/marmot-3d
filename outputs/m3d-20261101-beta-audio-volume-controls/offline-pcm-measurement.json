@@ -1,0 +1,118 @@
+{
+  "method": "ffmpeg decoded interleaved float32 PCM; linear bus mapping + analytic guard. Compressor DSP NOT rendered. No listening test.",
+  "expectedReferenceRms": 0.13723203,
+  "referenceRmsDifference": 4.99585664504032e-9,
+  "paf": {
+    "sha256": "b70f5931cfe8ec1eb33fa420bd5a7a5d7b04f2fea397031a0aa22cf58b0137f7",
+    "source": {
+      "samples": 15879168,
+      "peak": 0.8787175416946411,
+      "peakDbfs": -1.1230140752490623,
+      "rms": 0.13723203499585665,
+      "rmsDbfs": -17.250889930319516
+    },
+    "oldDefault": {
+      "gain": 0.081984,
+      "samples": 15879168,
+      "peak": 0.07204077893829346,
+      "peakDbfs": -22.84843200067759,
+      "rms": 0.011250831157098984,
+      "rmsDbfs": -38.97630785574907
+    },
+    "betaDefault": {
+      "gain": 0.12297599999999999,
+      "samples": 15879168,
+      "peak": 0.10806116840744018,
+      "peakDbfs": -19.32660681956397,
+      "rms": 0.016876246735641063,
+      "rmsDbfs": -35.45448267463926
+    },
+    "maximumBeforeProtection": {
+      "gain": 0.45359999999999995,
+      "samples": 15879168,
+      "peak": 0.39858627691268916,
+      "peakDbfs": -7.989553157552061,
+      "rms": 0.06224845107410507,
+      "rmsDbfs": -24.117429012624676
+    },
+    "maximumGuardOnlyWorstAttack": {
+      "samples": 15879168,
+      "peak": 0.39858627691268916,
+      "peakDbfs": -7.989553157552061,
+      "rms": 0.06224845107410507,
+      "rmsDbfs": -24.117429012624676
+    },
+    "defaultIncreaseDb": 3.521825181113623
+  },
+  "hit": {
+    "sha256": "95df28e52a84c2e877afea91e603e634694218efdc9612f894103acab2e5994a",
+    "source": {
+      "samples": 264600,
+      "peak": 0.9837836027145386,
+      "peakDbfs": -0.14200840703081702,
+      "rms": 0.06568664891351607,
+      "rmsDbfs": -23.650457872856798
+    },
+    "oldDefault": {
+      "gain": 0.32,
+      "samples": 264600,
+      "peak": 0.31481075286865234,
+      "peakDbfs": -10.039008840632697,
+      "rms": 0.02101972765232512,
+      "rmsDbfs": -33.54745830645869
+    },
+    "betaDefault": {
+      "gain": 0.48,
+      "samples": 264600,
+      "peak": 0.4722161293029785,
+      "peakDbfs": -6.517183659519072,
+      "rms": 0.03152959147848716,
+      "rmsDbfs": -30.025633125345202
+    },
+    "maximumBeforeProtection": {
+      "gain": 1.08,
+      "samples": 264600,
+      "peak": 1.0624862909317017,
+      "peakDbfs": 0.526466702708177,
+      "rms": 0.07094158082659549,
+      "rmsDbfs": -22.98198276311803
+    },
+    "maximumGuardOnlyWorstAttack": {
+      "samples": 264600,
+      "peak": 0.9695044852626736,
+      "peakDbfs": -0.26900354768647233,
+      "rms": 0.07068693052733147,
+      "rmsDbfs": -23.013217530159174
+    },
+    "defaultIncreaseDb": 3.5218251811136247
+  },
+  "overload": [
+    {
+      "name": "old-default",
+      "voices": 18,
+      "coherentFullScalePeak": 5.914129920000001,
+      "inputDb": 15.4378172151626,
+      "protectionPresent": false,
+      "compressorStaticEstimatePeak": null,
+      "guardOnlyPeak": null
+    },
+    {
+      "name": "beta-default-and-legacy-100",
+      "voices": 18,
+      "coherentFullScalePeak": 8.871194880000001,
+      "inputDb": 18.959642396276223,
+      "protectionPresent": true,
+      "compressorStaticEstimatePeak": 0.803339471055854,
+      "guardOnlyPeak": 0.98
+    },
+    {
+      "name": "beta-maximum",
+      "voices": 18,
+      "coherentFullScalePeak": 20.292768,
+      "inputDb": 26.14682580526538,
+      "protectionPresent": true,
+      "compressorStaticEstimatePeak": 0.8372729576067323,
+      "guardOnlyPeak": 0.98
+    }
+  ]
+}

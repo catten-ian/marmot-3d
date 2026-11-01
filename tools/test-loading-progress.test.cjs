@@ -38,24 +38,25 @@ test('loading contract keeps progress monotonic and updates labels', () => {
 });
 
 test('audio preload reports one aggregated completion per job with mock fetch', async () => {
-  const audioSource = fs.readFileSync('src/systems/audio.js', 'utf8')
-    .replace(/^import .*$/m, '')
-    .replace(/^export /gm, '');
-  const context = { console, URL, AbortController, Promise, setTimeout, clearTimeout, Uint8Array, globalThis: null };
-  context.globalThis = context;
-  vm.runInNewContext(`${audioSource}\nthis.Audio = Audio;`, context);
+  const { Audio, BETA_AUDIO_RESOURCES } = await import('../src/systems/audio.js');
   const calls = [];
   const mockFetch = async (url) => {
     calls.push(String(url));
     return { ok: true, json: async () => ({ assets: {} }), arrayBuffer: async () => new ArrayBuffer(32) };
   };
   const events = [];
-  const audio = new context.Audio({ isBeta: true, fetchFn: mockFetch, storage: null });
-  await audio.preload({ onProgress: (event) => events.push(event) });
-  assert.equal(calls.length, 9);
-  assert.deepEqual(events.map((event) => event.done), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.ok(events.every((event) => event.total === 9));
-  assert.equal(events.at(-1).done, events.at(-1).total);
+  const audio = new Audio({ isBeta: true, fetchFn: mockFetch, storage: null });
+  const result = await audio.preload({ onProgress: (event) => events.push(event) });
+  assert.equal(BETA_AUDIO_RESOURCES.length, 26);
+  assert.equal(calls.length, 28);
+  assert.deepEqual(events.map((event) => event.done), Array.from({ length: 28 }, (_, i) => i + 1));
+  assert.ok(events.every((event) => event.total === 54));
+  // Two manifests + 26 fetches complete; 26 genuine decodes still require a gesture.
+  assert.equal(events.at(-1).done, events.at(-1).total - 26);
+  assert.equal(result.fetched, 26);
+  assert.equal(result.decoded, 0);
+  assert.equal(result.ready, false);
+  assert.equal(audio.ctx, null);
 });
 
 test('beta inline loader script contains quality override, auto selection and classic fallback', () => {

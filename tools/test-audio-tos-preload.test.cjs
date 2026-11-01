@@ -28,6 +28,12 @@ class FakeContext {
     this.decoded = [];
   }
   createGain() { return new FakeNode(); }
+  createDynamicsCompressor() {
+    const node = new FakeNode();
+    for (const key of ['threshold', 'knee', 'ratio', 'attack', 'release']) node[key] = new FakeParam();
+    return node;
+  }
+  createWaveShaper() { return new FakeNode(); }
   createBufferSource() { const source = new FakeSource(); this.sources.push(source); return source; }
   decodeAudioData(bytes) { this.decoded.push(bytes); return Promise.resolve({ duration: 180 }); }
   resume() { this.state = 'running'; return Promise.resolve(); }
@@ -123,7 +129,7 @@ test('request timeout falls back to local bytes', async () => {
   assert.deepEqual(calls, [`${mod.TOS_AUDIO_BASE}elevenlabs/sfx/hit.mp3`, mod.SFX_ASSETS.hit]);
 });
 
-test('startup prefetch runs without a gesture and gesture decodes cached menu bytes', async () => {
+test('startup fetches the complete inventory without a gesture; gesture decodes all and reuses cached menu', async () => {
   const mod = await loadModule();
   const calls = [];
   const audio = betaAudio(mod, async (url) => {
@@ -136,11 +142,11 @@ test('startup prefetch runs without a gesture and gesture decodes cached menu by
   });
   await audio.preload();
   assert.equal(audio.ctx, null, 'prefetch must not create AudioContext');
-  // 进场阶段预取全部 BGM 槽位（不再只 menu），保证切状态不临时下载。
+  // 严格检查整个运行时清单：全部 SFX、PAF 和所有 combat variants。
   assert.deepEqual(calls, [
     `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/manifest.json`,
     `${mod.TOS_AUDIO_BASE}elevenlabs/sfx/manifest.json`,
-    ...['menu', 'explore', 'tension', audio._preloadCombatVariant, 'night', 'victory', 'defeat'].map((slot) => `${mod.TOS_AUDIO_BASE}elevenlabs/bgm/${slot}.mp3`),
+    ...mod.BETA_AUDIO_RESOURCES.map(({ path }) => mod.audioAssetCandidates(path)[0]),
   ]);
 
   const listeners = new Map();
@@ -153,7 +159,8 @@ test('startup prefetch runs without a gesture and gesture decodes cached menu by
   for (let i = 0; i < 20 && !audio._bgmManager?.current; i++) await sleep();
   assert.equal(audio.ctx.state, 'running');
   assert.equal(audio._bgmManager.current.slot, 'menu');
-  assert.equal(audio.ctx.decoded.length, 1);
+  await audio.whenReady();
+  assert.equal(audio.ctx.decoded.length, mod.BETA_AUDIO_RESOURCES.length);
   assert.equal(new Uint8Array(audio.ctx.decoded[0])[0], 7);
   assert.equal(calls.filter((url) => url.endsWith('bgm/menu.mp3')).length, 1, 'gesture must not refetch menu');
 });

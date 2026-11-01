@@ -2142,6 +2142,16 @@ body.touch-layout-editing .sandbox-status.layout-dragging { cursor: grabbing; fi
 .audio-slider span { display: flex; justify-content: space-between; align-items: center; }
 .audio-slider output { color: var(--teal); font-variant-numeric: tabular-nums; }
 .audio-slider input[type="range"] { width: 100%; accent-color: var(--gold); touch-action: pan-y; }
+.audio-volume-controls { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.audio-volume-controls input[type="range"] { flex: 1; min-width: 0; }
+.audio-volume-controls input[type="number"] {
+  box-sizing: border-box; width: 84px; min-height: 44px; flex: 0 0 84px;
+  font: inherit; font-size: 16px; font-variant-numeric: tabular-nums;
+  color: var(--ink); background: rgba(0,0,0,.2); border: 1px solid var(--soft);
+  border-radius: 6px; padding: 6px;
+}
+.audio-volume-controls input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.audio-volume-controls input[aria-invalid="true"] { border-color: var(--gold); }
 .audio-toggles { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 11px; font-size: 12px; }
 .audio-toggles label { display: inline-flex; align-items: center; gap: 6px; }
 .audio-toggles input { accent-color: var(--gold); }

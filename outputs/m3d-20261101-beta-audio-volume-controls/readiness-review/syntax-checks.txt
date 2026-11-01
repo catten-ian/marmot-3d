@@ -1,0 +1,14 @@
+PASS node --check src/core/config-transfer.mjs
+PASS node --check src/systems/audio.js
+PASS node --check src/ui/settings.js
+PASS node --check tools/audio/measure-beta-volume.mjs
+PASS node --check tools/test-audio-readiness.test.cjs
+PASS node --check tools/test-audio-system.cjs
+PASS node --check tools/test-audio-tos-preload.test.cjs
+PASS node --check tools/test-beta-audio-volume-controls.test.cjs
+PASS node --check tools/test-bgm-overhaul.test.cjs
+PASS node --check tools/test-bgm-single-source.test.cjs
+PASS node --check tools/test-config-transfer.cjs
+PASS node --check tools/test-loading-progress.test.cjs
+PASS node --check tools/test-paf-audio-settings.test.cjs
+Scripts: 13; pass: 13; fail: 0; skip: 0

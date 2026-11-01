@@ -1,0 +1,91 @@
+✔ single immutable inventory covers 17 SFX events, 16 unique SFX files, all BGM/PAF and combat variants (13.626091ms)
+✔ before a gesture preload only fetches real bytes; ready waits for all decodes and preserves detached input originals (40.276628ms)
+✔ concurrent/repeated preload and ready calls share fetch/decode work, including a gesture while fetch is in flight (11.232729ms)
+✔ first PAF BGM and SFX after ready use decoded caches even when manifests omit those keys (9.618875ms)
+✔ fetch failures identify resource/stage/HTTP attempts; explicit retry only re-fetches failed items (14.978169ms)
+✔ decode failures remain failed and reject ready; retry retains successful decoded assets and re-fetches bad bytes (9.643571ms)
+✔ HTTP 200 with empty bytes and successful manifests do not constitute readiness; failures can recover (4.88322ms)
+✔ local bytes fetched before context are reused without remote refetch; advisory manifest failure is exposed (6.511952ms)
+✔ zero volume/all audio disabled still fetch and decode everything; hidden pages stay suspended and muted (5.677032ms)
+✔ readiness does not bypass a rejected autoplay resume; Stable/Dev preload stays a no-op (7.06625ms)
+✔ progress callbacks cannot forge ready or interrupt preload by mutating snapshots or throwing (17.53195ms)
+✔ empty decode Promises, invalid decoded buffers and procedural objects never satisfy the ready gate (65.248259ms)
+✖ procedural companionAlarm schedules its original tones without manifest or resource requests (8.974007ms)
+✖ completed preload returns current snapshots after prefetch, gesture decoding and context state changes (24.257206ms)
+✔ completed failed preload stays failed without implicit retries or false ready snapshots (8.346368ms)
+✖ explicit retry recovers a failed advisory manifest after resources ready using all successful caches (14.978191ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 13
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 620.063389
+
+✖ failing tests:
+
+test at tools/test-audio-readiness.test.cjs:288:1
+✖ procedural companionAlarm schedules its original tones without manifest or resource requests (8.974007ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   8000
+  -   0,
+  -   140,
+  -   280,
+  -   300
+    ]
+
+      at TestContext.<anonymous> (/home/fame/code/marmot3d/m3d-beta-audio-controls-20261101/tools/test-audio-readiness.test.cjs:300:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 8000 ],
+    expected: [ 0, 140, 280, 300 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tools/test-audio-readiness.test.cjs:312:1
+✖ completed preload returns current snapshots after prefetch, gesture decoding and context state changes (24.257206ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'running'
+  - 'suspended'
+
+      at TestContext.<anonymous> (/home/fame/code/marmot3d/m3d-beta-audio-controls-20261101/tools/test-audio-readiness.test.cjs:322:44)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'running',
+    expected: 'suspended',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tools/test-audio-readiness.test.cjs:341:1
+✖ explicit retry recovers a failed advisory manifest after resources ready using all successful caches (14.978191ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+      bgm: 'ready',
+  +   sfx: 'failed'
+  -   sfx: 'ready'
+    }
+
+      at TestContext.<anonymous> (/home/fame/code/marmot3d/m3d-beta-audio-controls-20261101/tools/test-audio-readiness.test.cjs:353:47)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { bgm: 'ready', sfx: 'failed' },
+    expected: { bgm: 'ready', sfx: 'ready' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

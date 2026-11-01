@@ -9,6 +9,14 @@ const chooseCombatVariant = (...args) => typeof pickVariant === 'function' ? pic
 const getBgmTrackMeta = (slot) => typeof trackMeta === 'function' ? trackMeta(slot) : { introSec: 0, gain: 1 };
 const resolveBgmStartOffset = (options = {}) => typeof startOffsetFor === 'function' ? startOffsetFor(options) : 0;
 
+export const BETA_MASTER_REFERENCE_GAIN = 0.48;
+export const AUDIO_VOLUME_MAX = 150;
+export const AUDIO_VOLUME_STEP = 1;
+export const AUDIO_PEAK_CEILING = 0.98;
+export const AUDIO_GUARD_RANGE = 32;
+export const AUDIO_LIMITER_THRESHOLD_DB = -3;
+export const AUDIO_COMPRESSOR_DRIVE = 10 ** (-AUDIO_LIMITER_THRESHOLD_DB / 20);
+export const AUDIO_COMPRESSOR = Object.freeze({ threshold: 0, knee: 0, ratio: 20, attack: 0.003, release: 0.12 });
 export const AUDIO_SETTINGS_KEY = 'marmot3d.audio.beta.v1';
 export const TOS_AUDIO_BASE = 'https://marmot.tos-cn-shanghai.volces.com/audio/';
 export const AUDIO_TIMEOUTS = Object.freeze({ bgm: 15000, sfx: 8000 });
@@ -29,10 +37,13 @@ export const AUDIO_DEFAULTS = Object.freeze({
 });
 
 const clamp01 = (value) => Math.max(0, Math.min(1, Number.isFinite(Number(value)) ? Number(value) : 0));
-const clampPercent = (value, fallback) => {
+// Numeric strings from legacy storage are accepted, but empty/null/booleans and
+// exponent syntax must never silently become zero or an enormous gain.
+export function normalizeAudioVolume(value, fallback = 100) {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim()))) return fallback;
   const number = Number(value);
-  return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
-};
+  return Number.isFinite(number) ? Math.round(Math.max(0, Math.min(AUDIO_VOLUME_MAX, number))) : fallback;
+}
 
 /** All public legacy event names remain available, including the repel/kill alias. */
 export const SFX_ASSETS = Object.freeze({
@@ -64,8 +75,26 @@ export const BGM_SLOTS = Object.freeze(['menu', 'explore', 'tension', 'combat', 
 export const BGM_SLOT_ALIASES = Object.freeze({ graze: 'explore', alert: 'tension' });
 export const resolveBgmSlot = (slot) => BGM_SLOT_ALIASES[slot] || slot;
 export const BGM_ASSETS = Object.freeze(Object.fromEntries(
-  BGM_SLOTS.map((slot) => [slot, `assets/audio/elevenlabs/bgm/${slot}.mp3`]),
+  [...new Set([...BGM_SLOTS, ...Object.values(META).flatMap((meta) => meta.variants || [])])]
+    .map((key) => [key, `assets/audio/elevenlabs/bgm/${key}.mp3`]),
 ));
+
+/** One inventory for preload and runtime: alias events share a single file. */
+export const BETA_AUDIO_RESOURCES = Object.freeze(
+  [...new Set([...Object.values(SFX_ASSETS), ...Object.values(BGM_ASSETS)])].map((path) => {
+    const kind = Object.values(SFX_ASSETS).includes(path) ? 'sfx' : 'bgm';
+    const assets = kind === 'sfx' ? SFX_ASSETS : BGM_ASSETS;
+    return Object.freeze({ path, kind, keys: Object.freeze(Object.keys(assets).filter((key) => assets[key] === path)) });
+  }),
+);
+
+export class AudioReadinessError extends Error {
+  constructor(state) {
+    super(`Beta audio is not ready: ${state.failures.length} resource failure(s)`);
+    this.name = 'AudioReadinessError';
+    this.state = state;
+  }
+}
 
 // 默认值与 BETA_TUNE.bgmCombatLatchSeconds 保持一致；后台可调时以 BETA_TUNE 为准。
 export const BGM_COMBAT_LATCH_SECONDS = 35;
@@ -120,10 +149,11 @@ export function resolveBgmPlaybackGain({ procedural = false, assetKey = 'menu', 
 }
 
 export function normalizeAudioSettings(value = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) value = {};
   return {
-    masterVolume: clampPercent(value.masterVolume, AUDIO_DEFAULTS.masterVolume),
-    sfxVolume: clampPercent(value.sfxVolume, AUDIO_DEFAULTS.sfxVolume),
-    bgmVolume: clampPercent(value.bgmVolume, AUDIO_DEFAULTS.bgmVolume),
+    masterVolume: normalizeAudioVolume(value.masterVolume, AUDIO_DEFAULTS.masterVolume),
+    sfxVolume: normalizeAudioVolume(value.sfxVolume, AUDIO_DEFAULTS.sfxVolume),
+    bgmVolume: normalizeAudioVolume(value.bgmVolume, AUDIO_DEFAULTS.bgmVolume),
     sfxEnabled: value.sfxEnabled !== false,
     bgmEnabled: value.bgmEnabled !== false,
   };
@@ -245,15 +275,60 @@ export class BgmStateMachine {
   }
 }
 
-/** Three gain buses with independent controls; both leaf buses feed master. */
-export function createAudioBuses(ctx) {
+/** Emergency peak protection: unity below 0.9, smooth approach to -0.18 dBFS.
+ * The compressor handles sustained overload; this guard catches attack overshoot.
+ * It is not a loudness effect. Do not oversample: resampling can overshoot a ceiling.
+ */
+export function audioPeakGuard(sample) {
+  const magnitude = Math.abs(sample);
+  if (magnitude <= 0.9) return sample;
+  return Math.sign(sample) * (0.9 + (AUDIO_PEAK_CEILING - 0.9) * (1 - Math.exp(-(magnitude - 0.9) / (AUDIO_PEAK_CEILING - 0.9))));
+}
+
+/** Both leaf buses feed master. Only Beta adds the shared overload protection. */
+export function createAudioBuses(ctx, { isBeta = false } = {}) {
   const master = ctx.createGain();
   const sfx = ctx.createGain();
   const bgm = ctx.createGain();
   sfx.connect(master);
   bgm.connect(master);
-  master.connect(ctx.destination);
-  return { master, sfx, bgm };
+  let protection = null;
+  if (isBeta) {
+    // WebAudio compressors apply automatic makeup derived from f(1). A 0 dB,
+    // zero-knee threshold makes f(1)=1 (no hidden makeup). Matched pre/post gains
+    // move the effective threshold to -3 dBFS without boosting quiet signals.
+    // See Web Audio 1.0 section 1.19.4, "Computing the makeup gain".
+    const compressorInput = ctx.createGain();
+    compressorInput.gain.value = AUDIO_COMPRESSOR_DRIVE;
+    const compressor = ctx.createDynamicsCompressor();
+    for (const [key, value] of Object.entries(AUDIO_COMPRESSOR)) compressor[key].value = value;
+    const guardInput = ctx.createGain();
+    guardInput.gain.value = 1 / (AUDIO_COMPRESSOR_DRIVE * AUDIO_GUARD_RANGE);
+    const guard = ctx.createWaveShaper();
+    const curve = new Float32Array(65537);
+    for (let i = 0; i < curve.length; i++) curve[i] = audioPeakGuard((2 * i / (curve.length - 1) - 1) * AUDIO_GUARD_RANGE);
+    guard.curve = curve;
+    guard.oversample = 'none';
+    master.connect(compressorInput);
+    compressorInput.connect(compressor);
+    compressor.connect(guardInput);
+    guardInput.connect(guard);
+    guard.connect(ctx.destination);
+    protection = { compressorInput, compressor, guardInput, guard };
+  } else master.connect(ctx.destination);
+  return { master, sfx, bgm, protection };
+}
+
+/** Short smoothing avoids steps during typing/dragging. Zero/mute is immediate. */
+export function setAudioBusGain(param, target, now, smooth = true) {
+  param.cancelAndHoldAtTime?.(now);
+  if (!param.cancelAndHoldAtTime) {
+    param.cancelScheduledValues?.(now);
+    param.setValueAtTime?.(param.value, now);
+  }
+  if (smooth && target > 0 && param.setTargetAtTime) param.setTargetAtTime(target, now, 0.015);
+  else if (param.setValueAtTime) param.setValueAtTime(target, now);
+  else param.value = target;
 }
 
 export function reserveSfxPlayback(name, nowMs, reservations, limits = SFX_LIMITS) {
@@ -369,9 +444,10 @@ export class BgmManager {
       assetKey = this._combatVariant;
     }
     if (sameCurrentSlot && !retryFallback && (!force || this.current.assetKey === assetKey)) return;
-    const path = `assets/audio/elevenlabs/bgm/${assetKey}.mp3`;
+    const path = BGM_ASSETS[assetKey];
     const startOffset = resolveBgmStartOffset({ slot: next, prevMode, transition });
-    this.audio._hasManifestAsset('bgm', assetKey, path).catch(() => null).then((available) => {
+    const manifest = this.audio._bgmCache?.has(path) ? Promise.resolve(true) : this.audio._hasManifestAsset('bgm', assetKey, path);
+    manifest.catch(() => null).then(() => {
       // The slot and assetKey are allow-listed here. Treat manifests as advisory:
       // an old manifest must not prevent trying a known live TOS/local URL.
       return this.audio._loadBuffer(path, this.audio._bgmCache);
@@ -580,6 +656,21 @@ export class Audio {
     this._bgmCache = new Map();
     this._manifestCache = new Map();
     this._audioBytesCache = new Map();
+    this._assetBytesCache = new Map();
+    this._assetFetches = new Map();
+    this._decodedResources = new Map();
+    this._resourceFailures = new Map();
+    this._requestFailures = new Map();
+    this._manifestStatus = { bgm: 'idle', sfx: 'idle' };
+    this._preloadStarted = false;
+    this._preloadActive = false;
+    this._preloadPhase = 'idle';
+    this._preloadAttempt = 0;
+    this._preloadPromise = null;
+    this._readyPromise = null;
+    this._readySettlement = null;
+    this._preloadObservers = new Set();
+    this._preloadProgress = { done: 0, total: 2 + BETA_AUDIO_RESOURCES.length * 2 };
     this._reservations = new Map();
     this._bgmManager = null;
     this._bgmStateMachine = new BgmStateMachine();
@@ -588,6 +679,8 @@ export class Audio {
     this._pafPaused = false;
     this._lastBgmMode = null;
     this._gestureHandler = null;
+    this._pageHidden = false;
+    this._settingsApplied = false;
   }
 
   _safeStorage() {
@@ -612,34 +705,116 @@ export class Audio {
     target.addEventListener('touchstart', this._gestureHandler, { capture: true, once: true, passive: true });
   }
 
-  /** Start network work before the first gesture; decoding still waits for AudioContext. */
-  preload({ onProgress } = {}) {
-    if (!this.isBeta || !this.fetchFn) return Promise.resolve([]);
-    const combatVariant = chooseCombatVariant({ previous: null });
-    this._preloadCombatVariant = combatVariant;
-    const preloadSlots = ['menu', 'explore', 'tension', combatVariant, 'night', 'victory', 'defeat'];
-    const paths = preloadSlots.map((slot) => `assets/audio/elevenlabs/bgm/${slot}.mp3`);
-    const total = 2 + paths.length;
-    let done = 0;
-    const report = (label, result) => {
-      done += 1;
-      try { onProgress?.({ done, total, label, doneBytes: undefined, totalBytes: undefined, result }); } catch (_) { /* progress is observational */ }
+  /** Read-only snapshots. Ready describes decoded resources; contextState/unlocked
+   * separately describe autoplay/visibility. This API never creates/resumes a context.
+   */
+  getReadiness() {
+    const resources = (this.isBeta ? BETA_AUDIO_RESOURCES : []).map(({ path, kind, keys }) => ({
+      path, kind, keys: [...keys],
+      fetched: this._assetBytesCache.has(path), decoded: this._decodedResources.has(path),
+    }));
+    const fetched = resources.filter((resource) => resource.fetched).length;
+    const decoded = resources.filter((resource) => resource.decoded).length;
+    const failures = [...this._resourceFailures.values()].map((failure) => ({ ...failure, attempts: failure.attempts.map((attempt) => ({ ...attempt })) }));
+    const ready = this.isBeta && !failures.length && fetched === resources.length && decoded === resources.length;
+    const status = !this.isBeta ? 'disabled' : ready ? 'ready'
+      : this._preloadActive ? this._preloadPhase : failures.length ? 'failed'
+        : !this._preloadStarted ? 'idle' : !this.ctx ? 'awaiting-context' : 'decoding';
+    return {
+      supported: this.isBeta, status, ready, total: resources.length, fetched, decoded,
+      attempt: this._preloadAttempt, contextState: this.ctx?.state || 'uncreated',
+      unlocked: this.ctx?.state === 'running', manifests: { ...this._manifestStatus }, resources, failures,
     };
-    const tracked = (promise, label) => Promise.resolve(promise).then((result) => {
-      report(label, result);
-      return result;
-    }, (error) => {
-      report(label, null);
-      throw error;
+  }
+
+  _notifyReadiness({ completed = false, label = null } = {}) {
+    if (completed) this._preloadProgress.done += 1;
+    const state = this.getReadiness();
+    if (this._readySettlement && (state.ready || state.status === 'failed' || !state.supported)) {
+      const { resolve, reject } = this._readySettlement;
+      this._readySettlement = null;
+      if (state.ready) resolve(state);
+      else reject(new AudioReadinessError(state));
+    }
+    if (completed || label) for (const observer of this._preloadObservers) {
+      try { observer({ ...this._preloadProgress, label: label || `音频 ${state.status}`, state: this.getReadiness() }); } catch (_) { /* observational */ }
+    }
+    return state;
+  }
+
+  /** Idempotent work entry: before a gesture resolves after fetching, with ready=false;
+   * after ensure() it also decodes. Failure resolves an explicit failed snapshot.
+   * Completed calls return current snapshots; only in-flight calls share a Promise.
+   * retry=true retries failed resources/manifests, retaining successful caches.
+   */
+  preload({ onProgress, retry = false } = {}) {
+    if (!this.isBeta) return Promise.resolve([]); // preserve Stable/Dev no-op
+    if (onProgress) this._preloadObservers.add(onProgress);
+    if (this._preloadActive) return this._preloadPromise;
+    const needsDecode = this.ctx && BETA_AUDIO_RESOURCES.some(({ path }) =>
+      this._assetBytesCache.has(path) && !this._decodedResources.has(path) && this._resourceFailures.get(path)?.stage !== 'decode');
+    const needsRetry = retry && (this._resourceFailures.size || Object.values(this._manifestStatus).includes('failed'));
+    if (this._preloadPromise && !needsRetry && !needsDecode) {
+      if (onProgress) { this._notifyReadiness({ label: '音频缓存状态' }); this._preloadObservers.delete(onProgress); }
+      return Promise.resolve(this.getReadiness());
+    }
+    if (retry && this._resourceFailures.size) {
+      this._readyPromise = null;
+      this._resourceFailures.delete('preload');
+    }
+    this._preloadStarted = true;
+    this._preloadActive = true;
+    this._preloadPhase = 'fetching';
+    this._preloadProgress = { done: 0, total: 2 + BETA_AUDIO_RESOURCES.length * 2 };
+    this._preloadAttempt += 1;
+    const observers = this._preloadObservers;
+    this._preloadPromise = Promise.resolve().then(async () => {
+      const manifests = ['bgm', 'sfx'].map(async (kind) => {
+        this._manifestStatus[kind] = 'fetching';
+        const manifest = await this._readManifest(kind);
+        this._manifestStatus[kind] = manifest ? 'ready' : 'failed';
+        this._notifyReadiness({ completed: true, label: `清单 ${kind}` });
+      });
+      await Promise.all([
+        ...manifests,
+        ...BETA_AUDIO_RESOURCES.map(async ({ path, kind }) => {
+          if (!retry && this._resourceFailures.has(path)) return;
+          await this._prefetchAsset(path, AUDIO_TIMEOUTS[kind]);
+          this._notifyReadiness({ completed: true, label: `获取 ${path}` });
+        }),
+      ]);
+      if (this.ctx) {
+        this._preloadPhase = 'decoding';
+        await Promise.all(BETA_AUDIO_RESOURCES.map(async ({ path, kind }) => {
+          if (!this._assetBytesCache.has(path)) return;
+          await this._loadBuffer(path, kind === 'bgm' ? this._bgmCache : this._sfxCache);
+          this._notifyReadiness({ completed: true, label: `解码 ${path}` });
+        }));
+      }
+    }).catch((error) => {
+      // Keep fire-and-forget callers safe, but never turn an unexpected failure
+      // into a successful empty Promise. Expose a structured failure to the gate.
+      this._resourceFailures.set('preload', { path: 'preload', kind: 'system', stage: this._preloadPhase, message: String(error?.message || error), attempts: [] });
+    }).then(() => {
+      this._preloadActive = false;
+      const state = this._notifyReadiness();
+      observers.clear();
+      return state;
     });
-    const jobs = [
-      tracked(this._readManifest('bgm'), '读取 BGM 清单'),
-      tracked(this._readManifest('sfx'), '读取音效清单'),
-      // 进场加载阶段预取全部 BGM 字节（解码仍等首个手势后的 AudioContext），
-      // 避免进入游戏后切槽位才临时下载导致长时间程序合成兜底。
-      ...paths.map((path) => tracked(this._prefetchAsset(path, AUDIO_TIMEOUTS.bgm), `预载 ${path.split('/').pop()}`)),
-    ];
-    return Promise.allSettled(jobs).catch(() => []);
+    return this._preloadPromise;
+  }
+
+  /** Gate API: only resolves with all real bytes AND decoded buffers cached.
+   * Remains pending until external user-gesture ensure(); rejects with .state on
+   * resource failure. It never calls ensure()/resume(), even when muted.
+   */
+  whenReady(options = {}) {
+    this.preload(options);
+    if (!this._readyPromise) {
+      this._readyPromise = new Promise((resolve, reject) => { this._readySettlement = { resolve, reject }; });
+      this._notifyReadiness();
+    }
+    return this._readyPromise;
   }
 
   ensure() {
@@ -647,13 +822,14 @@ export class Audio {
       if (this.ctx.state === 'suspended') {
         this._resumeContext();
       }
+      if (this.isBeta && this._preloadStarted) this.preload();
       return true;
     }
     try {
       const AC = this.contextFactory || globalThis.window?.AudioContext || globalThis.window?.webkitAudioContext;
       if (!AC) return false;
       this.ctx = new AC();
-      this.buses = createAudioBuses(this.ctx);
+      this.buses = createAudioBuses(this.ctx, { isBeta: this.isBeta });
       this.master = this.buses.master;
       this.sfxBus = this.buses.sfx;
       this.bgmBus = this.buses.bgm;
@@ -665,6 +841,7 @@ export class Audio {
       if (this.ctx.state === 'suspended') {
         this._resumeContext();
       }
+      if (this.isBeta && this._preloadStarted) this.preload();
       return true;
     } catch (_) {
       this.enabled = false;
@@ -673,6 +850,7 @@ export class Audio {
   }
 
   _resumeContext() {
+    if (this.isBeta && this._pageHidden) return;
     try {
       const resumed = this.ctx?.resume?.();
       resumed?.catch?.(() => {});
@@ -681,12 +859,15 @@ export class Audio {
 
   _applySettings() {
     if (!this.buses) return;
-    // The old synthesizer's reference output is 0.32; 100% preserves that balance.
-    this.buses.master.gain.value = this.enabled ? 0.32 * (this.isBeta ? this.settings.masterVolume / 100 : 1) : 0;
-    this.buses.sfx.gain.value = this.isBeta
-      ? (this.settings.sfxEnabled ? this.settings.sfxVolume / 100 : 0)
-      : 1;
-    this.buses.bgm.gain.value = this.isBeta && this.settings.bgmEnabled ? this.settings.bgmVolume / 100 : 0;
+    const master = this.enabled && !this._pageHidden
+      ? (this.isBeta ? BETA_MASTER_REFERENCE_GAIN * this.settings.masterVolume / 100 : 0.32) : 0;
+    const sfx = this.isBeta ? (this.settings.sfxEnabled ? this.settings.sfxVolume / 100 : 0) : 1;
+    const bgm = this.isBeta && this.settings.bgmEnabled ? this.settings.bgmVolume / 100 : 0;
+    for (const [key, value] of Object.entries({ master, sfx, bgm })) {
+      if (this.isBeta) setAudioBusGain(this.buses[key].gain, value, this.ctx.currentTime, this._settingsApplied);
+      else this.buses[key].gain.value = value;
+    }
+    this._settingsApplied = true;
   }
 
   getAudioSettings() { return { ...this.settings }; }
@@ -694,7 +875,11 @@ export class Audio {
   setSettings(value, { persist = true } = {}) {
     if (!this.isBeta) return this.getAudioSettings();
     const managerWasEnabled = this._bgmManager?.enabled;
-    this.settings = normalizeAudioSettings({ ...this.settings, ...value });
+    const patch = { ...value };
+    for (const key of ['masterVolume', 'sfxVolume', 'bgmVolume']) {
+      if (Object.hasOwn(patch, key)) patch[key] = normalizeAudioVolume(patch[key], this.settings[key]);
+    }
+    this.settings = normalizeAudioSettings({ ...this.settings, ...patch });
     this._applySettings();
     if (persist) writeAudioSettings(this.settings, this.storage);
     if (this._bgmManager) {
@@ -718,7 +903,10 @@ export class Audio {
 
   /** 页面切后台/回来时由 main.js 调用；稳定版调用也是安全 no-op。 */
   handleVisibility(hidden) {
-    if (!this.isBeta || !this.ctx) return;
+    if (!this.isBeta) return;
+    this._pageHidden = !!hidden;
+    if (!this.ctx) return;
+    this._applySettings();
     if (hidden) {
       try { this.ctx.suspend?.().catch?.(() => {}); } catch (_) { /* best-effort */ }
     } else {
@@ -879,18 +1067,22 @@ export class Audio {
     const controller = Controller ? new Controller() : null;
     let timer;
     const timeout = new Promise((resolve) => {
-      timer = setTimeout(() => { controller?.abort(); resolve(null); }, timeoutMs);
+      timer = setTimeout(() => { this._requestFailures.set(url, { url, stage: 'fetch', message: 'timeout' }); controller?.abort(); resolve(null); }, timeoutMs);
     });
     try {
       const request = (async () => {
         const response = await this.fetchFn(url, {
           cache: 'force-cache', priority: 'low', signal: controller?.signal,
         });
-        if (!response?.ok) return null;
+        if (!response?.ok) {
+          this._requestFailures.set(url, { url, stage: 'fetch', message: `HTTP ${response?.status ?? 'error'}` });
+          return null;
+        }
         return await response[responseType]();
       })();
       return await Promise.race([request, timeout]);
-    } catch (_) {
+    } catch (error) {
+      this._requestFailures.set(url, { url, stage: 'fetch', message: String(error?.message || error) });
       return null;
     } finally {
       clearTimeout(timer);
@@ -899,19 +1091,39 @@ export class Audio {
 
   _fetchBetaBytes(url, timeoutMs) {
     if (this._audioBytesCache.has(url)) return this._audioBytesCache.get(url);
-    const promise = this._requestBetaUrl(url, timeoutMs, 'arrayBuffer').catch(() => null);
-    // 失败结果不缓存：一次性网络抖动不应让整个会话永久回退到程序合成。
-    promise.then((bytes) => { if (!bytes) this._audioBytesCache.delete(url); });
+    const promise = this._requestBetaUrl(url, timeoutMs, 'arrayBuffer').then((bytes) => {
+      if (bytes instanceof ArrayBuffer && bytes.byteLength > 0) return bytes;
+      if (bytes) this._requestFailures.set(url, { url, stage: 'fetch', message: 'empty or invalid audio bytes' });
+      return null;
+    }).catch(() => null);
+    promise.then((bytes) => { if (!bytes && this._audioBytesCache.get(url) === promise) this._audioBytesCache.delete(url); });
     this._audioBytesCache.set(url, promise);
     return promise;
   }
 
-  async _prefetchAsset(path, timeoutMs) {
-    for (const url of audioAssetCandidates(path, true)) {
-      const bytes = await this._fetchBetaBytes(url, timeoutMs);
-      if (bytes) return bytes;
-    }
-    return null;
+  _prefetchAsset(path, timeoutMs) {
+    if (this._assetBytesCache.has(path)) return Promise.resolve(this._assetBytesCache.get(path));
+    if (this._assetFetches.has(path)) return this._assetFetches.get(path);
+    const promise = (async () => {
+      const attempts = [];
+      for (const url of audioAssetCandidates(path, true)) {
+        const bytes = await this._fetchBetaBytes(url, timeoutMs);
+        if (bytes) {
+          const fetched = { bytes, url };
+          this._assetBytesCache.set(path, fetched);
+          this._resourceFailures.delete(path);
+          return fetched;
+        }
+        attempts.push({ ...this._requestFailures.get(url), url, stage: 'fetch' });
+      }
+      this._resourceFailures.set(path, {
+        path, kind: path.includes('/bgm/') ? 'bgm' : 'sfx', stage: 'fetch', message: 'No nonempty real audio bytes', attempts,
+      });
+      return null;
+    })();
+    this._assetFetches.set(path, promise);
+    promise.then(() => { if (this._assetFetches.get(path) === promise) this._assetFetches.delete(path); });
+    return promise;
   }
 
   async _loadBetaManifest(path, timeoutMs) {
@@ -923,23 +1135,41 @@ export class Audio {
   }
 
   _loadBetaBuffer(path, cache, timeoutMs) {
+    if (cache.has(path)) return cache.get(path);
     const promise = (async () => {
-      for (const url of audioAssetCandidates(path, true)) {
-        const bytesPromise = this._fetchBetaBytes(url, timeoutMs);
-        const bytes = await bytesPromise;
-        if (!bytes) continue;
+      const fetched = await this._prefetchAsset(path, timeoutMs);
+      if (!fetched) return null;
+      const attempts = [];
+      // Start with preloaded bytes, including a successful local fallback. Do
+      // not re-fetch a failed remote URL merely because a context now exists.
+      const urls = [fetched.url, ...audioAssetCandidates(path, true).filter((url) => url !== fetched.url)];
+      for (const url of urls) {
+        const bytes = url === fetched.url ? fetched.bytes : await this._fetchBetaBytes(url, timeoutMs);
+        if (!bytes) { attempts.push({ ...this._requestFailures.get(url), url, stage: 'fetch' }); continue; }
         try {
-          return await this.ctx.decodeAudioData(bytes);
-        } catch (_) {
-          // Bad MP3/decode results must not poison the session cache; the next
-          // slot visit can request fresh bytes and network recovery can succeed.
-          if (this._audioBytesCache.get(url) === bytesPromise) this._audioBytesCache.delete(url);
+          // decodeAudioData detaches its input in real browsers; retain the
+          // original fetched bytes for readiness, retries and cache consumers.
+          const buffer = await this.ctx.decodeAudioData(bytes.slice(0));
+          if (!buffer || buffer.__proceduralBgm || !Number.isFinite(buffer.duration) || buffer.duration <= 0) throw new Error('Invalid decoded audio buffer');
+          this._assetBytesCache.set(path, { bytes, url });
+          this._decodedResources.set(path, buffer);
+          this._resourceFailures.delete(path);
+          return buffer;
+        } catch (error) {
+          attempts.push({ url, stage: 'decode', message: String(error?.message || error) });
+          this._audioBytesCache.delete(url);
+          this._assetBytesCache.delete(path);
         }
       }
+      this._resourceFailures.set(path, {
+        path, kind: path.includes('/bgm/') ? 'bgm' : 'sfx', stage: 'decode', message: 'Real audio decode failed', attempts,
+      });
       return null;
-    })().catch(() => null);
-    // 解码/取数失败不缓存，下一次切换槽位时允许重试真实文件。
-    promise.then((buf) => { if (!buf && cache.get(path) === promise) cache.delete(path); });
+    })().catch((error) => {
+      this._resourceFailures.set(path, { path, kind: path.includes('/bgm/') ? 'bgm' : 'sfx', stage: 'decode', message: String(error?.message || error), attempts: [] });
+      return null;
+    });
+    promise.then((buffer) => { if (!buffer && cache.get(path) === promise) cache.delete(path); });
     cache.set(path, promise);
     return promise;
   }
@@ -994,14 +1224,19 @@ export class Audio {
       released = true;
       releaseSfxPlayback(name, this._reservations);
     };
-    if (!this.ensure()) {
+    const path = SFX_ASSETS[name];
+    const hasAsset = typeof path === 'string' && path.length > 0;
+    // Pure synthesis events (e.g. companionAlarm) have no manifest/file entry.
+    // Still ensure the context and hold the reservation for the original tones.
+    if (!this.ensure() || !hasAsset) {
       try { fallback(pan); } catch (_) { /* sound must never break gameplay */ }
       setTimeout(release, FALLBACK_HOLD_MS[name] || 300);
       return true;
     }
-    this._hasManifestAsset('sfx', name, SFX_ASSETS[name]).then((available) => {
-      if (!available) return null;
-      return this._loadBuffer(SFX_ASSETS[name], this._sfxCache);
+    const manifest = this._sfxCache.has(path) ? Promise.resolve(true) : this._hasManifestAsset('sfx', name, path);
+    manifest.catch(() => null).then(() => {
+      // The runtime inventory is authoritative; old/missing manifests are advisory.
+      return this._loadBuffer(path, this._sfxCache);
     }).then((buffer) => {
       if (!this.enabled || !this.settings.sfxEnabled) { release(); return; }
       const selected = selectSfxPlayback({ isBeta: this.isBeta, enabled: true, fileAvailable: !!buffer });

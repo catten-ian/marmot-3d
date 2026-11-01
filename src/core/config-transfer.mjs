@@ -10,7 +10,7 @@
  * 本模块不触碰 DOM / localStorage，node:test 可直接覆盖。
  */
 import { ACTIONS, normalizeControlMode } from './keybinds.js';
-import { normalizeAudioSettings } from '../systems/audio.js';
+import { normalizeAudioSettings, normalizeAudioVolume } from '../systems/audio.js';
 import { normalizeGraphicsPreference } from './graphics-preference.js';
 import { normalizeInputMode, INPUT_MODES } from './input-mode.mjs';
 import { normalizeSceneFilter } from './scene-filter-settings.mjs';
@@ -154,7 +154,7 @@ function sanitizeAudio(raw, warnings, ignored) {
     } else {
       const n = Number(value);
       if (typeof value !== 'number' || !Number.isFinite(n)) { warnings.push(`audio.${key} 非法，已忽略。`); continue; }
-      const next = clamp(n, 0, 100);
+      const next = normalizeAudioVolume(n);
       if (next !== n) warnings.push(`audio.${key} 越界，已钳制到 ${next}。`);
       out[key] = next;
     }
