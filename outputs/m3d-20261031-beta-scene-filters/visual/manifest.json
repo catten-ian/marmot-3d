@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-31T15:56:00.096Z",
+  "generatedAt": "2026-11-01T12:18:17.199Z",
   "command": "node tools/qa-scene-filters-managed.cjs",
-  "url": "http://127.0.0.1:8447/index.html?version=beta&webgl=1",
+  "url": "http://127.0.0.1:18769/index.html?version=beta&webgl=1",
   "renderer": {
     "backend": "WebGL2",
     "renderer": "WebGLRenderer",
@@ -19,7 +19,7 @@
       },
       "pipeline": {
         "passes": 0,
-        "bypasses": 5,
+        "bypasses": 6,
         "createdTargets": 0,
         "disposedTargets": 0,
         "resizeCount": 0,
@@ -50,7 +50,7 @@
       },
       "pipeline": {
         "passes": 1,
-        "bypasses": 7,
+        "bypasses": 8,
         "createdTargets": 1,
         "disposedTargets": 0,
         "resizeCount": 0,
@@ -117,11 +117,11 @@
         "intensity": 75
       },
       "pipeline": {
-        "passes": 13,
-        "bypasses": 0,
-        "createdTargets": 1,
-        "disposedTargets": 0,
-        "resizeCount": 1,
+        "passes": 145,
+        "bypasses": 24,
+        "createdTargets": 5,
+        "disposedTargets": 4,
+        "resizeCount": 6,
         "failures": 0,
         "allocated": true,
         "targetSize": [
@@ -146,11 +146,11 @@
       "aspect": 1.7777777777777777
     },
     "lifecycle": {
-      "passes": 102,
-      "bypasses": 17,
-      "createdTargets": 2,
-      "disposedTargets": 2,
-      "resizeCount": 2,
+      "passes": 233,
+      "bypasses": 41,
+      "createdTargets": 6,
+      "disposedTargets": 6,
+      "resizeCount": 7,
       "failures": 0,
       "allocated": false,
       "targetSize": null,
@@ -246,19 +246,19 @@
       "preset": "none",
       "intensity": 0,
       "frames": 15,
-      "meanFrameMs": 755.5266666666668,
-      "p95FrameMs": 816.6000000000022,
-      "fps": 1.3235800192360294,
+      "meanFrameMs": 711.0866666666659,
+      "p95FrameMs": 783.3000000000029,
+      "fps": 1.4062983415054908,
       "drawCalls": 7,
       "triangles": 992,
-      "textures": 14,
-      "geometries": 194,
+      "textures": 13,
+      "geometries": 181,
       "pipeline": {
-        "passes": 16,
-        "bypasses": 17,
-        "createdTargets": 1,
-        "disposedTargets": 1,
-        "resizeCount": 2,
+        "passes": 148,
+        "bypasses": 41,
+        "createdTargets": 5,
+        "disposedTargets": 5,
+        "resizeCount": 7,
         "failures": 0,
         "allocated": false,
         "targetSize": null,
@@ -277,19 +277,19 @@
       "preset": "natural",
       "intensity": 75,
       "frames": 15,
-      "meanFrameMs": 468.8733333333335,
-      "p95FrameMs": 500,
-      "fps": 2.1327721772760224,
+      "meanFrameMs": 439.97333333333273,
+      "p95FrameMs": 466.6000000000058,
+      "fps": 2.272865022122556,
       "drawCalls": 7,
       "triangles": 992,
-      "textures": 15,
-      "geometries": 195,
+      "textures": 14,
+      "geometries": 182,
       "pipeline": {
-        "passes": 33,
-        "bypasses": 17,
-        "createdTargets": 2,
-        "disposedTargets": 1,
-        "resizeCount": 2,
+        "passes": 165,
+        "bypasses": 41,
+        "createdTargets": 6,
+        "disposedTargets": 5,
+        "resizeCount": 7,
         "failures": 0,
         "allocated": true,
         "targetSize": [
@@ -311,19 +311,19 @@
       "preset": "clear",
       "intensity": 75,
       "frames": 15,
-      "meanFrameMs": 492.20666666666705,
-      "p95FrameMs": 533.3000000000029,
-      "fps": 2.03166691498151,
+      "meanFrameMs": 423.31333333333316,
+      "p95FrameMs": 466.6000000000058,
+      "fps": 2.362316329905351,
       "drawCalls": 7,
       "triangles": 992,
-      "textures": 15,
-      "geometries": 195,
+      "textures": 14,
+      "geometries": 182,
       "pipeline": {
-        "passes": 50,
-        "bypasses": 17,
-        "createdTargets": 2,
-        "disposedTargets": 1,
-        "resizeCount": 2,
+        "passes": 182,
+        "bypasses": 41,
+        "createdTargets": 6,
+        "disposedTargets": 5,
+        "resizeCount": 7,
         "failures": 0,
         "allocated": true,
         "targetSize": [
@@ -345,19 +345,19 @@
       "preset": "warm",
       "intensity": 75,
       "frames": 15,
-      "meanFrameMs": 466.65333333333353,
-      "p95FrameMs": 483.40000000000146,
-      "fps": 2.1429183690962588,
+      "meanFrameMs": 434.4200000000002,
+      "p95FrameMs": 450,
+      "fps": 2.301919801114128,
       "drawCalls": 7,
       "triangles": 992,
-      "textures": 15,
-      "geometries": 195,
+      "textures": 14,
+      "geometries": 182,
       "pipeline": {
-        "passes": 68,
-        "bypasses": 17,
-        "createdTargets": 2,
-        "disposedTargets": 1,
-        "resizeCount": 2,
+        "passes": 199,
+        "bypasses": 41,
+        "createdTargets": 6,
+        "disposedTargets": 5,
+        "resizeCount": 7,
         "failures": 0,
         "allocated": true,
         "targetSize": [
@@ -379,19 +379,19 @@
       "preset": "cool",
       "intensity": 75,
       "frames": 15,
-      "meanFrameMs": 469.9800000000003,
-      "p95FrameMs": 500,
-      "fps": 2.127750117026255,
+      "meanFrameMs": 438.8800000000008,
+      "p95FrameMs": 466.6999999999971,
+      "fps": 2.2785271600437436,
       "drawCalls": 7,
       "triangles": 992,
-      "textures": 15,
-      "geometries": 195,
+      "textures": 14,
+      "geometries": 182,
       "pipeline": {
-        "passes": 85,
-        "bypasses": 17,
-        "createdTargets": 2,
-        "disposedTargets": 1,
-        "resizeCount": 2,
+        "passes": 216,
+        "bypasses": 41,
+        "createdTargets": 6,
+        "disposedTargets": 5,
+        "resizeCount": 7,
         "failures": 0,
         "allocated": true,
         "targetSize": [
@@ -413,19 +413,19 @@
       "preset": "verdant",
       "intensity": 75,
       "frames": 15,
-      "meanFrameMs": 464.4266666666663,
-      "p95FrameMs": 500,
-      "fps": 2.1531924666972917,
+      "meanFrameMs": 427.76666666666665,
+      "p95FrameMs": 450.1000000000058,
+      "fps": 2.33772305774176,
       "drawCalls": 7,
       "triangles": 992,
-      "textures": 15,
-      "geometries": 195,
+      "textures": 14,
+      "geometries": 182,
       "pipeline": {
-        "passes": 102,
-        "bypasses": 17,
-        "createdTargets": 2,
-        "disposedTargets": 1,
-        "resizeCount": 2,
+        "passes": 233,
+        "bypasses": 41,
+        "createdTargets": 6,
+        "disposedTargets": 5,
+        "resizeCount": 7,
         "failures": 0,
         "allocated": true,
         "targetSize": [
@@ -455,6 +455,318 @@
       "preset": "warm",
       "intensity": 63,
       "expected": "filter selector and strength control visible; menu/HUD remain readable",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-390x844-none-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        390,
+        844
+      ],
+      "preset": "none",
+      "intensity": 0,
+      "backend": "WebGL2",
+      "expected": "rev58-equivalent direct path, crisp HUD",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-390x844-natural-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        390,
+        844
+      ],
+      "preset": "natural",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-390x844-clear-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        390,
+        844
+      ],
+      "preset": "clear",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-390x844-warm-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        390,
+        844
+      ],
+      "preset": "warm",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-390x844-cool-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        390,
+        844
+      ],
+      "preset": "cool",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-390x844-verdant-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        390,
+        844
+      ],
+      "preset": "verdant",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-768x1024-none-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        768,
+        1024
+      ],
+      "preset": "none",
+      "intensity": 0,
+      "backend": "WebGL2",
+      "expected": "rev58-equivalent direct path, crisp HUD",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-768x1024-natural-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        768,
+        1024
+      ],
+      "preset": "natural",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-768x1024-clear-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        768,
+        1024
+      ],
+      "preset": "clear",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-768x1024-warm-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        768,
+        1024
+      ],
+      "preset": "warm",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-768x1024-cool-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        768,
+        1024
+      ],
+      "preset": "cool",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-768x1024-verdant-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        768,
+        1024
+      ],
+      "preset": "verdant",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1280x720-none-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1280,
+        720
+      ],
+      "preset": "none",
+      "intensity": 0,
+      "backend": "WebGL2",
+      "expected": "rev58-equivalent direct path, crisp HUD",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1280x720-natural-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1280,
+        720
+      ],
+      "preset": "natural",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1280x720-clear-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1280,
+        720
+      ],
+      "preset": "clear",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1280x720-warm-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1280,
+        720
+      ],
+      "preset": "warm",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1280x720-cool-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1280,
+        720
+      ],
+      "preset": "cool",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1280x720-verdant-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1280,
+        720
+      ],
+      "preset": "verdant",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1920x1080-none-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "preset": "none",
+      "intensity": 0,
+      "backend": "WebGL2",
+      "expected": "rev58-equivalent direct path, crisp HUD",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1920x1080-natural-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "preset": "natural",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1920x1080-clear-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "preset": "clear",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1920x1080-warm-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "preset": "warm",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1920x1080-cool-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "preset": "cool",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
+      "observed": "captured; visual review recorded separately"
+    },
+    {
+      "file": "normal-1920x1080-verdant-75.png",
+      "scene": "normal FPV; origin; fixed seed/camera",
+      "viewport": [
+        1920,
+        1080
+      ],
+      "preset": "verdant",
+      "intensity": 75,
+      "backend": "WebGL2",
+      "expected": "visible scene-only grading; crisp unchanged HUD; no black screen",
       "observed": "captured; visual review recorded separately"
     },
     {
@@ -528,364 +840,23 @@
       "intensity": 75,
       "expected": "identical shared scene grading; PAF HUD unfiltered",
       "observed": "captured; visual review recorded separately"
-    },
-    {
-      "file": "normal-1280x720-clear-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1280,
-        720
-      ],
-      "preset": "clear",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1280x720-cool-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1280,
-        720
-      ],
-      "preset": "cool",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1280x720-natural-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1280,
-        720
-      ],
-      "preset": "natural",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1280x720-none-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1280,
-        720
-      ],
-      "preset": "none",
-      "intensity": 0,
-      "backend": "WebGL2",
-      "expected": "rev58-equivalent direct path",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1280x720-verdant-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1280,
-        720
-      ],
-      "preset": "verdant",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1280x720-warm-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1280,
-        720
-      ],
-      "preset": "warm",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1920x1080-clear-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1920,
-        1080
-      ],
-      "preset": "clear",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1920x1080-cool-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1920,
-        1080
-      ],
-      "preset": "cool",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1920x1080-natural-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1920,
-        1080
-      ],
-      "preset": "natural",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1920x1080-none-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1920,
-        1080
-      ],
-      "preset": "none",
-      "intensity": 0,
-      "backend": "WebGL2",
-      "expected": "rev58-equivalent direct path",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1920x1080-verdant-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1920,
-        1080
-      ],
-      "preset": "verdant",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-1920x1080-warm-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        1920,
-        1080
-      ],
-      "preset": "warm",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-390x844-clear-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        390,
-        844
-      ],
-      "preset": "clear",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-390x844-cool-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        390,
-        844
-      ],
-      "preset": "cool",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-390x844-natural-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        390,
-        844
-      ],
-      "preset": "natural",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-390x844-none-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        390,
-        844
-      ],
-      "preset": "none",
-      "intensity": 0,
-      "backend": "WebGL2",
-      "expected": "rev58-equivalent direct path",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-390x844-verdant-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        390,
-        844
-      ],
-      "preset": "verdant",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-390x844-warm-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        390,
-        844
-      ],
-      "preset": "warm",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-768x1024-clear-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        768,
-        1024
-      ],
-      "preset": "clear",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-768x1024-cool-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        768,
-        1024
-      ],
-      "preset": "cool",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-768x1024-natural-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        768,
-        1024
-      ],
-      "preset": "natural",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-768x1024-none-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        768,
-        1024
-      ],
-      "preset": "none",
-      "intensity": 0,
-      "backend": "WebGL2",
-      "expected": "rev58-equivalent direct path",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-768x1024-verdant-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        768,
-        1024
-      ],
-      "preset": "verdant",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
-    },
-    {
-      "file": "normal-768x1024-warm-75.png",
-      "scene": "normal FPV; fixed origin/camera",
-      "viewport": [
-        768,
-        1024
-      ],
-      "preset": "warm",
-      "intensity": 75,
-      "backend": "WebGL2",
-      "expected": "visible scene-only grading; crisp HUD; no black screen",
-      "observed": "captured and visually reviewed in contact sheet"
     }
   ],
-  "errors": [
-    "Failed to load resource: the server responded with a status of 404 (Not Found)",
-    "Failed to load resource: the server responded with a status of 404 (Not Found)",
-    "Failed to load resource: the server responded with a status of 404 (Not Found)"
-  ],
+  "errors": [],
   "exceptions": [],
   "warnings": [],
-  "httpErrors": [
-    {
-      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/manifest.json",
-      "status": 404
-    },
-    {
-      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/manifest.json",
-      "status": 404
-    },
-    {
-      "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/manifest.json",
-      "status": 404
-    }
-  ],
+  "httpErrors": [],
   "audioResponses": [
     {
       "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/manifest.json",
-      "status": 404
-    },
-    {
-      "url": "http://127.0.0.1:8447/assets/audio/elevenlabs/sfx/manifest.json",
       "status": 200
     },
     {
       "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/manifest.json",
-      "status": 404
-    },
-    {
-      "url": "http://127.0.0.1:8447/assets/audio/elevenlabs/sfx/manifest.json",
       "status": 200
     },
     {
       "url": "https://marmot.tos-cn-shanghai.volces.com/audio/elevenlabs/sfx/manifest.json",
-      "status": 404
-    },
-    {
-      "url": "http://127.0.0.1:8447/assets/audio/elevenlabs/sfx/manifest.json",
       "status": 200
     },
     {
@@ -895,19 +866,7 @@
   ],
   "localPafHttp": {
     "status": 200,
-    "contentLength": null
+    "contentLength": "2880618"
   },
-  "result": "PASS_WITH_EXTERNAL_SFX_MANIFEST_404",
-  "visualReview": {
-    "contactSheet": "contact-sheet.png",
-    "reviewedScreenshots": 31,
-    "removedPreset": "legacy black and white preset absent from settings, shader and final captures",
-    "observations": [
-      "Natural scene remains visible at all four viewport sizes.",
-      "Presets show coordinated contrast, saturation, highlight shoulder and shadow lift differences rather than only temperature shifts.",
-      "HUD, crosshair and menu text retain their original UI colors and remain readable.",
-      "No black screen or obvious resize target mismatch observed in captured matrix.",
-      "The placeholder model notice is a local test asset/path limitation and is unrelated to filter grading."
-    ]
-  }
+  "result": "PASS"
 }
