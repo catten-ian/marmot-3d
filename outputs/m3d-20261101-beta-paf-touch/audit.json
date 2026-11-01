@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-01",
+  "job": "/home/fame/code/marmot3d/m3d-beta-paf-input-20261030",
+  "branch": "fix/beta-paf-input-20261030",
+  "initialHead": "c3d017601541155336813848edf239662cf5d96d",
+  "initialUntrackedPreserved": [
+    ".codex-cli-write.lock",
+    ".codex-lock.d/",
+    "outputs/m3d-20261031-beta-paf-release-attack/qa-results-partial.json"
+  ],
+  "taskBoardMissing": "/home/fame/.openclaw/tasks/marmot3d/active/m3d-20261030-beta-paf-input.md",
+  "audited": [
+    "src/play/play-as-fox.js",
+    "src/core/paf-input.js",
+    "src/core/paf-pounce.js",
+    "src/core/touch-controls.js",
+    "src/ui/touch-layout.js",
+    "src/play/play-as-fox-debug.js",
+    "styles.css",
+    "tools/test-paf-input-route.cjs",
+    "tools/test-paf-pounce.cjs",
+    "tools/test-touch-pointers.cjs",
+    "tools/qa-paf-release-attack.cjs",
+    "tools/qa-paf-fpv-managed.cjs",
+    "outputs/m3d-20261030-beta-paf-input-report.md"
+  ],
+  "baselineFocusedTests": {
+    "passed": 73,
+    "failed": 0,
+    "skipped": 0
+  },
+  "baselineFindings": [
+    "Gold 3D capsule preview only in held wind; release immediately disposes it",
+    "Normal drive and steering gated on idle, so attack hold freezes locomotion",
+    "Touch look yaw callback inverted and pitch discarded",
+    "FPV wind camera damping fights manual look",
+    "wind and lunge both use the largest hearing radius and noise coefficient",
+    "releaseAll emits ordinary release, so blur can commit an attack before the PAF blur listener",
+    "Touch compatibility pointer IDs can collide with other active touch identifiers",
+    "PAF CSS hides overlay.on but actual ordinary pause overlay uses hidden property"
+  ],
+  "cleanup": {
+    "privatePortsClosed": [
+      8397,
+      9497,
+      8398,
+      9498
+    ],
+    "chromeProcessRemaining": false,
+    "profiles": "private profiles removed by harness after owned Chrome exit"
+  }
+}

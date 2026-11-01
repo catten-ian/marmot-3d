@@ -38,7 +38,7 @@ export function pafDirectionFromInput({
       // that is the fox's right and therefore a negative local yaw offset.
       x = -ax; z = az; source = 'touch';
     } else {
-      x = Math.sin(yaw); z = Math.cos(yaw); source = 'fallback';
+      return { x: Math.sin(yaw), z: Math.cos(yaw), yaw, localX: 0, localZ: 1, offset: 0, requestedOffset: 0, magnitude: 0, source: 'fallback' };
     }
   }
   const magnitude = Math.hypot(x, z);
@@ -112,6 +112,12 @@ export function pafInputBlocked({ running = true, paused = false, settingsOpen =
 /** Shared startPounce gate: no actions may begin while stopped, paused, in settings, or mid-phase. */
 export function pafCanStartPounce({ running = true, paused = false, settingsOpen = false, phase = 'idle' } = {}) {
   return !pafInputBlocked({ running, paused, settingsOpen }) && phase === 'idle';
+}
+
+/** Compatibility pointer IDs and Touch identifiers are separate namespaces. */
+export function pafChargeCanceledByPointer(heldPointer, { pointerId, pointerType } = {}, useTouchEvents = false) {
+  if (useTouchEvents && (pointerType === 'touch' || pointerType === 'pen')) return false;
+  return heldPointer != null && (heldPointer === pointerId || (heldPointer === 'mouse' && pointerType === 'mouse'));
 }
 
 /** Clear held keyboard/touch state at pause and mode exit so no input survives release. */
@@ -212,31 +218,35 @@ export class PafInputRoute {
     this.controller = null;
   }
   get active() { return !!this.snapshot; }
-  activate({ onAction, onLook, lookSensitivity = 0.006 } = {}) {
+  activate({ onAction, onLook, onPitch, onCancel, lookSensitivity = 0.006 } = {}) {
     if (this.active || !this.touchControls) return false;
     const tc = this.touchControls;
     this.snapshot = {
       controller: tc.controller, onAction: tc.onAction,
-      onParryGesture: tc.onParryGesture, onRollGesture: tc.onRollGesture,
+      onParryGesture: tc.onParryGesture, onRollGesture: tc.onRollGesture, onCancel: tc.onCancel,
     };
     tc.releaseAll();
     let yaw = 0;
     const route = this;
     this.controller = {
+      pafInputRoute: true,
       touchEnabled: !!tc.applied && !!tc.enabled,
       touchAxes: tc.move,
       touchSprint: false,
       touchLookActive: false,
       touchLookSensitivity: lookSensitivity,
-      pitch: 0,
+      // Relative pitch accumulator: the consumer owns its configured FPV clamp.
+      get pitch() { return 0; },
+      set pitch(delta) { onPitch?.(delta); },
       get yaw() { return yaw; },
       set yaw(next) {
         const previous = yaw;
         yaw = next;
         // TouchControls 向右拖会减小 yaw；与藏狐鼠标右移的 yaw -= 约定一致。
-        onLook?.(previous - next);
+        onLook?.(next - previous);
       },
     };
+    tc.onCancel = onCancel;
     tc.controller = this.controller;
     tc.onAction = (action, pressed, pointerId, gesture) => {
       if (route.active) onAction?.(action, pressed, pointerId, gesture);
@@ -257,6 +267,7 @@ export class PafInputRoute {
     tc.onAction = saved.onAction;
     tc.onParryGesture = saved.onParryGesture;
     tc.onRollGesture = saved.onRollGesture;
+    tc.onCancel = saved.onCancel;
     tc.controller.touchEnabled = !!tc.applied && !!tc.enabled;
     tc.controller.touchAxes = tc.move;
     tc.controller.touchSprint = false;

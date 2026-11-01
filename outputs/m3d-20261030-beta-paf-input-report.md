@@ -190,3 +190,85 @@ node tools/qa-paf-release-attack.cjs
 - 早期失败的 `qa-results-partial.json` 仅为调试过程产物，不作为通过证据、未 stage；最终 `qa-results.json` 才是本轮结果。
 - `git diff --check` / staged diff check 通过；`.codex-lock.d/` 与 `.codex-cli-write.lock` 保留且未 stage。push、PR、deploy 均未执行。
 - 主控独立复核尚未执行，本报告不宣称主控验收已通过。
+
+## 2026-11-01 本轮触屏 / FPV / 扑击预览修复
+
+本节取代此前“松开即销毁预览”和“wind 禁止移动”的记录。本轮唯一工作区为 `/home/fame/code/marmot3d/m3d-beta-paf-input-20261030`，分支 `fix/beta-paf-input-20261030`，启动 HEAD 为 `c3d017601541155336813848edf239662cf5d96d`。启动时的 `.codex-cli-write.lock`、`.codex-lock.d/` 及旧 `outputs/m3d-20261031-beta-paf-release-attack/qa-results-partial.json` 均保留且不 stage；没有 reset/clean/stash。指定任务板 `/home/fame/.openclaw/tasks/marmot3d/active/m3d-20261030-beta-paf-input.md` 在本机不存在，未创建替代任务板。RUN 目录可读写。
+
+### 审计与前后行为
+
+实现前已审计 PAF 主循环、输入适配、相机/扑击纯函数、共享 TouchControls/TouchLayout、PAF debug、`styles.css`、现有 PAF Node 测试和浏览器 QA。基线 PAF 聚焦测试为 **73 passed / 0 failed / 0 skipped**；它们未覆盖本次多指、俯仰、移动蓄力和持续预览缺陷。审计记录见 `outputs/m3d-20261101-beta-paf-touch/audit.json`。真实页面修复前截图与输入轨迹保存在该目录的 `baseline/`，不是人工 fixture。
+
+| 用户要求 | 原行为 | 本轮行为 |
+|---|---|---|
+| 按住与松手后的范围 | 黄色实体 3D capsule，只有 wind 可见，松手立即 dispose | `#9fd8ff` / opacity `0.28`；wind 随角色和朝向移动，释放锁定起点，lunge 与完整 recover 保留，返回 idle 才移除并 dispose；命中和落空共用同一生命周期 |
+| 实际几何 | capsule 只表达水平包络，未裁掉腾空高度不允许命中的部分 | 朝向相关的前向扫掠区域；从后半段路径生成，使用实际严格水平半径、地形、腾空高度和垂直窗口裁剪，填充区每个网格顶点与三角中心都须通过同一个捕获谓词；保守网格略去边缘，不扩大半径 |
+| FPV 触屏视角 | 右拖回调反号、pitch 丢失，wind 自动回正对抗手势；移动方向与视线分离 | 修正 yaw 符号并接入 pitch；触屏 FPV 的身体/前进朝向跟随 look，摇杆横轴继续坦克转向，纵轴前后移动；wind 不抢手势，腾空仍按锁定路径飞行，look 指持有时允许自由观察 |
+| 静止准备噪声 | wind 与腾空共用 `17m / 1.5` 最高噪声 | 静止 wind 使用独立 `hearRadiusPrepare=0.9m`、`noiseCoefPrepare=0.12`，并钳到潜行参数的一半以内；默认潜行为 `3m / 0.45`。实际位移速度 `<0.02m/s` 才属于静止准备；移动 wind 与 lunge 保留 `17m / 1.5`，冲刺保留 `9m / 1.0`，恢复沿用潜行/冲刺档 |
+| 按住不中断移动 | drive 和 steering 只允许 idle | idle、wind 都使用同一坦克式 drive；攻击 pointer 只控制 charge；释放时取当前有效朝向与当前位置，速度仍为原 `13.5m/s`、腾空 `0.42s`，没有继承额外加速、扩大半径或冻结角色 |
+| cancel/blur/退出 | 普通 releaseAll 可能先提交攻击；兼容 pointerId 与 touch identifier 可能误撞；普通暂停遮罩可遮住 PAF | PAF 路由独立接收取消回调；仅 PAF 的 Touch Events 路径忽略兼容 pointer 结束事件；取消不会提交；blur/hidden 清空键和触控，退出先取消再恢复路由；PAF CSS 按真实 `.overlay` 类隐藏普通暂停遮罩 |
+
+静止准备仍可被猎物视觉感知，不等于隐身。移动准备和实际扑击没有获得安静奖励。预览是目标保持当前位置时的预测，目标随后自主移动/逃跑会改变结果；填充区域没有强制捕获副作用。范围在 recover 中保留作为本次攻击覆盖的回顾，recover 不再执行捕获。目标高亮在恢复期隐藏，已捕获目标不继续显示标记。
+
+### 改动文件与边界
+
+- `src/core/paf-input.js`：修正触屏 yaw/pitch 接线，PAF cancel 与兼容 pointer 隔离守卫随路由启用/还原；无输入时不重复叠加非零 yaw。
+- `src/core/paf-pounce.js`：样式、生命周期、方向性水平包络、地形填充网格；实际捕获与填充预览共用 `pafPounceCatchSample` / `pafPounceCatchSampleHits`，内部保持既有 `canCatch` 严格半径/垂直窗口与固定后半段时间窗口。
+- `src/core/paf-noise.js`：PAF 专用静止准备噪声策略和对既有感知积分器的参数适配，不修改共享 predator-prey/SmartFox 逻辑。
+- `src/core/touch-controls.js`：可选 cancel 回调与 PAF 路由的 pointer 命名空间守卫；没有 PAF 路由/取消回调时仍走原普通模式 release 回调。
+- `src/play/play-as-fox.js`：移动蓄力、释放方向、FPV 手势、预览生命周期/固定 GPU 缓冲复用、取消清理、PAF 专用遮罩 CSS、只读 QA 状态。桌面键鼠的方向选择、hold/release、repeat 去重和 wind 相机回正语义保留。
+- `src/play/play-as-fox-debug.js`：显示与实际相同的噪声半径；攻击辅助线改为有朝向的水平包络，填充区另通过垂直判定；增加静止准备参数说明。
+- `tools/test-paf-touch-contract.cjs`：8 个新增测试，覆盖静止/移动/腾空噪声、几何/垂直裁剪、生命周期、非零朝向 fallback、实际 TouchControls 三角色并行/取消/还原和普通模式兼容。
+- `tools/qa-paf-touch-input.cjs`：独立私有 Chrome/CDP + 本地静态服务，真实生产页面多指事件、键鼠、自然追猎及截图/错误/事件轨迹。
+- `tools/qa-paf-release-attack.cjs`：原 quick-tap 断言改为新规格的“飞行和恢复期预览仍在，完成后消失”，捕获/一次计分断言保留。该旧脚本有 teleport/静止猎物 fixture，本轮不执行它作为通过证据。
+- 本报告及 `outputs/m3d-20261101-beta-paf-touch/`：本轮审计、基线、最终截图与 JSON。
+
+未修改 TouchLayout、全局 `styles.css`、`src/main.js`、index-public.html、public shell、version stamp、dev、SmartFox、Caddy 或 systemd。没有 push、PR、deploy 或线上配置操作。没有降低画质、限帧、跳渲染或修改猎物速度/捕获半径来促成通过。
+
+### 确定性验证
+
+所有 9 个修改/新增 JS/CJS 文件逐一 `node --check` 通过，0 失败。精确文件清单及结果：`/home/fame/codex-runs/m3d-20261030-beta-paf-input/touch-syntax-final-20261101.log`。
+
+```text
+node --test tools/test-paf-input-route.cjs tools/test-paf-pounce.cjs tools/test-paf-camera.cjs tools/test-paf-entry.cjs tools/test-paf-rock-collision.cjs tools/test-paf-fpv-viewmodel.cjs tools/test-paf-admin-sync.test.cjs tools/test-paf-evasion.cjs tools/test-paf-prey-mind.cjs tools/test-paf-audio-settings.test.cjs tools/test-paf-touch-contract.cjs
+81 passed, 0 failed, 0 skipped
+
+node tools/run-node-tests.cjs
+95/95 Node test files passed, 0 failed; 22 browser/CDP test files skipped
+```
+
+22 个 skip 不计入通过。日志在 RUN 的 `touch-focused-final-20261101.log`、`touch-node-final-20261101.log`。共享接线回归在真正的 TouchControls 类和最小 DOM 桩上驱动 touchstart/move/end/cancel，并确认恢复普通 controller/回调后，普通取消和 releaseAll 仍发原有 release；PAF 兼容 pointer 结束事件不能释放同号的另一根 touch。
+
+### 最终真实页面验收
+
+执行命令：
+
+```text
+node tools/qa-paf-touch-input.cjs
+PAF_CANCEL_ONLY=1 PAF_RELEASE_QA_PORT=8398 CDP_PORT=9498 node tools/qa-paf-touch-input.cjs
+```
+
+结果：主矩阵 **20/20 passed**，补充最终代码上的 pointer identity / cancel **2/2 passed**，合计 **22 个浏览器检查通过、0 失败**。主矩阵日志：`/home/fame/codex-runs/m3d-20261030-beta-paf-input/touch-browser-final-20261101.log`；补充日志：同目录 `touch-cancel-final-20261101.log`。
+
+证据目录：`outputs/m3d-20261101-beta-paf-touch/`。
+
+- `after/qa-results.json`：主矩阵完整场景、计数、方向/速度/相机/噪声状态、渲染后端、错误与 80 条实际 CDP Input 命令；另记录页面收到的 62 条移动端及 2 条桌面原生 pointer/touch 事件。
+- `cancel/qa-results.json`：补充最终取消验证，8 条 CDP 输入命令及 18 条页面原生事件。轨迹明确显示移动 native `pointerId=3` 的释放与攻击 Touch `identifier=3` 同号，但攻击仍 held/wind；随后真实 `touchCancel` 产生 pointercancel 并清空全部角色和预览。单指取消的命名空间守卫另有 Node 测试，CDP touchCancel 本身只接受取消全部触点。
+- `baseline/qa-results.json` 与 `baseline/*.png`：启动前行为和初步 CDP 轨迹；初版单指 touchEnd 参数随后依据浏览器实际 emitted 事件修正，最终矩阵使用被释放手指列表，不用初版 release 断言作为通过证据。
+- `after/390x844-fpv-hold.png`、`after/390x844-fpv-release-in-flight.png`、`after/390x844-fpv-completed.png`：390×844 CSS px / DPR2 的真实 FPV 页面，分别为按住、松手腾空、完成。截图 PNG 为 780×1688；飞行截图 HUD 明确为“扑击！”，范围仍可见，完成图不再有范围。
+- `after/390x844-tps-hold.png`、`after/390x844-tps-release-in-flight.png`、`after/390x844-tps-completed.png`：同窄屏真实 TPS 对照。
+- `after/1280x720-natural-catch-preview.png`：正常游戏追猎成功截图。只使用实际 CDP 键盘输入潜行/冲刺、转向和松手扑击；没有 teleport、猎物位置/速度修改、强制命中或半径调大。真实 score 从 0 到 1，首次记录成功时为 `lunge` 且预览 active；随后完成恢复为 idle / preview=false。
+
+主矩阵还验证：三指并行；蓄力移动位移与可见朝向一致；真实相机 world direction 与 yaw/pitch 一致；上下左右 look、−55° pitch 下界和夹紧后立即反向；松开摇杆不释放攻击；仅松开攻击后摇杆与 look 保留；释放后的实际路径速度保持 13.5m/s；静止准备与移动/腾空噪声；落空的完整清理；blur、暂停与退出重进无 held pointer/preview 残留；桌面键盘和鼠标 hold/release 不回归。新 quick-tap 规格没有削弱捕获和一次计分断言。
+
+两次运行均为 **0 console errors、0 Runtime exceptions、0 非预期 HTTP errors**。静态服务不提供后台 API：主矩阵记录 4 个预期 404，补充运行记录 2 个预期 404，均只涉及 `/api/configs/active` 和 `/marmot3d-beta/api/auth/guest`，完整响应保存在 JSON 中，没有隐去或当作资源成功。
+
+渲染后端均为 **WebGLRenderer / ANGLE Vulkan SwiftShader Device (Subzero)**；移动端 `maxTouchPoints=5`，桌面 `maxTouchPoints=0`。这是私有 headless Chrome 的软件渲染和触控仿真，不是物理手机。主服务/CDP 为 8397/9497，补充服务/CDP 为 8398/9498；未连接共享 18800。终审 `ss` 确认四个自管端口均无监听，未剩余私有 Chrome 进程，脚本删除了各自临时 profile。`git diff --check` 通过。
+
+中间追猎策略未抓到猎物及初版方向断言的失败记录保留在 RUN；最终运行仅修正 QA 输入策略和左拖方向预期，游戏参数与断言要求没有放宽。本轮需求没有剩余未实现项；下方是环境验证限制。
+
+### 剩余限制
+
+物理手机、多指触控硬件及硬件 GPU 未验证；Chrome 触控仿真和 SwiftShader 软件渲染不能作为真实手机或硬件 GPU 通过。范围采用保守的离散地形网格和 65 个有效时间采样，因此边缘略有阶梯/内缩；没有扩大真实攻击范围。猎物模型截图中的“仅几何（贴图不可用）”提示是本环境现有资源表现，本轮未改模型或渲染预算。
+
+独立浏览器与静态服务由脚本创建、关闭；私有临时 profile 删除。最终交付仅本地提交，提交 SHA 在交付回复中给出。主控独立验收未执行，不宣称已获主控验收。

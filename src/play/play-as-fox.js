@@ -25,6 +25,7 @@ import {
   createViewModeState, enterFpvLook, applyLookDelta, dampLookToward,
   tpsCameraPose, fpvCameraPose,
 } from '../core/paf-camera.js';
+import { pafNoiseState, pafNoiseConfig } from '../core/paf-noise.js';
 import { terrainHeight } from '../core/utils.js';
 import { moveBounds } from '../core/config.js';
 import {
@@ -35,11 +36,11 @@ import {
 } from '../core/predator-prey.js';
 import {
   isPafKey, pafKeyHeld, pafKeyboardDriveInput, pafDirectionFromInput, pafTankDriveFromInput,
-  pafInputBlocked, pafCanStartPounce, releasePafInput, PafPounceCharge, PafInputRoute,
+  pafInputBlocked, pafCanStartPounce, pafChargeCanceledByPointer, releasePafInput, PafPounceCharge, PafInputRoute,
 } from '../core/paf-input.js';
 import {
-  pafPounceProgress, pafPounceActiveAt, pafPounceAirHeight, pafPouncePathAt, pafPouncePreviewSegment,
-  pafPounceCanCatchAt, pafPouncePredictionHitsTarget,
+  pafPounceProgress, pafPounceActiveAt, pafPounceAirHeight, pafPouncePathAt,
+  pafPounceCanCatchAt, pafPouncePredictionHitsTarget, pafPounceGroundPreview, pafPouncePreviewActive, PAF_POUNCE_PREVIEW_STYLE, PAF_POUNCE_PREVIEW_GRID,
 } from '../core/paf-pounce.js';
 
 /** 扮演藏狐模式全部可调平衡数值（后台滑块直接改这里的运行时副本）。 */
@@ -76,6 +77,8 @@ export const PAF_DEFAULTS = {
   // A1 多线索察觉（距离衰减 × 视锥 × 速度/姿态 + 全向听觉代理）
   visionHalfAngleDeg: 60, // 视锥半角（全锥 120°）
   visionRadiusLunge: 13.0,// 扑击中视觉半径（扑击主要靠全向听觉被发现）
+  hearRadiusPrepare: 0.9, // 静止准备：轻微呼吸/蹲伏，严格小于潜行脚步
+  noiseCoefPrepare: 0.12, // 静止准备的独立听觉强度（移动准备仍为原威胁档）
   hearRadiusStalk: 3.0,   // 潜行脚步听觉半径
   hearRadiusSprint: 9.0,  // 冲刺听觉半径
   visionFalloffInner: 0.65, // 视觉半径该比例内满强度，外圈线性衰减到 0
@@ -213,11 +216,12 @@ class Prey {
     const dist = Math.hypot(toFoxX, toFoxZ) || 0.001;
     // A1：多线索察觉（距离衰减 × 视锥 × 速度/姿态 + 全向听觉；LOS 遮挡预留未接）
     const threatening = fox.phase === 'wind' || fox.phase === 'lunge';
-    const mode = threatening ? CUE_MODE.LUNGE : fox.sprint ? CUE_MODE.SPRINT : CUE_MODE.STALK;
+    const noise = pafNoiseState(fox, cfg);
+    const mode = noise.mode;
     const inCone = inViewCone(this.yaw, toFoxX, toFoxZ, deg2rad(cfg.visionHalfAngleDeg));
     const mind = stepPreyMind(
       { state: this.state, suspicion: this.suspicion, timer: this.timer },
-      { dist, inCone, mode, threatening }, dt, cfg, Math.random);
+      { dist, inCone, mode, threatening }, dt, pafNoiseConfig(noise, cfg), Math.random);
     this.state = mind.state; this.suspicion = mind.suspicion; this.timer = mind.timer;
 
     let speed = 0;
@@ -322,7 +326,7 @@ export function createPlayAsFox(ctx) {
   const fox = {
     x: 0, z: -6, y: 0, yaw: 0, vy: 0,
     phase: 'idle',                 // idle | wind | lunge | recover
-    phaseT: 0, sprint: false,
+    phaseT: 0, sprint: false, groundSpeed: 0,
     lungeYaw: 0, lungeStartX: 0, lungeStartZ: 0, airY: 0, windStartYaw: 0,
     get forward() { return { x: Math.sin(this.yaw), z: Math.cos(this.yaw) }; },
   };
@@ -372,7 +376,7 @@ export function createPlayAsFox(ctx) {
       body.play-as-fox #threatIndicator,
       body.play-as-fox #minimap,
       body.play-as-fox .minimap { display:none !important; }
-      body.play-as-fox #overlay.overlay.on { display:none !important; }
+      body.play-as-fox #overlay.overlay { display:none !important; }
       body.play-as-fox.touch-playing #touchControls { display:block; }
       /* 藏狐模式只保留藏狐语义的控件：土拨鼠专属动作键（啃草/爆发/大招）与
          主游戏暂停键在 PAF 下没有对应行为，必须隐藏，避免双套操作系统混显。 */
@@ -456,7 +460,9 @@ export function createPlayAsFox(ctx) {
   const settingsOpen = () => { const sheet = document.getElementById('setSheet'); return !!sheet && !sheet.hidden; };
   const inputBlocked = () => pafInputBlocked({ running, paused, settingsOpen: settingsOpen() });
 
+  let previewGeometryKey = null;
   function clearPouncePreview() {
+    previewGeometryKey = null;
     if (previewGroup) scene.remove(previewGroup);
     previewGeometry?.dispose?.(); previewMaterial?.dispose?.();
     previewGroup = null; previewGeometry = null; previewMaterial = null;
@@ -466,7 +472,7 @@ export function createPlayAsFox(ctx) {
 
   function previewTargetInRange(p, yaw) {
     return pafPouncePredictionHitsTarget({
-      startX: fox.x, startZ: fox.z, yaw,
+      startX: fox.phase === 'wind' ? fox.x : fox.lungeStartX, startZ: fox.phase === 'wind' ? fox.z : fox.lungeStartZ, yaw,
       lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, lungeHeight: cfg.lungeHeight,
       targetX: p.x, targetZ: p.z, catchRadius: cfg.catchRadius,
       catchFoxCenter: cfg.catchFoxCenter, catchVerticalTol: cfg.catchVerticalTol,
@@ -477,23 +483,31 @@ export function createPlayAsFox(ctx) {
   }
 
   function updatePouncePreview() {
-    if (!pounceCharge.active || fox.phase !== 'wind') { clearPouncePreview(); return; }
-    const seg = pafPouncePreviewSegment({ startX: fox.x, startZ: fox.z, yaw: fox.lungeYaw, lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, catchRadius: cfg.catchRadius });
-    clearPouncePreview();
-    const dx = seg.end.x - seg.start.x, dz = seg.end.z - seg.start.z;
-    const length = Math.hypot(dx, dz);
-    previewGeometry = new THREE.CapsuleGeometry(seg.radius, Math.max(0.01, length), 6, 24);
-    previewMaterial = new THREE.MeshBasicMaterial({ color: 0xffc857, transparent: true, opacity: 0.22, depthWrite: false, depthTest: true });
-    previewGroup = new THREE.Group();
-    previewGroup.userData.kind = 'pafPouncePreview';
-    const sweep = new THREE.Mesh(previewGeometry, previewMaterial);
-    sweep.rotation.x = Math.PI / 2;
-    sweep.rotation.z = Math.atan2(dx, dz);
-    sweep.position.set((seg.start.x + seg.end.x) / 2, terrainHeight(fox.x, fox.z) + 0.035, (seg.start.z + seg.end.z) / 2);
-    previewGroup.add(sweep);
-    scene.add(previewGroup);
+    if (!pafPouncePreviewActive(fox.phase)) { clearPouncePreview(); return; }
+    const startX = fox.phase === 'wind' ? fox.x : fox.lungeStartX;
+    const startZ = fox.phase === 'wind' ? fox.z : fox.lungeStartZ;
+    const geometryKey = [startX,startZ,fox.lungeYaw,cfg.lungeSpeed,cfg.lungeTime,cfg.lungeHeight,cfg.catchRadius,cfg.catchFoxCenter,cfg.catchVerticalTol,cfg.preyCenterHeight].join(',');
+    if (!previewGroup) {
+      previewGeometry = new THREE.BufferGeometry();
+      const capacity = PAF_POUNCE_PREVIEW_GRID.columns * PAF_POUNCE_PREVIEW_GRID.rows * 18;
+      previewGeometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(capacity), 3).setUsage(THREE.DynamicDrawUsage));
+      previewMaterial = new THREE.MeshBasicMaterial({ ...PAF_POUNCE_PREVIEW_STYLE, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+      previewGroup = new THREE.Group();
+      previewGroup.userData.kind = 'pafPouncePreview';
+      previewGroup.add(new THREE.Mesh(previewGeometry, previewMaterial));
+      scene.add(previewGroup);
+    }
+    if (geometryKey !== previewGeometryKey) {
+      const coords = pafPounceGroundPreview({ ...cfg, startX, startZ, yaw: fox.lungeYaw }, terrainHeight);
+      const positions = previewGeometry.getAttribute('position');
+      positions.array.set(coords); positions.needsUpdate = true;
+      previewGeometry.setDrawRange(0, coords.length / 3);
+      previewGeometry.computeBoundingSphere();
+      previewGeometryKey = geometryKey;
+    }
+    for (const mark of previewTargetMarks.values()) mark.visible = false;
     for (const p of prey) {
-      if (p.caught) continue;
+      if (p.caught || fox.phase === 'recover') continue;
       const inRange = previewTargetInRange(p, fox.lungeYaw);
       let mark = previewTargetMarks.get(p);
       if (inRange && !mark) {
@@ -510,12 +524,12 @@ export function createPlayAsFox(ctx) {
 
   function commitPounce(pointerId = 'default') {
     if (!pounceCharge.release(pointerId)) return false;
-    const selected = pafDirectionFromInput({ cameraYaw: viewMode.mode === 'fpv' ? look.yaw : fox.yaw, ...pafKeyboardDriveInput(binds, keys), axes: pafRoute.controller?.touchAxes || { x: 0, y: 0 }, arcDeg: cfg.pounceArcDeg });
-    if (selected.source !== 'fallback') fox.lungeYaw = selected.yaw;
+    const selected = pafDirectionFromInput({ cameraYaw: viewMode.mode === 'fpv' ? look.yaw : fox.yaw, ...pafKeyboardDriveInput(binds, keys), axes: isTouch ? null : pafRoute.controller?.touchAxes || { x: 0, y: 0 }, arcDeg: cfg.pounceArcDeg });
+    if (selected.source !== 'fallback' || isTouch) fox.lungeYaw = selected.yaw;
     fox.lungeStartX = fox.x; fox.lungeStartZ = fox.z;
     pounceCharge.reset();
-    clearPouncePreview();
     fox.phase = 'lunge'; fox.phaseT = 0;
+    updatePouncePreview();
     return true;
   }
 
@@ -571,8 +585,10 @@ export function createPlayAsFox(ctx) {
     keys.delete(e.code);
     if (isPafKey(binds, e.code, 'attack', ['Space'])) commitPounce(e.code);
   };
-  const onWindowBlur = () => { keys.clear(); cancelPounce(); };
+  const onWindowBlur = () => { cancelPounce(); releasePafInput({ keys, touchControls, touchState: touch }); };
+  const onVisibilityChange = () => { if (document.hidden) onWindowBlur(); };
   window.addEventListener('blur', onWindowBlur);
+  document.addEventListener('visibilitychange', onVisibilityChange);
   const mouseSensitivityScale = (ctx.mouseSensitivity || 0.0022) / 0.0022;
   const onMouseMove = (e) => {
     if (inputBlocked() || document.pointerLockElement !== canvas) return;
@@ -593,7 +609,7 @@ export function createPlayAsFox(ctx) {
   const onMouseUp = (e) => {
     if (e.button === 0) commitPounce('mouse');
   };
-  const onPointerCancel = () => cancelPounce();
+  const onPointerCancel = (event) => { if (pafChargeCanceledByPointer(pounceCharge.pointerId, event, touchControls?.useTouchEvents)) cancelPounce(); };
   const onCanvasClick = () => {
     if (inputBlocked()) return;
     if (!touchControls?.controller?.touchEnabled && document.pointerLockElement !== canvas && ctx.requestLock) ctx.requestLock();
@@ -627,7 +643,10 @@ export function createPlayAsFox(ctx) {
   };
   const onTouchLook = (delta) => {
     if (inputBlocked()) return;
-    if (viewMode.mode === 'fpv') look.yaw += delta;
+    if (viewMode.mode === 'fpv') {
+      look.yaw += delta;
+      if (fox.phase === 'idle' || fox.phase === 'wind') fox.yaw = look.yaw;
+    }
     else fox.yaw += delta;
   };
   const pafTouchLabelSnapshot = isTouch ? ['attack', 'dodge', 'jump'].map((action) => {
@@ -639,6 +658,8 @@ export function createPlayAsFox(ctx) {
     pafRoute.activate({
       onAction: touchAction,
       onLook: onTouchLook,
+      onPitch: (delta) => { if (!inputBlocked() && viewMode.mode === 'fpv') look.pitch = clamp(look.pitch + delta, cfg.fpvPitchMin * Math.PI / 180, cfg.fpvPitchMax * Math.PI / 180); },
+      onCancel: (action, pointerId) => { if (action === 'attack' && pounceCharge.pointerId === pointerId) cancelPounce(); if (action === 'dodge') touch.sprint = false; },
       lookSensitivity: cfg.fpvTouchLook,
     });
     document.body.classList.add('paf-touch-route');
@@ -671,7 +692,12 @@ export function createPlayAsFox(ctx) {
     // Keep pounce direction rooted in the pre-turn body facing, not the separate locomotion yaw step.
     const pounceCameraYaw = viewMode.mode === 'fpv' ? look.yaw : fox.yaw;
     const movement = pafTankDriveFromInput({ yaw: fox.yaw, keys: keyboardInput, axes, dt, turnRate: cfg.turnRate });
-    if (fox.phase === 'idle') fox.yaw = movement.yaw;
+    const preparing = fox.phase === 'idle' || fox.phase === 'wind';
+    const oldX = fox.x, oldZ = fox.z;
+    if (preparing) {
+      if (isTouch && viewMode.mode === 'fpv') look.yaw += movement.yaw - fox.yaw;
+      fox.yaw = movement.yaw;
+    }
     touch.throttle = movement.throttle;
     touch.turn = movement.turn;
     fox.sprint = keyboardSprint || touch.sprint || !!pafRoute.controller?.touchSprint;
@@ -680,12 +706,11 @@ export function createPlayAsFox(ctx) {
     // 相位推进；wind 期间方向持续跟随当前键盘/摇杆输入，提交时锁定该方向。
     if (fox.phase === 'wind') {
       fox.phaseT += dt;
-      const selected = pafDirectionFromInput({ cameraYaw: pounceCameraYaw, ...keyboardInput, axes, arcDeg: cfg.pounceArcDeg });
+      const selected = pafDirectionFromInput({ cameraYaw: isTouch ? fox.yaw : pounceCameraYaw, ...keyboardInput, axes: isTouch ? null : axes, arcDeg: cfg.pounceArcDeg });
       // Keep the last deliberate selection if the input is released during wind;
       // a committed pounce must not snap back to a cosmetic camera-forward marker.
-      if (selected.source !== 'fallback') fox.lungeYaw = selected.yaw;
+      if (selected.source !== 'fallback' || isTouch) fox.lungeYaw = selected.yaw;
       pounceCharge.step(dt);
-      updatePouncePreview();
     } else if (fox.phase === 'lunge') {
       fox.phaseT += dt;
       const t = clamp(fox.phaseT / cfg.lungeTime, 0, 1);
@@ -703,7 +728,7 @@ export function createPlayAsFox(ctx) {
 
     // 常规移动：W/S 或摇杆纵轴沿身体朝向前后；A/D 或横轴只改变朝向，绝不侧移。
     const throttle = movement.throttle;
-    if (fox.phase === 'idle' && Math.abs(throttle) > 1e-9) {
+    if (preparing && Math.abs(throttle) > 1e-9) {
       const sp = (fox.sprint ? cfg.runSpeed : cfg.stalkSpeed) * (movement.isBackpedal ? cfg.reverseSpeed : 1);
       fox.x += movement.x * sp * dt;
       fox.z += movement.z * sp * dt;
@@ -712,6 +737,8 @@ export function createPlayAsFox(ctx) {
     fox.z = clamp(fox.z, -bounds.hh, bounds.hh);
     pushOutCircles(fox, cfg.foxRadius ?? 0.5, rockColliders);
 
+    fox.groundSpeed = Math.hypot(fox.x - oldX, fox.z - oldZ) / Math.max(dt, 1e-6);
+    updatePouncePreview();
     const groundY = terrainHeight(fox.x, fox.z);
     fox.y = groundY + fox.airY;
     foxVisual.group.position.set(fox.x, fox.y, fox.z);
@@ -749,7 +776,7 @@ export function createPlayAsFox(ctx) {
     // —— 相机：默认第三人称追尾（原口径不变）；FPV 视线与身体朝向解耦 ——
     if (viewMode.mode === 'fpv') {
       // 扑击期间视线柔和锁向扑击方向（阻尼回正，不瞬移）
-      if (fox.phase === 'wind' || fox.phase === 'lunge') {
+      if ((fox.phase === 'wind' && !isTouch) || (fox.phase === 'lunge' && !pafRoute.controller?.touchLookActive)) {
         const targetYaw = fox.lungeYaw;
         dampLookToward(look, targetYaw, cfg.fpvPouncePitch, cfg.fpvPounceLockDamp, dt);
       }
@@ -773,8 +800,8 @@ export function createPlayAsFox(ctx) {
     const phaseLabel = fox.phase === 'wind' ? '蓄力中…' : fox.phase === 'lunge' ? '扑击！' : fox.phase === 'recover' ? '硬直' : fox.sprint ? '冲刺（易被发现）' : '潜行';
     const chargeHint = fox.phase === 'wind' ? ` · 已瞄准 ${fox.phaseT.toFixed(1)}s` : '';
     elTip.innerHTML = isTouch
-      ? `左下摇杆上下前后、左右转向 · <b>冲刺</b>切换潜行 · <b>扑击</b>按住瞄准/显示范围，松开扑击（${phaseLabel}）${chargeHint}`
-      : `W/S 前后移动 · A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 按住瞄准/显示范围，松开扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
+      ? `左下摇杆上下前后、左右转向 · <b>冲刺</b>按住冲刺 · <b>扑击</b>按住瞄准/显示范围，松开扑击（${phaseLabel}）${chargeHint}`
+      : `W/S 前后移动 · A/D 转向 · <b>Shift</b> 按住冲刺 · <b>空格/左键</b> 按住瞄准/显示范围，松开扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
   }
 
   function setPaused(value) {
@@ -803,6 +830,7 @@ export function createPlayAsFox(ctx) {
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('blur', onWindowBlur);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
     window.removeEventListener('mouseup', onMouseUp);
     window.removeEventListener('pointercancel', onPointerCancel);
     renderer.domElement.removeEventListener('mousedown', onMouseDown);
@@ -842,11 +870,13 @@ export function createPlayAsFox(ctx) {
     get phase() { return fox.phase; },
     get phaseT() { return fox.phaseT; },
     get sprint() { return fox.sprint; },
+    get noise() { return pafNoiseState(fox, cfg); },
     get stalk() { return !fox.sprint; },
-    get input() { return { touch: { ...touch }, charging: pounceCharge.active, chargeHeld: pounceCharge.held, pounceYaw: fox.lungeYaw, crouchScale: foxVisual.group.scale.y }; },
+    get input() { return { touch: { ...touch }, charging: pounceCharge.active, chargeHeld: pounceCharge.held, pounceYaw: fox.lungeYaw, crouchScale: foxVisual.group.scale.y, pointers: { move: touchControls?.movePointer ?? null, look: touchControls?.lookPointer ?? null, roles: [...(touchControls?.pointerRoles?.values() || [])] } }; },
     get preview() {
       return {
         active: !!previewGroup,
+        path: { lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, lungeHeight: cfg.lungeHeight, catchRadius: cfg.catchRadius, startX: fox.phase === 'wind' ? fox.x : fox.lungeStartX, startZ: fox.phase === 'wind' ? fox.z : fox.lungeStartZ, yaw: fox.lungeYaw },
         sweepMeshes: previewGroup?.children.length || 0,
         visibleTargetMarks: [...previewTargetMarks.values()].filter((m) => m.visible).length,
       };

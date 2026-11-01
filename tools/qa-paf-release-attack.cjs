@@ -273,7 +273,7 @@ async function runKeyboardTps() {
   const quickRun = await evalJs(`window.__pafReleaseQa.runAfterRelease()`);
   report.scenarios.tpsQuickTap = { immediate: quickState, caught: quickRun.some((s) => s.caught), maxScoreDelta: Math.max(...quickRun.map((s)=>s.scoreDelta)) };
   check('tps quick tap attacks immediately with no old windTime requirement and once',
-    quickState.phase === 'lunge' && !quickState.preview.active && quickRun.some((s)=>s.caught) && Math.max(...quickRun.map((s)=>s.scoreDelta)) === 1,
+    quickState.phase === 'lunge' && quickState.preview.active && quickRun.some(s=>s.phase==='recover' && s.preview.active) && !quickRun.at(-1).preview.active && quickRun.some((s)=>s.caught) && Math.max(...quickRun.map((s)=>s.scoreDelta)) === 1,
     JSON.stringify(report.scenarios.tpsQuickTap));
 
   await evalJs(`window.__pafReleaseQa.prepare('tps')`);
@@ -381,7 +381,7 @@ async function runTouch() {
   const quick = await evalJs(`window.__pafReleaseQa.state()`);
   const quickRun = await evalJs(`window.__pafReleaseQa.runAfterRelease()`);
   report.scenarios.touchQuickTap = { immediate: quick, caught: quickRun.some((s)=>s.caught), maxScoreDelta:Math.max(...quickRun.map(s=>s.scoreDelta)) };
-  check('390x844 touch quick tap attacks once without minimum hold', quick.phase==='lunge' && !quick.preview.active && quickRun.some(s=>s.caught) && Math.max(...quickRun.map(s=>s.scoreDelta))===1, JSON.stringify(report.scenarios.touchQuickTap));
+  check('390x844 touch quick tap attacks once without minimum hold', quick.phase==='lunge' && quick.preview.active && quickRun.some(s=>s.phase==='recover' && s.preview.active) && !quickRun.at(-1).preview.active && quickRun.some(s=>s.caught) && Math.max(...quickRun.map(s=>s.scoreDelta))===1, JSON.stringify(report.scenarios.touchQuickTap));
 
   await evalJs(`window.__pafReleaseQa.prepare('tps')`);
   await touchAt(rect.x, rect.y, 'touchStart');
