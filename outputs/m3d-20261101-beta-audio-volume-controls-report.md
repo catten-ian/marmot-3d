@@ -1,6 +1,6 @@
 # Beta 音量与数字输入实现报告
 
-> 当前状态：**local-node-verified-browser-pending**。同一任务、同一 JOB 续接，保留原实现 `2275691f6824838da2ca772e175fb67a455164e1` 与报告提交 `24ce51694f1fffba44f3e1110345c5515665617f`。追加的完整音频预载/解码/ready API 已提交为 `1077bebc39f980f4765724bc30b86d2c3b69c41a`；本轮最终测试为 61 项聚焦测试通过、99 个 Node 文件通过、22 个浏览器/CDP 文件跳过。普通游戏/沙盒/PAF 的入口等待接线由后续 preload 任务完成；本轮未改 main.js，未完成真实浏览器或完整用户验收。
+> 当前状态：**local-node-verified-browser-pending**。同一任务、同一 JOB 续接，保留原实现 `2275691f6824838da2ca772e175fb67a455164e1` 与报告提交 `24ce51694f1fffba44f3e1110345c5515665617f`。追加的完整音频预载/解码/ready API 已提交为 `1077bebc39f980f4765724bc30b86d2c3b69c41a`；独立审查后三项边界返修已提交为 `d95032e06adc90158fdd2b16d50b8345059d30f6`；最新测试为 65 项聚焦测试通过、99 个 Node 文件通过、22 个浏览器/CDP 文件跳过。普通游戏/沙盒/PAF 的入口等待接线由后续 preload 任务完成；本轮未改 main.js，未完成真实浏览器或完整用户验收。
 
 以下音量部分及其 44/98 测试计数为第一阶段记录；文末“追加修复”给出本轮 API、资源覆盖和最终验证。
 
@@ -226,3 +226,35 @@ node tools/run-node-tests.cjs
 3. 在真实手机验证首次解锁、后台恢复、静音仍完整准备资源及加载失败重试。
 4. 测量全部解码的加载耗时、移动端内存及瞬时解码负载。按仓库 BGM manifest 时长合计约 897.488 秒，以 48 kHz/双声道/float32 估算，仅 BGM PCM 约 **328.67 MiB**，尚未包含 SFX、压缩字节与浏览器开销；这是覆盖全部曲目的成本估计，并非实测内存。全量解码是否适合目标手机需由主控验证。
 5. 延续第一阶段的真实增益/削波动态、控件/移动视口和听感验收。Node 使用可控解码替身验证契约，不能代替真实浏览器解码、实际扬声器或完整用户验收。
+
+
+## 独立审查返修：程序化事件、当前快照与 manifest 重试（2026-11-01）
+
+状态：**local-node-verified-browser-pending**。本轮从 `538e2849cb4741ca8e9a2d90fffe3d8cd4f12181` 继续，保留此前所有提交，原始 base 为 `99f2d236d496971f6a702d9d41929d1cce65bd80`。实现、回归与测试证据 commit：`d95032e06adc90158fdd2b16d50b8345059d30f6`；报告随后单独本地提交。
+
+### 修复与 API 契约补充
+
+1. `_dispatchSfx()` 对没有真实 asset path 的事件直接调用原程序化音效，仍调用 `ensure()` 并保留限流与定时释放。`companionAlarm` 不请求 undefined、不读取 SFX manifest、不进入真实资源 ready 清单。回归通过原 `_companionAlarm()` 调度三个音符，精确核对频率、时长、波形、增益、pan、调度时间与 reservation 释放；测试禁用无关 menu BGM，断言网络请求和 decode 均为零。已有全局 preload 若已启动，`ensure()` 仍按既定语义继续资源准备。
+2. `preload()` **进行中调用仍返回同一个 Promise**；完成轮次后、无需新工作时返回 `Promise.resolve(getReadiness())`，因此反映最新 ready、contextState、unlocked 和资源状态，也避免调用者修改旧快照污染下一次结果。不会重复 fetch/decode；失败仍显式返回 failed/ready:false。旧测试中的“完成后仍返回首轮 Promise”按本次要求改为严格比较当前快照，同时额外断言内部工作 Promise 仍为首轮，全部进行中的身份断言、缓存计数和 whenReady 共享断言保留。
+3. `{retry:true}` 的工作判定包括 failed manifest，即使 26 项真实资源已经 ready，仍可重试失败 manifest。成功 manifest、全部成功字节及 decoded buffers 继续复用。回归设置 BGM manifest 成功、SFX manifest 失败，资源仍 ready；恢复后显式 retry 只新增一次 SFX manifest 请求、不增加 decode，并保留全部 buffer。此后重复 retry 不新增请求。manifest 继续为 advisory，不将其成功当作资源 ready 条件。
+
+资源覆盖仍为 **26 个真实文件**：16 个 SFX 文件覆盖 17 个事件（repel/kill 别名），8 个 BGM 槽位包含 PAF，另有 combat-b/combat-c。原先的首次 PAF 真实缓存播放、零音量仍加载解码、失败与重试、手势前仅 fetch/手势后 decode、跨场景 BGM、Stable/Dev 和保护链测试继续通过。本轮不改变音量参数、削波保护、设置或资源清单。
+
+### 验证证据与精确计数
+
+| 检查 | Pass | Fail | Skip |
+| --- | ---: | ---: | ---: |
+| 修复前：新增回归所在 readiness 文件 | 13 测试 | 3 测试 | 0 |
+| 最终：原 61 项聚焦集合 + 4 项新增回归 | **65 测试** | **0** | **0** |
+| 其中 readiness 文件 | **16 测试** | **0** | **0** |
+| 完整 `node tools/run-node-tests.cjs` | **99 文件** | **0** | **22 浏览器/CDP 文件** |
+| 累计相对原始 base 改动脚本 `node --check` | **13 文件** | **0** | **0** |
+| 其中本轮改动脚本 `node --check` | **2 文件** | **0** | **0** |
+
+聚焦集合仍使用前文完整的十文件命令，没有删测试。新增四项分别验证原程序化告警无网络请求、完成后的当前快照、失败快照不变成功、资源 ready 后的 manifest 重试恢复。修复前有三项回归按预期失败；失败保持测试当时即通过。最终 65 项全部通过，skipped 未计入通过。
+
+证据目录：`outputs/m3d-20261101-beta-audio-volume-controls/readiness-review/`，包含 `before-fix-regressions.txt`（修复前）、`focused-tests.txt`（最终）、`node-tests.txt`（最终）、`syntax-checks.txt`（累计 13 文件）。保存日志时仅清理行末空白以通过 diff 检查，未改变结果。
+
+本轮实际改动仅：`src/systems/audio.js`、`tools/test-audio-readiness.test.cjs`、上述四个输出文件及本报告。已审查实际代码、测试与 staged diff，并执行 `git diff --check` 与 `git diff --cached --check`。仅 stage 本任务文件；`.codex-cli-write.lock.d/` 仍未跟踪且未 stage。未修改 main.js、UI/CSS、Stable/Dev 设置、其他工作树或其他禁止区域。
+
+后续普通游戏/沙盒/PAF 的入口接线、真实浏览器控件/资源/解码与解锁检查、实际听感和削波动态、移动视口及移动端解码内存/耗时验收均**尚未完成**，继续由主控串行完成。Node 解码替身不能代替真实浏览器和用户验收。本轮 **Chrome/CDP/浏览器未启动；push/PR/deploy 未执行；Caddy/systemd/线上写未执行**。
