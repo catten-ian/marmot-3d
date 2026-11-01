@@ -7,8 +7,10 @@ const assert = require('node:assert/strict');
 const { loadPafDefaults } = require('./paf-test-helper.cjs');
 
 let pp, P;
+let pa;
 test.before(async () => {
   pp = await import('../src/core/predator-prey.js');
+  pa = await import('../src/core/paf-pounce.js');
   P = loadPafDefaults();
 });
 
@@ -95,6 +97,43 @@ test('B2 地形高度差参与计算（坡地上两侧基准各自 terrain+cente
 test('B2 坡地同高仍可命中：狐狸地面基准显式参与垂直窗', () => {
   assert.equal(pp.canCatch(0.2, 0, 0, 1, P, 1), true);
   assert.equal(pp.canCatch(0.2, 0, 1.05, 1, P, 1), false);
+});
+
+
+// —— 2026-10-31 release attack：后半段窗口 + 预览/命中共用同一几何 ——
+
+test('release attack path hit predicate is inactive before t=0.5 and active through t=1', () => {
+  const args = {
+    startX: 0, startZ: 0, yaw: 0, lungeSpeed: 10, lungeTime: 1, lungeHeight: 0,
+    targetX: 0, targetZ: 4, foxTerrainY: 0, preyTerrainY: 0,
+    catchRadius: 20, catchFoxCenter: P.catchFoxCenter, catchVerticalTol: P.catchVerticalTol, preyCenterHeight: P.preyCenterHeight,
+  };
+  assert.equal(pa.pafPounceCanCatchAt({ ...args, t: 0 }), false);
+  assert.equal(pa.pafPounceCanCatchAt({ ...args, t: 0.25 }), false);
+  assert.equal(pa.pafPounceCanCatchAt({ ...args, t: 0.5 - 1e-9 }), false);
+  assert.equal(pa.pafPounceCanCatchAt({ ...args, t: 0.5 }), true);
+  assert.equal(pa.pafPounceCanCatchAt({ ...args, t: 0.9 }), true);
+  assert.equal(pa.pafPounceCanCatchAt({ ...args, t: 1 }), true);
+  assert.equal(pa.pafPounceCanCatchAt({ ...args, t: 1 + 1e-9 }), false, 'clamped path must not be treated as an active hit by callers checking t>1');
+});
+
+test('preview and live canCatch use the same path, radius and vertical window', () => {
+  const common = {
+    startX: 2, startZ: -3, yaw: Math.PI / 2, lungeSpeed: 10, lungeTime: 1, lungeHeight: 1.2,
+    catchRadius: 1.25, catchFoxCenter: 0.45, catchVerticalTol: 0.8, preyCenterHeight: 0.45,
+    foxTerrainAt: () => 0, preyTerrainAt: () => 0,
+  };
+  const atT = (t, targetZ) => pa.pafPounceCanCatchAt({
+    ...common, t, targetX: 2 + 10 * t, targetZ,
+    foxTerrainY: 0, preyTerrainY: 0,
+  });
+  assert.equal(atT(0.75, -3), false, 'vertical-window miss remains a miss through the preview helper');
+  const nearLanding = pa.pafPouncePredictionHitsTarget({ ...common, targetX: 10.5, targetZ: -3 });
+  assert.equal(nearLanding.hit, true);
+  assert.ok(nearLanding.t >= 0.5 && nearLanding.t <= 1);
+  assert.equal(atT(nearLanding.t, -3), true, 'the exact preview sample is a real canCatch hit');
+  const outside = pa.pafPouncePredictionHitsTarget({ ...common, targetX: 20, targetZ: -3 });
+  assert.equal(outside.hit, false);
 });
 
 // —— E3 重生防贴脸 ——

@@ -164,33 +164,40 @@ export function pafKeyboardDriveInput(binds, keys) {
   };
 }
 
-/**
- * PAF moving-pounce phase gate: a press starts a short readable windup and
- * launch is time-based; release state is retained only for route compatibility.
- */
+export {
+  PAF_POUNCE_ACTIVE_T,
+  pafPounceProgress,
+  pafPounceActiveAt,
+  pafPounceAirHeight,
+  pafPouncePathAt,
+  pafPouncePreviewSegment,
+  pafPounceCanCatchAt,
+  pafPouncePredictionHitsTarget,
+} from './paf-pounce.js';
+
+/** 按住预览阶段的 release 闸门；不会因 windTime 或重复回调自动发招。 */
 export class PafPounceCharge {
   constructor() { this.reset(); }
-  reset() { this.active = false; this.held = false; this.released = false; this.elapsed = 0; }
-  press() {
+  reset() { this.active = false; this.held = false; this.released = false; this.elapsed = 0; this.pointerId = null; }
+  press(pointerId = 'default') {
     if (this.active) return false;
-    this.active = true; this.held = true; this.released = false; this.elapsed = 0;
+    this.active = true; this.held = true; this.released = false; this.elapsed = 0; this.pointerId = pointerId;
     return true;
   }
-  release() {
-    if (!this.active) return false;
-    this.held = false; this.released = true;
+  release(pointerId = 'default') {
+    if (!this.active || this.pointerId !== pointerId) return false;
+    this.held = false; this.released = true; this.pointerId = null;
     return true;
   }
-  step(dt, windTime) {
+  cancel(pointerId = null) {
+    if (!this.active || (pointerId !== null && this.pointerId !== pointerId)) return false;
+    this.reset();
+    return true;
+  }
+  step(dt) {
     if (!this.active) return { shouldLunge: false, charge: 0, elapsed: 0 };
     this.elapsed += Math.max(0, finite(dt, 0));
-    const minWind = Math.max(0, finite(windTime, 0));
-    return {
-      // PAF moving pounce is press-to-trigger: release state never gates launch.
-      shouldLunge: this.elapsed >= minWind,
-      charge: Math.min(1, this.elapsed / Math.max(0.0001, minWind)),
-      elapsed: this.elapsed,
-    };
+    return { shouldLunge: false, charge: this.elapsed, elapsed: this.elapsed };
   }
 }
 

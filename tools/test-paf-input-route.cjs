@@ -38,27 +38,43 @@ test('推过 sprintThreshold 疾跑、内圈内潜行，任意输入二者严格
   }
 });
 
-test('PAF moving pounce: press starts a readable windup and release does not gate launch', () => {
+test('PAF press hold only previews; release commits exactly once, regardless of old windTime', () => {
   const charge = new input.PafPounceCharge();
-  assert.equal(charge.press(), true);
-  assert.equal(charge.press(), false, 'one press cannot re-arm the same pounce');
+  assert.equal(charge.press('kbd'), true);
+  assert.equal(charge.press('kbd'), false, 'keyboard repeat cannot re-arm');
   assert.equal(charge.step(0.08, 0.22).shouldLunge, false);
-  charge.release();
-  assert.equal(charge.step(0.1, 0.22).shouldLunge, false);
-  assert.equal(charge.step(0.05, 0.22).shouldLunge, true);
+  assert.equal(charge.step(0.5, 0.22).shouldLunge, false, 'holding beyond windTime never auto-launches');
+  assert.equal(charge.release('other'), false, 'unrelated release cannot attack');
+  assert.equal(charge.release('kbd'), true, 'matching release commits once');
+  assert.equal(charge.release('kbd'), false, 'duplicate release is ignored');
+  assert.equal(charge.step(1, 0.22).shouldLunge, false);
   charge.reset();
-  charge.press();
-  assert.equal(charge.step(0.5, 0.22).shouldLunge, true, 'held input must not extend moving pounce');
-  charge.reset();
+  assert.equal(charge.press('touch-1'), true);
+  assert.equal(charge.cancel('touch-1'), true);
   assert.equal(charge.active, false);
 });
 
-test('PAF pounce press has no repeat auto-trigger after commit/reset', () => {
+test('PAF pointer identity prevents multi-touch/repeated callback attacks', () => {
   const charge = new input.PafPounceCharge();
-  assert.equal(charge.press(), true);
-  assert.equal(charge.step(0.22, 0.22).shouldLunge, true);
-  charge.reset();
-  assert.equal(charge.step(1, 0.22).shouldLunge, false);
+  assert.equal(charge.press(1), true);
+  assert.equal(charge.press(2), false);
+  assert.equal(charge.release(2), false);
+  assert.equal(charge.release(1), true);
+  assert.equal(charge.release(1), false);
+});
+
+test('PAF lunge activation is exactly the post-half window and path is shared', () => {
+  const { pafPounceActiveAt, pafPouncePathAt, pafPouncePreviewSegment } = input;
+  assert.equal(pafPounceActiveAt(0, 1), false);
+  assert.equal(pafPounceActiveAt(0.25, 1), false);
+  assert.equal(pafPounceActiveAt(0.499999, 1), false);
+  assert.equal(pafPounceActiveAt(0.5, 1), true);
+  assert.equal(pafPounceActiveAt(1, 1), true);
+  assert.equal(pafPounceActiveAt(1.0001, 1), false);
+  const seg = pafPouncePreviewSegment({ startX: 2, startZ: 3, yaw: 0, lungeSpeed: 10, lungeTime: 1, catchRadius: 1 });
+  assert.deepEqual(seg.start, pafPouncePathAt({ startX: 2, startZ: 3, yaw: 0, lungeSpeed: 10, lungeTime: 1, t: 0.5 }));
+  assert.deepEqual(seg.end, pafPouncePathAt({ startX: 2, startZ: 3, yaw: 0, lungeSpeed: 10, lungeTime: 1, t: 1 }));
+  assert.equal(seg.radius, 1);
 });
 
 test('tank drive moves W/S along a fixed nonzero facing and steering never creates lateral motion', () => {

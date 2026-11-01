@@ -1,0 +1,845 @@
+{
+  "startedAt": "2026-11-01T08:03:24.201Z",
+  "target": "http://127.0.0.1:8381/index.html?version=beta&webgl=1&play-as-fox=1&pafqa=1&releaseqa=1793520289160",
+  "cdp": {
+    "managed": false,
+    "endpoint": "local:9481",
+    "browser": "local headless Chrome"
+  },
+  "renderer": {
+    "backend": "WebGLRenderer",
+    "rawGl": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "maxTouchPoints": 5
+  },
+  "scenarios": {
+    "tpsKeyboardHold": {
+      "before": {
+        "active": true,
+        "paused": false,
+        "phase": "wind",
+        "phaseT": 1.3166666666666678,
+        "progress": null,
+        "score": 0,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": true,
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 1
+        },
+        "memory": {
+          "geometries": 506,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "held": {
+        "active": true,
+        "paused": false,
+        "phase": "wind",
+        "phaseT": 0.7666666666666674,
+        "progress": null,
+        "score": 0,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": true,
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 1
+        },
+        "memory": {
+          "geometries": 504,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "predicted": {
+        "hit": true,
+        "t": 0.6875,
+        "x": 0,
+        "z": -16.101875
+      }
+    },
+    "tpsKeyboardRelease": {
+      "firstCatch": {
+        "active": true,
+        "paused": false,
+        "phase": "lunge",
+        "phaseT": 0.3,
+        "progress": 0.7142857142857143,
+        "score": 1,
+        "scoreDelta": 1,
+        "caught": true,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -0.9852988285832024,
+          "z": -15.95,
+          "yaw": 0,
+          "airY": 0.8209230565914315
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 504,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "firstHalfSamples": 9,
+      "firstHalfMaxScoreDelta": 0,
+      "scoreValues": [
+        0,
+        1
+      ],
+      "recover": {
+        "before": 1,
+        "after": 1,
+        "caught": false,
+        "phase": "idle"
+      },
+      "phases": [
+        "lunge",
+        "recover",
+        "idle"
+      ]
+    },
+    "tpsQuickTap": {
+      "immediate": {
+        "active": true,
+        "paused": false,
+        "phase": "lunge",
+        "phaseT": 0.05,
+        "progress": 0.11904761904761905,
+        "score": 1,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -0.8460511054409252,
+          "z": -19.325,
+          "yaw": 0,
+          "airY": 0.3836080755847148
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 630,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "caught": true,
+      "maxScoreDelta": 1
+    },
+    "tpsPauseCancel": {
+      "paused": {
+        "active": true,
+        "paused": true,
+        "phase": "idle",
+        "phaseT": 0,
+        "progress": null,
+        "score": 2,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 714,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "afterKeyUp": {
+        "active": true,
+        "paused": true,
+        "phase": "idle",
+        "phaseT": 0,
+        "progress": null,
+        "score": 2,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 714,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "memoryBefore": 714,
+      "memoryAfterCancel": 714
+    },
+    "blurCancel": {
+      "blurred": {
+        "active": true,
+        "paused": false,
+        "phase": "idle",
+        "phaseT": 0,
+        "progress": null,
+        "score": 2,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 798,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "afterKeyUp": {
+        "active": true,
+        "paused": false,
+        "phase": "idle",
+        "phaseT": 0,
+        "progress": null,
+        "score": 2,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 798,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      }
+    },
+    "settingsCancel": {
+      "settingsPaused": {
+        "active": true,
+        "paused": true,
+        "phase": "idle",
+        "phaseT": 0,
+        "progress": null,
+        "score": 2,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 882,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚",
+        "settingsOpen": true,
+        "previewSceneCount": 0
+      },
+      "afterKeyUp": {
+        "active": true,
+        "paused": true,
+        "phase": "idle",
+        "phaseT": 0,
+        "progress": null,
+        "score": 2,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 882,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      }
+    },
+    "exitCleanup": {
+      "exitInfo": {
+        "qa": false,
+        "overlay": false
+      },
+      "scenePreviewCount": 0,
+      "reentered": {
+        "active": true,
+        "previewSceneCount": 0
+      }
+    },
+    "fpvMouse": {
+      "held": {
+        "active": true,
+        "paused": false,
+        "phase": "wind",
+        "phaseT": 0.7666666666666674,
+        "progress": null,
+        "score": 0,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": true,
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 1
+        },
+        "memory": {
+          "geometries": 618,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "predicted": {
+        "hit": true,
+        "t": 0.6875,
+        "x": 0,
+        "z": -16.101875
+      },
+      "firstCatch": {
+        "active": true,
+        "paused": false,
+        "phase": "lunge",
+        "phaseT": 0.3,
+        "progress": 0.7142857142857143,
+        "score": 1,
+        "scoreDelta": 1,
+        "caught": true,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -0.9852988285832024,
+          "z": -15.95,
+          "yaw": 0,
+          "airY": 0.8209230565914315
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 618,
+          "textures": 13
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "firstHalfSamples": 6,
+      "phases": [
+        "lunge",
+        "recover",
+        "idle"
+      ],
+      "scores": [
+        0,
+        1
+      ]
+    },
+    "tablet768": {
+      "held": {
+        "active": true,
+        "paused": false,
+        "phase": "wind",
+        "phaseT": 0.6333333333333336,
+        "progress": null,
+        "score": 0,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": true,
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 1
+        },
+        "memory": {
+          "geometries": 576,
+          "textures": 11
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "caught": true,
+      "firstCatch": {
+        "active": true,
+        "paused": false,
+        "phase": "lunge",
+        "phaseT": 0.3,
+        "progress": 0.7142857142857143,
+        "score": 1,
+        "scoreDelta": 1,
+        "caught": true,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -0.9852988285832024,
+          "z": -15.95,
+          "yaw": 0,
+          "airY": 0.8209230565914315
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 577,
+          "textures": 11
+        },
+        "overlay": true,
+        "touchAria": "攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚"
+      },
+      "maxScoreDelta": 1
+    },
+    "touchLong": {
+      "rect": {
+        "x": 234,
+        "y": 613.578125,
+        "width": 76,
+        "height": 76
+      },
+      "held": {
+        "active": true,
+        "paused": false,
+        "phase": "wind",
+        "phaseT": 0.7166666666666672,
+        "progress": null,
+        "score": 0,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": true,
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 1
+        },
+        "memory": {
+          "geometries": 489,
+          "textures": 11
+        },
+        "overlay": true,
+        "touchAria": "扑击：按住瞄准并显示范围，松开扑击"
+      },
+      "predicted": {
+        "hit": true,
+        "t": 0.6875,
+        "x": 0,
+        "z": -16.101875
+      },
+      "firstCatch": {
+        "active": true,
+        "paused": false,
+        "phase": "lunge",
+        "phaseT": 0.3,
+        "progress": 0.7142857142857143,
+        "score": 1,
+        "scoreDelta": 1,
+        "caught": true,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -0.9852988285832024,
+          "z": -15.95,
+          "yaw": 0,
+          "airY": 0.8209230565914315
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 489,
+          "textures": 11
+        },
+        "overlay": true,
+        "touchAria": "扑击：按住瞄准并显示范围，松开扑击"
+      },
+      "firstHalfSamples": 9,
+      "aria": "扑击：按住瞄准并显示范围，松开扑击",
+      "scores": [
+        0,
+        1
+      ]
+    },
+    "touchQuickTap": {
+      "immediate": {
+        "active": true,
+        "paused": false,
+        "phase": "lunge",
+        "phaseT": 0.05,
+        "progress": 0.11904761904761905,
+        "score": 1,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -0.8460511054409252,
+          "z": -19.325,
+          "yaw": 0,
+          "airY": 0.3836080755847148
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 573,
+          "textures": 11
+        },
+        "overlay": true,
+        "touchAria": "扑击：按住瞄准并显示范围，松开扑击"
+      },
+      "caught": true,
+      "maxScoreDelta": 1
+    },
+    "touchCancel": {
+      "held": {
+        "active": true,
+        "paused": false,
+        "phase": "wind",
+        "phaseT": 0.3833333333333333,
+        "progress": null,
+        "score": 2,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": true,
+        "preview": {
+          "active": true,
+          "sweepMeshes": 1,
+          "visibleTargetMarks": 1
+        },
+        "memory": {
+          "geometries": 657,
+          "textures": 11
+        },
+        "overlay": true,
+        "touchAria": "扑击：按住瞄准并显示范围，松开扑击"
+      },
+      "canceled": {
+        "active": true,
+        "paused": false,
+        "phase": "idle",
+        "phaseT": 0,
+        "progress": null,
+        "score": 2,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 657,
+          "textures": 11
+        },
+        "overlay": true,
+        "touchAria": "扑击：按住瞄准并显示范围，松开扑击"
+      },
+      "after": {
+        "active": true,
+        "paused": false,
+        "phase": "idle",
+        "phaseT": 0,
+        "progress": null,
+        "score": 2,
+        "scoreDelta": 0,
+        "caught": false,
+        "preyX": 0,
+        "preyZ": -16.7,
+        "fox": {
+          "x": 0,
+          "y": -1.1187645290272037,
+          "z": -20,
+          "yaw": 0,
+          "airY": 0
+        },
+        "yaw": 0,
+        "charging": false,
+        "preview": {
+          "active": false,
+          "sweepMeshes": 0,
+          "visibleTargetMarks": 0
+        },
+        "memory": {
+          "geometries": 657,
+          "textures": 11
+        },
+        "overlay": true,
+        "touchAria": "扑击：按住瞄准并显示范围，松开扑击"
+      },
+      "previewSceneCount": 0
+    }
+  },
+  "checks": {
+    "tps long hold beyond old windTime stays wind and does no damage": {
+      "pass": true,
+      "detail": "{\"phases\":[\"wind\"],\"score\":0,\"caught\":false}"
+    },
+    "tps hold shows real preview with one in-range target": {
+      "pass": true,
+      "detail": "{\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":1},\"predicted\":{\"hit\":true,\"t\":0.6875,\"x\":0,\"z\":-16.101875}}"
+    },
+    "tps release catches only once in lunge second half": {
+      "pass": true,
+      "detail": "{\"firstCatch\":{\"active\":true,\"paused\":false,\"phase\":\"lunge\",\"phaseT\":0.3,\"progress\":0.7142857142857143,\"score\":1,\"scoreDelta\":1,\"caught\":true,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-0.9852988285832024,\"z\":-15.95,\"yaw\":0,\"airY\":0.8209230565914315},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":504,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"scoreSet\":{}}"
+    },
+    "tps first half never catches": {
+      "pass": true,
+      "detail": "{\"samples\":9,\"maxScoreDelta\":0}"
+    },
+    "tps recover cannot catch a new adjacent target": {
+      "pass": true,
+      "detail": "{\"before\":1,\"after\":1,\"caught\":false,\"phase\":\"idle\"}"
+    },
+    "tps quick tap attacks immediately with no old windTime requirement and once": {
+      "pass": true,
+      "detail": "{\"immediate\":{\"active\":true,\"paused\":false,\"phase\":\"lunge\",\"phaseT\":0.05,\"progress\":0.11904761904761905,\"score\":1,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-0.8460511054409252,\"z\":-19.325,\"yaw\":0,\"airY\":0.3836080755847148},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":630,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"caught\":true,\"maxScoreDelta\":1}"
+    },
+    "pause cancels aim, disposes preview and cannot be attacked by later release": {
+      "pass": true,
+      "detail": "{\"paused\":{\"active\":true,\"paused\":true,\"phase\":\"idle\",\"phaseT\":0,\"progress\":null,\"score\":2,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":714,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"afterKeyUp\":{\"active\":true,\"paused\":true,\"phase\":\"idle\",\"phaseT\":0,\"progress\":null,\"score\":2,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":714,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"memoryBefore\":714,\"memoryAfterCancel\":714,\"pausedPreviewCount\":0}"
+    },
+    "pause preview GPU geometries are disposed": {
+      "pass": true,
+      "detail": "before=714 after=714"
+    },
+    "window blur cancels aim and later keyup cannot attack": {
+      "pass": true,
+      "detail": "{\"blurred\":{\"active\":true,\"paused\":false,\"phase\":\"idle\",\"phaseT\":0,\"progress\":null,\"score\":2,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":798,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"afterKeyUp\":{\"active\":true,\"paused\":false,\"phase\":\"idle\",\"phaseT\":0,\"progress\":null,\"score\":2,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":798,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"}}"
+    },
+    "settings opening cancels aim and later release cannot attack": {
+      "pass": true,
+      "detail": "{\"settingsPaused\":{\"active\":true,\"paused\":true,\"phase\":\"idle\",\"phaseT\":0,\"progress\":null,\"score\":2,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":882,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\",\"settingsOpen\":true,\"previewSceneCount\":0},\"afterKeyUp\":{\"active\":true,\"paused\":true,\"phase\":\"idle\",\"phaseT\":0,\"progress\":null,\"score\":2,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":882,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"}}"
+    },
+    "exit removes PAF and preview resources; release after exit cannot attack; reentry is clean": {
+      "pass": true,
+      "detail": "{\"exitInfo\":{\"qa\":false,\"overlay\":false},\"scenePreviewCount\":0,\"reentered\":{\"active\":true,\"previewSceneCount\":0}}"
+    },
+    "FPV mouse hold only aims and shows preview": {
+      "pass": true,
+      "detail": "{\"held\":{\"active\":true,\"paused\":false,\"phase\":\"wind\",\"phaseT\":0.7666666666666674,\"progress\":null,\"score\":0,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":true,\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":1},\"memory\":{\"geometries\":618,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"predicted\":{\"hit\":true,\"t\":0.6875,\"x\":0,\"z\":-16.101875}}"
+    },
+    "FPV mouse release catches once in second half": {
+      "pass": true,
+      "detail": "{\"held\":{\"active\":true,\"paused\":false,\"phase\":\"wind\",\"phaseT\":0.7666666666666674,\"progress\":null,\"score\":0,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":true,\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":1},\"memory\":{\"geometries\":618,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"predicted\":{\"hit\":true,\"t\":0.6875,\"x\":0,\"z\":-16.101875},\"firstCatch\":{\"active\":true,\"paused\":false,\"phase\":\"lunge\",\"phaseT\":0.3,\"progress\":0.7142857142857143,\"score\":1,\"scoreDelta\":1,\"caught\":true,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-0.9852988285832024,\"z\":-15.95,\"yaw\":0,\"airY\":0.8209230565914315},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":618,\"textures\":13},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"firstHalfSamples\":6,\"phases\":[\"lunge\",\"recover\",\"idle\"],\"scores\":[0,1]}"
+    },
+    "768x1024 hold preview and second-half release catch work": {
+      "pass": true,
+      "detail": "{\"held\":{\"active\":true,\"paused\":false,\"phase\":\"wind\",\"phaseT\":0.6333333333333336,\"progress\":null,\"score\":0,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":true,\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":1},\"memory\":{\"geometries\":576,\"textures\":11},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"caught\":true,\"firstCatch\":{\"active\":true,\"paused\":false,\"phase\":\"lunge\",\"phaseT\":0.3,\"progress\":0.7142857142857143,\"score\":1,\"scoreDelta\":1,\"caught\":true,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-0.9852988285832024,\"z\":-15.95,\"yaw\":0,\"airY\":0.8209230565914315},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":577,\"textures\":11},\"overlay\":true,\"touchAria\":\"攻击：短按推击；按住650毫秒扑击；空中短按为较弱扑击；向左滑迎击，向右滑翻滚\"},\"maxScoreDelta\":1}"
+    },
+    "390x844 touch hold only aims, shows real range and updated aria": {
+      "pass": true,
+      "detail": "{\"rect\":{\"x\":234,\"y\":613.578125,\"width\":76,\"height\":76},\"held\":{\"active\":true,\"paused\":false,\"phase\":\"wind\",\"phaseT\":0.7166666666666672,\"progress\":null,\"score\":0,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":true,\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":1},\"memory\":{\"geometries\":489,\"textures\":11},\"overlay\":true,\"touchAria\":\"扑击：按住瞄准并显示范围，松开扑击\"},\"predicted\":{\"hit\":true,\"t\":0.6875,\"x\":0,\"z\":-16.101875},\"firstCatch\":{\"active\":true,\"paused\":false,\"phase\":\"lunge\",\"phaseT\":0.3,\"progress\":0.7142857142857143,\"score\":1,\"scoreDelta\":1,\"caught\":true,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-0.9852988285832024,\"z\":-15.95,\"yaw\":0,\"airY\":0.8209230565914315},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":489,\"textures\":11},\"overlay\":true,\"touchAria\":\"扑击：按住瞄准并显示范围，松开扑击\"},\"firstHalfSamples\":9,\"aria\":\"扑击：按住瞄准并显示范围，松开扑击\",\"scores\":[0,1]}"
+    },
+    "390x844 touch release catches once in second half": {
+      "pass": true,
+      "detail": "{\"firstCatch\":{\"active\":true,\"paused\":false,\"phase\":\"lunge\",\"phaseT\":0.3,\"progress\":0.7142857142857143,\"score\":1,\"scoreDelta\":1,\"caught\":true,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-0.9852988285832024,\"z\":-15.95,\"yaw\":0,\"airY\":0.8209230565914315},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":489,\"textures\":11},\"overlay\":true,\"touchAria\":\"扑击：按住瞄准并显示范围，松开扑击\"}}"
+    },
+    "390x844 touch quick tap attacks once without minimum hold": {
+      "pass": true,
+      "detail": "{\"immediate\":{\"active\":true,\"paused\":false,\"phase\":\"lunge\",\"phaseT\":0.05,\"progress\":0.11904761904761905,\"score\":1,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-0.8460511054409252,\"z\":-19.325,\"yaw\":0,\"airY\":0.3836080755847148},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":573,\"textures\":11},\"overlay\":true,\"touchAria\":\"扑击：按住瞄准并显示范围，松开扑击\"},\"caught\":true,\"maxScoreDelta\":1}"
+    },
+    "touch cancel cleans preview and a later end never attacks": {
+      "pass": true,
+      "detail": "{\"held\":{\"active\":true,\"paused\":false,\"phase\":\"wind\",\"phaseT\":0.3833333333333333,\"progress\":null,\"score\":2,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":true,\"preview\":{\"active\":true,\"sweepMeshes\":1,\"visibleTargetMarks\":1},\"memory\":{\"geometries\":657,\"textures\":11},\"overlay\":true,\"touchAria\":\"扑击：按住瞄准并显示范围，松开扑击\"},\"canceled\":{\"active\":true,\"paused\":false,\"phase\":\"idle\",\"phaseT\":0,\"progress\":null,\"score\":2,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":657,\"textures\":11},\"overlay\":true,\"touchAria\":\"扑击：按住瞄准并显示范围，松开扑击\"},\"after\":{\"active\":true,\"paused\":false,\"phase\":\"idle\",\"phaseT\":0,\"progress\":null,\"score\":2,\"scoreDelta\":0,\"caught\":false,\"preyX\":0,\"preyZ\":-16.7,\"fox\":{\"x\":0,\"y\":-1.1187645290272037,\"z\":-20,\"yaw\":0,\"airY\":0},\"yaw\":0,\"charging\":false,\"preview\":{\"active\":false,\"sweepMeshes\":0,\"visibleTargetMarks\":0},\"memory\":{\"geometries\":657,\"textures\":11},\"overlay\":true,\"touchAria\":\"扑击：按住瞄准并显示范围，松开扑击\"},\"previewSceneCount\":0}"
+    }
+  },
+  "screenshots": [
+    "1280x720-tps-hold-prediction.png",
+    "1280x720-tps-after-release-catch.png",
+    "1280x720-fpv-hold-prediction.png",
+    "1280x720-fpv-after-release-catch.png",
+    "768x1024-tps-hold-prediction.png",
+    "768x1024-tps-after-release-catch.png",
+    "390x844-touch-hold-prediction.png",
+    "390x844-touch-after-release-catch.png",
+    "390x844-touch-cancel-cleanup.png"
+  ],
+  "errors": [],
+  "pass": true,
+  "finishedAt": "2026-11-01T08:05:15.266Z"
+}
