@@ -30,7 +30,8 @@ import {
 } from './core/stamina.mjs';
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { bindText, kbd, schemeHints, setHintBinds } from './core/key-hints.mjs';
-import { preloadModels, instantiate, normalizeModel } from './models/loader.js';
+import { BetaMarmotModel } from './entities/beta-marmot-model.js';
+import { preloadModels, instantiate } from './models/loader.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
 import { AdaptiveRenderController, getRenderProfile, hasRealTouch } from './core/performance.js';
@@ -401,28 +402,17 @@ playerModel.add(playerBody);
 scene.add(playerModel);
 playerModel.visible = false;
 
-// Beta 改用素材包中的尖叫土拨鼠。加载失败时保留程序化模型，
-// 不再接入此前有蒙皮撕裂/穿地问题的 marmot-rig.glb。
+// Beta alone uses the user's uploaded skin and its three original clips.
+let playerRig = null;
 if (IS_BETA && USE_REAL_MODELS) {
-  instantiate('./assets/models/marmot-screaming.glb', 'marmot').then((inst) => {
+  instantiate('./assets/models/marmot-run-stand.glb', 'marmot').then((inst) => {
     if (!inst) return;
-    const norm = normalizeModel(inst, 0.9, { upAxis: 'z' });
-    norm.wrap.traverse((o) => {
-      if (!o.isMesh) return;
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) {
-        if (!m) continue;
-        if (m.color && m.color.r < 0.08 && m.color.g < 0.08 && m.color.b < 0.08) m.color.set(0xa9834e);
-        m.metalness = 0.08;
-        m.roughness = Math.max(0.72, m.roughness || 0);
-        m.needsUpdate = true;
-      }
-      o.castShadow = true;
-      o.receiveShadow = true;
-    });
-    playerModel.add(norm.wrap);
+    const rig = new BetaMarmotModel(inst, 0.9);
+    // Upload faces local +Z; playerModel's existing +PI yaw faces movement.
+    playerModel.add(rig.wrap);
+    playerRig = rig;
     playerBody.visible = false;
-  }).catch((error) => console.warn('[player] screaming marmot fallback:', error));
+  }).catch((error) => console.warn('[player] uploaded marmot unavailable; procedural fallback:', error));
 }
 
 const VIEW_MODE_KEY = 'marmot3d.viewMode.v1';
@@ -471,7 +461,7 @@ function refreshViewKeyHint() {
 const FOX_PRELOAD_FILE = IS_DEV && USE_REAL_FOX_MODEL ? 'fox-segmented.glb' : 'fox.glb';
 preloadModels('./assets/models/', {
   foxFile: FOX_PRELOAD_FILE,
-  marmotFile: IS_BETA ? 'marmot-screaming.glb' : 'marmot.glb',
+  marmotFile: IS_BETA ? 'marmot-run-stand.glb' : 'marmot.glb',
 }).then((st) => {
   modelLoadState = st;
   console.info('[models] 真实模型就绪情况:', st);
@@ -1939,6 +1929,7 @@ function update(dt) {
   controller.forcedProne = IS_BETA ? grazeProne : 0;
   controller.grazeEyeExtra = IS_BETA ? BETA_TUNE.grazeEyeDropExtra * grazeProne : 0;
   controller.grazeThirdDrop = IS_BETA ? BETA_TUNE.thirdPersonGrazeDrop * grazeProne : 0;
+  const marmotPrevX = controller.position.x, marmotPrevZ = controller.position.z;
   controller.update(
     dt,
     keys,
@@ -2422,6 +2413,12 @@ function update(dt) {
     prompt = kbd(bindText(binds, 'interact')) + ' 救援伙伴';
   }
   hud.setInteractPrompt(prompt);
+
+  // Same production tick as movement and foraging; use displacement after collisions.
+  if (playerRig) {
+    const actualSpeed = dt > 0 ? Math.hypot(controller.position.x - marmotPrevX, controller.position.z - marmotPrevZ) / dt : 0;
+    playerRig.update(dt, { grazing: grazeTarget > 0 }, actualSpeed);
+  }
 
   // —— 视觉更新 ——
   playerBody.rotation.x = -controller.crouch * 0.28;
@@ -3556,7 +3553,7 @@ window.__game = {
   combatStats: () => combatStats(game),
   burrow: BURROW,
   burrowObj: burrow, burrows: burrowDefs, scenery, sky, claw, shockwave, particles, damageText, aura, minimap,
-  viewModel, playerModel, playerBody, setViewMode, get thirdPerson() { return thirdPerson; },
+  viewModel, playerModel, playerBody, get playerRig() { return playerRig; }, setViewMode, get thirdPerson() { return thirdPerson; },
   binds, findConflicts, ACTIONS, FoxClass: Fox,
   isDev: IS_DEV, isBeta: IS_BETA, progress, ecology: { energyOfPlant, eatLine, seasonForLevel, plantsForLevel, HERBIVORE },
   touchControls, renderProfile: () => ({ ...renderProfile }),

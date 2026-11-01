@@ -13,11 +13,12 @@ import { terrainHeight } from '../core/utils.js';
 import { instantiate, normalizeModel } from '../models/loader.js';
 import { USE_REAL_MODELS, IS_BETA } from '../core/version.js';
 import { BETA_TUNE } from '../core/beta-tuning.js';
-import { marmotClipForState, animationTransition } from './marmot-rig.js';
+import { companionFollowStep } from './marmot-rig.js';
+import { BetaMarmotModel } from './beta-marmot-model.js';
 
 /** 真实土拨鼠模型（与藏狐同一套分级回退，见 models/loader.js） */
 const instantiateMarmot = () => instantiate(
-  `./assets/models/${IS_BETA ? 'marmot-screaming.glb' : 'marmot.glb'}`,
+  `./assets/models/${IS_BETA ? 'marmot-run-stand.glb' : 'marmot.glb'}`,
   'marmot',
 );
 import { devOn } from '../core/version.js';
@@ -315,7 +316,9 @@ export class Companion {
     try {
       const inst = await instantiateMarmot();
       if (!inst) { this.modelLevel = 'procedural'; return; }
-      const norm = normalizeModel(inst, 0.75, { upAxis: 'native' });
+      this.rig = IS_BETA ? new BetaMarmotModel(inst, 0.75) : null;
+      const norm = this.rig ? { wrap: this.rig.wrap } : normalizeModel(inst, 0.75, { upAxis: 'native' });
+      if (this.rig) { this.mixer = this.rig.mixer; this.actions = this.rig.actions; this.activeClip = this.rig.activeClip; }
       this.mesh.add(norm.wrap);
       this.realModel = norm.wrap;
       this.modelLevel = inst.userData.level || 'full';
@@ -350,27 +353,9 @@ export class Companion {
     });
   }
 
-  _setupRig(root, clips) {
-    this.mixer = new THREE.AnimationMixer(root);
-    this.actions.clear();
-    for (const clip of clips) this.actions.set(clip.name, this.mixer.clipAction(clip));
-    this._setRigClip('Idle', true);
-  }
-
-  _setRigClip(name, immediate = false) {
-    if (!this.mixer || !this.actions.has(name)) return false;
-    const transition = animationTransition(this.activeClip, name, immediate ? 0.05 : 0.2);
-    if (!transition.changed) return true;
-    const next = this.actions.get(name);
-    const prev = this.activeClip && this.actions.get(this.activeClip);
-    if (prev) prev.fadeOut(transition.fade);
-    next.reset().setEffectiveWeight(1).fadeIn(transition.fade).play();
-    this.activeClip = name;
-    return true;
-  }
-
   _discardRealModel() {
-    if (this.mixer) { this.mixer.stopAllAction(); this.mixer = null; }
+    this.rig?.dispose();
+    this.mixer = null;
     this.actions.clear(); this.activeClip = null;
     if (this.realModel) {
       this.mesh.remove(this.realModel);
@@ -380,6 +365,7 @@ export class Companion {
         for (const m of mats) { m?.dispose?.(); }
       });
     }
+    this.rig = null;
     this.realModel = null; this._rigRoot = null; this.modelLevel = 'procedural';
     this._restoreVisibility();
   }
@@ -424,15 +410,17 @@ export class Companion {
       if (this.emoteTimer <= 0) this.emote = null;
     }
 
+    if (IS_BETA) this._lastFollowSpeed = 0;
     if (this.rescued && !this.saved) {
       const dx = playerPos.x - this.x, dz = playerPos.z - this.z;
       const d = Math.hypot(dx, dz);
       const follow = IS_BETA ? BETA_TUNE : null;
       if (d > (follow ? follow.companionFollowGap : 1.5)) {
         const speed = follow ? follow.companionFollowSpeed : 7.2;
-        this.x += (dx / d) * speed * dt;
-        this.z += (dz / d) * speed * dt;
-        this._lastFollowSpeed = speed;
+        const step = IS_BETA ? companionFollowStep(d, dt, follow.companionFollowGap, speed) : speed * dt;
+        this.x += (dx / d) * step;
+        this.z += (dz / d) * step;
+        this._lastFollowSpeed = dt > 0 ? step / dt : 0;
       }
       this.mesh.rotation.y = Math.atan2(dx, dz);
     } else if (!this.rescued) {
@@ -441,18 +429,13 @@ export class Companion {
     }
 
     const speed = this._lastFollowSpeed;
-    const clip = marmotClipForState({
-      safe: !!safe,
-      rest: !!this.saved,
-      emote: this.emote,
-      jump: this.emote === 'jump',
-      mode: this.rescued && !this.saved ? 'follow' : 'idle',
-    }, speed);
-    this._setRigClip(clip);
-    if (this.mixer) this.mixer.update(Math.max(0, dt));
+    if (this.rig) {
+      this.rig.update(dt, { emote: this.emote }, speed);
+      this.activeClip = this.rig.activeClip;
+    }
 
     const y = terrainHeight(this.x, this.z);
-    const bob = this.rescued && !this.saved
+    const bob = this.rig ? 0 : this.rescued && !this.saved
       ? Math.abs(Math.sin(this._t * 7)) * 0.09
       : Math.sin(this._t * 2) * 0.03;
     this.group.position.set(this.x, y + bob, this.z);
@@ -481,7 +464,8 @@ export class Companion {
   }
 
   dispose(scene = this.scene) {
-    if (this.mixer) { this.mixer.stopAllAction(); this.mixer.uncacheRoot(this._rigRoot || this.realModel); this.mixer = null; }
+    this.rig?.dispose();
+    this.rig = null; this.mixer = null;
     this.actions.clear();
     if (scene && this.group) scene.remove(this.group);
     for (const root of [this.realModel, this.proceduralMesh]) root?.traverse((o) => {

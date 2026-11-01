@@ -1,16 +1,21 @@
-/** Pure beta marmot rig policy: no THREE/browser dependencies. */
-export const MARMOT_CLIPS = Object.freeze(['Bite', 'Groom', 'Idle', 'Jump', 'Rest', 'Run', 'Sprint', 'Stand']);
-export const SPRINT_THRESHOLD = 5.5;
+/** Pure policy for the three clips in the uploaded Beta marmot. */
+export const MARMOT_CLIPS = Object.freeze(['Run', 'StandIdle', 'StandUp']);
+export const MARMOT_MOVE_THRESHOLD = 0.05;
 
 export function marmotClipForState(state = {}, speed = 0) {
   const mode = typeof state === 'string' ? state : (state.mode || state.state || 'idle');
-  if (mode === 'jump' || state.jump) return 'Jump';
-  if (mode === 'eat' || mode === 'interact' || state.emote === 'check' || state.emote === 'bite') return 'Bite';
-  if (mode === 'groom' || state.emote === 'groom') return 'Groom';
-  if (mode === 'alert' || state.emote === 'exclaim' || state.stand) return 'Stand';
-  if (mode === 'rest' || state.rest || state.safe) return 'Rest';
-  if (mode === 'move' || mode === 'follow' || speed > 0.05) return speed >= SPRINT_THRESHOLD ? 'Sprint' : 'Run';
-  return 'Idle';
+  // Grazing deliberately uses the supplied Run, even without translation.
+  if (mode === 'eat' || state.grazing) return 'Run';
+  // Input/follow intent alone is insufficient (blocked or arrived actors idle).
+  if (Number.isFinite(speed) && speed > MARMOT_MOVE_THRESHOLD) return 'Run';
+  if (mode === 'stand' || mode === 'alert' || state.emote === 'exclaim' || state.stand) return 'StandUp';
+  // Jump/rest/groom/bite/check have no uploaded clip: safe standing fallback.
+  return 'StandIdle';
+}
+
+export function companionFollowStep(distance, dt, gap, speed) {
+  if (!(dt > 0) || !Number.isFinite(distance) || distance <= gap) return 0;
+  return Math.min(Math.max(0, speed) * dt, distance - gap);
 }
 
 export function animationTransition(current, next, fadeSeconds = 0.18) {
