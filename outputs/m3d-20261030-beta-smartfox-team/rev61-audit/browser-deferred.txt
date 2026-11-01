@@ -1,0 +1,1 @@
+A second private QA Chrome appeared on port18912 during the audit. This task stopped browser work, continued Node work, and reran QA only after the other process exited. The shared18800 process was never connected. BROWSER_HOLD was removed externally; this worker never changed it.

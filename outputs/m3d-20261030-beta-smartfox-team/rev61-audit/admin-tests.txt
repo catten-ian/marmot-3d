@@ -1,0 +1,14 @@
+✔ 后台 schema 包含唯一 id、合法范围与要求覆盖的关键常量 (0.990578ms)
+✔ beta tuning 面板新条目默认值与百分比/角度单位换算正确 (0.109558ms)
+✔ 数值钳制处理越界、非数与弧度/角度显示换算 (0.486597ms)
+✔ 导出再导入往返等价，schemaVersion 与来源详情可读 (8.132757ms)
+✔ 非法 JSON/schema/值和未知字段按约定处理 (0.495375ms)
+✔ 恢复分组只重置目标分组并清理 dirty 标记 (0.487988ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15.156725

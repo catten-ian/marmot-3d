@@ -1,0 +1,159 @@
+{
+  "method": "Same production entity initial scene pose, real Space tap, no HP/state/position write after construction, fixed 1/60 steps; legal explicit runtime overrides.",
+  "before": {
+    "birth": {
+      "hp": 8,
+      "maxHp": 8,
+      "stamina": 160,
+      "maxStamina": 160,
+      "x": -28.403010781242916,
+      "z": 7.532904972245918
+    },
+    "afterRealInput": {
+      "hp": 6.75,
+      "stamina": 149,
+      "state": "roam",
+      "hitStreak": 1
+    },
+    "firstSafeRest": {
+      "tick": 138,
+      "state": "rest_safe",
+      "hp": 6.75,
+      "stamina": 149,
+      "distance": 13.418058389383926
+    },
+    "firstHeal": {
+      "tick": 139,
+      "state": "rest_safe",
+      "hp": 6.776666666666666,
+      "stamina": 149.1,
+      "distance": 13.418058389383926
+    },
+    "final": {
+      "hp": 8,
+      "state": "rest",
+      "dead": false,
+      "stamina": 127.39915364583251
+    },
+    "playerHp": 52,
+    "consoleErrors": 0
+  },
+  "after": {
+    "birth": {
+      "hp": 8,
+      "maxHp": 8,
+      "stamina": 160,
+      "maxStamina": 160,
+      "x": -28.403010781242916,
+      "z": 7.532904972245918
+    },
+    "afterRealInput": {
+      "hp": 6.75,
+      "stamina": 149,
+      "state": "roam",
+      "hitStreak": 1
+    },
+    "firstSafeRest": {
+      "tick": 675,
+      "state": "rest_safe",
+      "hp": 6.75,
+      "stamina": 149,
+      "resolution": "arrival",
+      "restPoint": {
+        "x": 70,
+        "z": -40,
+        "playerDistance": 110.29986713369206,
+        "preferred": false
+      },
+      "progress": {
+        "elapsed": 10.716666666666779,
+        "stall": 0,
+        "anchor": {
+          "x": 69.11688885635475,
+          "z": -38.887797721392516
+        },
+        "timeout": 26.772194053944578,
+        "action": "rest"
+      },
+      "distance": 109.0277847714934
+    },
+    "firstHeal": {
+      "tick": 676,
+      "state": "rest_safe",
+      "hp": 6.776666666666666,
+      "stamina": 149.1,
+      "resolution": "arrival",
+      "restPoint": {
+        "x": 70,
+        "z": -40,
+        "playerDistance": 110.29986713369206,
+        "preferred": false
+      },
+      "progress": {
+        "elapsed": 10.716666666666779,
+        "stall": 0,
+        "anchor": {
+          "x": 69.11688885635475,
+          "z": -38.887797721392516
+        },
+        "timeout": 26.772194053944578,
+        "action": "rest"
+      },
+      "distance": 109.0277847714934
+    },
+    "final": {
+      "hp": 8,
+      "state": "roam",
+      "dead": false,
+      "stamina": 160
+    },
+    "playerHp": 100,
+    "consoleErrors": 0,
+    "lowTarget": {
+      "birth": {
+        "hp": 8,
+        "maxHp": 8,
+        "stamina": 160,
+        "maxStamina": 160,
+        "x": -28.403010781242916,
+        "z": 7.532904972245918
+      },
+      "afterInput": {
+        "hp": 6.75,
+        "stamina": 149,
+        "state": "roam",
+        "hitStreak": 1
+      },
+      "final": {
+        "hp": 6.75,
+        "state": "roam",
+        "dead": false,
+        "stamina": 153.49999999999974
+      },
+      "playerHp": 100
+    },
+    "death": {
+      "birth": {
+        "hp": 1,
+        "maxHp": 1,
+        "stamina": 160,
+        "maxStamina": 160,
+        "x": -28.403010781242916,
+        "z": 7.532904972245918
+      },
+      "afterInput": {
+        "hp": 0,
+        "stamina": 149,
+        "state": "flee",
+        "hitStreak": 1
+      },
+      "final": {
+        "hp": 0,
+        "state": "dead",
+        "dead": false,
+        "stamina": 149
+      },
+      "playerHp": 100
+    }
+  }
+}

@@ -1,0 +1,2 @@
+node tools/qa-smartfox-runtime-acceptance.cjs
+# Local-only service :8338; private CDP :19338; no shared 18800.

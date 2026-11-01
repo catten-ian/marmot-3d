@@ -2,12 +2,14 @@
  * Renderer-free SmartFox combat laboratory.
  * Uses the same production decision, team, motion, stamina, retreat and combat
  * volume primitives as the browser entities; this file only adapts them to
- * plain numeric state and deterministic fixed-step actors.
+ * plain numeric state and deterministic fixed-step actors. This is a primitive
+ * adapter, not the full main.js world/input/contact loop (see audit report).
  */
 import { FOX, PLAYER } from '../core/config.js';
-import { combatStats, resolveStrikeProfile, strikeVolumeHit, foxAttackVerticalHit } from '../systems/combat.js';
+import { resolveStrikeProfile, strikeVolumeHit, foxAttackVerticalHit } from '../systems/combat.js';
+import { sanitizeRuntimeValues } from '../core/runtime-config.mjs';
 import { resolveParryOutcome } from '../core/combat-wheel.mjs';
-import { stepStamina, shouldRetreat, chooseRestPoint, stepRestSafe, enterRestSafe } from '../core/fox-motion.js';
+import { stepStamina, shouldRetreat, chooseRestPoint, stepRestSafe, stepSmartRetreatNavigation, stepFoxLocomotion, steerGroundDirection } from '../core/fox-motion.js';
 import { BETA_TUNE, createSmartFoxRetreat, createSmartFoxSpawnState, createSmartFoxVitals } from '../core/beta-tuning.js';
 import {
   utilityScores, updatePerception, assignRoles, stepSmartMotion, advanceSmartMelee,
@@ -25,6 +27,51 @@ const wrap = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TA
 export function createSeededRandom(seed = 1) {
   let s = (Number(seed) >>> 0) || 1;
   return () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 0x100000000; };
+}
+
+/** Bounded, deterministic CLI/library input. Invalid time cannot hang a worker. */
+export function validateLabConfig(config = {}) {
+  const finiteRange = (key, fallback, min, max, integer = false) => {
+    const value = config[key] ?? fallback;
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) {
+      throw new RangeError(`${key} must be ${integer ? 'an integer' : 'finite'} in [${min}, ${max}]`);
+    }
+    return value;
+  };
+  const dt = finiteRange('dt', 1 / 60, 1 / 240, .1);
+  const duration = finiteRange('duration', 20, 1 / 240, 300);
+  const foxes = finiteRange('foxes', 1, 1, 64, true);
+  const seed = finiteRange('seed', 1, 0, 0xffffffff, true);
+  const scenario = config.scenario ?? 'faceoff-tap', movement = config.movement ?? 'stationary';
+  if (!SCENARIOS.includes(scenario)) throw new RangeError(`unknown scenario: ${scenario}`);
+  if (!MOVES.includes(movement)) throw new RangeError(`unknown movement: ${movement}`);
+  const ticks = Math.ceil(duration / dt);
+  if (ticks * (foxes + 1) > 2_000_000) throw new RangeError('scenario exceeds 2,000,000 actor-tick budget');
+  const clean = sanitizeRuntimeValues(config.tune ?? {});
+  return { seed, dt, duration, foxes, marmots: 1, scenario, movement, ticks,
+    tune: { ...BETA_TUNE, ...clean.values }, tuneWarnings: clean.warnings, ignoredTuneKeys: clean.ignored };
+}
+
+/** Progress means real movement, state transitions, resource changes or attacks;
+ * unchanged population alone never implies a stalled fight. No wall clock. */
+export function advanceLabProgress(previous, actors, dt) {
+  const signature = JSON.stringify(actors.map((a) => [a.x, a.z, a.hp, a.stamina,
+    a.state, a.smart?.pounceStage, a.melee?.phase, a.stats?.hits, a.attackStats?.commits]));
+  const idleSeconds = previous?.signature === signature ? previous.idleSeconds + dt : 0;
+  return { signature, idleSeconds, stalled: idleSeconds >= 5 };
+}
+
+export function labActorInvariants(foxes, marmots) {
+  const errors = [];
+  for (const [kind, actors] of [['fox', foxes], ['marmot', marmots]]) for (const a of actors) {
+    const id = `${kind}${a.slot ?? a.id}`;
+    for (const key of ['x', 'z', 'hp', 'maxHp', 'stamina', 'maxStamina']) {
+      if (!Number.isFinite(a[key])) errors.push(`${id}:nonfinite:${key}`);
+    }
+    if (a.maxHp <= 0 || a.maxStamina <= 0 || a.hp < 0 || a.hp > a.maxHp || a.stamina < 0 || a.stamina > a.maxStamina) errors.push(`${id}:bounds`);
+    if (a.dead && (a.hp !== 0 || a.state !== 'dead')) errors.push(`${id}:dead-state`);
+  }
+  return errors;
 }
 
 function event(ctx, type, data = {}) {
@@ -55,9 +102,9 @@ function makeFox(slot, x, z, tune) {
   };
 }
 
-function makeMarmot(id, x, z, target, strategy) {
-  return { id, x, z, yaw: 0, target, strategy, hp: 12, maxHp: 12, stamina: 100, maxStamina: 100,
-    cooldown: 0, parryCooldown: 0, parryWindowT: 0, parryDone: false, attackMode: 'tap', facing: 0, alive: true, damage: 1,
+function makeMarmot(id, x, z, strategy) {
+  return { id, x, z, yaw: 0, target: null, strategy, hp: 12, maxHp: 12, stamina: 100, maxStamina: 100,
+    cooldown: 0, parryCooldown: 0, parryWindowT: 0, parryDone: false, openingComplete: false, attackMode: 'tap', facing: 0, alive: true, damage: 1,
     stats: { attempts: 0, hits: 0, blocked: 0, dealt: 0, taken: 0, parries: 0 }, phase: 0 };
 }
 
@@ -73,12 +120,19 @@ function moveMarmot(m, foxes, dt, ctx) {
   const phase = ctx.time * .8 + m.phase;
   if (m.strategy === 'orbit') desired += Math.PI / 2 + Math.sin(phase) * .25;
   if (m.strategy === 'kite') desired += Math.PI;
-  if (m.strategy === 'zigzag') desired += (Math.sin(phase * 2) >= 0 ? 1 : -1) * .7;
+  if (m.strategy === 'zigzag') desired += Math.sin(phase * 2) * .7;
   const speed = m.strategy === 'stationary' ? 0 : m.strategy === 'kite' ? 4.2 : m.strategy === 'orbit' ? 3.2 : 3.8;
-  if (m.strategy === 'stationary') { m.yaw = toward; return; }
+  // The requested parry opening is an explicit normal-movement intercept,
+  // then one follow-up tap; only after that opening does the selected travel
+  // policy resume. Never stop/freeze an actor or force a fox attack to set it up.
+  const opening = !m.openingComplete && (ctx.scenario === 'chase-pounce-tap'
+    || (ctx.scenario === 'parry-tap' && m.strategy !== 'stationary'));
+  if (opening) desired = toward;
+  const actualSpeed = opening ? 3.8 : speed;
+  if (m.strategy === 'stationary' && !opening) { m.yaw = toward; return; }
   m.yaw = desired;
-  m.x += Math.sin(desired) * speed * dt;
-  m.z += Math.cos(desired) * speed * dt;
+  m.x += Math.sin(desired) * actualSpeed * dt;
+  m.z += Math.cos(desired) * actualSpeed * dt;
 }
 
 function facingHit(attacker, target, profile, targetHeight = 1.1) {
@@ -134,6 +188,9 @@ function marmotAttack(m, foxes, ctx, dt) {
   if (!m.alive) return;
   m.cooldown = Math.max(0, m.cooldown - dt); m.parryCooldown = Math.max(0, m.parryCooldown - dt);
   if (marmotParry(m, foxes, ctx, dt)) return;
+  // This opening is parry first, then tap; do not injure/repel a candidate
+  // attacker with an unsolicited tap before the real parry has succeeded.
+  if (ctx.scenario === 'parry-tap' && !m.parryDone) return;
   const f = nearest(foxes, m); if (!f) return;
   const d = dist(m, f); m.yaw = yawTo(m, f);
   const scenario = ctx.scenario;
@@ -147,6 +204,8 @@ function marmotAttack(m, foxes, ctx, dt) {
   f.hp = Math.max(0, f.hp - damage); f.stamina = Math.max(0, f.stamina - ctx.tune.smartHitStaminaCost);
   f.hitStreak++; f.lastInterruptionAt = ctx.time; f.interruptions++; f.memory = Math.min(3, f.memory + 1);
   m.stats.hits++; m.stats.dealt += damage; event(ctx, 'marmot_hit', { marmot: m.id, fox: f.slot, move, damage });
+  if (move === 'lunge') m.attackMode = 'tap';
+  if (!m.openingComplete && ((ctx.scenario === 'parry-tap' && m.parryDone) || (ctx.scenario === 'chase-pounce-tap' && move === 'tap'))) { m.openingComplete = true; event(ctx, 'opening_complete', { marmot:m.id, movement:m.strategy }); }
   if (f.hp <= 0 && !f.dead) { f.dead = true; f.alive = false; f.state = 'dead'; f.attackStats.deaths++; event(ctx, 'fox_died', { fox: f.slot }); }
 }
 
@@ -167,15 +226,33 @@ function updateFox(f, foxes, marmots, ctx, dt, roles) {
   if (canAttack && d >= f.smart.pounceMinDistance && d <= f.smart.pounceMaxDistance
       && (ctx.scenario === 'chase-pounce-tap' || ctx.scenario === 'parry-tap')) intent = 'pounce';
   if (f.smart.pounceCommitted) intent = 'pounce';
-  if (shouldRetreat({ hpRatio: f.hp / f.maxHp, staminaRatio: f.stamina / f.maxStamina, hitStreak: f.hitStreak, state: f.state }, ctx.retreat)) intent = 'recover';
-  if (intent === 'recover' && !f.retreating && f.state !== 'rest_safe' && f.state !== 'dead' && f.hp < f.maxHp * .7) {
-    f.restPoint = chooseRestPoint({ foxX: f.x, foxZ: f.z, playerX: target.x, playerZ: target.z, bounds: { hw: 74, hh: 44 } }, ctx.retreat);
-    f.retreating = true; f.state = 'retreat'; f.attackStats.retreats++; event(ctx, 'fox_retreat', { fox: f.slot, distance: dist(f, target) });
+  if (ctx.time - f.lastInterruptionAt > ctx.retreat.hitStreakDecay) f.hitStreak = 0;
+  const hardRetreat = shouldRetreat({ hpRatio: f.hp / f.maxHp, staminaRatio: f.stamina / f.maxStamina, hitStreak: f.hitStreak, state: f.state }, ctx.retreat);
+  if (hardRetreat) intent = 'recover';
+  if ((hardRetreat || (intent === 'recover' && f.hp < f.maxHp * .7)) && !f.retreating && f.state !== 'rest_safe' && f.state !== 'dead') {
+    f.restPoint = chooseRestPoint({ foxX: f.x, foxZ: f.z, playerX: target.x, playerZ: target.z, bounds: { hw: 74, hh: 44 } }, { ...ctx.retreat, betaSmartMinPlayerDistance: ctx.tune.smartRestMinPlayerDistance });
+    f.retreatProgress = {}; f.retreating = true; f.state = 'retreat'; f.attackStats.retreats++; event(ctx, 'fox_retreat', { fox: f.slot, distance: dist(f, target), targetDistance:dist(f.restPoint, target), requiredMinDistance:ctx.tune.smartRestMinPlayerDistance });
   }
   if (f.retreating) {
-    const rd = dist(f, f.restPoint); if (rd < ctx.retreat.arriveRadius) { f.retreating = false; f.state = 'rest_safe'; f.restTimer = ctx.retreat.restSeconds.smart; event(ctx, 'fox_rest_safe', { fox: f.slot, distance: dist(f, target) }); }
-    else { f.yaw = yawTo(f, f.restPoint); f.x += Math.sin(f.yaw) * ctx.retreat.speed * dt; f.z += Math.cos(f.yaw) * ctx.retreat.speed * dt; }
+    const nav = stepSmartRetreatNavigation(f.retreatProgress, { x:f.x,z:f.z,distance:dist(f,f.restPoint),
+      playerDistance:dist(f,target),minPlayerDistance:ctx.tune.smartRestMinPlayerDistance,
+      arriveRadius:ctx.retreat.arriveRadius,speed:ctx.retreat.speed },dt);
+    f.retreatProgress=nav;
+    if (nav.action === 'rest') {
+      f.retreating=false; f.state='rest_safe'; f.restTimer=ctx.retreat.restSeconds.smart;
+      event(ctx,'fox_rest_safe',{fox:f.slot,distance:dist(f,target),hp:f.hp});
+    } else if (nav.action === 'repath' || dist(f.restPoint,target)<ctx.tune.smartRestMinPlayerDistance) {
+      f.restPoint=chooseRestPoint({foxX:f.x,foxZ:f.z,playerX:target.x,playerZ:target.z,bounds:{hw:74,hh:44}},
+        {...ctx.retreat,betaSmartMinPlayerDistance:ctx.tune.smartRestMinPlayerDistance});
+      f.retreatProgress={}; event(ctx,'fox_retreat_repath',{fox:f.slot,distance:dist(f,target)});
+    } else {
+      const steer=steerGroundDirection(f.restPoint.x-f.x,f.restPoint.z-f.z,ctx.retreat.speed,f,[],{hw:74,hh:44},f.slot,f.yaw);
+      const moved=stepFoxLocomotion(f,{x:f.x+steer.x*100,z:f.z+steer.z*100},dt,
+        {speed:ctx.retreat.speed,acceleration:FOX.handling.locomotionAccel,turnAcceleration:FOX.handling.locomotionTurnAccel});
+      Object.assign(f,{x:moved.x,z:moved.z,yaw:moved.yaw,vx:moved.vx,vz:moved.vz,turnVelocity:moved.turnVelocity});
+    }
   } else if (f.state === 'rest_safe') {
+    if (dist(f,target)<ctx.tune.smartRestMinPlayerDistance) { f.state='retreat';f.retreating=true;f.retreatProgress={};return; }
     const r = stepRestSafe({ timer: f.restTimer, hp: f.hp, maxHp: f.maxHp }, dt, ctx.retreat); f.restTimer = r.timer; f.hp = r.hp;
     if (r.done && f.hp > 0) { f.state = 'roam'; f.hitStreak = 0; event(ctx, 'fox_rest_done', { fox: f.slot }); }
   } else {
@@ -200,15 +277,16 @@ function updateFox(f, foxes, marmots, ctx, dt, roles) {
     }
   }
   const drain = f.smart.pounceCommitted ? ctx.tune.smartPounceStaminaPerSec : 0;
-  const st = stepStamina({ stamina: f.stamina, hp: f.hp, locked: f.staminaLocked }, dt, { maxStamina: f.maxStamina, maxHp: f.maxHp, drainPerSec: drain, regenPerSec: ctx.tune.smartRestStaminaRegenPerSec, regenPerSecByState: { roam: ctx.tune.smartRoamStaminaRegenPerSec, recover: ctx.tune.smartRecoverStaminaRegenPerSec, intercept: ctx.tune.smartInterceptStaminaRegenPerSec }, regenState: f.state === 'recover' ? 'recover' : f.role === 'interceptor' ? 'intercept' : 'roam', resting: f.state === 'rest_safe', hpRegenRatio: f.state === 'rest_safe' ? ctx.retreat.regenPerSec : 0, staminaLockSeconds: ctx.tune.smartStaminaLockSeconds });
+  const st = stepStamina({ stamina: f.stamina, hp: f.hp, locked: f.staminaLocked }, dt, { maxStamina: f.maxStamina, maxHp: f.maxHp, drainPerSec: drain, regenPerSec: ctx.tune.smartRestStaminaRegenPerSec, regenPerSecByState: { roam: ctx.tune.smartRoamStaminaRegenPerSec, recover: ctx.tune.smartRecoverStaminaRegenPerSec, intercept: ctx.tune.smartInterceptStaminaRegenPerSec }, regenState: f.state === 'recover' ? 'recover' : f.role === 'interceptor' ? 'intercept' : 'roam', resting: f.state === 'rest_safe', hpRegenRatio: 0, staminaLockSeconds: ctx.tune.smartStaminaLockSeconds });
   Object.assign(f, { stamina: st.stamina, hp: st.hp, staminaLocked: st.locked });
   if (f.hp <= 0 && !f.dead) { f.alive = false; f.dead = true; f.state = 'dead'; f.attackStats.deaths++; event(ctx, 'fox_died', { fox: f.slot }); }
 }
 
 export function runScenario(config = {}) {
-  const dt = Number(config.dt ?? 1 / 60); const duration = Number(config.duration ?? 20); const ticks = Math.ceil(duration / dt); const rand = createSeededRandom(config.seed ?? 1);
-  const tune = { ...BETA_TUNE, ...(config.tune || {}) }; const retreat = createSmartFoxRetreat(tune); const scenario = config.scenario || 'faceoff-tap';
-  const foxCount = Math.max(1, Math.floor(config.foxes ?? 1)); const marmotCount = 1; const movement = config.movement || 'stationary';
+  const effectiveConfig = validateLabConfig(config);
+  const { dt, duration, ticks, tune, scenario, movement, seed } = effectiveConfig;
+  const rand = createSeededRandom(seed), retreat = createSmartFoxRetreat(tune);
+  const foxCount = effectiveConfig.foxes, marmotCount = 1;
   const foxes = []; const marmots = [];
   for (let i = 0; i < foxCount; i++) { const angle = foxCount === 1 ? 0 : (i / foxCount) * TAU; foxes.push(makeFox(i, Math.sin(angle) * 5.4, Math.cos(angle) * 5.4, tune)); }
   for (let i = 0; i < marmotCount; i++) { const angle = marmotCount === 1 ? Math.PI : (i / marmotCount) * TAU + Math.PI; marmots.push(makeMarmot(i, Math.sin(angle) * (scenario === 'faceoff-tap' ? 0 : 10 + i * 2), Math.cos(angle) * ((scenario === 'faceoff-tap' || scenario === 'parry-tap') ? 0 : 10 + i * 2), movement)); }
@@ -216,7 +294,10 @@ export function runScenario(config = {}) {
   marmots[0].phase = rand() * TAU;
   const ctx = { scenario, time: 0, tune, retreat, foxes, marmots, events: [], maxEvents: 5000, rand,
     pack: createSmartPack({ window: tune.smartPackWindow, spacing: tune.smartPackSpacing, slotSpacing: tune.smartPackSlotSpacing, dynamicAttackers: true }) };
-  let prevRoles = {}, noProgress = 0, lastDist = Infinity, status = 'completed';
+  const spawn = foxes.map((f) => ({ slot:f.slot, hp:f.hp, maxHp:f.maxHp, stamina:f.stamina, maxStamina:f.maxStamina, staminaLocked:f.staminaLocked, hitStreak:f.hitStreak, state:f.state, retreating:f.retreating, dead:f.dead }));
+  const movementTrace = [];
+  let prevRoles = {}, progress = null, status = 'completed', tickInvariants = [];
+  let ticksExecuted = 0;
   let peakAttackRoles = 0, peakConcurrentPounces = 0, peakWindowCommits = 0;
   for (let tick = 0; tick < ticks; tick++) {
     ctx.time = tick * dt;
@@ -227,23 +308,29 @@ export function runScenario(config = {}) {
     peakConcurrentPounces = Math.max(peakConcurrentPounces, foxes.filter((f) => f.alive && f.smart.pounceCommitted).length);
     peakWindowCommits = Math.max(peakWindowCommits, ctx.pack.commits.filter((c) => ctx.time - c.at < tune.smartPackWindow).length);
     marmots.forEach((m) => marmotAttack(m, foxes, ctx, dt));
-    const progress = foxes.reduce((s, f) => s + (f.alive ? 1 : 0), 0) + marmots.reduce((s, m) => s + (m.alive ? 1 : 0), 0);
-    if (progress === lastDist) noProgress++; else noProgress = 0; lastDist = progress;
-    if (noProgress > Math.ceil(5 / dt) && !ctx.events.some((e) => e.type === 'no_progress')) event(ctx, 'no_progress');
+    ticksExecuted++;
+    progress = advanceLabProgress(progress, [...foxes, ...marmots], dt);
+    if (progress.stalled && !ctx.events.some((e) => e.type === 'no_progress')) event(ctx, 'no_progress', { idleSeconds:progress.idleSeconds });
+    if (tick % Math.max(1, Math.round(.25 / dt)) === 0) movementTrace.push({ t:ctx.time, marmots:marmots.map((m) => ({ id:m.id, x:m.x, z:m.z, strategy:m.strategy, phase:!m.openingComplete && ['parry-tap','chase-pounce-tap'].includes(scenario) ? (scenario === 'parry-tap' ? 'parry-opening' : 'chase-opening') : 'movement' })) });
+    tickInvariants = labActorInvariants(foxes, marmots);
+    if (tickInvariants.length) { event(ctx, 'invariant_failed', { errors:tickInvariants }); break; }
     if (foxes.every((f) => !f.alive) || marmots.every((m) => !m.alive)) break;
   }
-  const invariants = []; for (const f of foxes) { if (f.maxHp <= 0 || f.hp < 0 || f.hp > f.maxHp || f.stamina < 0 || f.stamina > f.maxStamina) invariants.push(`fox${f.slot}:bounds`); if (f.dead && f.hp !== 0) invariants.push(`fox${f.slot}:dead-hp`); }
+  const invariants = tickInvariants;
   const parry = ctx.events.some((e) => e.type === 'parry_success');
   if (scenario === 'parry-tap' && !parry) { status = 'failed'; ctx.failure = 'setup/scenario failed: no real parry_success event'; }
   const pounceCommitters = new Set(foxes.filter((f) => f.attackStats.commits > 0).map((f) => f.slot));
   const activeAttackers = new Set(foxes.filter((f) => f.attackStats.commits + f.attackStats.pounceStrikes + f.attackStats.meleeStrikes + f.attackStats.meleeHits > 0).map((f) => f.slot));
-  const result = { status, failure: ctx.failure || null, scenario, movement, seed: config.seed ?? 1, dt, duration: Number((ctx.time + dt).toFixed(6)), ticks: Math.min(ticks, Math.floor(ctx.time / dt) + 1), foxes: foxes.map((f) => ({ slot: f.slot, hp: f.hp, maxHp: f.maxHp, stamina: f.stamina, maxStamina: f.maxStamina, state: f.state, role: f.role, dead: f.dead, attacks: { ...f.attackStats }, stateTime: Object.fromEntries(Object.entries(f.stateTime).map(([k, v]) => [k, Number(v.toFixed(6))])) })), marmots: marmots.map((m) => ({ id: m.id, hp: m.hp, stats: m.stats })), events: ctx.events, invariants, metrics: { pounceCommits: ctx.events.filter((e) => e.type === 'fox_pounce_commit').length, pounceStrikes: ctx.events.filter((e) => e.type === 'fox_pounce_strike').length, meleeHits: ctx.events.filter((e) => e.type === 'fox_melee_hit').length, activeAttackers: activeAttackers.size, attackerSlots: [...activeAttackers], pounceCommitters: pounceCommitters.size, committerSlots: [...pounceCommitters], peakAttackRoles, peakConcurrentPounces, peakWindowCommits, parrySuccesses: ctx.events.filter((e) => e.type === 'parry_success').length, foxRetreats: ctx.events.filter((e) => e.type === 'fox_retreat').length, foxDeaths: ctx.events.filter((e) => e.type === 'fox_died').length, marmotHits: ctx.events.filter((e) => e.type === 'marmot_hit').length, playerDamageTaken: marmots.reduce((sum, m) => sum + m.maxHp - m.hp, 0), playerHitsTaken: marmots.reduce((sum, m) => sum + m.stats.taken, 0), attackPressure: foxes.reduce((sum, f) => sum + f.attackStats.pounceStrikes + f.attackStats.meleeStrikes, 0) } };
+  const result = { status, failure: ctx.failure || null, scenario, movement, seed, config:effectiveConfig, spawn, movementTrace, dt, duration: Number((ticksExecuted * dt).toFixed(6)), ticks: ticksExecuted, foxes: foxes.map((f) => ({ slot: f.slot, hp: f.hp, maxHp: f.maxHp, stamina: f.stamina, maxStamina: f.maxStamina, state: f.state, role: f.role, dead: f.dead, attacks: { ...f.attackStats }, stateTime: Object.fromEntries(Object.entries(f.stateTime).map(([k, v]) => [k, Number(v.toFixed(6))])) })), marmots: marmots.map((m) => ({ id: m.id, hp: m.hp, maxHp:m.maxHp, stamina:m.stamina, maxStamina:m.maxStamina, strategy:m.strategy, x:m.x, z:m.z, stats: m.stats })), events: ctx.events, invariants, metrics: { pounceCommits: ctx.events.filter((e) => e.type === 'fox_pounce_commit').length, pounceStrikes: ctx.events.filter((e) => e.type === 'fox_pounce_strike').length, meleeHits: ctx.events.filter((e) => e.type === 'fox_melee_hit').length, activeAttackers: activeAttackers.size, attackerSlots: [...activeAttackers], pounceCommitters: pounceCommitters.size, committerSlots: [...pounceCommitters], peakAttackRoles, peakConcurrentPounces, peakWindowCommits, parrySuccesses: ctx.events.filter((e) => e.type === 'parry_success').length, foxRetreats: ctx.events.filter((e) => e.type === 'fox_retreat').length, foxDeaths: ctx.events.filter((e) => e.type === 'fox_died').length, marmotHits: ctx.events.filter((e) => e.type === 'marmot_hit').length, playerDamageTaken: marmots.reduce((sum, m) => sum + m.maxHp - m.hp, 0), playerHitsTaken: marmots.reduce((sum, m) => sum + m.stats.taken, 0), attackPressure: foxes.reduce((sum, f) => sum + f.attackStats.pounceStrikes + f.attackStats.meleeStrikes, 0) } };
   if (invariants.length) { result.status = 'failed'; result.failure = `invariants: ${invariants.join(',')}`; }
   return result;
 }
 
 export function runMatrix(options = {}) {
   const seeds = options.seeds || [options.seed ?? 20261031, (options.seed ?? 20261031) + 101, (options.seed ?? 20261031) + 202];
+  if (!Array.isArray(seeds) || seeds.length < 1 || seeds.length > 16) throw new RangeError('matrix seeds must contain 1..16 entries');
+  const bounded = validateLabConfig({ ...options, seed:seeds[0] });
+  if (bounded.ticks * (2 + 3 + 5 + 9) * MOVES.length * SCENARIOS.length * seeds.length > 2_000_000) throw new RangeError('matrix exceeds 2,000,000 actor-tick budget');
   const cases = [];
   for (const foxes of [1, 2, 4, 8]) for (const movement of MOVES) for (const scenario of SCENARIOS) for (const seed of seeds) {
     cases.push(runScenario({ ...options, seed, foxes, marmots: 1, scenario, movement }));

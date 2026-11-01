@@ -1,0 +1,13 @@
+{
+  "commit": "ff16fe8339d3b1a1ab4ddd6f08d7d24a73634fa9",
+  "dirty": [],
+  "cases": 180,
+  "completed": 180,
+  "exactlyOneMarmot": true,
+  "caseDataExactlyEqualsSavedAfter": true,
+  "casesSha256": "0cf47cfd5e4ca9871e4b887c34abb39aebf804405f2c8bdd4c644059bfdd06e8",
+  "wallMs": 1301.726,
+  "ticks": 60817,
+  "rawCaseData": "after-matrix-180.json",
+  "command": "node tools/smartfox-headless-lab.mjs matrix --seed 20261031 --duration 6 --out /tmp/m3d-smartfox-rev61-committed-matrix.json"
+}

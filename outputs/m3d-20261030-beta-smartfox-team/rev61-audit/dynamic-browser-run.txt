@@ -1,0 +1,196 @@
+[
+  {
+    "foxCount": 4,
+    "realAttackers": [
+      0,
+      3,
+      1,
+      2
+    ],
+    "committers": [
+      0,
+      3,
+      1,
+      2
+    ],
+    "pounceStrikers": [
+      0,
+      3,
+      1,
+      2
+    ],
+    "meleeStrikers": [
+      0,
+      3,
+      1
+    ],
+    "peakWindowCommits": 3,
+    "hitEvents": [
+      {
+        "t": 9.2,
+        "type": "hit",
+        "slot": 0,
+        "attackKind": "pounce",
+        "damage": 12,
+        "hpBefore": 100,
+        "hpAfter": 88,
+        "preventedByGodMode": false
+      },
+      {
+        "t": 9.65,
+        "type": "hit",
+        "slot": 3,
+        "attackKind": "pounce",
+        "damage": 12,
+        "hpBefore": 88,
+        "hpAfter": 76,
+        "preventedByGodMode": false
+      },
+      {
+        "t": 10.133,
+        "type": "hit",
+        "slot": 1,
+        "attackKind": "pounce",
+        "damage": 12,
+        "hpBefore": 76,
+        "hpAfter": 64,
+        "preventedByGodMode": false
+      },
+      {
+        "t": 11.817,
+        "type": "hit",
+        "slot": 0,
+        "attackKind": "melee",
+        "damage": 12,
+        "hpBefore": 64,
+        "hpAfter": 52,
+        "preventedByGodMode": false
+      },
+      {
+        "t": 12.65,
+        "type": "hit",
+        "slot": 2,
+        "attackKind": "pounce",
+        "damage": 12,
+        "hpBefore": 52,
+        "hpAfter": 40,
+        "preventedByGodMode": false
+      }
+    ],
+    "hp": [
+      100,
+      40
+    ],
+    "renderer": {
+      "backend": "WebGLRenderer",
+      "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    "assertions": {
+      "validFullHpLivingStart": true,
+      "productionPackDynamic": true,
+      "moreThanTwoRealAttackers": true,
+      "realProductionHit": true,
+      "consoleErrorZero": true
+    }
+  },
+  {
+    "foxCount": 8,
+    "realAttackers": [
+      0,
+      3,
+      6,
+      1,
+      4,
+      7
+    ],
+    "committers": [
+      0,
+      3,
+      6,
+      1,
+      4,
+      7
+    ],
+    "pounceStrikers": [
+      0,
+      3,
+      6,
+      1
+    ],
+    "meleeStrikers": [
+      0,
+      3,
+      6
+    ],
+    "peakWindowCommits": 3,
+    "hitEvents": [
+      {
+        "t": 9.2,
+        "type": "hit",
+        "slot": 0,
+        "attackKind": "pounce",
+        "damage": 12,
+        "hpBefore": 100,
+        "hpAfter": 88,
+        "preventedByGodMode": false
+      },
+      {
+        "t": 9.65,
+        "type": "hit",
+        "slot": 3,
+        "attackKind": "pounce",
+        "damage": 12,
+        "hpBefore": 88,
+        "hpAfter": 76,
+        "preventedByGodMode": false
+      },
+      {
+        "t": 10.117,
+        "type": "hit",
+        "slot": 6,
+        "attackKind": "pounce",
+        "damage": 12,
+        "hpBefore": 76,
+        "hpAfter": 64,
+        "preventedByGodMode": false
+      },
+      {
+        "t": 11.817,
+        "type": "hit",
+        "slot": 0,
+        "attackKind": "melee",
+        "damage": 12,
+        "hpBefore": 64,
+        "hpAfter": 52,
+        "preventedByGodMode": false
+      },
+      {
+        "t": 12.183,
+        "type": "hit",
+        "slot": 3,
+        "attackKind": "melee",
+        "damage": 12,
+        "hpBefore": 52,
+        "hpAfter": 40,
+        "preventedByGodMode": false
+      }
+    ],
+    "hp": [
+      100,
+      40
+    ],
+    "renderer": {
+      "backend": "WebGLRenderer",
+      "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    "assertions": {
+      "validFullHpLivingStart": true,
+      "productionPackDynamic": true,
+      "moreThanTwoRealAttackers": true,
+      "realProductionHit": true,
+      "consoleErrorZero": true
+    }
+  }
+]

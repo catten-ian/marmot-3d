@@ -1,10 +1,17 @@
-/** Real local browser evidence for Beta SmartFox admin/runtime vitals. */
+/** Legacy entity wiring diagnostics (state injection), NOT normal-combat acceptance.
+ * Kept as a diagnostic only. Output isolated from old evidence; gated by BROWSER_HOLD. */
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
+// Respect the task-owned browser hold before opening a server or touching CDP.
+const BROWSER_HOLD = '/home/fame/codex-runs/m3d-20261030-beta-smartfox-team/BROWSER_HOLD';
+if (fs.existsSync(BROWSER_HOLD)) {
+  console.error(`BROWSER_HOLD present: ${BROWSER_HOLD}; no Chrome/CDP experiment started`);
+  process.exit(2);
+}
 const ROOT = path.resolve(__dirname, '..');
-const OUT = path.join(ROOT, 'outputs', 'm3d-20261030-beta-smartfox-team', 'vitals-admin');
+const OUT = path.join(ROOT, 'outputs', 'm3d-20261030-beta-smartfox-team', 'rev61-audit', 'vitals-admin-pending');
 fs.mkdirSync(OUT, { recursive: true });
 const PORT = 8337, CDP_PORT = 19337;
 const BASE = `http://127.0.0.1:${PORT}`;

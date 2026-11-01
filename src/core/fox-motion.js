@@ -125,13 +125,13 @@ export function canSprint(stamina, staminaPerSec, dt = 0) {
 
 /** 低血量对速度的倍率：血量 ≥ 阈值 → 1；血量 → 0 → speedMulAtZeroHp。 */
 export function hpSpeedMultiplier(hpRatio, vitals) {
-  const t = Math.max(0, Math.min(1, hpRatio / vitals.lowHpThreshold));
+  const t = vitals.lowHpThreshold === 0 ? (hpRatio > 0 ? 1 : 0) : Math.max(0, Math.min(1, hpRatio / vitals.lowHpThreshold));
   return vitals.speedMulAtZeroHp + (1 - vitals.speedMulAtZeroHp) * t;
 }
 
 /** 低血量对伤害的倍率（与速度同理，但地板更低）。 */
 export function hpDamageMultiplier(hpRatio, vitals) {
-  const t = Math.max(0, Math.min(1, hpRatio / vitals.lowHpThreshold));
+  const t = vitals.lowHpThreshold === 0 ? (hpRatio > 0 ? 1 : 0) : Math.max(0, Math.min(1, hpRatio / vitals.lowHpThreshold));
   return vitals.damageMulAtZeroHp + (1 - vitals.damageMulAtZeroHp) * t;
 }
 
@@ -186,6 +186,7 @@ export function stepStamina(state, dt, options = {}) {
  * 已在撤退/休息/死亡状态下也不重复触发。
  */
 export function shouldRetreat({ hpRatio = 1, staminaRatio = 1, hitStreak = 0, state = 'roam' } = {}, cfg = FOX.retreat) {
+  if (cfg.requireDepletion && hpRatio >= 1 && staminaRatio >= 1 && hitStreak === 0) return false;
   if (state === 'wind' || state === 'dash') return false;           // 攻击流程中不撤退
   if (state === 'retreat' || state === 'rest_safe' || state === 'dead') return false;
   if (hpRatio <= cfg.hpRatio) return true;
@@ -274,6 +275,21 @@ export function stepRetreatProgress({ elapsed = 0, stall = 0, lastDistance = Inf
     stalled: nextStall >= stallLimit, timedOut: nextElapsed >= timeout };
 }
 
+/** Beta SmartFox retreat bookkeeping. Turning/obstacle detours are progress,
+ * even when distance to the shelter temporarily increases. A failed route must
+ * be retried at the real position, never converted into nearby healing. */
+export function stepSmartRetreatNavigation(previous = {}, { x, z, distance, playerDistance, minPlayerDistance, arriveRadius, speed }, dt) {
+  const elapsed = (previous.elapsed || 0) + Math.max(0, dt);
+  const anchor = previous.anchor || { x, z };
+  const moved = Math.hypot(x - anchor.x, z - anchor.z) >= .05;
+  const stall = moved ? 0 : (previous.stall || 0) + Math.max(0, dt);
+  const timeout = previous.timeout ?? Math.max(18, distance / Math.max(.1, speed) * 2 + 6);
+  const safe = playerDistance >= minPlayerDistance;
+  return { elapsed, stall, anchor: moved ? { x, z } : anchor, timeout,
+    action: distance < arriveRadius && safe ? 'rest'
+      : stall >= 1.75 || elapsed >= timeout || distance < arriveRadius ? 'repath' : 'move' };
+}
+
 /**
  * 进入 rest_safe 的纯状态迁移。justCounted 只在"本回合首次进入"时为 true ——
  * 调用方据此恰好触发一次驱退计数，连续多帧停留不会重复计数。
@@ -290,8 +306,12 @@ export function enterRestSafe(state = {}, restSeconds = 6) {
  */
 export function stepRestSafe({ timer = 0, hp = 0, maxHp = 1 } = {}, dt = 0, cfg = FOX.retreat) {
   const next = Math.max(0, timer - Math.max(0, dt));
+  // Beta SmartFox alone opts into non-destructive healing targets. Keep the
+  // ordinary FOX path byte-for-byte equivalent when this flag is absent.
+  if (cfg.preserveCurrentHp && hp <= 0) return { timer: next, hp: 0, done: true };
   const target = maxHp * (cfg.restHealTarget ?? 1);
-  const healed = Math.min(target, hp + maxHp * (cfg.regenPerSec ?? 0) * Math.max(0, dt));
+  const regen = hp + maxHp * (cfg.regenPerSec ?? 0) * Math.max(0, dt);
+  const healed = cfg.preserveCurrentHp ? Math.max(hp, Math.min(target, regen)) : Math.min(target, regen);
   return { timer: next, hp: healed, done: next <= 0 || healed >= target };
 }
 

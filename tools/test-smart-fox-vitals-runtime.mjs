@@ -4,7 +4,7 @@ import { BETA_TUNE, createSmartFoxRetreat, createSmartFoxSpawnState, createSmart
 import { FOX } from '../src/core/config.js';
 import { applyRuntimeConfigSources, applyRuntimeValues, encodeRuntimePayload, sanitizeRuntimeValues, validateRuntimePayload } from '../src/core/runtime-config.mjs';
 import { buildTuningEntries, createTuningState, indexEntries, resetGroup, roundTrip, setViewValue } from '../src/admin/tuning-schema.mjs';
-import { chooseRestPoint, enterRestSafe, hpDamageMultiplier, hpSpeedMultiplier, shouldRetreat, stepRestSafe, stepStamina } from '../src/core/fox-motion.js';
+import { chooseRestPoint, enterRestSafe, hpDamageMultiplier, hpSpeedMultiplier, shouldRetreat, stepSmartRetreatNavigation, stepRestSafe, stepStamina } from '../src/core/fox-motion.js';
 import { smartPounceStaminaReserve, stepSmartMotion } from '../src/entities/smart-fox-core.mjs';
 
 const GROUP = '智能狐 · 生命/体力/恢复/撤退';
@@ -173,4 +173,49 @@ test('局部 active 应用不会改变共享默认或制造越界状态', () => 
   assert.equal(createSmartFoxRetreat(target).restHealTarget, 1);
   assert.equal(BETA_TUNE.smartMaxHp, 4);
   assert.equal(BETA_TUNE.smartMaxStamina, 100);
+});
+
+test('Beta SmartFox 安全休息目标为 0/低于当前 HP 时不扣血，死狐不得恢复；普通狐原路径保持', () => {
+  for (const target of [0, .1, .65, 1]) {
+    const cfg = createSmartFoxRetreat({ ...BETA_TUNE, smartRestHealTarget: target });
+    const result = stepRestSafe({ hp: 3, maxHp: 4, timer: 5 }, 1, cfg);
+    assert.ok(result.hp >= 3 && result.hp <= 4);
+    const dead = stepRestSafe({ hp: 0, maxHp: 4, timer: 5 }, 1, cfg);
+    assert.equal(dead.hp, 0); assert.equal(dead.done, true);
+  }
+  const ordinaryCfg = { ...FOX.retreat, restHealTarget: .1 };
+  assert.equal(stepRestSafe({ hp: 3, maxHp: 4, timer: 5 }, 1, ordinaryCfg).hp, .4, '普通狐保留原路径，不共享 Beta 选项');
+});
+
+
+test('Beta 智能狐转向/绕障不误判卡住；近处失败只能重选路，真实远处到达才休息', () => {
+  let progress = {};
+  for (let i = 0; i < 240; i++) {
+    // Production failure: initial turn increases shelter distance for >1.75s.
+    progress = stepSmartRetreatNavigation(progress, { x: -28 - i * .03, z: 7 - i * .08,
+      distance: 100 + i * .02, playerDistance: 1.6 + i * .07,
+      minPlayerDistance:70, arriveRadius:1.5, speed:10.5 }, 1/60);
+    assert.equal(progress.action, 'move');
+  }
+  let blocked = {};
+  for (let i = 0; i < 110; i++) blocked = stepSmartRetreatNavigation(blocked,
+    { x:0,z:0,distance:90,playerDistance:13.4,minPlayerDistance:70,arriveRadius:1.5,speed:10.5 }, 1/60);
+  assert.equal(blocked.action, 'repath');
+  assert.equal(stepSmartRetreatNavigation({}, { x:0,z:0,distance:1,playerDistance:69.9,minPlayerDistance:70,arriveRadius:1.5,speed:10.5 }, 1/60).action,'repath');
+  assert.equal(stepSmartRetreatNavigation({}, { x:0,z:0,distance:1,playerDistance:70,minPlayerDistance:70,arriveRadius:1.5,speed:10.5 }, 1/60).action,'rest');
+  assert.equal(stepSmartRetreatNavigation({elapsed:30,timeout:18}, { x:0,z:0,distance:90,playerDistance:13,minPlayerDistance:70,arriveRadius:1.5,speed:10.5 }, 1/60).action,'repath');
+});
+
+
+test('合法边界：阈值 1 不让无伤满状态出生撤退；低血阈值 0 无 NaN', () => {
+  const cfg=createSmartFoxRetreat({...BETA_TUNE,smartRetreatHpRatio:1,smartRetreatStaminaRatio:1});
+  assert.equal(shouldRetreat({hpRatio:1,staminaRatio:1,hitStreak:0,state:'roam'},cfg),false);
+  assert.equal(shouldRetreat({hpRatio:.99,staminaRatio:1,hitStreak:0,state:'roam'},cfg),true);
+  const vitals=createSmartFoxVitals({...BETA_TUNE,smartLowHpThreshold:0});
+  for(const ratio of [0,.1,1]) {
+    assert.ok(Number.isFinite(hpSpeedMultiplier(ratio,vitals)));
+    assert.ok(Number.isFinite(hpDamageMultiplier(ratio,vitals)));
+  }
+  assert.equal(hpSpeedMultiplier(.1,vitals),1);
+  assert.equal(hpSpeedMultiplier(0,vitals),vitals.speedMulAtZeroHp);
 });

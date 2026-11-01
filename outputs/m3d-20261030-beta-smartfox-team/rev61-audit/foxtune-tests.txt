@@ -1,0 +1,15 @@
+✔ 覆盖层默认值 == 冻结常量默认值 (1.891622ms)
+✔ resetSmartPounceTune() 完全复位 (0.174182ms)
+✔ 改 SMART_POUNCE_TUNE.strikeTime 后扑咬时序真的跟着变 (0.604477ms)
+✔ 改 SMART_POUNCE_TUNE.windupTime 后前摇时长跟着变 (0.251116ms)
+✔ smartPounceDashDistance 默认参数读覆盖层，且 == 逐帧积分（预警线 = 实际位移） (0.333641ms)
+✔ cancelSmartPounce 的后摇读覆盖层 recoverTime (0.132862ms)
+✔ FOX.vitals 改动后 stepStamina 收支随之变化 (0.27141ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11.755882

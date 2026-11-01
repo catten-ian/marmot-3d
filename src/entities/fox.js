@@ -24,7 +24,7 @@ import { createTibetanFox } from './tibetan-fox.js';
 import {
   foxRecoverySeconds, stepFoxTurn, stepFoxRecovery, stepFoxLocomotion, foxMaxTurnRate, steerGroundDirection,
   estimatePlayerVelocity, straightWindAimYaw, canSprint, stepStamina, hpSpeedMultiplier,
-  shouldRetreat, chooseRestPoint, enterRestSafe, stepRestSafe, exitRestSafe, stepRetreatProgress, defeatFate, stepDefeatCooldown,
+  shouldRetreat, chooseRestPoint, enterRestSafe, stepRestSafe, exitRestSafe, stepRetreatProgress, stepSmartRetreatNavigation, defeatFate, stepDefeatCooldown,
 } from '../core/fox-motion.js';
 import { stepSandboxDummyRecovery, SANDBOX_DUMMY_REGEN_DELAY } from '../sandbox/state.js';
 import { BETA_TUNE, expireStunDiminution, stepStunDiminution } from '../core/beta-tuning.js';
@@ -741,15 +741,28 @@ export class Fox {
         }
         const rdx = rp.x - this.x, rdz = rp.z - this.z;
         const distance = Math.hypot(rdx, rdz);
-        if (distance < this._retreatConfig().arriveRadius) { this._enterRestSafe('arrival'); break; }
-        if (IS_BETA) {
-          const progress = stepRetreatProgress(this._retreatProgress, distance, dt);
+        if (IS_BETA && this.type === 'smart') {
+          const progress = stepSmartRetreatNavigation(this._retreatProgress, {
+            x: this.x, z: this.z, distance, playerDistance: Math.hypot(this.x - p.x, this.z - p.z),
+            minPlayerDistance: this.smartRestMinPlayerDistance,
+            arriveRadius: this._retreatConfig().arriveRadius, speed: this._retreatConfig().speed,
+          }, dt);
           this._retreatProgress = progress;
-          if (progress.timedOut || progress.stalled) {
-            // The fox is already at this real position; enter a clearly marked
-            // safe rest fallback instead of teleporting or remaining invincible.
-            this._enterRestSafe(progress.timedOut ? 'timeout' : 'stalled');
+          if (progress.action === 'rest') { this._enterRestSafe('arrival'); break; }
+          if (progress.action === 'repath') {
+            this.retreating = false;
+            this._enterRetreat(p, allBurrows);
             break;
+          }
+        } else {
+          if (distance < this._retreatConfig().arriveRadius) { this._enterRestSafe('arrival'); break; }
+          if (IS_BETA) {
+            const progress = stepRetreatProgress(this._retreatProgress, distance, dt);
+            this._retreatProgress = progress;
+            if (progress.timedOut || progress.stalled) {
+              this._enterRestSafe(progress.timedOut ? 'timeout' : 'stalled');
+              break;
+            }
           }
         }
         this._moveGround(rdx, rdz, this._retreatConfig().speed, dt, allBurrows);
@@ -759,6 +772,12 @@ export class Fox {
       // ---------- 安全休息：回血回体力；进入这一刻计入一次驱退 ----------
       case 'rest_safe': {
         this.warn.visible = false;
+        if (IS_BETA && this.type === 'smart'
+          && Math.hypot(this.x - p.x, this.z - p.z) < this.smartRestMinPlayerDistance) {
+          this.state = 'retreat'; this.retreating = false;
+          this._enterRetreat(p, allBurrows);
+          break;
+        }
         const r = stepRestSafe({ timer: this.timer, hp: this.hp, maxHp: this.maxHp }, dt, this._retreatConfig());
         this.timer = r.timer;
         this.hp = r.hp;
@@ -940,7 +959,11 @@ export class Fox {
 
     const movedX = this.x - previousX, movedZ = this.z - previousZ;
     const movingSpeed = Math.hypot(movedX, movedZ) / Math.max(dt, 1e-4);
-    if (movingSpeed > 0.05 && !['wind', 'dash', 'rest'].includes(this.state)) {
+    // Smart retreat already integrates yaw AND angular velocity in _moveGround.
+    // Turning again toward that exact displacement zeroed turnVelocity every
+    // frame, leaving only one frame of angular acceleration (huge turning arcs).
+    const smartRetreatTurnIntegrated = IS_BETA && this.type === 'smart' && this.state === 'retreat';
+    if (!smartRetreatTurnIntegrated && movingSpeed > 0.05 && !['wind', 'dash', 'rest'].includes(this.state)) {
       const actualHeading = Math.atan2(movedX, movedZ);
       const turn = stepFoxTurn(this.yaw, actualHeading, this.turnVelocity, dt,
         FOX.handling.windTurnRate, FOX.handling.windTurnAccel);

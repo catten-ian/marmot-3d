@@ -1,0 +1,17 @@
+# JOB only; local QA APIs only; never shared CDP18800; BROWSER_HOLD respected.
+node tools/smartfox-headless-lab.mjs matrix --seed 20261031 --duration 6 --out outputs/m3d-20261030-beta-smartfox-team/rev61-audit/after-matrix-180.json
+node tools/smartfox-headless-lab.mjs repro --seed 20261031 --foxes 4 --duration 16 --scenario parry-tap --movement orbit --out /tmp/smartfox-repro.json
+node tools/qa-smartfox-runtime-acceptance.cjs
+node tools/qa-smartfox-dynamic-attackers.cjs
+node tools/test-admin-tuning.mjs
+node tools/test-runtime-config.mjs
+node tools/test-fox-vitals.cjs
+node tools/test-fox-tactics.cjs
+node tools/test-smart-fox-beta.mjs
+node tools/test-fox-tuning.cjs
+node tools/test-fox-repel.cjs
+node tools/test-smart-fox-vitals-runtime.mjs
+node tools/test-smartfox-headless-lab.mjs
+node tools/run-node-tests.cjs
+git diff --check
+# node-check.txt lists the explicit syntax commands.
