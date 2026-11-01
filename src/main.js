@@ -525,8 +525,8 @@ const betaEntryGate = IS_BETA ? createResourceEntryGate({
   ],
   audioReady: async () => {
     if (betaAudioEnsureFailed) throw new Error('音频 AudioContext 无法在用户手势中启动');
-    if (typeof audio.ready !== 'function') throw new Error('音频资源进入门未提供 ready()');
-    await audio.ready();
+    if (typeof audio.whenReady !== 'function') throw new Error('音频资源进入门未提供 whenReady()');
+    await audio.whenReady({ retry: true });
   },
   onProgress: ({ done, total, resource }) => hud.setLoading(8 + (done / total) * 88, `准备资源 ${done}/${total} · ${resource}`),
   onError: (error) => hud.setLoading(0, `资源加载失败：${error.resourceId || '音频'} · ${error.message || error}`),

@@ -23,6 +23,14 @@ test('audio failure preserves successful model cache and retries audio only', as
   const gate = createResourceEntryGate({ resources: [{id:'model',load:async()=>{modelCalls++;return true;},reset:()=>{modelResets++;}}], audioReady:async()=>{audioCalls++;if(failAudio)throw new Error('decode failed');} });
   await assert.rejects(gate.preload(), /decode failed/); gate.reset(); failAudio=false; await gate.preload(); assert.equal(modelCalls,1); assert.equal(modelResets,0); assert.equal(audioCalls,2);
 });
+test('integrated audio gate uses the real public whenReady API', async () => {
+  const main = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  const { Audio } = await import('../src/systems/audio.js');
+  assert.equal(typeof Audio.prototype.whenReady, 'function');
+  assert.match(main, /typeof audio\.whenReady !== 'function'/);
+  assert.match(main, /await audio\.whenReady\(\{ retry: true \}\)/);
+  assert.doesNotMatch(main, /await audio\.ready\(\)/);
+});
 test('main uses gate action injection, preserves stable/dev ensure, and wires URL sandbox', () => {
   const main = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   assert.match(main, /betaEntryGate\.enter\(async \(\) =>/);
