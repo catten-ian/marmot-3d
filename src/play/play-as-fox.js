@@ -29,15 +29,18 @@ import { terrainHeight } from '../core/utils.js';
 import { moveBounds } from '../core/config.js';
 import {
   CUE_MODE, deg2rad, yawTo, inViewCone, stepPreyMind, stepZigzag, zigzagActive,
-  predictLandingPoint, evadeVector, canCatch, pickRespawnPoint,
+  predictLandingPoint, evadeVector, pickRespawnPoint,
   nearestTarget, leadTarget, windLeadTime, retargetWindYaw,
   pushOutCircles,
 } from '../core/predator-prey.js';
 import {
   isPafKey, pafKeyHeld, pafKeyboardDriveInput, pafDirectionFromInput, pafTankDriveFromInput,
   pafInputBlocked, pafCanStartPounce, releasePafInput, PafPounceCharge, PafInputRoute,
-  pafPounceActiveAt, pafPouncePathAt, pafPouncePreviewSegment,
 } from '../core/paf-input.js';
+import {
+  pafPounceProgress, pafPounceActiveAt, pafPounceAirHeight, pafPouncePathAt, pafPouncePreviewSegment,
+  pafPounceCanCatchAt, pafPouncePredictionHitsTarget,
+} from '../core/paf-pounce.js';
 
 /** 扮演藏狐模式全部可调平衡数值（后台滑块直接改这里的运行时副本）。 */
 export const PAF_DEFAULTS = {
@@ -320,7 +323,7 @@ export function createPlayAsFox(ctx) {
     x: 0, z: -6, y: 0, yaw: 0, vy: 0,
     phase: 'idle',                 // idle | wind | lunge | recover
     phaseT: 0, sprint: false,
-    lungeYaw: 0, airY: 0, windStartYaw: 0,
+    lungeYaw: 0, lungeStartX: 0, lungeStartZ: 0, airY: 0, windStartYaw: 0,
     get forward() { return { x: Math.sin(this.yaw), z: Math.cos(this.yaw) }; },
   };
 
@@ -462,19 +465,16 @@ export function createPlayAsFox(ctx) {
   }
 
   function previewTargetInRange(p, yaw) {
-    const samples = 16;
-    for (let i = 0; i <= samples; i++) {
-      const t = 0.5 + (i / samples) * 0.5;
-      const pos = pafPouncePathAt({ startX: fox.x, startZ: fox.z, yaw, lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, t });
-      const airY = Math.sin(t * Math.PI) * cfg.lungeHeight;
-      const preyY = terrainHeight(p.x, p.z);
-      const dx = p.x - pos.x, dz = p.z - pos.z;
-      const d = Math.hypot(dx, dz);
-      if (d < cfg.catchRadius && Math.abs(groundYForPreview(pos.x, pos.z) + airY + cfg.catchFoxCenter - (preyY + cfg.preyCenterHeight)) < cfg.catchVerticalTol) return true;
-    }
-    return false;
+    return pafPouncePredictionHitsTarget({
+      startX: fox.x, startZ: fox.z, yaw,
+      lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, lungeHeight: cfg.lungeHeight,
+      targetX: p.x, targetZ: p.z, catchRadius: cfg.catchRadius,
+      catchFoxCenter: cfg.catchFoxCenter, catchVerticalTol: cfg.catchVerticalTol,
+      preyCenterHeight: cfg.preyCenterHeight, foxTerrainAt: (x, z) => terrainHeight(x, z),
+      preyTerrainAt: () => terrainHeight(p.x, p.z),
+      sampleCount: 64,
+    }).hit;
   }
-  function groundYForPreview(x, z) { return terrainHeight(x, z); }
 
   function updatePouncePreview() {
     if (!pounceCharge.active || fox.phase !== 'wind') { clearPouncePreview(); return; }
@@ -485,6 +485,7 @@ export function createPlayAsFox(ctx) {
     previewGeometry = new THREE.CapsuleGeometry(seg.radius, Math.max(0.01, length), 6, 24);
     previewMaterial = new THREE.MeshBasicMaterial({ color: 0xffc857, transparent: true, opacity: 0.22, depthWrite: false, depthTest: true });
     previewGroup = new THREE.Group();
+    previewGroup.userData.kind = 'pafPouncePreview';
     const sweep = new THREE.Mesh(previewGeometry, previewMaterial);
     sweep.rotation.x = Math.PI / 2;
     sweep.rotation.z = Math.atan2(dx, dz);
@@ -496,10 +497,14 @@ export function createPlayAsFox(ctx) {
       const inRange = previewTargetInRange(p, fox.lungeYaw);
       let mark = previewTargetMarks.get(p);
       if (inRange && !mark) {
-        mark = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 20), new THREE.MeshBasicMaterial({ color: 0x9fffa4, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
-        mark.rotation.x = -Math.PI / 2; scene.add(mark); previewTargetMarks.set(p, mark);
+        mark = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 20), new THREE.MeshBasicMaterial({ color: 0x9fffa4, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false, depthTest: false }));
+        mark.renderOrder = 1000; mark.userData.kind = 'pafPounceTargetMark'; scene.add(mark); previewTargetMarks.set(p, mark);
       }
-      if (mark) { mark.visible = inRange; mark.position.set(p.x, terrainHeight(p.x, p.z) + 0.06, p.z); }
+      if (mark) {
+        mark.visible = inRange;
+        mark.position.set(p.x, terrainHeight(p.x, p.z) + cfg.preyCenterHeight + 0.55, p.z);
+        mark.quaternion.copy(camera.quaternion); // 悬浮朝向相机，避免 TPS 被自身模型遮住。
+      }
     }
   }
 
@@ -507,6 +512,7 @@ export function createPlayAsFox(ctx) {
     if (!pounceCharge.release(pointerId)) return false;
     const selected = pafDirectionFromInput({ cameraYaw: viewMode.mode === 'fpv' ? look.yaw : fox.yaw, ...pafKeyboardDriveInput(binds, keys), axes: pafRoute.controller?.touchAxes || { x: 0, y: 0 }, arcDeg: cfg.pounceArcDeg });
     if (selected.source !== 'fallback') fox.lungeYaw = selected.yaw;
+    fox.lungeStartX = fox.x; fox.lungeStartZ = fox.z;
     pounceCharge.reset();
     clearPouncePreview();
     fox.phase = 'lunge'; fox.phaseT = 0;
@@ -682,10 +688,13 @@ export function createPlayAsFox(ctx) {
       updatePouncePreview();
     } else if (fox.phase === 'lunge') {
       fox.phaseT += dt;
-      const t = fox.phaseT / cfg.lungeTime;
-      fox.x += Math.sin(fox.lungeYaw) * cfg.lungeSpeed * dt;
-      fox.z += Math.cos(fox.lungeYaw) * cfg.lungeSpeed * dt;
-      fox.airY = Math.sin(clamp(t, 0, 1) * Math.PI) * cfg.lungeHeight;
+      const t = clamp(fox.phaseT / cfg.lungeTime, 0, 1);
+      const path = pafPouncePathAt({
+        startX: fox.lungeStartX, startZ: fox.lungeStartZ, yaw: fox.lungeYaw,
+        lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, t,
+      });
+      fox.x = path.x; fox.z = path.z;
+      fox.airY = pafPounceAirHeight(t, cfg.lungeHeight);
       if (fox.phaseT >= cfg.lungeTime) { fox.phase = 'recover'; fox.phaseT = 0; fox.airY = 0; }
     } else if (fox.phase === 'recover') {
       fox.phaseT += dt;
@@ -722,9 +731,15 @@ export function createPlayAsFox(ctx) {
       p.update(dt, fox, camera, overlay, bounds, cfg);
       // 扑击激活帧判定捕获（水平接近）
       if (!p.caught && fox.phase === 'lunge' && pafPounceActiveAt(fox.phaseT, cfg.lungeTime)) {
-        // B2：水平半径 + 垂直窗口同时满足；腾空越过头顶不再"吸"中
         const preyTerrainY = terrainHeight(p.x, p.z);
-        if (canCatch(p.x - fox.x, p.z - fox.z, fox.airY, preyTerrainY, cfg, groundY)) catchPrey(p);
+        if (pafPounceCanCatchAt({
+          startX: fox.lungeStartX, startZ: fox.lungeStartZ, yaw: fox.lungeYaw,
+          lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime,
+          t: pafPounceProgress(fox.phaseT, cfg.lungeTime), lungeHeight: cfg.lungeHeight,
+          targetX: p.x, targetZ: p.z, foxTerrainY: groundY, preyTerrainY,
+          catchRadius: cfg.catchRadius, catchFoxCenter: cfg.catchFoxCenter,
+          catchVerticalTol: cfg.catchVerticalTol, preyCenterHeight: cfg.preyCenterHeight,
+        })) catchPrey(p);
       }
     }
 
@@ -825,9 +840,18 @@ export function createPlayAsFox(ctx) {
     get score() { return score; },
     get elapsed() { return elapsed; },
     get phase() { return fox.phase; },
+    get phaseT() { return fox.phaseT; },
     get sprint() { return fox.sprint; },
     get stalk() { return !fox.sprint; },
     get input() { return { touch: { ...touch }, charging: pounceCharge.active, chargeHeld: pounceCharge.held, pounceYaw: fox.lungeYaw, crouchScale: foxVisual.group.scale.y }; },
+    get preview() {
+      return {
+        active: !!previewGroup,
+        sweepMeshes: previewGroup?.children.length || 0,
+        visibleTargetMarks: [...previewTargetMarks.values()].filter((m) => m.visible).length,
+      };
+    },
+    get renderMemory() { return { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures }; },
     get pos() { return { x: fox.x, y: fox.y, z: fox.z, yaw: fox.yaw, airY: fox.airY }; },
     get prey() { return prey; },
     get bounds() { return { hw: bounds.hw, hh: bounds.hh }; },
