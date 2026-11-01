@@ -198,6 +198,8 @@ function loadModelAttempt(url, key) {
 }
 
 /** 同一 URL 共享完整重试序列；重试中/耗尽后程序化模型始终可用。 */
+export function resetModelLoadCache(url) { cache.entries.delete(url); }
+
 export function loadModel(url, key = '') {
   return cache.load(url, () => loadWithRetry({
     attempt: () => loadModelAttempt(url, key),

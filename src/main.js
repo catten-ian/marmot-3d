@@ -32,6 +32,8 @@ import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { bindText, kbd, schemeHints, setHintBinds } from './core/key-hints.mjs';
 import { BetaMarmotModel } from './entities/beta-marmot-model.js';
 import { preloadModels, instantiate } from './models/loader.js';
+import { createResourceEntryGate } from './models/beta-resource-gate.mjs';
+import { createBetaResourceSpecs } from './models/beta-resources.js';
 import { buildBackdrop } from './models/scene.js';
 import { createRenderer, splatUsable } from './core/renderer.js';
 import { AdaptiveRenderController, getRenderProfile, hasRealTouch } from './core/performance.js';
@@ -411,15 +413,17 @@ playerModel.visible = false;
 
 // Beta alone uses the user's uploaded skin and its three original clips.
 let playerRig = null;
+let playerRigReady = Promise.resolve();
 if (IS_BETA && USE_REAL_MODELS) {
-  instantiate('./assets/models/marmot-run-stand.glb', 'marmot').then((inst) => {
+  playerRigReady = instantiate('./assets/models/marmot-run-stand.glb', 'marmot').then((inst) => {
     if (!inst) return;
     const rig = new BetaMarmotModel(inst, 0.9);
     // Upload faces local +Z; playerModel's existing +PI yaw faces movement.
     playerModel.add(rig.wrap);
     playerRig = rig;
     playerBody.visible = false;
-  }).catch((error) => console.warn('[player] uploaded marmot unavailable; procedural fallback:', error));
+    return rig;
+  }).catch((error) => { console.warn('[player] uploaded marmot unavailable; procedural fallback:', error); throw error; });
 }
 
 const VIEW_MODE_KEY = 'marmot3d.viewMode.v1';
@@ -493,6 +497,38 @@ preloadModels('./assets/models/', {
     hud.say(`模型：${parts.join(' · ')}`, 5.5);
   }
 });
+
+
+// Beta resource entry gate: every first-entry path shares one idempotent barrier.
+const betaEntryGate = IS_BETA ? createResourceEntryGate({
+  resources: [
+    ...createBetaResourceSpecs(),
+    { id: 'player-rig-init', load: () => playerRigReady, validate: (rig) => { if (!rig) throw new Error('玩家 BetaMarmotModel rig 未初始化'); } },
+    { id: 'companion-rig-init', load: () => Promise.resolve(companion.ready).then(() => companion), validate: (c) => { if (!c?.realModel || !c.rig) throw new Error('伙伴模型或 rig 未初始化'); } },
+  ],
+  audioReady: async () => {
+    if (!audio.ensure()) throw new Error('音频 AudioContext 无法在用户手势中启动');
+    if (typeof audio.ready !== 'function') throw new Error('音频资源进入门未提供 ready()');
+    await audio.ready();
+  },
+  onProgress: ({ done, total, resource }) => hud.setLoading(8 + (done / total) * 88, `准备资源 ${done}/${total} · ${resource}`),
+  onError: (error) => hud.setLoading(0, `资源加载失败：${error.resourceId || '音频'} · ${error.message || error}`),
+}) : null;
+
+async function enterWithBetaGate(label, action) {
+  if (!IS_BETA) return action();
+  if (!betaEntryGate) return action();
+  hud.beginLoadingSession(label);
+  try {
+    audio.ensure();
+    await betaEntryGate.enter();
+    return await action();
+  } catch (error) {
+    hud.showPanel(`<h2>资源加载失败</h2><p>${error.resourceId || '音频'}：${error.message || error}</p><button class="primary" id="resourceRetryBtn">重试</button>`);
+    document.getElementById('resourceRetryBtn')?.addEventListener('click', () => { betaEntryGate.reset(); void enterWithBetaGate(label, action); }, { once: true });
+    return undefined;
+  }
+}
 
 // —— 场景远景 ——
 // 用户提供的摄影测量地形块沿椭圆环（rx 246m / rz 218m）复制 14 份，
@@ -889,6 +925,9 @@ function respawnFoxesForTuning() {
   }}
 
 function enterSandbox() {
+  return enterWithBetaGate('准备自由沙盒', () => enterSandboxReady());
+}
+function enterSandboxReady() {
   hud.hidePanel();
   sandboxResumeLevel = game.level;
   sandboxState.active = true; sandboxState.godMode = false; sandboxState.freezeTimer = true;
@@ -922,6 +961,9 @@ function exitSandbox() {
 // —— BETA 专属：扮演藏狐（独立模式，懒加载，不影响 stable/dev 主路径）——
 let playAsFox = null;
 async function enterPlayAsFox() {
+  return enterWithBetaGate('准备 PAF', () => enterPlayAsFoxReady());
+}
+async function enterPlayAsFoxReady() {
   if (playAsFox) return;
   hud.hidePanel();
   game.sandbox = false; game.mode = 'play';
@@ -1394,12 +1436,13 @@ function showTeacherNote() {
 }
 
 function startPlay() {
-  audio.ensure();
-  hidePauseMini();
-  hud.hidePanel();
-  game.mode = 'play';
-  loadLevel(game.level, true);
-  if (!controller.touchEnabled) controller.requestLock();
+  return enterWithBetaGate('准备进入游戏', () => {
+    hidePauseMini();
+    hud.hidePanel();
+    game.mode = 'play';
+    loadLevel(game.level, true);
+    if (!controller.touchEnabled) controller.requestLock();
+  });
 }
 
 function resetAll() {
