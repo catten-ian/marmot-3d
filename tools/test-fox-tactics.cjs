@@ -132,7 +132,31 @@ test('forcedRetreat：刚被打 → true；没被打过 → false；旧事 → f
   assert.equal(forcedRetreat({ lastHitAt: 5 }, { now: 10, window: 0.6 }), false); // 很久之前
 });
 
-test('assignRoles beta：健康排序、双攻击上限与拦截剩余狐', () => {
+test('assignRoles beta：两只健康狐都获得真实攻击位，撤退者不占位', () => {
+  const player = { x: 0, z: 0 };
+  const foxes = [mkFox(0, 3, 0), mkFox(1, 6, 0)];
+  const roles = assignRoles(foxes, player, {}, 0, { betaTeam: true });
+  const values = Object.values(roles).map((r) => r.role);
+  assert.equal(values.filter((r) => r === 'striker').length, 1);
+  assert.equal(values.filter((r) => r === 'flanker').length, 1);
+  assert.equal(values.filter((r) => r === 'interceptor').length, 0);
+  foxes[1].retreating = true;
+  const covered = assignRoles(foxes, player, {}, 1, { betaTeam: true });
+  assert.equal(covered[1].role, 'retreat');
+  assert.equal(covered[0].role, 'striker');
+});
+
+test('assignRoles beta：三只健康狐全部获得真实攻击位', () => {
+  const player = { x: 0, z: 0 };
+  const foxes = [mkFox(0, 3, 0), mkFox(1, 4, 0), mkFox(2, 5, 0)];
+  const roles = assignRoles(foxes, player, {}, 0, { betaTeam: true });
+  const values = Object.values(roles).map((r) => r.role);
+  assert.equal(values.filter((r) => r === 'striker').length, 1);
+  assert.equal(values.filter((r) => r === 'flanker').length, 2);
+  assert.equal(values.filter((r) => r === 'interceptor').length, 0);
+});
+
+test('assignRoles beta：健康狐数量动态扩展且忽略旧双攻击上限', () => {
   const player = { x: 0, z: 0 };
   const foxes = [
     { ...mkFox(0, 3, 0, 100, 100), fatigue: 0.1 },
@@ -143,8 +167,8 @@ test('assignRoles beta：健康排序、双攻击上限与拦截剩余狐', () =
   const roles = assignRoles(foxes, player, {}, 10, { betaTeam: true });
   const values = Object.values(roles).map((r) => r.role);
   assert.equal(values.filter((r) => r === 'striker').length, 1);
-  assert.equal(values.filter((r) => r === 'flanker').length, 1);
-  assert.equal(values.filter((r) => r === 'interceptor').length, 2);
+  assert.equal(values.filter((r) => r === 'flanker').length, 3);
+  assert.equal(values.filter((r) => r === 'interceptor').length, 0);
   assert.equal(roles[0].role, 'striker');
 });
 
@@ -165,4 +189,32 @@ test('teamInterceptPoint：速度与槽位索引产生确定、远离贴脸的�
   assert.ok(Math.hypot(a.x, a.z) > 7);
   assert.ok(Math.hypot(b.x, b.z) > 7);
   assert.notDeepEqual(a, b);
+});
+
+
+test('assignRoles beta：4/8 只健康狐全部获得真实攻击角色，撤退/休息/死亡不占位', () => {
+  for (const count of [4, 8]) {
+    const foxes = Array.from({ length: count }, (_, slot) => mkFox(slot, slot + 3, 0));
+    const roles = assignRoles(foxes, { x: 0, z: 0 }, {}, 10, { betaTeam: true, maxAttackers: 2 });
+    assert.equal(Object.values(roles).filter((r) => ['striker', 'flanker'].includes(r.role)).length, count);
+    assert.equal(Object.values(roles).filter((r) => r.role === 'interceptor').length, 0);
+  }
+  const foxes = [mkFox(0, 3, 0), mkFox(1, 4, 0), mkFox(2, 5, 0), mkFox(3, 6, 0)];
+  foxes[1].retreating = true;
+  foxes[2].state = 'rest_safe';
+  foxes[3].state = 'dead'; foxes[3].hp = 0;
+  const roles = assignRoles(foxes, { x: 0, z: 0 }, {}, 10, { betaTeam: true });
+  assert.equal(roles[0].role, 'striker');
+  for (const slot of [1, 2, 3]) assert.equal(roles[slot].role, 'retreat');
+});
+
+test('flankSlots：8 狐全圆分布且槽位不重复', () => {
+  const slots = flankSlots(8, .7, { x: 0, z: 0 }, 6.5);
+  assert.equal(slots.length, 8);
+  const angles = slots.map((s) => s.angle);
+  for (let i = 0; i < angles.length; i++) for (let j = i + 1; j < angles.length; j++) {
+    assert.ok(Math.abs(wrap(angles[i] - angles[j])) > 1e-6);
+  }
+  const step = Math.PI * 2 / 8;
+  assert.ok(Math.abs(Math.abs(wrap(slots[1].angle - slots[0].angle)) - step) < 1e-9);
 });

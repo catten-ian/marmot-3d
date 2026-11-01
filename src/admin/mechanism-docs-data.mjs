@@ -5,7 +5,7 @@
 export const MECHANISM_GUIDES = [
   {
     id: 'fox', title: '狐狸 AI：感知、追击、扑咬与撤退',
-    groups: ['狐狸 · 基础', '狐狸 · 类型表', '狐狸 · 攻击档案', '狐狸 · 智能 AI 扑击'],
+    groups: ['狐狸 · 基础', '狐狸 · 类型表', '狐狸 · 攻击档案', '狐狸 · 智能 AI 扑击', '智能狐 · 生命/体力/恢复/撤退'],
     sources: 'src/entities/fox.js · src/entities/smart-fox.js · src/entities/smart-fox-core.mjs · src/core/fox-motion.js · src/core/config.js',
     overview: '普通狐狸沿 roam → wind（预警/蓄力）→ dash（冲刺）→ rest 循环，攻击档案再分出直线、跃扑、绕行虚晃与连冲。智能狐只在测试沙盒使用：120°感知锥累积怀疑度，效用权重选择观察、接近、虚晃、扑击、恢复或放弃；协同层限制同窗口出击数量并安排包抄。玩家在洞内时 safe 会阻止攻击。',
     workflow: ['先固定狐狸类型和关卡速度，再调 wind/dash/recovery，确认预警线长度与真实位移一致。', '智能狐扑咬是 dashStage（冲刺）→ windup（极短前摇）→ strike（仅此阶段结算接触伤害）→ recover；撞障或受击取消进入后摇。', '体力不足会锁定冲刺；低血、低体力或连续受击触发 retreat，抵达休息点进入 rest_safe，回血回体力后才重新参战。'],

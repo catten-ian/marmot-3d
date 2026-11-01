@@ -743,7 +743,7 @@ function spawnSandboxSmartFox(slot = foxes.filter((f) => !f.isSandboxDummy).leng
   const angle = controller.yaw;
   const x = controller.position.x + Math.sin(angle) * distance;
   const z = controller.position.z + Math.cos(angle) * distance;
-  const fox = wireRepelCallback(new SmartFox(scene, x, z, 0, slot, { lureBias: 1.15, ...(IS_BETA ? { hp: 4 } : {}) }));
+  const fox = wireRepelCallback(new SmartFox(scene, x, z, 0, slot, { lureBias: 1.15 }));
   fox.yaw = Math.atan2(controller.position.x - x, controller.position.z - z);
   fox.sandboxSpeedMul = sandboxState.speedMultiplier;
   fox.sandboxAlertMul = sandboxState.alertMultiplier;
@@ -2135,7 +2135,7 @@ function update(dt) {
         // 注意括号：`??` 优先级低于 `+`，必须先按类型取基础伤害再叠加关卡加成，
         // 否则 `+ game.level` 只会并进 default 分支、而该分支永远不会被用到。
         const damage = Math.round(((FOX.damage[f.type] ?? FOX.damage.default) + game.level)
-          * hpDamageMultiplier(f.hp / f.maxHp, FOX.vitals) * 10) / 10;
+          * hpDamageMultiplier(f.hp / f.maxHp, f._vitalsConfig?.() || FOX.vitals) * 10) / 10;
         const hpBefore = p.hp;
         interruptHeldAttackCharge();
         clearPendingAerialParry();

@@ -1,0 +1,234 @@
+{
+  "before": {
+    "completed": 180,
+    "failed": 0,
+    "byFox": {
+      "1": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 45,
+        "pounceStrikes": 30,
+        "meleeStrikes": 45,
+        "meleeHits": 45,
+        "playerDamage": 45,
+        "attackPressure": 75,
+        "retreats": 45,
+        "deaths": 0,
+        "maxCommitters": 1,
+        "maxAttackers": 1
+      },
+      "2": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 60,
+        "pounceStrikes": 45,
+        "meleeStrikes": 75,
+        "meleeHits": 75,
+        "playerDamage": 75,
+        "attackPressure": 120,
+        "retreats": 75,
+        "deaths": 0,
+        "maxCommitters": 2,
+        "maxAttackers": 2
+      },
+      "4": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 135,
+        "pounceStrikes": 105,
+        "meleeStrikes": 240,
+        "meleeHits": 210,
+        "playerDamage": 210,
+        "attackPressure": 345,
+        "retreats": 90,
+        "deaths": 0,
+        "maxCommitters": 3,
+        "maxAttackers": 4
+      },
+      "8": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 180,
+        "pounceStrikes": 165,
+        "meleeStrikes": 375,
+        "meleeHits": 345,
+        "playerDamage": 345,
+        "attackPressure": 540,
+        "retreats": 0,
+        "deaths": 0,
+        "maxCommitters": 4,
+        "maxAttackers": 8
+      }
+    }
+  },
+  "previousAfter": {
+    "completed": 165,
+    "failed": 15,
+    "byFox": {
+      "1": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 45,
+        "pounceStrikes": 30,
+        "meleeStrikes": 45,
+        "meleeHits": 45,
+        "playerDamage": 45,
+        "attackPressure": 75,
+        "retreats": 45,
+        "deaths": 0,
+        "maxCommitters": 1,
+        "maxAttackers": 1
+      },
+      "2": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 60,
+        "pounceStrikes": 30,
+        "meleeStrikes": 75,
+        "meleeHits": 75,
+        "playerDamage": 75,
+        "attackPressure": 105,
+        "retreats": 75,
+        "deaths": 0,
+        "maxCommitters": 2,
+        "maxAttackers": 2
+      },
+      "4": {
+        "completed": 30,
+        "failed": 15,
+        "commits": 90,
+        "pounceStrikes": 90,
+        "meleeStrikes": 180,
+        "meleeHits": 135,
+        "playerDamage": 135,
+        "attackPressure": 270,
+        "retreats": 105,
+        "deaths": 0,
+        "maxCommitters": 4,
+        "maxAttackers": 4
+      },
+      "8": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 240,
+        "pounceStrikes": 210,
+        "meleeStrikes": 435,
+        "meleeHits": 255,
+        "playerDamage": 255,
+        "attackPressure": 645,
+        "retreats": 105,
+        "deaths": 0,
+        "maxCommitters": 8,
+        "maxAttackers": 8
+      }
+    }
+  },
+  "fixedAfter": {
+    "completed": 180,
+    "failed": 0,
+    "byFox": {
+      "1": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 45,
+        "pounceStrikes": 45,
+        "meleeStrikes": 45,
+        "meleeHits": 45,
+        "playerDamage": 45,
+        "attackPressure": 90,
+        "retreats": 45,
+        "deaths": 0,
+        "maxCommitters": 1,
+        "maxAttackers": 1
+      },
+      "2": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 60,
+        "pounceStrikes": 60,
+        "meleeStrikes": 75,
+        "meleeHits": 75,
+        "playerDamage": 75,
+        "attackPressure": 135,
+        "retreats": 60,
+        "deaths": 0,
+        "maxCommitters": 2,
+        "maxAttackers": 2
+      },
+      "4": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 105,
+        "pounceStrikes": 105,
+        "meleeStrikes": 210,
+        "meleeHits": 165,
+        "playerDamage": 165,
+        "attackPressure": 315,
+        "retreats": 60,
+        "deaths": 0,
+        "maxCommitters": 4,
+        "maxAttackers": 4
+      },
+      "8": {
+        "completed": 45,
+        "failed": 0,
+        "commits": 225,
+        "pounceStrikes": 225,
+        "meleeStrikes": 420,
+        "meleeHits": 360,
+        "playerDamage": 360,
+        "attackPressure": 645,
+        "retreats": 105,
+        "deaths": 0,
+        "maxCommitters": 8,
+        "maxAttackers": 8
+      }
+    }
+  },
+  "fixed-4fox-stationary-faceoff": {
+    "status": "completed",
+    "committers": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "attackers": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "commits": 4,
+    "strikes": 4,
+    "peakAttackRoles": 4,
+    "peakWindowCommits": 3
+  },
+  "fixed-8fox-stationary-faceoff": {
+    "status": "completed",
+    "committers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "attackers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "commits": 8,
+    "strikes": 8,
+    "peakAttackRoles": 8,
+    "peakWindowCommits": 4
+  }
+}

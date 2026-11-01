@@ -1,0 +1,1421 @@
+{
+  "command": "repro",
+  "config": {
+    "seed": 1002,
+    "dt": 0.016666666666666666,
+    "duration": 12,
+    "foxes": 1,
+    "marmots": 1,
+    "scenario": "chase-pounce-tap",
+    "movement": "chase"
+  },
+  "status": "completed",
+  "failure": null,
+  "scenario": "chase-pounce-tap",
+  "seed": 1002,
+  "dt": 0.016666666666666666,
+  "duration": 12,
+  "ticks": 720,
+  "foxes": [
+    {
+      "slot": 0,
+      "hp": 2.3946666666666725,
+      "maxHp": 4,
+      "stamina": 5.973333333333335,
+      "maxStamina": 100,
+      "state": "rest_safe",
+      "role": "retreat",
+      "dead": false
+    }
+  ],
+  "marmots": [
+    {
+      "id": 0,
+      "hp": 11,
+      "stats": {
+        "attempts": 4,
+        "hits": 4,
+        "blocked": 0,
+        "dealt": 4,
+        "taken": 0,
+        "parries": 0
+      }
+    }
+  ],
+  "events": [
+    {
+      "t": 2.45,
+      "type": "fox_pounce_commit",
+      "fox": 0
+    },
+    {
+      "t": 2.816667,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "lunge",
+      "fox": 0
+    },
+    {
+      "t": 2.816667,
+      "type": "marmot_hit",
+      "marmot": 0,
+      "fox": 0,
+      "move": "lunge",
+      "damage": 1
+    },
+    {
+      "t": 2.983333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.016667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.033333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.05,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.066667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.083333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.1,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.116667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.133333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.15,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.166667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.183333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.2,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.216667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.233333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.25,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.266667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.283333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.3,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.316667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.333333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.35,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.366667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.383333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.4,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.416667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.433333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.45,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.466667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.466667,
+      "type": "fox_melee_hit",
+      "fox": 0,
+      "marmot": 0
+    },
+    {
+      "t": 3.483333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.5,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.516667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.533333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.55,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.566667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.583333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.6,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.616667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.633333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.65,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.666667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.683333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.7,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.716667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 3.716667,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "lunge",
+      "fox": 0
+    },
+    {
+      "t": 3.716667,
+      "type": "marmot_hit",
+      "marmot": 0,
+      "fox": 0,
+      "move": "lunge",
+      "damage": 1
+    },
+    {
+      "t": 3.733333,
+      "type": "fox_retreat",
+      "fox": 0,
+      "distance": 0.008333333333346626
+    },
+    {
+      "t": 5.016667,
+      "type": "no_progress"
+    },
+    {
+      "t": 6.066667,
+      "type": "fox_rest_safe",
+      "fox": 0,
+      "distance": 15.64166666666675
+    },
+    {
+      "t": 7.633333,
+      "type": "fox_rest_done",
+      "fox": 0
+    },
+    {
+      "t": 7.65,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.666667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.683333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.7,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.716667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.733333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.75,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.766667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.783333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.8,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.816667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.833333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.85,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.866667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.883333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.9,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.916667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.933333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.95,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.966667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 7.983333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.016667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.033333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.05,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.066667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.083333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.1,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.116667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.133333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.15,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.166667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.183333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.2,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.216667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.233333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.25,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.266667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.283333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.3,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.316667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.333333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.35,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.366667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.383333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.4,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.416667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.433333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.45,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.466667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.483333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.5,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.516667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.533333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.55,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.566667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.583333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.6,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.616667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.633333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.65,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.666667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.683333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.7,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.716667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.733333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.75,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.766667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.783333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.8,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.816667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.833333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.85,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.866667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.883333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.9,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.916667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.933333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.95,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.966667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 8.983333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.016667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.033333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.05,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.066667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.083333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.1,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.116667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.133333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.15,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.166667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.183333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.2,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.216667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.233333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.25,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.266667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.283333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.3,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.316667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.333333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.35,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.366667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.383333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.4,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.416667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.433333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.45,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.466667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.483333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.483333,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "lunge",
+      "fox": 0
+    },
+    {
+      "t": 9.483333,
+      "type": "marmot_hit",
+      "marmot": 0,
+      "fox": 0,
+      "move": "lunge",
+      "damage": 1
+    },
+    {
+      "t": 9.5,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.516667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.533333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.55,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.566667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.583333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.6,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.616667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.633333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.65,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.666667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.683333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.7,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.716667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.733333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.75,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.766667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.783333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.8,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.816667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.833333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.85,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.866667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.883333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.9,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.916667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.933333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.95,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.966667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 9.983333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.016667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.033333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.05,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.066667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.083333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.1,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.116667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.133333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.15,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.166667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.183333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.2,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.216667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.233333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.25,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.266667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.283333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.3,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.316667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.333333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.35,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.366667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.383333,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 10.383333,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "lunge",
+      "fox": 0
+    },
+    {
+      "t": 10.383333,
+      "type": "marmot_hit",
+      "marmot": 0,
+      "fox": 0,
+      "move": "lunge",
+      "damage": 1
+    },
+    {
+      "t": 10.4,
+      "type": "fox_retreat",
+      "fox": 0,
+      "distance": 0.06166666666693388
+    },
+    {
+      "t": 11.683333,
+      "type": "fox_rest_safe",
+      "fox": 0,
+      "distance": 8.660000000000249
+    }
+  ],
+  "invariants": [],
+  "metrics": {
+    "pounceCommits": 1,
+    "parrySuccesses": 0,
+    "foxRetreats": 2,
+    "foxDeaths": 0,
+    "marmotHits": 4
+  },
+  "wallMs": 12.829,
+  "commit": "6ac0ebb"
+}

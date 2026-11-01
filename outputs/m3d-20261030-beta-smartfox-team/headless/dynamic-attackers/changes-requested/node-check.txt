@@ -1,0 +1,6 @@
+PASS node --check src/entities/smart-fox-core.mjs
+PASS node --check src/entities/smart-fox.js
+PASS node --check src/headless/smartfox-combat-lab.mjs
+PASS node --check tools/qa-smartfox-dynamic-attackers.cjs
+PASS node --check tools/test-smart-fox-beta.mjs
+PASS node --check tools/test-smartfox-headless-lab.mjs

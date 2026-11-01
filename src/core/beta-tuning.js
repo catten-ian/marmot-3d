@@ -1,7 +1,7 @@
 // beta 专属玩法平衡。所有数值仅在 IS_BETA 下被 main.js 采用；
 // 纯函数显式接收 betaOn 等参数，便于 node 单测，不在模块顶层依赖 DOM。
 import { IS_BETA } from './version.js';
-import { PLAYER } from './config.js';
+import { FOX, PLAYER } from './config.js';
 
 export const BETA_ACTIVE = IS_BETA;
 
@@ -67,11 +67,49 @@ export const BETA_TUNE = {
   smartMeleeRecoverTime: 0.45,
   smartMeleeCooldown: 1.1, // 从进入 recover 起计，避免贴身连续无间隔扣血
   smartMeleeStrikeSpeed: 2.4, // 攻击段约 0.36m 短位移
+  // —— Beta SmartFox 独立生命/体力/撤退（不写回共享 FOX 配置）——
+  // maxHp=4 是 rev58 沙盒生成时的实际默认值；opts.hp 不再兼任上限。
+  smartMaxHp: 4,
+  smartMaxStamina: FOX.vitals.maxStamina,
+  smartStalkStaminaPerSec: FOX.vitals.stalkStaminaPerSec,
+  // e9cb773 的非扑击智能狐移动实际走 stalk 费率，因此默认保持 0；
+  // 此项现在接到真实 sprint 分支，而不是仅展示共享 FOX 的 18。
+  smartSprintStaminaPerSec: 0,
+  smartPounceStaminaPerSec: FOX.vitals.pounceStaminaPerSec,
+  smartPounceStaminaCost: 26,
+  // e9cb773 近战没有独立扣费；0 是合法且保持原平衡的默认值。
+  smartMeleeStaminaCost: 0,
+  smartPounceRecoverTime: 0.45,
+  // 标准难度基准；calm/intense 仍按各自原比例缩放，默认值不改变难度。
+  smartPounceCooldown: 1.5,
+  smartRestHpRegenRatio: FOX.vitals.restHpRegenRatio,
+  smartHitStaminaCost: FOX.vitals.hitStaminaCost,
+  smartStaminaLockSeconds: FOX.vitals.staminaLockSeconds,
+  smartLowHpThreshold: FOX.vitals.lowHpThreshold,
+  smartSpeedMulAtZeroHp: FOX.vitals.speedMulAtZeroHp,
+  smartDamageMulAtZeroHp: FOX.vitals.damageMulAtZeroHp,
+  smartRetreatHpRatio: FOX.retreat.hpRatio,
+  smartRetreatStaminaRatio: FOX.retreat.staminaRatio,
+  smartRetreatHitStreak: FOX.retreat.hitStreak,
+  smartHitStreakDecay: FOX.retreat.hitStreakDecay,
+  smartRetreatArriveRadius: FOX.retreat.arriveRadius,
+  smartRestSeconds: FOX.retreat.restSeconds.smart,
+  smartRestSafeHpRegenRatio: FOX.retreat.regenPerSec,
+  smartRestHealTarget: FOX.retreat.restHealTarget,
+  smartTeamRestHpRatio: 0.42,
+  smartTeamRestStaminaRatio: 0.2,
+  smartTeamRestFatigue: 0.86,
+  smartTeamHealthyHpRatio: 0.62,
+  smartTeamHealthyStaminaRatio: 0.35,
+  smartTeamHoldTime: 1.5,
+  smartTeamSwitchCooldown: 1.2,
   // —— SmartFox team stamina recovery (beta only) ——
   smartRestStaminaRegenPerSec: 14,
   smartRecoverStaminaRegenPerSec: 4.5,
   smartInterceptStaminaRegenPerSec: 2.5,
   smartRoamStaminaRegenPerSec: 1.2,
+  smartRestMinPlayerDistance: 60,
+  smartRetreatSpeed: 10.5,
   // —— 眩晕递减（仅 Beta）——
   stunDiminishWindow: 3.0,       // 上次施加/结束后，窗口内再次命中会递减
   stunDiminishFactor: 0.55,      // 每层眩晕时长倍率
@@ -80,6 +118,66 @@ export const BETA_TUNE = {
   // —— BGM（仅 Beta）——
   bgmCombatLatchSeconds: 35, // 被狐狸击中后 combat BGM 保持秒数；每次受击刷新
 };
+
+/** Serializable SmartFox instance snapshot; ordinary Fox never consumes it. */
+export function createSmartFoxTuning(tune = BETA_TUNE) {
+  return Object.fromEntries(Object.entries(tune).filter(([key]) => key.startsWith('smart')));
+}
+
+export function createSmartFoxVitals(tune = BETA_TUNE) {
+  return {
+    maxHp: tune.smartMaxHp,
+    maxStamina: tune.smartMaxStamina,
+    stalkStaminaPerSec: tune.smartStalkStaminaPerSec,
+    sprintStaminaPerSec: tune.smartSprintStaminaPerSec,
+    pounceStaminaPerSec: tune.smartPounceStaminaPerSec,
+    pounceStaminaCost: tune.smartPounceStaminaCost,
+    meleeStaminaCost: tune.smartMeleeStaminaCost,
+    pounceRecoverTime: tune.smartPounceRecoverTime,
+    pounceCooldown: tune.smartPounceCooldown,
+    restStaminaPerSec: tune.smartRestStaminaRegenPerSec,
+    restHpRegenRatio: tune.smartRestHpRegenRatio,
+    hitStaminaCost: tune.smartHitStaminaCost,
+    staminaLockSeconds: tune.smartStaminaLockSeconds,
+    lowHpThreshold: tune.smartLowHpThreshold,
+    speedMulAtZeroHp: tune.smartSpeedMulAtZeroHp,
+    damageMulAtZeroHp: tune.smartDamageMulAtZeroHp,
+  };
+}
+
+/** Pure constructor policy, shared by Node regression tests and SmartFox. */
+export function createSmartFoxSpawnState(opts = {}, vitals = createSmartFoxVitals()) {
+  const maxHp = Number.isFinite(vitals.maxHp) && vitals.maxHp > 0 ? vitals.maxHp : 4;
+  const maxStamina = Number.isFinite(vitals.maxStamina) && vitals.maxStamina > 0 ? vitals.maxStamina : 100;
+  const hasTestHp = Number.isFinite(opts.initialHp);
+  return {
+    maxHp,
+    hp: hasTestHp ? Math.max(0, Math.min(maxHp, opts.initialHp)) : maxHp,
+    maxStamina,
+    stamina: maxStamina,
+    staminaLocked: 0,
+    hitStreak: 0,
+    retreating: false,
+    state: 'roam',
+    dead: false,
+    initialHpSource: hasTestHp ? 'explicit-test-or-replay' : 'full',
+  };
+}
+
+/** Same-instance retreat snapshot shared by SmartFox and its Fox retreat path. */
+export function createSmartFoxRetreat(tune = BETA_TUNE) {
+  return {
+    hpRatio: tune.smartRetreatHpRatio,
+    staminaRatio: tune.smartRetreatStaminaRatio,
+    hitStreak: tune.smartRetreatHitStreak,
+    hitStreakDecay: tune.smartHitStreakDecay,
+    arriveRadius: tune.smartRetreatArriveRadius,
+    speed: tune.smartRetreatSpeed,
+    restSeconds: { smart: tune.smartRestSeconds },
+    regenPerSec: tune.smartRestSafeHpRegenRatio,
+    restHealTarget: tune.smartRestHealTarget,
+  };
+}
 
 /**
  * Movement drain per second. In Beta, the explicit sprint setting describes

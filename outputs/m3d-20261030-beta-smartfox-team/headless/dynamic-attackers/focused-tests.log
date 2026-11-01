@@ -1,0 +1,282 @@
+
+===== tools/test-fox-tactics.cjs =====
+✔ flankSlots：返回 count 个槽位 (2.20166ms)
+✔ flankSlots：槽位角度互不相同（不重叠） (0.146523ms)
+✔ flankSlots：槽位围绕逃跑轴分布（全部在后半球，不挤在正面） (0.208352ms)
+✔ assignFlankSlot：不同 self 拿到不同槽位（不抢同一个） (0.193708ms)
+✔ assignFlankSlot：没有可用槽位时返回 null（不崩） (0.105915ms)
+✔ assignRoles：只有一只 striker (0.408831ms)
+✔ assignRoles：有伤/撤退中的狐是 retreat (0.127374ms)
+✔ assignRoles：粘性 —— 同样输入两次结果相同，且 holdTime 内不换 striker (0.331432ms)
+✔ assignRoles：单只狐直接是 striker；空数组不崩 (0.137733ms)
+✔ forcedRetreat：刚被打 → true；没被打过 → false；旧事 → false (0.153373ms)
+✔ assignRoles beta：两只健康狐都获得真实攻击位，撤退者不占位 (0.231317ms)
+✔ assignRoles beta：三只健康狐全部获得真实攻击位 (0.105273ms)
+✔ assignRoles beta：健康狐数量动态扩展且忽略旧双攻击上限 (0.117417ms)
+✔ assignRoles beta：残血/耗尽休息，保持角色直到 hold/cooldown 结束 (0.100288ms)
+✔ teamInterceptPoint：速度与槽位索引产生确定、远离贴脸的拦截点 (0.161479ms)
+✔ assignRoles beta：4/8 只健康狐全部获得真实攻击角色，撤退/休息/死亡不占位 (0.171935ms)
+✔ flankSlots：8 狐全圆分布且槽位不重复 (0.120863ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16.337601
+
+===== tools/test-smart-fox-beta.mjs =====
+ASSERT memory-delay-decay/window-expiry OK
+ASSERT habituation/debounce/stagger/separation OK
+ASSERT utility-weight-snapshot OK
+ASSERT track-feint/repeat-habituation OK
+ASSERT feint-scale/default-equivalence OK
+ASSERT recover-lock/recommit-gate OK
+ASSERT ground-steer/zero-speed-null OK
+{"kind":"standing-pounce-simulation","attempts":1000,"hits":890,"rate":0.89}
+✔ utilityScores 返回全部意图且选出唯一 topIntent (0.852963ms)
+✔ 远距离未察觉时偏好 observe，近距离高怀疑时偏好进攻 (0.129139ms)
+✔ 玩家格挡且有记忆时偏好 feint（虚晃） (0.102029ms)
+✔ 残血高疲劳时偏好 recover/abandon (0.122434ms)
+✔ 感知：进入视野锥且靠近时怀疑度上升，离开后衰减 (0.331769ms)
+✔ 视野锥外（viewDot<cos60°）不积累怀疑 (0.153215ms)
+✔ 扑击一旦提交不可取消，并在约 0.72s 后进入冷却 (0.562718ms)
+✔ 受击打断累加记忆与打断次数 (0.105985ms)
+✔ 统一运动高速转向上限更低且转向时持续前进 (0.451467ms)
+✔ pounce distance integrates acceleration and habituation is capped (0.199479ms)
+✔ pounce rejects misaligned intent and uses readable windup (0.213444ms)
+✔ 记忆延迟后按每秒衰减且打断时间窗会过期 (0.919618ms)
+✔ 佯攻习惯化、防抖、群战错峰与分离纯函数 (0.303611ms)
+✔ 权重快照保持原公式数值 (0.136385ms)
+✔ trackFeint 只统计进入佯攻且受击/扑击清零 (0.184263ms)
+✔ feintScale 按比例作用且默认快照不变 (0.16578ms)
+✔ 扑击自然结束后的 recover 硬直阻止再次 committed (0.347541ms)
+✔ steerGroundDirection 直冲岩石转为切向且零速返回 null (0.230761ms)
+✔ Beta 扑击瞄准纯函数在提交态剔除包抄与分离偏移 (0.153371ms)
+✔ 站立玩家扑击命中率模拟处于可命中但非必中区间 (57.599589ms)
+✔ 提交判定独立于导航扩展目标，并锁定 lead 点 (0.268883ms)
+✔ 智能狐 contactCd 每帧递减且不低于零 (0.200504ms)
+✔ Beta 接近环显式拆分 approach/align/backoff 且错过窗口不穿过玩家 (0.218534ms)
+✔ Beta 环内但未对正时不得停在 align（否则永远无法提交） (0.102588ms)
+✔ Beta 前摇进度不得因瞬时未就绪被重置（否则永远无法提交） (0.228207ms)
+✔ Beta 提交与 melee 互斥，提交后仍不可取消 (0.147422ms)
+✔ Beta 动态攻击群取消两提交窗上限但保留错峰间隔 (0.150196ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 70.443851
+
+===== tools/test-smartfox-headless-lab.mjs =====
+✔ headless lab is deterministic and uses fixed-step seeded scenarios (14.659081ms)
+✔ birth invariant is full and independent for custom limits (0.187505ms)
+✔ three requested openings run through real shared attack events (13.207394ms)
+✔ matrix covers 1/2/4/8 foxes, one marmot, all moves/openings/seeds without NaN (668.934882ms)
+✔ 4/8 fox scenarios exceed two distinct real attackers without a global two-commit cap (16.187841ms)
+✔ live SmartFox and headless lab import the same decision core contract (3.909446ms)
+✔ dead SmartFox remains dead and is never healed or respawned in the same run (1.028207ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 722.863838
+
+===== tools/test-fox-vitals.cjs =====
+✔ FOX.vitals 存在且数值方向正确 (1.189523ms)
+✔ canSprint：体力足够 true，不足 false (0.150491ms)
+✔ hpSpeedMultiplier：阈值以上=1，零血=地板，单调递减 (0.188116ms)
+✔ hpDamageMultiplier：阈值以上=1，零血=damageMulAtZeroHp，单调递减 (0.138014ms)
+✔ stepStamina：冲刺 1 秒按 drainPerSec 消耗 (0.23868ms)
+✔ stepStamina：休息 1 秒回体力且按 maxHp 比例回血（封顶） (0.871011ms)
+✔ stepStamina：体力降到 0 → exhausted=true 且 locked>0 (0.108811ms)
+✔ stepStamina：locked 期间递减且不可冲刺 (0.102527ms)
+✔ stepStamina：纯函数，不修改传入对象 (0.662031ms)
+✔ stepStamina：非冲刺/扑击状态按状态恢复体力，只有 rest 回血 (0.1784ms)
+✔ stepStamina：NaN/负数/超上限均被安全钳制 (0.107124ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14.928456
+
+===== tools/test-smart-fox-vitals-runtime.mjs =====
+✔ admin 独立智能狐组完整、可运行时投影、可搜索/复位/导入导出 (10.774231ms)
+✔ admin 默认值与 e9cb773 实际平衡一致 (0.117734ms)
+✔ runtime sanitize 保留合法 0，clamp 比例/上限/阈值并拒绝非有限数 (0.250406ms)
+✔ 显式 URL 覆盖 active，合法 storage 仅作回退，普通 FOX 默认值不被展开改写 (0.382269ms)
+✔ 默认/自定义上限出生满状态，多只状态独立，测试 initialHp 仅为显式伤血语义 (0.731795ms)
+✔ 自定义消耗/恢复/锁定直接改变纯函数真实收支，0 消耗不是缺省 (0.307386ms)
+✔ 低血速度/伤害倍率读取智能狐快照而非共享 FOX (0.109518ms)
+✔ 撤退阈值、连击衰减配置、休息时长/回血目标与远撤距离真实生效 (0.448615ms)
+✔ 扑击 recover/cooldown 运行时覆盖进入真实状态机 (0.540868ms)
+✔ 局部 active 应用不会改变共享默认或制造越界状态 (0.20735ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18.378618
+
+===== tools/test-beta-tuning-audit-remainders.mjs =====
+✔ createSmartPack supports injected window, spacing and slot spacing while preserving defaults (0.639313ms)
+✔ debounceIntent uses injected hold and keeps the default when omitted (0.597308ms)
+✔ admin beta projection sanitizes and applies only BETA_TUNE keys with isolated defaults (0.343053ms)
+✔ tuning capability is exactly beta id intersected with BETA_TUNE keys (5.23291ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10.783819
+
+===== tools/test-beta-tuning-defects.mjs =====
+✔ 缺陷 1：程序化狐狸开关真实出现在基础组并保留默认契约 (0.544367ms)
+✔ 缺陷 2：admin 与 lil-gui 均不再暴露无运行时消费者的 foxContact (1.3363ms)
+✔ 通用幽灵旋钮探测器：每个后台条目都有消费者或逐条说明的 allowlist 理由 (135.183404ms)
+✔ 缺陷 3：提交门不变，beta 预留等于 dash-only 真实消耗且 stable 扣费不变 (0.425925ms)
+✔ 缺陷 3：恰好过 beta 提交门的体力可走完整 dash→windup→strike 且不锁死 (1.007532ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 142.46615
+
+===== tools/test-smart-fox-closed-loop.mjs =====
+{
+  "beta": true,
+  "results": [
+    {
+      "scenario": "facing",
+      "commits": 1,
+      "hits": 1,
+      "commitRate": 1,
+      "hitRate": 1,
+      "submissions": [
+        {
+          "time": 0,
+          "distance": 5.5,
+          "angle": 0,
+          "suspicion": 1,
+          "memory": 0,
+          "fatigue": 0
+        }
+      ]
+    },
+    {
+      "scenario": "back_turned",
+      "commits": 1,
+      "hits": 1,
+      "commitRate": 1,
+      "hitRate": 1,
+      "submissions": [
+        {
+          "time": 0,
+          "distance": 5.5,
+          "angle": 0,
+          "suspicion": 0,
+          "memory": 0,
+          "fatigue": 0
+        }
+      ]
+    },
+    {
+      "scenario": "memory_one",
+      "commits": 1,
+      "hits": 1,
+      "commitRate": 1,
+      "hitRate": 1,
+      "submissions": [
+        {
+          "time": 0,
+          "distance": 5.5,
+          "angle": 0,
+          "suspicion": 1,
+          "memory": 1,
+          "fatigue": 0
+        }
+      ]
+    },
+    {
+      "scenario": "multi_fox",
+      "commits": 1,
+      "hits": 1,
+      "commitRate": 1,
+      "hitRate": 1,
+      "submissions": [
+        {
+          "time": 0,
+          "distance": 5.5,
+          "angle": 0,
+          "suspicion": 1,
+          "memory": 0,
+          "fatigue": 0
+        }
+      ]
+    }
+  ]
+}
+
+===== tools/test-smart-fox-melee.mjs =====
+✔ 近身且可达时启动独立 windup，超范围或不可达不启动 (0.779168ms)
+✔ 完整动作严格经过 windup → strike → recover → null，并进入冷却 (0.752877ms)
+✔ strike 首次命中被消费，后续攻击帧和收招均不能重复命中 (0.185029ms)
+✔ 当前接触命中拒绝超范围、垂直不重叠、洞内、无敌和接触冷却 (0.165435ms)
+✔ 安全、死亡、眩晕、撤退和逃跑状态不触发近战 (0.13072ms)
+✔ 近战与 committed/pending pounce 互斥，且不修改既有扑击状态 (0.386819ms)
+✔ 近战后台项默认值、有限边界和非法值回退 (8.617604ms)
+✔ 七个近战键通过现有运行时配置白名单应用 (0.319545ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15.704859
+
+===== tools/test-runtime-config.mjs =====
+✔ runtime payload schema validates whitelist and rejects empty/invalid payloads (1.110804ms)
+✔ validated runtime override changes actual tuning object, defaults stay intact when absent (0.214428ms)
+✔ URL payload roundtrip and admin beta-only projection (0.403592ms)
+✔ schema-added beta values traverse admin projection, active endpoint fetch, validation and runtime application (1.429888ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7.546916
+
+===== tools/test-admin-tuning.mjs =====
+✔ 后台 schema 包含唯一 id、合法范围与要求覆盖的关键常量 (1.036705ms)
+✔ beta tuning 面板新条目默认值与百分比/角度单位换算正确 (0.161215ms)
+✔ 数值钳制处理越界、非数与弧度/角度显示换算 (0.613768ms)
+✔ 导出再导入往返等价，schemaVersion 与来源详情可读 (8.060309ms)
+✔ 非法 JSON/schema/值和未知字段按约定处理 (0.629394ms)
+✔ 恢复分组只重置目标分组并清理 dirty 标记 (0.5946ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15.901471

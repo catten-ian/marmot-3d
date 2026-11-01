@@ -1,0 +1,7 @@
+# Old production core + new lab instrumentation, saved before production dynamic-attacker edits:
+node tools/smartfox-headless-lab.mjs matrix --duration 6 --out outputs/m3d-20261030-beta-smartfox-team/headless/dynamic-attackers/before-matrix.json
+# Dynamic production core, identical 180-case matrix:
+GIT_COMMIT=b90c0e0d62ba1d9a78c7c8cacf6de8e1bbf7b8f7+dynamic-working node tools/smartfox-headless-lab.mjs matrix --duration 6 --out outputs/m3d-20261030-beta-smartfox-team/headless/dynamic-attackers/after-matrix.json
+# The after command intentionally exits 1 because 15/180 real parry setup cases failed; output is retained.
+node tools/qa-smartfox-dynamic-attackers.cjs
+node tools/run-node-tests.cjs

@@ -1,0 +1,15 @@
+{
+  "cases": 180,
+  "byStatus": {
+    "completed": 180
+  },
+  "failed": [],
+  "singleMarmot": true,
+  "parryCases": 60,
+  "parrySuccessCases": 60,
+  "fourFoxParryCases": 15,
+  "fourFoxParryCompleted": 15,
+  "totalTicks": 64800,
+  "wallMs": 1079.4,
+  "commit": "working-tree"
+}

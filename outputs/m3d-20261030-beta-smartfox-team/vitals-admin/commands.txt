@@ -1,0 +1,4 @@
+node tools/qa-smartfox-vitals-admin.cjs
+# Embedded local-only static/API service: http://127.0.0.1:8337
+# Chrome: /usr/bin/google-chrome --headless=new --disable-gpu --use-gl=swiftshader --enable-unsafe-swiftshader
+# Explicit Beta sandbox URL is recorded in state-assertions.json

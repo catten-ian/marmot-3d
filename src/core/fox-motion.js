@@ -1,4 +1,5 @@
 import { FOX } from './config.js';
+import { IS_BETA } from './version.js';
 
 export function foxRecoverySeconds(type, mode) {
   if (mode === 'leap') return FOX.recovery.leap;
@@ -201,18 +202,22 @@ export function chooseRestPoint({ foxX, foxZ, playerX, playerZ, burrows = [], bo
   const margin = 4;
   const hw = (bounds?.hw ?? 74) - margin;
   const hh = (bounds?.hh ?? 44) - margin;
-  const clampX = (v) => Math.max(-hw, Math.min(hw, v));
-  const clampZ = (v) => Math.max(-hh, Math.min(hh, v));
-  // _groundSteer expands each obstacle by speed*.45, and arrival still needs to
-  // be outside that band.  The old b.r+3.5 offset was inside it for shelter-b.
+  const clampX = (v) => Math.max(-hw, Math.min(hw, Number.isFinite(v) ? v : 0));
+  const clampZ = (v) => Math.max(-hh, Math.min(hh, Number.isFinite(v) ? v : 0));
   const navClearance = clearance ?? Math.max(1.2, (cfg.speed ?? FOX.retreat.speed) * .45);
   const targetGap = navClearance + (cfg.arriveRadius ?? FOX.retreat.arriveRadius) + .35;
-  // Preserve the pre-beta pure selection semantics when no navigation map is
-  // supplied. Beta passes the explicit obstacle list below.
-  if (!(obstacles || []).length) {
+  const betaFar = Number.isFinite(cfg.betaSmartMinPlayerDistance) && cfg.betaSmartMinPlayerDistance > 0;
+  const minPlayerDistance = betaFar ? cfg.betaSmartMinPlayerDistance : 16;
+  const distFromPlayer = (x, z) => Math.hypot(x - playerX, z - playerZ);
+  const usable = (x, z) => {
+    if (Math.abs(x) > hw || Math.abs(z) > hh) return false;
+    return (obstacles || []).every((o) => Math.hypot(x - o.x, z - o.z) >= (o.r || 0) + targetGap);
+  };
+  // Preserve legacy stable/dev selection exactly when no Beta smart distance is requested.
+  if (!betaFar && !(obstacles || []).length) {
     let best = null, bestD = Infinity;
     for (const b of burrows || []) {
-      const dp = Math.hypot(b.x - playerX, b.z - playerZ);
+      const dp = distFromPlayer(b.x, b.z);
       if (dp < 16) continue;
       const df = Math.hypot(b.x - foxX, b.z - foxZ);
       if (df < bestD) { bestD = df; best = b; }
@@ -225,38 +230,37 @@ export function chooseRestPoint({ foxX, foxZ, playerX, playerZ, burrows = [], bo
     const ax0 = foxX - playerX, az0 = foxZ - playerZ, d0 = Math.hypot(ax0, az0) || 1;
     return { x: clampX(playerX + (ax0 / d0) * 26), z: clampZ(playerZ + (az0 / d0) * 26) };
   }
-  const usable = (x, z) => {
-    if (Math.abs(x) > hw || Math.abs(z) > hh) return false;
-    return (obstacles || []).every((o) => Math.hypot(x - o.x, z - o.z) >= (o.r || 0) + targetGap);
-  };
-  const distFromPlayer = (x, z) => Math.hypot(x - playerX, z - playerZ);
   const candidates = [];
   for (const b of burrows || []) {
-    const dp = distFromPlayer(b.x, b.z);
-    if (dp < 16) continue; // 玩家就在洞口，那里不安全
-    const df = Math.hypot(b.x - foxX, b.z - foxZ);
+    if (distFromPlayer(b.x, b.z) < minPlayerDistance) continue;
     const away = Math.atan2(b.x - playerX, b.z - playerZ);
     const base = (b.r || 0) + 2.5 + targetGap;
-    // Try away-from-player first, then fixed side alternatives if another rock or
-    // the boundary blocks the first ray.  Selection remains one-shot per retreat.
     for (const side of [0, -0.65, 0.65, Math.PI]) {
       const a = away + side;
-      const x = clampX(b.x + Math.sin(a) * base);
-      const z = clampZ(b.z + Math.cos(a) * base);
-      if (usable(x, z)) candidates.push({ x, z, df, preferred: side === 0 });
+      const x = clampX(b.x + Math.sin(a) * base), z = clampZ(b.z + Math.cos(a) * base);
+      if (usable(x, z)) candidates.push({ x, z, playerDistance: distFromPlayer(x, z), preferred: side === 0 });
     }
   }
-  candidates.sort((a, b) => (b.preferred - a.preferred) || (a.df - b.df));
-  if (candidates[0]) return { x: candidates[0].x, z: candidates[0].z };
-
-  const ax = foxX - playerX, az = foxZ - playerZ;
-  const d = Math.hypot(ax, az) || 1;
-  const dist = 26;
-  const fallback = { x: clampX(playerX + (ax / d) * dist), z: clampZ(playerZ + (az / d) * dist) };
-  if (usable(fallback.x, fallback.z)) return fallback;
-  // Last resort stays within the active field and is still a real target; the
-  // beta caller's bounded progress guard handles an unusual fully boxed-in map.
-  return fallback;
+  if (betaFar) {
+    // Add boundary/corner candidates so a large far target is reachable even with no burrow.
+    for (const x of [-hw, 0, hw]) for (const z of [-hh, 0, hh]) {
+      if (usable(x, z)) candidates.push({ x, z, playerDistance: distFromPlayer(x, z), preferred: false });
+    }
+    candidates.sort((a, b) => b.playerDistance - a.playerDistance || (b.preferred - a.preferred));
+    if (candidates[0]) return candidates[0];
+  } else {
+    candidates.sort((a, b) => (b.preferred - a.preferred) || (Math.hypot(a.x - foxX, a.z - foxZ) - Math.hypot(b.x - foxX, b.z - foxZ)));
+    if (candidates[0]) return { x: candidates[0].x, z: candidates[0].z };
+  }
+  const ax = foxX - playerX, az = foxZ - playerZ, d = Math.hypot(ax, az) || 1;
+  const fallbackCandidates = [
+    { x: clampX(playerX + ax / d * (betaFar ? Math.max(minPlayerDistance, 26) : 26)), z: clampZ(playerZ + az / d * (betaFar ? Math.max(minPlayerDistance, 26) : 26)) },
+    ...[-hw, 0, hw].flatMap(x => [-hh, 0, hh].map(z => ({ x, z }))),
+  ].filter((q) => usable(q.x, q.z));
+  const farthest = fallbackCandidates.sort((a, b) => distFromPlayer(b.x, b.z) - distFromPlayer(a.x, a.z))[0];
+  if (farthest) return { ...farthest, playerDistance: distFromPlayer(farthest.x, farthest.z) };
+  const last = { x: clampX(playerX + ax / d * 26), z: clampZ(playerZ + az / d * 26) };
+  return { ...last, playerDistance: distFromPlayer(last.x, last.z), reachableMaxPlayerDistance: distFromPlayer(last.x, last.z) };
 }
 
 /** Bounded progress bookkeeping for beta retreat navigation. */
@@ -300,22 +304,22 @@ export function exitRestSafe() {
  * 血量归零后的命运（恢复 d088054 之前旧口径，纯函数）：
  * 所有狐狸都先"夹尾逃跑"离场（flees=true）；区别只在是否增援回来 ——
  *   · boss 首领：一去不返（respawns=false）；
- *   · 其余类型（普通/幼/疾行/厚皮/智能）：过段时间在出生点附近重新出现（respawns=true）。
+ *   · 其余类型（普通/幼/疾行/厚皮）：过段时间在出生点附近重新出现（respawns=true）；Beta smart 当局不重生。
  * 调用方据此决定是否在离场计时结束后 respawnAt。
  */
-export function defeatFate(type) {
-  return type === 'boss'
+export function defeatFate(type, { betaOn = IS_BETA } = {}) {
+  return type === 'boss' || (betaOn && type === 'smart')
     ? { flees: true, respawns: false }
     : { flees: true, respawns: true };
 }
 
 /**
  * 离场后的增援倒计时（纯函数）：
- *   · 会增援的类型（非 boss）：倒数，到 0 → shouldRespawn=true，由调用方 respawnAt；
- *   · boss：永不倒数、永不重生。
+ *   · 会增援的类型（非 boss，且非 Beta smart）：倒数，到 0 → shouldRespawn=true，由调用方 respawnAt；
+ *   · boss 与 Beta smart：永不倒数、永不重生。
  */
-export function stepDefeatCooldown(type, respawn, dt) {
-  const fate = defeatFate(type);
+export function stepDefeatCooldown(type, respawn, dt, options = {}) {
+  const fate = defeatFate(type, options);
   if (!fate.respawns) return { respawn, shouldRespawn: false };
   const next = Math.max(0, respawn - Math.max(0, dt));
   return { respawn: next, shouldRespawn: next <= 0 };

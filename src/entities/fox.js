@@ -476,6 +476,11 @@ export class Fox {
   /** 是否已被驱退（撤退中或休息中）：此时不再参与威胁计数与伤害 */
   get repelled() { return this.fleeing || this.retreating || this.state === 'rest_safe'; }
 
+  // Beta SmartFox installs per-instance snapshots in its constructor. Every
+  // other fox/channel continues to read the unchanged shared FOX defaults.
+  _vitalsConfig() { return this.smartVitals || FOX.vitals; }
+  _retreatConfig() { return this.smartRetreat || FOX.retreat; }
+
   /**
    * AI 主更新：p 为玩家状态，safe 表示玩家是否在洞穴内
    *
@@ -548,13 +553,13 @@ export class Fox {
       // 旧口径（d088054 之前）：狐狸是被"打退/吓跑"而不是被杀。
       // startFleeing 跑出视野后 fleeing=false、mesh 隐藏并设置增援计时；
       // 这里在离场期间倒数，到点在出生点附近重新出现。首领一去不返（不倒数、不重生）。
-      const fate = defeatFate(this.type);
+      const fate = defeatFate(this.type, { betaOn: IS_BETA });
       this.mesh.visible = false;
       this.warn.visible = false;
       this.hpBar.visible = false;
       this.staminaBar.visible = false;
       if (fate.respawns) {
-        const cd = stepDefeatCooldown(this.type, this.respawn, dt);
+        const cd = stepDefeatCooldown(this.type, this.respawn, dt, { betaOn: IS_BETA });
         this.respawn = cd.respawn;
         if (cd.shouldRespawn && this.spawnPoint) {
           const [sx, sz] = this.spawnPoint;
@@ -587,7 +592,7 @@ export class Fox {
     // —— 体力收支（每帧唯一入口，纯函数在 fox-motion.js）——
     // 体力耗尽只是"不能再冲刺"，不是被驱退；休息态缓慢回血回体力。
     {
-      const V = FOX.vitals;
+      const V = this._vitalsConfig();
       const dashing = this.state === 'dash';
       const resting = this.state === 'rest' || this.state === 'rest_safe';
       // rest_safe 的生命回复交给 case 'rest_safe' 的 stepRestSafe（更明显、独立配置），
@@ -622,7 +627,8 @@ export class Fox {
     // Wind 仅保留近期玩家位移估计；用有界低通避免坐标噪声/瞬时跳位变成预瞄。
     this._attackPlayerMotion = estimatePlayerVelocity(this._attackPlayerMotion, p, dt);
     const playerMotion = this._attackPlayerMotion;
-    const speed = levelCfg.speed * this.cfg.speed * (this.sandboxSpeedMul || 1) * hpSpeedMultiplier(this.hp / this.maxHp, FOX.vitals);
+    const V = this._vitalsConfig();
+    const speed = levelCfg.speed * this.cfg.speed * (this.sandboxSpeedMul || 1) * hpSpeedMultiplier(this.hp / this.maxHp, V);
     // 关卡的蓄力基准时长（实际蓄力 = 该值 × 档案 windMul）
     this.levelCfgWind = levelCfg.wind;
     // 跃扑的腾空时间也算进冲刺时长，预警线长度才准
@@ -632,13 +638,13 @@ export class Fox {
     // —— 自主撤退判断：狐狸自己根据血量/体力/被打次数决定何时撤 ——
     // （不由外部受击逻辑强塞；迎击练习狐不撤退，由复位机制接管）
     this._sinceHit = (this._sinceHit ?? Infinity) + dt;
-    if (this._sinceHit > FOX.retreat.hitStreakDecay) this.hitStreak = 0;
+    if (this._sinceHit > this._retreatConfig().hitStreakDecay) this.hitStreak = 0;
     if (!this.drillCtx && shouldRetreat({
       hpRatio: this.hp / this.maxHp,
       staminaRatio: this.stamina / this.maxStamina,
       hitStreak: this.hitStreak,
       state: this.state,
-    }, FOX.retreat)) {
+    }, this._retreatConfig())) {
       this._enterRetreat(p, allBurrows);
     }
 
@@ -725,9 +731,17 @@ export class Fox {
         const rp = this.restPoint;
         this.warn.visible = false;
         if (!rp) { this._exitRestSafe(); break; }
+        // A pursuing player invalidates a Beta smart shelter; reselect the
+        // farthest legal target instead of stopping nearby to heal.
+        if (IS_BETA && this.type === 'smart'
+          && Math.hypot(rp.x - p.x, rp.z - p.z) < this.smartRestMinPlayerDistance) {
+          this.retreating = false;
+          this._enterRetreat(p, allBurrows);
+          break;
+        }
         const rdx = rp.x - this.x, rdz = rp.z - this.z;
         const distance = Math.hypot(rdx, rdz);
-        if (distance < FOX.retreat.arriveRadius) { this._enterRestSafe('arrival'); break; }
+        if (distance < this._retreatConfig().arriveRadius) { this._enterRestSafe('arrival'); break; }
         if (IS_BETA) {
           const progress = stepRetreatProgress(this._retreatProgress, distance, dt);
           this._retreatProgress = progress;
@@ -738,14 +752,14 @@ export class Fox {
             break;
           }
         }
-        this._moveGround(rdx, rdz, FOX.retreat.speed, dt, allBurrows);
+        this._moveGround(rdx, rdz, this._retreatConfig().speed, dt, allBurrows);
         break;
       }
 
       // ---------- 安全休息：回血回体力；进入这一刻计入一次驱退 ----------
       case 'rest_safe': {
         this.warn.visible = false;
-        const r = stepRestSafe({ timer: this.timer, hp: this.hp, maxHp: this.maxHp }, dt);
+        const r = stepRestSafe({ timer: this.timer, hp: this.hp, maxHp: this.maxHp }, dt, this._retreatConfig());
         this.timer = r.timer;
         this.hp = r.hp;
         if (r.done) this._exitRestSafe();
@@ -815,7 +829,7 @@ export class Fox {
           this.dashDirX = Math.sin(this.yaw);
           this.dashDirZ = Math.cos(this.yaw);
         }
-        const v = FOX.dashSpeed * (A.dashSpeedMul || 1) * hpSpeedMultiplier(this.hp / this.maxHp, FOX.vitals);
+        const v = FOX.dashSpeed * (A.dashSpeedMul || 1) * hpSpeedMultiplier(this.hp / this.maxHp, V);
         this.dashVX = this.dashDirX * v;
         this.dashVZ = this.dashDirZ * v;
         this.x += this.dashVX * dt;
@@ -1023,7 +1037,9 @@ export class Fox {
     this.restPoint = chooseRestPoint({
       foxX: this.x, foxZ: this.z, playerX: p.x, playerZ: p.z,
       burrows, bounds: roamBounds(), obstacles: IS_BETA ? this._navigationObstacles(burrows) : [],
-    }, FOX.retreat);
+    }, IS_BETA && this.type === 'smart'
+      ? { ...this._retreatConfig(), betaSmartMinPlayerDistance: this.smartRestMinPlayerDistance }
+      : this._retreatConfig());
     this._retreatProgress = { elapsed: 0, stall: 0, lastDistance: Math.hypot(this.restPoint.x - this.x, this.restPoint.z - this.z) };
     this.retreatResolution = null;
     this.state = 'retreat';
@@ -1037,7 +1053,7 @@ export class Fox {
   /** 到达休息点 → 安全休息。进入这一刻（且仅这一刻）触发一次驱退计数。 */
   _enterRestSafe(reason = 'arrival') {
     const r = enterRestSafe({ repelCounted: this.repelCounted },
-      FOX.retreat.restSeconds[this.type] ?? FOX.retreat.restSeconds.normal);
+      this._retreatConfig().restSeconds[this.type] ?? FOX.retreat.restSeconds.normal);
     this.state = r.state;
     this.timer = r.timer;
     this.repelCounted = r.repelCounted;
@@ -1318,7 +1334,7 @@ export class Fox {
       this.stun = 0;
       this.leap = 0;
       this.fleeing = false;
-      this.stamina = Math.max(0, this.stamina - FOX.vitals.hitStaminaCost);
+      this.stamina = Math.max(0, this.stamina - this._vitalsConfig().hitStaminaCost);
       this.state = this.hp > 0 ? 'dummy' : 'defeated';
       this.warn.visible = false;
       return this.hp <= 0;
@@ -1327,7 +1343,7 @@ export class Fox {
     // 不会被追打再次"打死/打跑"，也不重复计驱退。
     const disengaged = this.retreating || this.state === 'rest_safe';
     this.hp = Math.max(disengaged ? 1 : 0, this.hp - damage);
-    this.stamina = Math.max(0, this.stamina - FOX.vitals.hitStaminaCost);
+    this.stamina = Math.max(0, this.stamina - this._vitalsConfig().hitStaminaCost);
     this.hitStreak = (this.hitStreak ?? 0) + 1;
     this._sinceHit = 0;
     const dx = this.x - fromX, dz = this.z - fromZ;

@@ -8,7 +8,7 @@ import {
   SMART_INTENTS,
   smartPounceDistance,
   habituateDecayRate,
-  updateSmartMemory, stepInterruptionTimes, debounceIntent, createSmartPack, foxSeparation,
+  updateSmartMemory, stepInterruptionTimes, debounceIntent, createSmartPack, foxSeparation, SMART_POUNCE_TUNE, smartPounceDashDistance, smartPounceDashDurationForDistance,
   trackFeint, RECOVER_LOCK, assembleSmartAim,
 } from '../src/entities/smart-fox-core.mjs';
 import { stepFoxLocomotion, foxMaxTurnRate, steerGroundDirection } from '../src/core/fox-motion.js';
@@ -285,4 +285,30 @@ test('Beta 提交与 melee 互斥，提交后仍不可取消', async () => {
   const yaw = pounce.pounceYaw;
   pounce = stepSmartMotion(pounce, { x: 9, z: 9 }, 1 / 60, 'recover', { commitAllowed: false });
   assert.equal(pounce.pounceCommitted, true); assert.equal(pounce.pounceYaw, yaw);
+});
+
+test('Beta 动态攻击群取消两提交窗上限但保留错峰间隔', () => {
+  const legacy = createSmartPack();
+  legacy.recordCommit(0, 0); legacy.recordCommit(1, .4);
+  assert.equal(legacy.canCommit(2, .8), false);
+  const pack = createSmartPack({ dynamicAttackers: true });
+  assert.equal(pack.canCommit(0, 0), true);
+  pack.recordCommit(0, 0);
+  assert.equal(pack.canCommit(1, .1), false, '局部错峰间隔仍生效');
+  for (let slot = 1; slot < 8; slot++) {
+    const at = slot * .5;
+    assert.equal(pack.canCommit(slot, at), true, `slot ${slot}`);
+    pack.recordCommit(slot, at);
+  }
+  assert.equal(pack.commits.filter((c) => 3.5 - c.at < 1.2).length, 3);
+  assert.equal(pack.canCommit(8, 4), true, '窗内已有两个以上提交也不再封锁');
+});
+
+test('Beta 共享 dash 时长能覆盖 5.4m 提交的既定目标带，不改 strike 命中范围', () => {
+  const distance = 5.4;
+  const duration = smartPounceDashDurationForDistance(distance, { pounceSpeed:10.8, acceleration:18, dt:1/60 });
+  const covered = smartPounceDashDistance(0, 10.8 * SMART_POUNCE_TUNE.dashSpeedMul, 18, duration, 1/60);
+  assert.ok(duration > SMART_POUNCE_TUNE.dashDuration);
+  assert.ok(covered >= distance - SMART_POUNCE_TUNE.maxStrikeDistance);
+  assert.ok(duration < 2);
 });
