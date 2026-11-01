@@ -240,3 +240,69 @@ After matrix 为 **165 completed / 15 failed**。15 例全部是 4 狐 `parry-ta
 - 剩余：4 狐 parry-tap 的 15 个固定矩阵组合未形成真实迎击，需要后续诊断土拨鼠目标选择/距离与多狐前摇时序；没有为通过矩阵而强制迎击。主控独立验收未执行，本 worker 自报不等于上线。
 
 实现 commit：`e1e1e5965595ba97ce104c2ea639a568a365fea8`（含代码、测试与浏览器/矩阵证据）；本报告 hash 记录另作 docs checkpoint。push=未执行，deploy=未执行。
+
+---
+
+## 2026-11-01 主控 changes-requested 回应：parry 回归与有效生产 QA
+
+- 本轮基线：`fba2555d9d71bd65ab89ff31b63add1d39e323bb`；保留 `e1e1e5965595ba97ce104c2ea639a568a365fea8` 与 `fba2555`，未 reset/clean/stash。
+- 范围仍限 Beta SmartFox 核心/实体、headless lab、QA、测试、证据与报告；未改 `main.js`、PAF、Stable/Dev、普通狐、rig/动画、滤镜、黑匣子、版本或 public shell。
+
+### 1. 4 狐 parry-tap 回归：根因、真实修复与 180 例复跑
+
+定位发现两层问题，未将失败改成预期：
+
+1. 旧 lab 把“3.2m 内看到 windup”直接记作迎击成功，没有走完生产的前摇输入、有效攻击帧、真实接触距离/朝向与垂直重叠结算。这个捷径会掩盖多狐攻击时序问题，不能继续用来凑 completed。
+2. live 与 lab 共用的扑击接近段存在时长上限缺陷：旧二分以 `SMART_POUNCE_TUNE.dashDuration=0.42s` 为固定上限；默认加速下最多约覆盖 1.755m，而 5–7m 提交需要更长的接近段才能进入原有 strike 接触带。动态攻击者扩展后，该缺陷使 15 个 4 狐 parry 组合无法形成真实迎击。
+
+实际修改：
+
+- 新增共享 `smartPounceDashDurationForDistance()`，live `SmartFox` 的 Beta 路径与 headless lab 都调用它。接近段时长按原目标距离计算，必要时超过 0.42s、最高 2s；只延长真实加速移动时间，**未改伤害、体力消耗、strike 时长、命中体积或迎击阈值**。
+- lab 改用生产 `resolveParryOutcome`、`foxAttackVerticalHit` 以及生产玩家/狐狸碰撞半径和 `smartPounceHitRadiusCap`。土拨鼠在真实 windup 时输入并开启既有 0.3s 迎击窗；只有后续 strike 接触满足距离、朝向和垂直重叠才记录一次 `parry_success`，之后进入真实连续推击。新增 `parry_attempt`、接触距离/reach 和失败原因事件。
+- `selectMarmotTarget` 在迎击准备阶段选择真实 windup 攻击者，不再被更近的 idle 狐抢走目标；输入本身不等于成功。没有强制 commit、冻结玩家、瞬移、改 HP 或放宽断言。
+- 回归测试现在要求完整 6 秒 matrix **180/180 completed**、每个 parry case 恰有一次真实 `parry_success`、成功距离不超过生产 reach、之前存在有效输入且之后有真实推击；旧的“固定接受 15 个失败”断言已移除。
+
+正式命令与原始证据：
+
+```bash
+node tools/smartfox-headless-lab.mjs matrix --duration 6 \
+  --out outputs/m3d-20261030-beta-smartfox-team/headless/dynamic-attackers/changes-requested/matrix-180-after.json
+node tools/qa-smartfox-dynamic-attackers.cjs
+node tools/run-node-tests.cjs
+```
+
+结果：**180/180 completed，0 failed**；全部 180 例恰好 1 只土拨鼠；60 个 parry 场景全部有真实 `parry_success`；此前失败的 **15/15 个 4 狐 parry 组合全部 completed**。共 64,800 tick，Node matrix wall time 1.0794s（`/usr/bin/time` 为 1.11s），无超时/NaN/越界。动态攻击能力未回退：stationary faceoff、seed=20261031 下，4 狐为 4 个不同 committer/striker，8 狐为 8 个不同 committer/striker。
+
+修复后全矩阵按狐数汇总（原始每狐事件未删减）：
+
+| 狐数 | completed/failed | commit | 扑击 strike | 近战 strike | 近战 hit | 玩家伤害 | 撤退 | 死亡 | 最大不同 committer/attacker |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 45/0 | 45 | 45 | 45 | 45 | 45 | 45 | 0 | 1/1 |
+| 2 | 45/0 | 60 | 60 | 75 | 75 | 75 | 60 | 0 | 2/2 |
+| 4 | 45/0 | 105 | 105 | 210 | 165 | 165 | 60 | 0 | 4/4 |
+| 8 | 45/0 | 225 | 225 | 420 | 360 | 360 | 105 | 0 | 8/8 |
+
+旧 `before-matrix.json`（180/180）与有回归的 `after-matrix.json`（165/180）均保留作对照；新数据位于 `changes-requested/matrix-180-after.json`。汇总见 `matrix-180-summary.json` 与 `matrix-180-regression-summary.json`，命令、wall time 分别见 `matrix-180-command.txt`、`matrix-180-time.txt`。
+
+### 2. 有效生产实体浏览器 QA：满血存活开局与真实 hit
+
+`tools/qa-smartfox-dynamic-attackers.cjs` 现在先暂停固定步进、清场，用正常键盘移动离开洞穴排斥区，再一次性生成整批狐狸，随后才记录 `hpBefore` 并推进 6 秒战斗。旧流程在逐只生成之间推进 90 帧，先生成的狐会在计时前攻击，导致无效的 `hpBefore=0`；该 setup 已移除。
+
+- 开局硬断言：玩家 `hp=maxHp=100`、`mode=play`、`godMode=false`。QA 不写 HP、不注入死亡、不 teleport、不强制攻击、不冻结 AI、不关闭闪避、不改命中阈值。
+- 每狐记录 commit/pounce strike/melee strike/hit。hit 不是由 strike 推断：通过生产实际接触后该狐 `contactCd` 的跳变，关联同帧生产 `player-hit` 日志，并保留 attackKind、damage、hpBefore/hpAfter、preventedByGodMode。
+- 4 狐：HP **100→40**；4 只不同真实攻击者（slot 0/1/2/3），4 只均有真实 hit；共 5 次生产 hit（4 次 pounce、1 次 melee），玩家结束仍存活。
+- 8 狐：HP **100→40**；6 只不同真实攻击者（slot 0/1/3/4/6/7），3 只有真实 hit；共 5 次生产 hit（3 次 pounce、2 次 melee），玩家结束仍存活。6 秒窗内 slot 2/5 没有实际攻击，slot 4/7 有 commit 但尚未形成 strike；没有为凑全员命中而延长时间、关闭闪避或改数值。每狐最终 HP/体力/状态见 JSON `perFox`。
+- 两例所有 QA 断言通过，**console error=0**。测量结束保持暂停，确保截图 HP 与 JSON 结束状态一致，不让 wall-clock 帧在截图前增加未记录伤害。
+- 证据：`changes-requested/browser-4fox.json`、`browser-8fox.json`、对应 PNG、`browser-run.log`、`browser-commands.txt`。
+
+renderer/backend 为 `WebGLRenderer` / WebGL 2.0 / ANGLE Vulkan **SwiftShader 软件渲染**。这些证据只覆盖本地真实生产实体与战斗流程，**不代表硬件 GPU、手机、视觉质量或主控独立验收**。
+
+### 3. 验证、改动与限制
+
+- 6 个变更 JS/MJS/CJS 全部 `node --check` 通过，见 `changes-requested/node-check.txt`。
+- 聚焦测试：`test-smartfox-headless-lab` 8/8、`test-smart-fox-beta` 28/28、`test-fox-tactics` 17/17、`test-fox-pounce` 8/8、`test-parry-window` 72 checks、`test-fox-vitals` 11/11、`test-fox-tuning` 7/7，全部通过、0 skipped；日志 `focused-tests.txt`。
+- 完整 `node tools/run-node-tests.cjs`：**96/96 passed，0 failed，22 browser/CDP skipped**。22 个 skipped 没有计入通过；上述 4/8 狐 QA 是另外实际执行的浏览器代表场景，不把整套 skipped browser matrix 冒充已运行。日志 `run-node-tests.txt`。
+- `git diff --check` 通过；只 stage 本任务代码、测试、证据和报告，`.codex-cli-write.lock` 未纳入。
+- 改动文件：`src/entities/smart-fox-core.mjs`、`src/entities/smart-fox.js`、`src/headless/smartfox-combat-lab.mjs`、`tools/qa-smartfox-dynamic-attackers.cjs`、`tools/test-smart-fox-beta.mjs`、`tools/test-smartfox-headless-lab.mjs`、本报告及 `changes-requested/` 证据。
+- 剩余限制：未执行完整 22 项 browser/CDP 套件；未做硬件 GPU、手机或视觉验收；主控独立验收仍待后续。本 worker 自报不等于上线。
+- 实现/证据 commit：`aa1426d891f29feffd2a1cd7f4b6c41db19a80af`（`fix(beta): restore real SmartFox parry contacts`）；报告 docs checkpoint 为本次追加。push=未执行，deploy=未执行。
