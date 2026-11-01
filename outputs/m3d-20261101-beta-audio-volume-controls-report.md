@@ -1,5 +1,9 @@
 # Beta 音量与数字输入实现报告
 
+> 当前状态：**local-node-verified-browser-pending**。同一任务、同一 JOB 续接，保留原实现 `2275691f6824838da2ca772e175fb67a455164e1` 与报告提交 `24ce51694f1fffba44f3e1110345c5515665617f`。追加的完整音频预载/解码/ready API 已提交为 `1077bebc39f980f4765724bc30b86d2c3b69c41a`；本轮最终测试为 61 项聚焦测试通过、99 个 Node 文件通过、22 个浏览器/CDP 文件跳过。普通游戏/沙盒/PAF 的入口等待接线由后续 preload 任务完成；本轮未改 main.js，未完成真实浏览器或完整用户验收。
+
+以下音量部分及其 44/98 测试计数为第一阶段记录；文末“追加修复”给出本轮 API、资源覆盖和最终验证。
+
 - Task ID：`m3d-20261101-beta-audio-volume-controls`
 - 日期：2026-11-01
 - JOB：`/home/fame/code/marmot3d/m3d-beta-audio-controls-20261101`
@@ -129,3 +133,96 @@ node tools/run-node-tests.cjs
 4. 0 音量、总静音、各类禁用、隐藏期间编辑/恢复、首次手势和浏览器自动播放限制。
 5. 真实资源失败后的回退、PAF 进入/暂停/退出、普通场景切换及 BGM 不重叠；新上限导入导出和旧配置回读。
 6. 对 Stable/Dev 入口做浏览器冒烟，确认默认输出与原设置维持原行为。
+
+
+## 追加修复：完整音频预载与真实资源 ready（同一任务续接）
+
+- 续接基线/HEAD：`24ce51694f1fffba44f3e1110345c5515665617f`，原始任务 base 仍为 `99f2d236d496971f6a702d9d41929d1cce65bd80`。
+- 本轮实现、测试与证据 commit：`1077bebc39f980f4765724bc30b86d2c3b69c41a`。
+- 本轮报告回填随后单独本地提交；用本文开头给出的 `git log` 命令查询报告提交 SHA。
+- 验证等级：**local-node-verified-browser-pending**。
+- push / PR / deploy：**未执行**；Chrome / CDP / 浏览器：**未启动**。
+
+### 根因与资源清单
+
+旧 `preload()` 只读取两个 manifest 和 7 首 BGM 的压缩字节，随机选择一个 combat 变体，不含 PAF BGM 和 SFX；没有保证解码完成的入口契约。首个 AudioContext 创建前无法解码。另一个问题是 SFX 播放把 manifest 缺项当作“不应加载该资源”，会挡住已知真实路径。
+
+现在导出的 `BETA_AUDIO_RESOURCES` 是不可变的、按真实路径去重的清单，源于运行时 `SFX_ASSETS` 和 `BGM_ASSETS`。`BGM_ASSETS` 从全部 `BGM_SLOTS` 加 `BGM_TRACK_META` 的 variants 构建，BGM 运行时也直接从该映射取路径。
+
+| 覆盖范围 | 事件/槽位 | 真实文件数 |
+| --- | --- | ---: |
+| 全部 SFX | swing、hit、repel、kill、berry、burst、ultimate、hurt、foxWind、jump、foxDash、rescue、helpCry、levelUp、win、lose、lowHealth | 16（repel/kill 共用一个文件） |
+| 全部 BGM 槽位 | menu、explore、tension、combat、night、victory、defeat、**paf** | 8 |
+| 额外 combat variants | **combat-b、combat-c**（combat 已计入槽位） | 2 |
+| 合计 | 17 个 SFX 事件 + 全部曲目/变体 | **26** |
+
+完整清单在 `outputs/m3d-20261101-beta-audio-volume-controls/readiness/inventory.json`。成功场景为 26 次资源 fetch + 2 次 manifest fetch、26 次真正 `decodeAudioData` 调用；别名不会重复取数或解码。
+
+### API 契约
+
+| API | 行为与返回 |
+| --- | --- |
+| `audio.preload({ onProgress?, retry?: false })` | 开始/复用同一轮工作。AudioContext 前取回全部真实字节，完成后返回 `ready:false`、`status:'awaiting-context'` 的快照；已有 context 时也执行全部解码。资源失败时返回显式 `failed` 快照，兼容当前 fire-and-forget 调用，不伪造成功。 |
+| `audio.whenReady({ onProgress?, retry?: false })` | 入口等待 API。**仅当 26 项真实字节均保留且 26 项真实 buffer 均解码成功时 resolve**；没有 context 时保持 pending。资源失败 reject `AudioReadinessError`，其 `.state` 是失败快照。 |
+| `audio.getReadiness()` | 返回新快照，包含 `supported/status/ready/total/fetched/decoded/attempt/contextState/unlocked/manifests/resources/failures`。资源条目含 path/kind/keys/fetched/decoded；失败含 path/kind/stage/message/attempts，attempts 含 URL、fetch/decode 阶段和 HTTP/超时/解码原因。 |
+| `audio.preload({ retry: true })` / `audio.whenReady({ retry: true })` | 显式重试已失败项，保留所有成功字节、解码结果及成功 manifest 缓存。并发重试复用进行中的工作。入口使用后者时仍须处理 reject。 |
+
+状态为 `idle → fetching → awaiting-context → fetching/decoding → ready`；已有 context 可从 fetching 直接 decoding；失败轮次结束为 `failed`。第二轮 fetching 可以全部命中字节缓存，不代表再次发起网络请求。
+
+`ready` 表示资源已解码，`unlocked` 和 `contextState` 描述当前音频权限/运行状态。浏览器拒绝 `resume()` 或页面隐藏时仍可能完成解码，此时 `ready:true` 且 `unlocked:false`；不会绕过 autoplay、强行 resume，或声称已可听。后续入口任务需要根据页面可见性与用户手势处理播放许可。
+
+`preload()`、`whenReady()` 和 `getReadiness()` 均不创建或 resume AudioContext。仍由已有的 `bindUserGesture()`/调用方手势内的 `ensure()` 建立并尝试 resume；`ensure()` 在预载已经启动时自动续做解码。即使总音量为 0、音效/音乐禁用、或总开关关闭，也会照常 fetch/decode 全部资源。Stable/Dev 的 `preload()` 保留原无操作返回值 `[]`，其 readiness 为 disabled，`whenReady()` 会显式拒绝；默认输出与播放路径保留。
+
+`onProgress` 对当前工作轮次汇报完成作业数，total=54（两个 manifest、26 次取数作业、26 次解码作业）。手势前成功取数完成为 28/54，返回状态仍未 ready；具体成功数取 `state.fetched/decoded`。回调在该轮 `preload()` settle 后解除，后续调用可重新提供回调或读取 `getReadiness()`。进度完成计数不作为入口通过条件，失败也必须查看 state。进度回调抛错或修改收到的快照不能污染内部状态或伪造 ready。
+
+供后续入口接线任务使用的边界：在启动阶段调用 `preload()`，保留现有手势解锁，在普通游戏/沙盒/PAF 真正开始前等待 `whenReady()` 并处理 `AudioReadinessError.state`；失败后由明确的重试操作使用 `{retry:true}`。本轮没有接入任何模式的入口等待门，因此不能把纯音频层验证当作用户复现问题的完整端到端验收。
+
+### 缓存、失败与首次播放
+
+- URL 级字节缓存、路径级字节缓存、正在 fetch 的 Promise、SFX/BGM 解码 Promise 和成功解码结果共同复用。重复/并发调用不重复 fetch/decode；首次播放直接使用同一解码缓存。
+- 非空 ArrayBuffer 才可进入真实字节缓存；HTTP 200 的空内容不是资源成功。解码成功还要得到有限正 duration 的真实 buffer，空 Promise、null、无效 buffer 和程序化 BGM 对象均不能满足 ready。
+- 传给 `decodeAudioData` 的是 `bytes.slice(0)`。浏览器会转移/分离输入 ArrayBuffer，原始已取回字节必须保留，不能因 decode 消失而错误宣称已缓存。Node 替身通过实际 structuredClone transfer 模拟该语义。
+- TOS 首选、现有本地路径回退保留；手势前已成功获取的本地回退字节在解码时优先复用，不再先重试失败 TOS。解码坏字节会移除对应失败字节缓存，尝试另一来源；失败不会永久缓存。
+- 所有真实资源均成功时，manifest 可作为建议性元数据；manifest 不可用仍在 `manifests` 状态显式标记 failed，但不会阻止已知路径完成真实 fetch/decode。只读 manifest 成功本身不能使 ready。SFX/BGM 有缓存时都跳过 manifest 等待；没有缓存时也按已知路径尝试真实资源。
+- 首次 PAF 测试先完成全部资源 ready，再切到 PAF，断言 PAF source.buffer 是缓存中的真实 PAF buffer、`procedural=false`；随后 hit/kill 也用真实缓存，未调用程序化 fallback，网络和 decode 计数均不增加。测试同时保留音效家族间隔限制，先结束 hit 再发出同组 kill。
+- 当前音量映射、保护链、增益平滑、静音、隐藏页面保护、PAF/BGM 单源切换及正常资源失败后的程序化兜底保持原语义。程序化回退仍可用于失败播放，但不会被计入 ready。
+
+### 本轮测试、审查与改动文件
+
+| 检查 | Pass | Fail | Skip |
+| --- | ---: | ---: | ---: |
+| 本轮修改/新增脚本 `node --check` | **5 文件** | **0** | **0** |
+| 音频 ready + 增益/设置存储/数字输入/config-transfer/BGM/loading 聚焦测试 | **61 测试** | **0** | **0** |
+| `node tools/run-node-tests.cjs` | **99 文件** | **0** | **22 浏览器/CDP 文件** |
+| `git diff --check`、实际 diff 及 staged diff 审查 | 通过 | 0 | 0 |
+
+聚焦命令：
+
+```bash
+node --test tools/test-audio-readiness.test.cjs tools/test-audio-system.cjs tools/test-audio-tos-preload.test.cjs tools/test-paf-audio-settings.test.cjs tools/test-beta-audio-volume-controls.test.cjs tools/test-config-transfer.cjs tools/test-bgm-overhaul.test.cjs tools/test-bgm-flow.test.cjs tools/test-bgm-single-source.test.cjs tools/test-loading-progress.test.cjs
+node tools/run-node-tests.cjs
+```
+
+新增 ready 文件含 **12 个测试**：完整不可变清单、手势前 fetch/手势后 decode 及转移输入保留、并发/重复、首次 PAF 真实缓存、fetch 失败/重试、decode 失败/重试、200 空字节、提前取回的本地回退复用及 advisory manifest 失败、静音/隐藏页面仍准备资源、拒绝 autoplay 与非 Beta 无操作、进度回调隔离、空/无效 decode 结果拒绝。
+
+未删除测试，未放宽旧语义：原“只解码 menu”加强为“全部 26 项解码且 menu 不重复请求”；原“PAF 排除”按新需求改为 PAF 和三个 combat 变体全部必须包含；loading 的完成序列仍精确逐项断言，资源清单扩充后为 1…28，且额外断言尚未 decode 时 ready=false。loading 测试改用实际模块 import，避免原 VM 删除 imports 后丢失 META 与产生跨 realm ArrayBuffer 问题；其他 HUD/loader 断言保留。
+
+调试期间新增测试首次为 9 pass / 1 fail / 0 skip，失败来自测试连续发出同组 hit/kill，触发既有间隔限制；改为模拟 hit 结束后再发 kill，未改限流实现。第一次全量为 98 文件 pass / 1 fail / 22 skip，失败为 loading 的旧 VM 替身缺少 META；改成实际模块加载并更新完整作业序列后，最终结果为上表。最终日志在 `outputs/m3d-20261101-beta-audio-volume-controls/readiness/`，本轮没有将 skipped 计入通过。
+
+本轮文件：
+
+- `src/systems/audio.js`：完整资源清单、ready API/状态、fetch/decode 幂等与失败重试、解码字节副本、运行时缓存直达与 advisory manifest。
+- `tools/test-audio-readiness.test.cjs`：新增 12 个测试。
+- `tools/test-audio-tos-preload.test.cjs`、`tools/test-bgm-overhaul.test.cjs`、`tools/test-loading-progress.test.cjs`：完整覆盖及进度契约测试更新。
+- `outputs/m3d-20261101-beta-audio-volume-controls/readiness/`：`focused-tests.txt`、`node-tests.txt`、`syntax-checks.txt`、`inventory.json`。
+- 本报告追加与当前状态说明。
+
+除上述范围外没有修改源码；尤其未改 main.js、音量 UI/CSS、SmartFox、录制/黑匣子、public shell、index-public.html 或版本戳。原 `.codex-cli-write.lock.d/` 保留未跟踪、未 stage；未操作其他工作树。
+
+### 追加修复的待验收项
+
+1. 后续 preload 任务在普通游戏、沙盒和 PAF 入口串行接上 `whenReady()`，处理失败、重试、用户手势及 `unlocked` 状态；本轮仅提供音频系统契约和 Node 证据。
+2. 主控串行用真实浏览器确认实际资源 HTTP/CORS/解码、第一次 PAF 的 SFX/BGM 实际走真实缓存、快速连续点击和跨模式切换。
+3. 在真实手机验证首次解锁、后台恢复、静音仍完整准备资源及加载失败重试。
+4. 测量全部解码的加载耗时、移动端内存及瞬时解码负载。按仓库 BGM manifest 时长合计约 897.488 秒，以 48 kHz/双声道/float32 估算，仅 BGM PCM 约 **328.67 MiB**，尚未包含 SFX、压缩字节与浏览器开销；这是覆盖全部曲目的成本估计，并非实测内存。全量解码是否适合目标手机需由主控验证。
+5. 延续第一阶段的真实增益/削波动态、控件/移动视口和听感验收。Node 使用可控解码替身验证契约，不能代替真实浏览器解码、实际扬声器或完整用户验收。
