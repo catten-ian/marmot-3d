@@ -114,3 +114,79 @@ Structured data is in [`browser-telemetry.json`](./m3d-20261030-beta-paf-input/b
 资源清理：预览 group、CapsuleGeometry、材质和目标环在每次释放/取消/暂停/退出时移除并 dispose；TouchControls 仍由共享 route 管理，退出先 `releaseAll()` 再 restore，避免重复监听或跨次输入残留。未修改 `src/main.js`、智能狐 AI、rig/动画、public shell、版本戳或其他工作树；push/deploy 未执行。
 
 本轮本地实现 commit：交付时 `git rev-parse HEAD`；push/deploy 未执行。
+
+## 2026-11-01 继续交付：共享真实命中几何与浏览器验收矩阵
+
+本轮保留此前本地提交 `ad2729756589e84a443d47c71e62c2fd56e2970d`，继续沿用 rev58 base `e1d6c0774cb7af387fd9e7c2c6559f8c5b388d8e`。用户新契约仍明确取代报告前半部分记录的旧“按下自动扑出”行为：按住只预备/瞄准并显示真实预测范围，松开才启动一次 lunge；伤害/捕获只允许归一化进度 `0.5 <= t <= 1`。
+
+### 本轮审查发现与实现
+
+- `ad272975` 已有 hold/release 输入闸门和后半段窗口，但预览目标标识仍另写近似采样，且实际 lunge 逐帧积分、命中直接使用当前位置，与预览的解析路径不是同一条实现路径。
+- 新增 `src/core/paf-pounce.js`，把固定后半段窗口、解析路径、腾空高度、预览扫掠段、真实命中和预测目标判定集中为 PAF 专用纯函数。`pafPounceCanCatchAt()` 内部强制 `0.5 <= t <= 1`，并直接复用现有 `predator-prey.canCatch` 的严格水平半径、地形基准、中心高度和垂直窗口，不新增第二套碰撞规则。
+- `src/play/play-as-fox.js` 的实际 lunge 移动、腾空高度和捕获现在都调用上述共享函数；方向仍沿用最后有效预览的 `lungeYaw`，距离仍为 `lungeSpeed * lungeTime`，半径和垂直参数仍来自同一运行时 `cfg`。既有边界 clamp、岩石 push-out、recover、分数和猎物 AI 流程保留。
+- 预览目标标识改为调用共享预测谓词；黄色 3D 扫掠胶囊对应后半段路径和 `catchRadius`。绿色可命中目标环改为猎物上方、朝向相机的高亮环，避免 TPS 下被狐狸自身遮住。释放、取消、暂停、设置打开、blur、退出继续移除并 dispose 预览几何/材质/标记。
+- `src/core/paf-input.js` 仅重导出共享纯函数，保留 `PafPounceCharge` 的唯一输入状态机和 pointer identity；没有另造输入系统，也没有新增 beta tuning 旋钮。
+- `tools/test-paf-pounce.cjs` 新增共享几何和明确边界测试；`tools/qa-paf-release-attack.cjs` 是新的真实页面 CDP 验收脚本，使用 keydown/repeat/keyup、鼠标 press/release 和真实 touch start/end/cancel，不再假设按下自动 lunge。`?pafqa=1` 固定步长只控制真实生产 PAF 实例的更新时间，不是 synthetic fixture。
+
+### 确定性测试与语法
+
+对全部本轮修改/新增 JS/MJS/CJS 执行：
+
+```text
+node --check src/core/paf-pounce.js
+node --check src/core/paf-input.js
+node --check src/play/play-as-fox.js
+node --check tools/test-paf-pounce.cjs
+node --check tools/qa-paf-release-attack.cjs
+```
+
+结果：5/5 通过，0 失败。
+
+PAF 聚焦命令：
+
+```text
+node --test tools/test-paf-input-route.cjs tools/test-paf-pounce.cjs tools/test-paf-camera.cjs tools/test-paf-entry.cjs tools/test-paf-rock-collision.cjs tools/test-paf-fpv-viewmodel.cjs tools/test-paf-admin-sync.test.cjs tools/test-paf-evasion.cjs tools/test-paf-prey-mind.cjs tools/test-paf-audio-settings.test.cjs
+```
+
+结果：**73 passed，0 failed，0 skipped**。覆盖 keyboard/mouse/touch 共用语义的纯逻辑、超旧 windTime 不自动攻击、quick tap release、repeat/release/pointer 去重、pause/settings 输入闸门、方向/相机、碰撞、猎物 evasion、音频和设置契约。
+
+后半段明确边界：`t=0`、`0.25`、`0.5-1e-9` 不命中；满足几何时 `t=0.5`、`0.9`、`1` 可命中；`t=1+1e-9` 不命中。运行时 recover 不进入命中分支，浏览器另用 recover 期间紧贴的新猎物验证无捕获、分数不变。
+
+全量命令：
+
+```text
+node tools/run-node-tests.cjs
+```
+
+结果：**94/94 个 Node 测试文件通过，0 failed；22 个 browser/CDP 测试文件 skipped**。这些 skip 没有计入通过；真实浏览器验收由下方独立 QA 命令完成，不以 skip 代替。
+
+### 真实 Chrome 行为与视觉矩阵
+
+执行：
+
+```text
+node tools/qa-paf-release-attack.cjs
+```
+
+结果：**18/18 browser checks passed，0 console/runtime errors，9 张最终截图**。结构化结果：[`qa-results.json`](./m3d-20261031-beta-paf-release-attack/qa-results.json)。使用本地真实 `index.html?version=beta&webgl=1&play-as-fox=1&pafqa=1` 和生产 PAF 场景；不是独立 fixture。
+
+| 场景 | 按住/取消实测 | 松开与后半段实测 | 截图 |
+|---|---|---|---|
+| 1280×720 TPS 键盘 | 40 个固定步长及真实 rAF 后仍为 `wind`；记录 hold `phaseT=0.7667`，`score=0`、未捕获、预览和目标标记存在；keyboard repeat 无重武装 | 前半段 9 个采样均无伤害；首次捕获 `t=0.7142857`，一次攻击分数仅 `0→1`；quick tap 立即进入 lunge 且只结算一次 | `1280x720-tps-hold-prediction.png`、`1280x720-tps-after-release-catch.png` |
+| 1280×720 FPV 鼠标 | 长按只瞄准，重复 mouse down 不重复攻击；预览和范围内目标环可见 | 前半段 6 个采样无伤害，首次捕获 `t=0.7142857`；重复 mouse up 后仍只结算一次 | `1280x720-fpv-hold-prediction.png`、`1280x720-fpv-after-release-catch.png` |
+| 768×1024 TPS 键盘 | 35 个固定步长保持 `wind`，无捕获，预览存在 | 首次捕获 `t=0.7142857`，`scoreDelta=1` | `768x1024-tps-hold-prediction.png`、`768x1024-tps-after-release-catch.png` |
+| 390×844 触控（DPR2） | 真实 CDP touch 长按保持 `wind`，无伤害，预览存在；aria 为“扑击：按住瞄准并显示范围，松开扑击” | 前半段 9 个采样无伤害，首次捕获 `t=0.7142857`；quick tap 只攻击/结算一次；touch cancel 后 stale touchend 保持 idle | `390x844-touch-hold-prediction.png`、`390x844-touch-after-release-catch.png`、`390x844-touch-cancel-cleanup.png` |
+
+取消/清理也在真实页面通过：暂停、设置面板打开和 window blur 都把预备取消为 idle，后续 release 不发招且分数不变；退出后 PAF/HUD 和场景预览对象数为 0，重进 PAF 的预览对象数仍为 0。暂停前后渲染内存几何计数均为 714，场景预览对象数为 0；代码路径对 capsule、材质和目标环逐一 dispose。
+
+预测时间语义：标记表示当前瞄准时刻、目标保持静止且释放后路径/垂直条件不变时的真实后半段命中区域；释放后猎物自主移动造成的变化不算预测错误。预览本身不会修改 score/猎物 caught 状态，区域外目标也不会被预览捕获。
+
+### 提交、范围与剩余限制
+
+- 本轮实现/QA/证据本地提交：`084eb91cec8b7fd2112ecfed70ff41a04b382eb6`（`fix(beta-paf): unify pounce prediction and release QA`）。
+- 本报告为随后的 documentation-only 本地提交；最终 HEAD 由交付回复列明。
+- 改动仅限 PAF 输入/共享扑击逻辑、PAF 运行时、相关 Node/真实浏览器 QA、测试和 outputs。未修改 `src/main.js`、SmartFox、rig/动画、public shell、版本戳、Caddy/systemd 或其他工作树；stable/dev 未改。
+- 浏览器渲染器为 **WebGLRenderer / ANGLE Vulkan SwiftShader (Subzero)**，即软件渲染；未验证硬件 GPU 或物理手机。触控为 Chrome 移动仿真和真实 CDP touch 事件。
+- 早期失败的 `qa-results-partial.json` 仅为调试过程产物，不作为通过证据、未 stage；最终 `qa-results.json` 才是本轮结果。
+- `git diff --check` / staged diff check 通过；`.codex-lock.d/` 与 `.codex-cli-write.lock` 保留且未 stage。push、PR、deploy 均未执行。
+- 主控独立复核尚未执行，本报告不宣称主控验收已通过。
