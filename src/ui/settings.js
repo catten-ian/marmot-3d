@@ -10,6 +10,7 @@ import { readGpuInfo } from '../core/gpu-info.mjs';
 import {
   buildConfigExport, configExportFilename, parseConfigText,
 } from '../core/config-transfer.mjs';
+import { SCENE_FILTER_PRESETS, getSceneFilterPreset } from '../core/scene-filter-settings.mjs';
 
 const GRAPHICS_OPTIONS = [
   { id: 'auto', name: '自动', desc: '保留浏览器默认 GPU 选择。' },
@@ -24,7 +25,7 @@ const INPUT_MODE_OPTIONS = [
 ];
 
 export class SettingsUI {
-  constructor(binds, touchLayout = null, feedback = null, inputMode = null, graphicsPreference = null, audio = null, gpuInfoProvider = null) {
+  constructor(binds, touchLayout = null, feedback = null, inputMode = null, graphicsPreference = null, audio = null, gpuInfoProvider = null, sceneFilter = null) {
     this.binds = binds;
     // 只读 GPU 信息来源（main.js 注入，返回 renderer 或 readGpuInfo 结果）；
     // 为 null 时"图形/渲染"区块整体不渲染，三通道都不会报错。
@@ -34,6 +35,7 @@ export class SettingsUI {
     this.inputMode = inputMode;
     this.graphicsPreference = graphicsPreference;
     this.audio = audio;
+    this.sceneFilter = sceneFilter;
     this.el = {
       btn: document.getElementById('setBtn'),
       sheet: document.getElementById('setSheet'),
@@ -153,6 +155,7 @@ export class SettingsUI {
       graphicsPreference: this.graphicsPreference?.preference || 'auto',
       inputModePreference: this.inputMode?.preference || 'auto',
       inputModeEffective: this.inputMode?.isTouch?.() ? 'touch' : 'keyboard',
+      sceneFilter: this.sceneFilter?.snapshot?.() || null,
       channel: 'beta',
     });
     const text = JSON.stringify(payload, null, 2);
@@ -203,6 +206,10 @@ export class SettingsUI {
       if (cfg.audio && this.audio) this.audio.setSettings(cfg.audio);
       if (cfg.graphics && this.graphicsPreference) {
         this.graphicsPreference.setPreference(cfg.graphics);
+      }
+      if (cfg.sceneFilter && this.sceneFilter) {
+        this.sceneFilter.setPreset(cfg.sceneFilter.preset);
+        this.sceneFilter.setIntensity(cfg.sceneFilter.intensity);
       }
       if (cfg.inputModePreference && this.inputMode) {
         this.inputMode.setPreference(cfg.inputModePreference);
@@ -288,6 +295,24 @@ export class SettingsUI {
           <input id="configImportFile" type="file" accept="application/json,.json" hidden>
         </div>
         <div id="configIOStatus" class="config-io-status" aria-live="polite"></div>
+      </section>`;
+    }
+
+    if (IS_BETA && this.sceneFilter) {
+      const filter = this.sceneFilter.snapshot();
+      const preset = getSceneFilterPreset(filter.preset);
+      html += `<section class="scene-filter-settings" aria-label="场景滤镜" style="margin:0 0 14px;padding:13px;border:1px solid rgba(214,232,189,.24);border-radius:10px;background:rgba(8,20,13,.5)">
+        <h4 style="margin:0 0 9px;color:var(--gold);font-size:14px">场景滤镜</h4>
+        <label for="sceneFilterPreset">滤镜预设</label>
+        <select id="sceneFilterPreset" aria-describedby="sceneFilterHelp">${SCENE_FILTER_PRESETS.map((item) => `
+          <option value="${item.id}"${filter.preset === item.id ? ' selected' : ''}>${item.name}</option>`).join('')}
+        </select>
+        <label class="audio-slider" for="sceneFilterIntensity" style="margin-top:12px">
+          <span>滤镜强度 <output id="sceneFilterIntensityValue" for="sceneFilterIntensity">${filter.intensity}%</output></span>
+          <input id="sceneFilterIntensity" type="range" min="0" max="100" step="1" value="${filter.intensity}"${filter.preset === 'none' ? ' disabled' : ''} aria-describedby="sceneFilterHelp">
+        </label>
+        <p id="sceneFilterHelp" style="margin:8px 0 0;color:var(--soft);font-size:11px;line-height:1.5">${preset.description} 仅改变 3D 场景，不影响 HUD 与菜单；更改立即生效并保存在本设备。</p>
+        <button type="button" class="ghost-btn" id="sceneFilterReset" style="margin-top:10px;min-height:36px">恢复无滤镜</button>
       </section>`;
     }
 
@@ -456,6 +481,15 @@ export class SettingsUI {
         input?.addEventListener('change', () => this.audio.setSettings({ [key]: input.checked }));
       }
     }
+    const filterPreset = this.el.body.querySelector('#sceneFilterPreset');
+    const filterIntensity = this.el.body.querySelector('#sceneFilterIntensity');
+    filterPreset?.addEventListener('change', () => { this.sceneFilter?.setPreset(filterPreset.value); this.render(); });
+    filterIntensity?.addEventListener('input', () => {
+      const state = this.sceneFilter?.setIntensity(Number(filterIntensity.value));
+      const output = this.el.body.querySelector('#sceneFilterIntensityValue');
+      if (output && state) { output.value = `${state.intensity}%`; output.textContent = `${state.intensity}%`; }
+    });
+    this.el.body.querySelector('#sceneFilterReset')?.addEventListener('click', () => this.sceneFilter?.reset());
     const graphicsSelect = this.el.body.querySelector('#graphicsPreference');
     graphicsSelect?.addEventListener('change', () => {
       this.graphicsPreference?.setPreference(graphicsSelect.value);
