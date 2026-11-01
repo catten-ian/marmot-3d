@@ -1,0 +1,6 @@
+PASS node --check src/systems/audio.js
+PASS node --check tools/test-audio-tos-preload.test.cjs
+PASS node --check tools/test-bgm-overhaul.test.cjs
+PASS node --check tools/test-loading-progress.test.cjs
+PASS node --check tools/test-audio-readiness.test.cjs
+Syntax checks: 5 files

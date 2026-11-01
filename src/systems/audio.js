@@ -75,8 +75,26 @@ export const BGM_SLOTS = Object.freeze(['menu', 'explore', 'tension', 'combat', 
 export const BGM_SLOT_ALIASES = Object.freeze({ graze: 'explore', alert: 'tension' });
 export const resolveBgmSlot = (slot) => BGM_SLOT_ALIASES[slot] || slot;
 export const BGM_ASSETS = Object.freeze(Object.fromEntries(
-  BGM_SLOTS.map((slot) => [slot, `assets/audio/elevenlabs/bgm/${slot}.mp3`]),
+  [...new Set([...BGM_SLOTS, ...Object.values(META).flatMap((meta) => meta.variants || [])])]
+    .map((key) => [key, `assets/audio/elevenlabs/bgm/${key}.mp3`]),
 ));
+
+/** One inventory for preload and runtime: alias events share a single file. */
+export const BETA_AUDIO_RESOURCES = Object.freeze(
+  [...new Set([...Object.values(SFX_ASSETS), ...Object.values(BGM_ASSETS)])].map((path) => {
+    const kind = Object.values(SFX_ASSETS).includes(path) ? 'sfx' : 'bgm';
+    const assets = kind === 'sfx' ? SFX_ASSETS : BGM_ASSETS;
+    return Object.freeze({ path, kind, keys: Object.freeze(Object.keys(assets).filter((key) => assets[key] === path)) });
+  }),
+);
+
+export class AudioReadinessError extends Error {
+  constructor(state) {
+    super(`Beta audio is not ready: ${state.failures.length} resource failure(s)`);
+    this.name = 'AudioReadinessError';
+    this.state = state;
+  }
+}
 
 // 默认值与 BETA_TUNE.bgmCombatLatchSeconds 保持一致；后台可调时以 BETA_TUNE 为准。
 export const BGM_COMBAT_LATCH_SECONDS = 35;
@@ -426,9 +444,10 @@ export class BgmManager {
       assetKey = this._combatVariant;
     }
     if (sameCurrentSlot && !retryFallback && (!force || this.current.assetKey === assetKey)) return;
-    const path = `assets/audio/elevenlabs/bgm/${assetKey}.mp3`;
+    const path = BGM_ASSETS[assetKey];
     const startOffset = resolveBgmStartOffset({ slot: next, prevMode, transition });
-    this.audio._hasManifestAsset('bgm', assetKey, path).catch(() => null).then((available) => {
+    const manifest = this.audio._bgmCache?.has(path) ? Promise.resolve(true) : this.audio._hasManifestAsset('bgm', assetKey, path);
+    manifest.catch(() => null).then(() => {
       // The slot and assetKey are allow-listed here. Treat manifests as advisory:
       // an old manifest must not prevent trying a known live TOS/local URL.
       return this.audio._loadBuffer(path, this.audio._bgmCache);
@@ -637,6 +656,21 @@ export class Audio {
     this._bgmCache = new Map();
     this._manifestCache = new Map();
     this._audioBytesCache = new Map();
+    this._assetBytesCache = new Map();
+    this._assetFetches = new Map();
+    this._decodedResources = new Map();
+    this._resourceFailures = new Map();
+    this._requestFailures = new Map();
+    this._manifestStatus = { bgm: 'idle', sfx: 'idle' };
+    this._preloadStarted = false;
+    this._preloadActive = false;
+    this._preloadPhase = 'idle';
+    this._preloadAttempt = 0;
+    this._preloadPromise = null;
+    this._readyPromise = null;
+    this._readySettlement = null;
+    this._preloadObservers = new Set();
+    this._preloadProgress = { done: 0, total: 2 + BETA_AUDIO_RESOURCES.length * 2 };
     this._reservations = new Map();
     this._bgmManager = null;
     this._bgmStateMachine = new BgmStateMachine();
@@ -671,34 +705,114 @@ export class Audio {
     target.addEventListener('touchstart', this._gestureHandler, { capture: true, once: true, passive: true });
   }
 
-  /** Start network work before the first gesture; decoding still waits for AudioContext. */
-  preload({ onProgress } = {}) {
-    if (!this.isBeta || !this.fetchFn) return Promise.resolve([]);
-    const combatVariant = chooseCombatVariant({ previous: null });
-    this._preloadCombatVariant = combatVariant;
-    const preloadSlots = ['menu', 'explore', 'tension', combatVariant, 'night', 'victory', 'defeat'];
-    const paths = preloadSlots.map((slot) => `assets/audio/elevenlabs/bgm/${slot}.mp3`);
-    const total = 2 + paths.length;
-    let done = 0;
-    const report = (label, result) => {
-      done += 1;
-      try { onProgress?.({ done, total, label, doneBytes: undefined, totalBytes: undefined, result }); } catch (_) { /* progress is observational */ }
+  /** Read-only snapshots. Ready describes decoded resources; contextState/unlocked
+   * separately describe autoplay/visibility. This API never creates/resumes a context.
+   */
+  getReadiness() {
+    const resources = (this.isBeta ? BETA_AUDIO_RESOURCES : []).map(({ path, kind, keys }) => ({
+      path, kind, keys: [...keys],
+      fetched: this._assetBytesCache.has(path), decoded: this._decodedResources.has(path),
+    }));
+    const fetched = resources.filter((resource) => resource.fetched).length;
+    const decoded = resources.filter((resource) => resource.decoded).length;
+    const failures = [...this._resourceFailures.values()].map((failure) => ({ ...failure, attempts: failure.attempts.map((attempt) => ({ ...attempt })) }));
+    const ready = this.isBeta && !failures.length && fetched === resources.length && decoded === resources.length;
+    const status = !this.isBeta ? 'disabled' : ready ? 'ready'
+      : this._preloadActive ? this._preloadPhase : failures.length ? 'failed'
+        : !this._preloadStarted ? 'idle' : !this.ctx ? 'awaiting-context' : 'decoding';
+    return {
+      supported: this.isBeta, status, ready, total: resources.length, fetched, decoded,
+      attempt: this._preloadAttempt, contextState: this.ctx?.state || 'uncreated',
+      unlocked: this.ctx?.state === 'running', manifests: { ...this._manifestStatus }, resources, failures,
     };
-    const tracked = (promise, label) => Promise.resolve(promise).then((result) => {
-      report(label, result);
-      return result;
-    }, (error) => {
-      report(label, null);
-      throw error;
+  }
+
+  _notifyReadiness({ completed = false, label = null } = {}) {
+    if (completed) this._preloadProgress.done += 1;
+    const state = this.getReadiness();
+    if (this._readySettlement && (state.ready || state.status === 'failed' || !state.supported)) {
+      const { resolve, reject } = this._readySettlement;
+      this._readySettlement = null;
+      if (state.ready) resolve(state);
+      else reject(new AudioReadinessError(state));
+    }
+    if (completed || label) for (const observer of this._preloadObservers) {
+      try { observer({ ...this._preloadProgress, label: label || `音频 ${state.status}`, state: this.getReadiness() }); } catch (_) { /* observational */ }
+    }
+    return state;
+  }
+
+  /** Idempotent work entry: before a gesture resolves after fetching, with ready=false;
+   * after ensure() it also decodes. Failure resolves an explicit failed snapshot.
+   * retry=true retries failed resources, retaining successful bytes/decoded buffers.
+   */
+  preload({ onProgress, retry = false } = {}) {
+    if (!this.isBeta) return Promise.resolve([]); // preserve Stable/Dev no-op
+    if (onProgress) this._preloadObservers.add(onProgress);
+    if (this._preloadActive) return this._preloadPromise;
+    const needsDecode = this.ctx && BETA_AUDIO_RESOURCES.some(({ path }) =>
+      this._assetBytesCache.has(path) && !this._decodedResources.has(path) && this._resourceFailures.get(path)?.stage !== 'decode');
+    if (this._preloadPromise && !(retry && this._resourceFailures.size) && !needsDecode) {
+      if (onProgress) { this._notifyReadiness({ label: '音频缓存状态' }); this._preloadObservers.delete(onProgress); }
+      return this._preloadPromise;
+    }
+    if (retry && this._resourceFailures.size) {
+      this._readyPromise = null;
+      this._resourceFailures.delete('preload');
+    }
+    this._preloadStarted = true;
+    this._preloadActive = true;
+    this._preloadPhase = 'fetching';
+    this._preloadProgress = { done: 0, total: 2 + BETA_AUDIO_RESOURCES.length * 2 };
+    this._preloadAttempt += 1;
+    const observers = this._preloadObservers;
+    this._preloadPromise = Promise.resolve().then(async () => {
+      const manifests = ['bgm', 'sfx'].map(async (kind) => {
+        this._manifestStatus[kind] = 'fetching';
+        const manifest = await this._readManifest(kind);
+        this._manifestStatus[kind] = manifest ? 'ready' : 'failed';
+        this._notifyReadiness({ completed: true, label: `清单 ${kind}` });
+      });
+      await Promise.all([
+        ...manifests,
+        ...BETA_AUDIO_RESOURCES.map(async ({ path, kind }) => {
+          if (!retry && this._resourceFailures.has(path)) return;
+          await this._prefetchAsset(path, AUDIO_TIMEOUTS[kind]);
+          this._notifyReadiness({ completed: true, label: `获取 ${path}` });
+        }),
+      ]);
+      if (this.ctx) {
+        this._preloadPhase = 'decoding';
+        await Promise.all(BETA_AUDIO_RESOURCES.map(async ({ path, kind }) => {
+          if (!this._assetBytesCache.has(path)) return;
+          await this._loadBuffer(path, kind === 'bgm' ? this._bgmCache : this._sfxCache);
+          this._notifyReadiness({ completed: true, label: `解码 ${path}` });
+        }));
+      }
+    }).catch((error) => {
+      // Keep fire-and-forget callers safe, but never turn an unexpected failure
+      // into a successful empty Promise. Expose a structured failure to the gate.
+      this._resourceFailures.set('preload', { path: 'preload', kind: 'system', stage: this._preloadPhase, message: String(error?.message || error), attempts: [] });
+    }).then(() => {
+      this._preloadActive = false;
+      const state = this._notifyReadiness();
+      observers.clear();
+      return state;
     });
-    const jobs = [
-      tracked(this._readManifest('bgm'), '读取 BGM 清单'),
-      tracked(this._readManifest('sfx'), '读取音效清单'),
-      // 进场加载阶段预取全部 BGM 字节（解码仍等首个手势后的 AudioContext），
-      // 避免进入游戏后切槽位才临时下载导致长时间程序合成兜底。
-      ...paths.map((path) => tracked(this._prefetchAsset(path, AUDIO_TIMEOUTS.bgm), `预载 ${path.split('/').pop()}`)),
-    ];
-    return Promise.allSettled(jobs).catch(() => []);
+    return this._preloadPromise;
+  }
+
+  /** Gate API: only resolves with all real bytes AND decoded buffers cached.
+   * Remains pending until external user-gesture ensure(); rejects with .state on
+   * resource failure. It never calls ensure()/resume(), even when muted.
+   */
+  whenReady(options = {}) {
+    this.preload(options);
+    if (!this._readyPromise) {
+      this._readyPromise = new Promise((resolve, reject) => { this._readySettlement = { resolve, reject }; });
+      this._notifyReadiness();
+    }
+    return this._readyPromise;
   }
 
   ensure() {
@@ -706,6 +820,7 @@ export class Audio {
       if (this.ctx.state === 'suspended') {
         this._resumeContext();
       }
+      if (this.isBeta && this._preloadStarted) this.preload();
       return true;
     }
     try {
@@ -724,6 +839,7 @@ export class Audio {
       if (this.ctx.state === 'suspended') {
         this._resumeContext();
       }
+      if (this.isBeta && this._preloadStarted) this.preload();
       return true;
     } catch (_) {
       this.enabled = false;
@@ -949,18 +1065,22 @@ export class Audio {
     const controller = Controller ? new Controller() : null;
     let timer;
     const timeout = new Promise((resolve) => {
-      timer = setTimeout(() => { controller?.abort(); resolve(null); }, timeoutMs);
+      timer = setTimeout(() => { this._requestFailures.set(url, { url, stage: 'fetch', message: 'timeout' }); controller?.abort(); resolve(null); }, timeoutMs);
     });
     try {
       const request = (async () => {
         const response = await this.fetchFn(url, {
           cache: 'force-cache', priority: 'low', signal: controller?.signal,
         });
-        if (!response?.ok) return null;
+        if (!response?.ok) {
+          this._requestFailures.set(url, { url, stage: 'fetch', message: `HTTP ${response?.status ?? 'error'}` });
+          return null;
+        }
         return await response[responseType]();
       })();
       return await Promise.race([request, timeout]);
-    } catch (_) {
+    } catch (error) {
+      this._requestFailures.set(url, { url, stage: 'fetch', message: String(error?.message || error) });
       return null;
     } finally {
       clearTimeout(timer);
@@ -969,19 +1089,39 @@ export class Audio {
 
   _fetchBetaBytes(url, timeoutMs) {
     if (this._audioBytesCache.has(url)) return this._audioBytesCache.get(url);
-    const promise = this._requestBetaUrl(url, timeoutMs, 'arrayBuffer').catch(() => null);
-    // 失败结果不缓存：一次性网络抖动不应让整个会话永久回退到程序合成。
-    promise.then((bytes) => { if (!bytes) this._audioBytesCache.delete(url); });
+    const promise = this._requestBetaUrl(url, timeoutMs, 'arrayBuffer').then((bytes) => {
+      if (bytes instanceof ArrayBuffer && bytes.byteLength > 0) return bytes;
+      if (bytes) this._requestFailures.set(url, { url, stage: 'fetch', message: 'empty or invalid audio bytes' });
+      return null;
+    }).catch(() => null);
+    promise.then((bytes) => { if (!bytes && this._audioBytesCache.get(url) === promise) this._audioBytesCache.delete(url); });
     this._audioBytesCache.set(url, promise);
     return promise;
   }
 
-  async _prefetchAsset(path, timeoutMs) {
-    for (const url of audioAssetCandidates(path, true)) {
-      const bytes = await this._fetchBetaBytes(url, timeoutMs);
-      if (bytes) return bytes;
-    }
-    return null;
+  _prefetchAsset(path, timeoutMs) {
+    if (this._assetBytesCache.has(path)) return Promise.resolve(this._assetBytesCache.get(path));
+    if (this._assetFetches.has(path)) return this._assetFetches.get(path);
+    const promise = (async () => {
+      const attempts = [];
+      for (const url of audioAssetCandidates(path, true)) {
+        const bytes = await this._fetchBetaBytes(url, timeoutMs);
+        if (bytes) {
+          const fetched = { bytes, url };
+          this._assetBytesCache.set(path, fetched);
+          this._resourceFailures.delete(path);
+          return fetched;
+        }
+        attempts.push({ ...this._requestFailures.get(url), url, stage: 'fetch' });
+      }
+      this._resourceFailures.set(path, {
+        path, kind: path.includes('/bgm/') ? 'bgm' : 'sfx', stage: 'fetch', message: 'No nonempty real audio bytes', attempts,
+      });
+      return null;
+    })();
+    this._assetFetches.set(path, promise);
+    promise.then(() => { if (this._assetFetches.get(path) === promise) this._assetFetches.delete(path); });
+    return promise;
   }
 
   async _loadBetaManifest(path, timeoutMs) {
@@ -993,23 +1133,41 @@ export class Audio {
   }
 
   _loadBetaBuffer(path, cache, timeoutMs) {
+    if (cache.has(path)) return cache.get(path);
     const promise = (async () => {
-      for (const url of audioAssetCandidates(path, true)) {
-        const bytesPromise = this._fetchBetaBytes(url, timeoutMs);
-        const bytes = await bytesPromise;
-        if (!bytes) continue;
+      const fetched = await this._prefetchAsset(path, timeoutMs);
+      if (!fetched) return null;
+      const attempts = [];
+      // Start with preloaded bytes, including a successful local fallback. Do
+      // not re-fetch a failed remote URL merely because a context now exists.
+      const urls = [fetched.url, ...audioAssetCandidates(path, true).filter((url) => url !== fetched.url)];
+      for (const url of urls) {
+        const bytes = url === fetched.url ? fetched.bytes : await this._fetchBetaBytes(url, timeoutMs);
+        if (!bytes) { attempts.push({ ...this._requestFailures.get(url), url, stage: 'fetch' }); continue; }
         try {
-          return await this.ctx.decodeAudioData(bytes);
-        } catch (_) {
-          // Bad MP3/decode results must not poison the session cache; the next
-          // slot visit can request fresh bytes and network recovery can succeed.
-          if (this._audioBytesCache.get(url) === bytesPromise) this._audioBytesCache.delete(url);
+          // decodeAudioData detaches its input in real browsers; retain the
+          // original fetched bytes for readiness, retries and cache consumers.
+          const buffer = await this.ctx.decodeAudioData(bytes.slice(0));
+          if (!buffer || buffer.__proceduralBgm || !Number.isFinite(buffer.duration) || buffer.duration <= 0) throw new Error('Invalid decoded audio buffer');
+          this._assetBytesCache.set(path, { bytes, url });
+          this._decodedResources.set(path, buffer);
+          this._resourceFailures.delete(path);
+          return buffer;
+        } catch (error) {
+          attempts.push({ url, stage: 'decode', message: String(error?.message || error) });
+          this._audioBytesCache.delete(url);
+          this._assetBytesCache.delete(path);
         }
       }
+      this._resourceFailures.set(path, {
+        path, kind: path.includes('/bgm/') ? 'bgm' : 'sfx', stage: 'decode', message: 'Real audio decode failed', attempts,
+      });
       return null;
-    })().catch(() => null);
-    // 解码/取数失败不缓存，下一次切换槽位时允许重试真实文件。
-    promise.then((buf) => { if (!buf && cache.get(path) === promise) cache.delete(path); });
+    })().catch((error) => {
+      this._resourceFailures.set(path, { path, kind: path.includes('/bgm/') ? 'bgm' : 'sfx', stage: 'decode', message: String(error?.message || error), attempts: [] });
+      return null;
+    });
+    promise.then((buffer) => { if (!buffer && cache.get(path) === promise) cache.delete(path); });
     cache.set(path, promise);
     return promise;
   }
@@ -1069,8 +1227,9 @@ export class Audio {
       setTimeout(release, FALLBACK_HOLD_MS[name] || 300);
       return true;
     }
-    this._hasManifestAsset('sfx', name, SFX_ASSETS[name]).then((available) => {
-      if (!available) return null;
+    const manifest = this._sfxCache.has(SFX_ASSETS[name]) ? Promise.resolve(true) : this._hasManifestAsset('sfx', name, SFX_ASSETS[name]);
+    manifest.catch(() => null).then(() => {
+      // The runtime inventory is authoritative; old/missing manifests are advisory.
       return this._loadBuffer(SFX_ASSETS[name], this._sfxCache);
     }).then((buffer) => {
       if (!this.enabled || !this.settings.sfxEnabled) { release(); return; }

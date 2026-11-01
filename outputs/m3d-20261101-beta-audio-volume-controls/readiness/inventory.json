@@ -1,0 +1,193 @@
+{
+  "verification": "local-node-verified-browser-pending",
+  "uniqueFiles": 26,
+  "sfxEvents": 17,
+  "bgmFiles": 10,
+  "bgmSecondsFromRepositoryManifest": 897.4879999999998,
+  "estimatedBgmPcmBytesIf48kStereoFloat32": 344635391.99999994,
+  "resources": [
+    {
+      "path": "assets/audio/elevenlabs/sfx/swing.mp3",
+      "kind": "sfx",
+      "keys": [
+        "swing"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/hit.mp3",
+      "kind": "sfx",
+      "keys": [
+        "hit"
+      ]
+    },
+    {
+      "path": "assets/audio/sfx/repel.mp3",
+      "kind": "sfx",
+      "keys": [
+        "repel",
+        "kill"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/berry.mp3",
+      "kind": "sfx",
+      "keys": [
+        "berry"
+      ]
+    },
+    {
+      "path": "assets/audio/sfx/burst.mp3",
+      "kind": "sfx",
+      "keys": [
+        "burst"
+      ]
+    },
+    {
+      "path": "assets/audio/sfx/ultimate.mp3",
+      "kind": "sfx",
+      "keys": [
+        "ultimate"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/hurt.mp3",
+      "kind": "sfx",
+      "keys": [
+        "hurt"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/foxWind.mp3",
+      "kind": "sfx",
+      "keys": [
+        "foxWind"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/jump.mp3",
+      "kind": "sfx",
+      "keys": [
+        "jump"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/foxDash.mp3",
+      "kind": "sfx",
+      "keys": [
+        "foxDash"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/rescue.mp3",
+      "kind": "sfx",
+      "keys": [
+        "rescue"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/helpCry.mp3",
+      "kind": "sfx",
+      "keys": [
+        "helpCry"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/levelUp.mp3",
+      "kind": "sfx",
+      "keys": [
+        "levelUp"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/win.mp3",
+      "kind": "sfx",
+      "keys": [
+        "win"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/lose.mp3",
+      "kind": "sfx",
+      "keys": [
+        "lose"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/sfx/lowHealth.mp3",
+      "kind": "sfx",
+      "keys": [
+        "lowHealth"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/menu.mp3",
+      "kind": "bgm",
+      "keys": [
+        "menu"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/explore.mp3",
+      "kind": "bgm",
+      "keys": [
+        "explore"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/tension.mp3",
+      "kind": "bgm",
+      "keys": [
+        "tension"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/combat.mp3",
+      "kind": "bgm",
+      "keys": [
+        "combat"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/night.mp3",
+      "kind": "bgm",
+      "keys": [
+        "night"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/victory.mp3",
+      "kind": "bgm",
+      "keys": [
+        "victory"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/defeat.mp3",
+      "kind": "bgm",
+      "keys": [
+        "defeat"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/paf.mp3",
+      "kind": "bgm",
+      "keys": [
+        "paf"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/combat-b.mp3",
+      "kind": "bgm",
+      "keys": [
+        "combat-b"
+      ]
+    },
+    {
+      "path": "assets/audio/elevenlabs/bgm/combat-c.mp3",
+      "kind": "bgm",
+      "keys": [
+        "combat-c"
+      ]
+    }
+  ]
+}

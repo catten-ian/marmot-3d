@@ -41,7 +41,7 @@ test('crossfade target multiplies normalized track gain', async () => {
   assert.equal(params[params.length - 1].value, 0.42 * 0.68);
 });
 
-test('PAF priority survives normal state updates and preload excludes paf', async () => {
+test('PAF priority survives normal state updates and preload includes PAF and every combat variant', async () => {
   const audio = await import('../src/systems/audio.js');
   const instance = new audio.Audio({ isBeta: true, fetchFn: async () => ({ ok: false }), storage: null });
   instance.setPafActive(true);
@@ -51,6 +51,7 @@ test('PAF priority survives normal state updates and preload excludes paf', asyn
   const calls = [];
   const preload = new audio.Audio({ isBeta: true, fetchFn: async (url) => { calls.push(url); return { ok: false }; }, storage: null });
   await preload.preload();
-  assert.equal(calls.some((url) => url.endsWith('/paf.mp3')), false);
+  assert.equal(calls.some((url) => url.endsWith('/paf.mp3')), true);
+  for (const variant of ['combat', 'combat-b', 'combat-c']) assert.equal(calls.some((url) => url.endsWith(`/${variant}.mp3`)), true);
   assert.equal(calls.some((url) => url.endsWith('/combat-b.mp3') || url.endsWith('/combat-c.mp3') || url.endsWith('/combat.mp3')), true);
 });
