@@ -235,6 +235,7 @@ export class SmartFox extends Fox {
     const peers0 = packContext?.smartFoxes || [];
     if (packContext && peers0.length) {
       const store = packContext.tactics || packContext.coordinator || packContext;
+      if (IS_BETA) packContext.coordinator?.enableDynamicAttackers?.();
       const roles = assignRoles(peers0, p, store.roles || {}, this._age, {
         holdTime: IS_BETA ? T.smartTeamHoldTime : 1.5,
         switchCooldown: IS_BETA ? T.smartTeamSwitchCooldown : 1.2,
@@ -343,7 +344,7 @@ export class SmartFox extends Fox {
         // 阶段 3 包抄：approach 不直冲玩家当前位置，先绕到自己分到的逃跑轴侧后槽位；
         // 到槽位附近后降级为 observe（等时机），而不是贴脸直接扑。
         const attackers = peers0.filter((f) => f !== this && !f.retreating && f.state !== 'rest_safe' && f.hp > 0).length + 1;
-        const slots = flankSlots(Math.min(Math.max(attackers, 1), 4), escapeAxis, p, 6.5);
+        const slots = flankSlots(Math.max(attackers, 1), escapeAxis, p, 6.5);
         const idx = assignFlankSlot(this, peers0, slots);
         this.flankSlotIndex = idx;
         this._flankSlotIndex = idx;
@@ -467,7 +468,7 @@ export class SmartFox extends Fox {
         // 提交扑咬的总闸门（rev22 线 reachable 门 + fox-v2 体力/角色/谨慎期门）：
         // - reachable：目标点必须可达（避免隔墙扑击）
         // - 体力：不足时不允许进入冲刺阶段（体力耗尽 ≠ 被驱退，只是扑不出来）
-        // - 角色：striker 独占扑咬提交权，其余角色保持施压不扑
+        // - 角色：所有动态分配的 Beta striker/flanker 都有真实扑咬提交权
         // - 谨慎期：回血归队后 8s 内不主动扑咬
         commitTarget: commitAim,
         commitDistanceTarget: commitAim,

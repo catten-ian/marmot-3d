@@ -1,0 +1,252 @@
+{
+  "foxCount": 8,
+  "setupSteps": 223,
+  "packDynamic": true,
+  "hpBefore": 0,
+  "hpAfter": 0,
+  "gameMode": "play",
+  "realAttackers": [
+    3,
+    1,
+    2,
+    4,
+    5,
+    7
+  ],
+  "committers": [
+    4,
+    5,
+    7
+  ],
+  "pounceStrikers": [
+    4,
+    5,
+    7
+  ],
+  "meleeStrikers": [
+    3,
+    1,
+    2
+  ],
+  "peakConcurrentPounces": 1,
+  "peakAttackRoles": 6,
+  "peakWindowCommits": 1,
+  "events": [
+    {
+      "t": 17.333,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "striker"
+    },
+    {
+      "t": 18.05,
+      "type": "meleeStrike",
+      "slot": 1,
+      "role": "striker"
+    },
+    {
+      "t": 18.433,
+      "type": "meleeStrike",
+      "slot": 2,
+      "role": "striker"
+    },
+    {
+      "t": 18.45,
+      "type": "commit",
+      "slot": 4,
+      "role": "flanker"
+    },
+    {
+      "t": 18.767,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "striker"
+    },
+    {
+      "t": 18.983,
+      "type": "pounceStrike",
+      "slot": 4,
+      "role": "striker"
+    },
+    {
+      "t": 19.967,
+      "type": "meleeStrike",
+      "slot": 2,
+      "role": "striker"
+    },
+    {
+      "t": 20.3,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "striker"
+    },
+    {
+      "t": 21.5,
+      "type": "meleeStrike",
+      "slot": 2,
+      "role": "striker"
+    },
+    {
+      "t": 21.833,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "striker"
+    },
+    {
+      "t": 22.967,
+      "type": "commit",
+      "slot": 5,
+      "role": "flanker"
+    },
+    {
+      "t": 23.033,
+      "type": "meleeStrike",
+      "slot": 2,
+      "role": "striker"
+    },
+    {
+      "t": 23.367,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "striker"
+    },
+    {
+      "t": 23.5,
+      "type": "pounceStrike",
+      "slot": 5,
+      "role": "flanker"
+    },
+    {
+      "t": 24.9,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "striker"
+    },
+    {
+      "t": 26.433,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "striker"
+    },
+    {
+      "t": 27.967,
+      "type": "meleeStrike",
+      "slot": 3,
+      "role": "striker"
+    },
+    {
+      "t": 27.983,
+      "type": "commit",
+      "slot": 7,
+      "role": "flanker"
+    },
+    {
+      "t": 28.517,
+      "type": "pounceStrike",
+      "slot": 7,
+      "role": "flanker"
+    }
+  ],
+  "foxes": [
+    {
+      "slot": 0,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 100,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 1,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 100,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 2,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 100,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 3,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 100,
+      "maxStamina": 100,
+      "state": "wind",
+      "role": "striker",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 4,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 100,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 5,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 100,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 6,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 100,
+      "maxStamina": 100,
+      "state": "roam",
+      "role": "flanker",
+      "dead": false,
+      "retreating": false
+    },
+    {
+      "slot": 7,
+      "hp": 4,
+      "maxHp": 4,
+      "stamina": 71.67999999999994,
+      "maxStamina": 100,
+      "state": "rest",
+      "role": "rest",
+      "dead": false,
+      "retreating": false
+    }
+  ],
+  "consoleErrors": [],
+  "assertions": {
+    "productionPackDynamic": true,
+    "moreThanTwoRealAttackers": true,
+    "consoleErrorZero": true
+  },
+  "renderer": {
+    "backend": "WebGLRenderer",
+    "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+  },
+  "softwareRendering": true
+}

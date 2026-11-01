@@ -167,3 +167,76 @@ node tools/smartfox-headless-lab.mjs repro --config /tmp/smartfox-lab-config.jso
 - 阶段 1 commit：`9b1b0a5` (`test(beta): add headless SmartFox combat lab`)。最终 commits：`6ac0ebb`, `9b1b0a5`。push/deploy：未执行。未完成项：无头实验场不替代浏览器视觉/GPU/手机验收；主控独立验收与上线均未宣称。
 
 最终提交修正：阶段 1 实际提交为 `056ffa4`（无头实验场）与 `689ed36`（`--config` 覆盖入口）；阶段 0 为 `6ac0ebb`。以上均为本地 commit，push/deploy 未执行。
+
+---
+
+## 2026-11-01 动态攻击者扩展（同一任务续接）
+
+### 范围与实际规则
+
+- Base：`b90c0e0d62ba1d9a78c7c8cacf6de8e1bbf7b8f7`。只改 Beta SmartFox 核心/实体、无头 lab、相关测试和本任务证据；`main.js`、PAF、Stable/Dev、普通狐、rig/动画、滤镜、黑匣子和 public shell 均未改。
+- Beta 角色分配不再读取 `maxAttackers` / `minFoxesForMultiAttackers`。符合 `attackReachable !== false`、HP 比例 ≥0.62、体力比例 ≥0.35、疲劳 ≤0.72 的 eligible 狐全部成为真实攻击者：1 只 striker，其余 flanker；数量无固定上限。eligible 已排除撤退、`rest_safe`、死亡，以及低血/低体力/高疲劳休息者。若整群都不满足健康门槛，只保留 1 只最近 eligible 狐作 fallback，避免全队死锁；其余可成为 interceptor。
+- 这不是角色标签改动：生产 `SmartFox` 的既有真实扑击门允许 striker/flanker，并继续检查真实可达、体力、recover lock、cautious/evade 和朝向/距离。Beta 在实体更新中启用 coordinator 的动态提交模式；1.2 秒窗内不再限制最多两个 commit。保留 `smartPackSpacing + (slot % 3) * smartPackSlotSpacing` 的短暂错峰、既有 separation/局部避碰，不增加无敌或伤害。
+- 1–4 狐包抄槽位保持旧布局；超过 4 狐使用 `2π/n` 全圆分布，消除重复 60° 槽位。Stable/default `createSmartPack()` 仍保留原两 commit 窗限制，非 Beta `assignRoles` 仍是单主攻旧路径。
+- 未改任何默认 HP、体力、伤害、消耗、恢复或撤退数值；远撤回血、死亡当局不复活/不回血语义保持。
+
+### 无头 lab 与生产共享边界
+
+- 无渲染 lab 直接调用生产 `assignRoles`、`createSmartPack`、`utilityScores`、`updatePerception`、`stepSmartMotion`、`advanceSmartMelee`、`smartMeleeContactHit`、`stepStamina`、`shouldRetreat` 等；本论生产变更就在上述共享核心。`src/entities/smart-fox.js` 是浏览器实体适配层，负责可达障碍、视觉状态、生产输入与实际 hit/combat 接入。
+- lab 始终恰好 1 只土拨鼠，即使 repro 传入更大 `marmots` 也不例外。默认 matrix 为 1/2/4/8 狐 × stationary/chase/orbit/kite/zigzag × faceoff-tap/chase-pounce-tap/parry-tap × 3 seeds，固定 `dt=1/60`，每例 6 秒，共 180 例。每狐输出 commit/pounce strike/melee strike/hit、状态时间、撤退和死亡；场景输出玩家伤害/受击、攻击压力、峰值攻击角色/并发扑击/窗内 commit。
+- lab 适配修复（单土拨鼠、zigzag seeded phase、contact cooldown、统计和重复 strike 计数）不称为生产 AI 优化。生产行为变化仅为动态角色、动态提交窗和大群体包抄槽位。
+
+### 同 seed 前后量化
+
+原始数据、每狐事件和完整配置：
+
+- `headless/dynamic-attackers/before-matrix.json`（旧生产核心 + 新 lab 仪表）
+- `headless/dynamic-attackers/after-matrix.json`（动态生产核心）
+- `headless/dynamic-attackers/comparison.json`、`summary.md`、`commands.txt`
+
+| 狐数 | 侧 | 完成/失败 | 最大不同扑击提交者 | 最大实际攻击者 | commit | 扑击 strike | 近战 strike | 近战 hit | 玩家伤害 | 攻击压力 | 撤退 | 死亡 |
+|---:|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | before | 45/0 | 1 | 1 | 45 | 30 | 45 | 45 | 45 | 75 | 45 | 0 |
+| 1 | after | 45/0 | 1 | 1 | 45 | 30 | 45 | 45 | 45 | 75 | 45 | 0 |
+| 2 | before | 45/0 | 2 | 2 | 60 | 45 | 75 | 75 | 75 | 120 | 75 | 0 |
+| 2 | after | 45/0 | 2 | 2 | 60 | 30 | 75 | 75 | 75 | 105 | 75 | 0 |
+| 4 | before | 45/0 | 3 | 4 | 135 | 105 | 240 | 210 | 210 | 345 | 90 | 0 |
+| 4 | after | 30/15 | 4 | 4 | 90 | 90 | 180 | 135 | 135 | 270 | 105 | 0 |
+| 8 | before | 45/0 | 4 | 8 | 180 | 165 | 375 | 345 | 345 | 540 | 0 | 0 |
+| 8 | after | 45/0 | 8 | 8 | 240 | 210 | 435 | 255 | 255 | 645 | 105 | 0 |
+
+“最大不同提交者/实际攻击者”是整例 unique 计数，不能单独代表同一时刻；另记录峰值。相同 seed=20261031、stationary faceoff：
+
+- 4 狐：before 不同 committer=3（0/1/2）；after=4（0/1/2/3），实际攻击者=4，峰值攻击角色=4、并发扑击=3、1.2 秒窗内 commit=3。
+- 8 狐：before 不同 committer=4（0/1/2/7）；after=8（0–7），实际攻击者=8，峰值攻击角色=8、并发扑击=3、1.2 秒窗内 commit=4。
+
+这些数字不宣称所有场景伤害都上升：4 狐总伤害反而从 210 降到 135，8 狐从 345 降到 255；攻击范围扩大后，受击/撤退时序也改变。保留原始结果而不挑选只改善的指标。
+
+After matrix 为 **165 completed / 15 failed**。15 例全部是 4 狐 `parry-tap`（5 移动 × 3 seeds），原因是整个固定时长内未出现真实 `parry_success`，被明确标为 setup/scenario failed；before 为 180/180 completed。未删除失败、未伪造迎击、未把它们计入通过。Node 自测将这 15 个已知 setup 失败的数量/类型固定为回归证据，其余 165 例均 completed，全部 180 例无数值越界。此项仍是剩余问题，不宣称三种开场在全部数量组合均成功。
+
+性能：before 921.658 ms，after 971.231 ms；180×6 秒名义模拟共 1080 秒，after 约 1112× 实时（纯 Node、无 renderer）。每例 360 tick，无超时；after 的 15 个失败均为真实迎击 setup 失败，不是异常/NaN/超时。
+
+### 真实生产浏览器代表 smoke
+
+命令：`node tools/qa-smartfox-dynamic-attackers.cjs`。本地静态服务 + Beta sandbox，经正常 UI 生成 SmartFox；固定步进调用生产 `qaStep`，玩家位置通过正常移动离开洞穴排斥区。未 teleport、未写 HP、未强制 commit/strike、未改命中阈值或冻结 AI。
+
+- 4 狐：不同真实攻击者 4（0/1/2/3，均执行近战）；其中 2 只（2/3）提交并执行扑击。
+- 8 狐：不同真实攻击者 6（1/2/3/4/5/7）；其中 3 只（4/5/7）提交并执行扑击，3 只（1/2/3）执行近战。
+- 两例均确认生产 `sandboxState.smartPack.dynamicAttackers === true`，`moreThanTwoRealAttackers=true`，console error=0。
+- 证据：`browser-4fox.json`、`browser-8fox.json`、对应 PNG 和 `browser-commands.txt`。WebGL2 / `WebGLRenderer`，ANGLE Vulkan **SwiftShader 软件渲染**；不是硬件 GPU 验收。截图是运行结束时的代表帧，视觉/手机/主控独立验收不在此自评范围内。
+
+### 验证
+
+- 7 个变更 JS/MJS/CJS 全部 `node --check` 通过，日志：`node-check.log`。
+- 聚焦测试全部通过：`test-fox-tactics` 17/17、`test-smart-fox-beta` 27/27、`test-smartfox-headless-lab` 7/7、`test-fox-vitals` 11/11、`test-smart-fox-vitals-runtime` 10/10、`test-beta-tuning-audit-remainders` 4/4、`test-beta-tuning-defects` 5/5、`test-smart-fox-melee` 8/8、`test-runtime-config` 4/4、`test-admin-tuning` 6/6；`test-smart-fox-closed-loop` 脚本成功。日志：`focused-tests.log`。
+- 完整 `node tools/run-node-tests.cjs`：**96/96 passed，0 failed，22 browser/CDP skipped**；skipped 未计入通过。日志：`full-node-tests.log`。
+- `git diff --check` 通过；最终 stage 仅本任务文件，`.codex-cli-write.lock` 未纳入。
+
+### 改动文件与剩余问题
+
+- 生产：`src/entities/smart-fox-core.mjs`、`src/entities/smart-fox.js`。
+- lab/测试/浏览器：`src/headless/smartfox-combat-lab.mjs`、`tools/test-fox-tactics.cjs`、`tools/test-smart-fox-beta.mjs`、`tools/test-smartfox-headless-lab.mjs`、`tools/qa-smartfox-dynamic-attackers.cjs`。
+- 证据：仅 `outputs/m3d-20261030-beta-smartfox-team/headless/dynamic-attackers/` 与本报告。
+- 剩余：4 狐 parry-tap 的 15 个固定矩阵组合未形成真实迎击，需要后续诊断土拨鼠目标选择/距离与多狐前摇时序；没有为通过矩阵而强制迎击。主控独立验收未执行，本 worker 自报不等于上线。
+
+Commits：实现提交见本节后续 hash 记录/最终交付；push=未执行，deploy=未执行。

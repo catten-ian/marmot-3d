@@ -286,3 +286,20 @@ test('Beta 提交与 melee 互斥，提交后仍不可取消', async () => {
   pounce = stepSmartMotion(pounce, { x: 9, z: 9 }, 1 / 60, 'recover', { commitAllowed: false });
   assert.equal(pounce.pounceCommitted, true); assert.equal(pounce.pounceYaw, yaw);
 });
+
+test('Beta 动态攻击群取消两提交窗上限但保留错峰间隔', () => {
+  const legacy = createSmartPack();
+  legacy.recordCommit(0, 0); legacy.recordCommit(1, .4);
+  assert.equal(legacy.canCommit(2, .8), false);
+  const pack = createSmartPack({ dynamicAttackers: true });
+  assert.equal(pack.canCommit(0, 0), true);
+  pack.recordCommit(0, 0);
+  assert.equal(pack.canCommit(1, .1), false, '局部错峰间隔仍生效');
+  for (let slot = 1; slot < 8; slot++) {
+    const at = slot * .5;
+    assert.equal(pack.canCommit(slot, at), true, `slot ${slot}`);
+    pack.recordCommit(slot, at);
+  }
+  assert.equal(pack.commits.filter((c) => 3.5 - c.at < 1.2).length, 3);
+  assert.equal(pack.canCommit(8, 4), true, '窗内已有两个以上提交也不再封锁');
+});

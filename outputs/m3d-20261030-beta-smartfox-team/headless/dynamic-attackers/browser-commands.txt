@@ -1,0 +1,2 @@
+node tools/qa-smartfox-dynamic-attackers.cjs
+# Local-only static server; Beta sandbox; /usr/bin/google-chrome headless with SwiftShader.

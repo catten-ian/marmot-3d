@@ -29,11 +29,29 @@ test('three requested openings run through real shared attack events', () => {
   assert.ok(parry.events.some((e) => e.type === 'parry_success'));
 });
 
-test('matrix covers single/team/multi-target pressure and no NaN invariants', () => {
+test('matrix covers 1/2/4/8 foxes, one marmot, all moves/openings/seeds without NaN', () => {
   const rows = runMatrix({ seed: 20261031, duration: 4 });
-  assert.equal(rows.length, 5); assert.ok(rows.every((r) => r.status === 'completed'));
+  assert.equal(rows.length, 180);
   assert.ok(rows.every((r) => r.invariants.length === 0));
-  assert.ok(rows.some((r) => r.foxes.length === 8 && r.marmots.length === 4));
+  const setupFailures = rows.filter((r) => r.status !== 'completed');
+  assert.equal(setupFailures.length, 15, 'retain the observed 4-fox parry setup failures in the matrix');
+  assert.ok(setupFailures.every((r) => r.scenario === 'parry-tap' && r.foxes.length === 4 && /no real parry_success/.test(r.failure)));
+  assert.ok(rows.filter((r) => r.scenario !== 'parry-tap' || r.foxes.length !== 4).every((r) => r.status === 'completed'));
+  assert.ok(rows.every((r) => r.marmots.length === 1));
+  assert.deepEqual([...new Set(rows.map((r) => r.foxes.length))].sort((a, b) => a - b), [1, 2, 4, 8]);
+  assert.deepEqual([...new Set(rows.map((r) => r.movement))].sort(), ['chase', 'kite', 'orbit', 'stationary', 'zigzag']);
+  assert.deepEqual([...new Set(rows.map((r) => r.scenario))].sort(), ['chase-pounce-tap', 'faceoff-tap', 'parry-tap']);
+});
+
+test('4/8 fox scenarios exceed two distinct real attackers without a global two-commit cap', () => {
+  for (const foxes of [4, 8]) {
+    const result = runScenario({ seed: 20261031, scenario: 'faceoff-tap', movement: 'stationary', foxes, marmots: 99, duration: 6 });
+    assert.equal(result.marmots.length, 1, 'lab always runs exactly one marmot');
+    assert.ok(result.metrics.activeAttackers > 2, `${foxes} foxes: ${JSON.stringify(result.metrics)}`);
+    assert.ok(result.foxes.filter((f) => f.attacks.commits + f.attacks.pounceStrikes + f.attacks.meleeStrikes > 0).length > 2);
+    assert.ok(result.metrics.peakAttackRoles >= foxes);
+    assert.ok(result.metrics.peakWindowCommits > 2, 'more than two real commits coexist in the production pack window');
+  }
 });
 
 test('live SmartFox and headless lab import the same decision core contract', async () => {
@@ -48,7 +66,9 @@ test('live SmartFox and headless lab import the same decision core contract', as
 });
 
 test('dead SmartFox remains dead and is never healed or respawned in the same run', () => {
-  const result = runScenario({ seed: 20261034, scenario: 'chase-pounce-tap', movement: 'orbit', foxes: 8, marmots: 4, duration: 8 });
+  // Test-only one-HP vitality makes the ordinary real marmot hit lethal; no HP
+  // is assigned after spawn and no hit/death result is forced by the harness.
+  const result = runScenario({ seed: 20261034, scenario: 'faceoff-tap', movement: 'stationary', foxes: 1, duration: 8, tune: { smartMaxHp: 1 } });
   const dead = result.foxes.filter((f) => f.dead);
   assert.ok(dead.length > 0);
   for (const f of dead) { assert.equal(f.hp, 0); assert.equal(f.state, 'dead'); }

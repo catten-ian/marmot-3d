@@ -198,14 +198,19 @@ export function debounceIntent(prev, next, held = 0, dt = 0, options = {}) {
   if (held + dt < (options.hold ?? .25)) return { intent: prev, held: held + dt };
   return { intent: next, held: 0 };
 }
-export function createSmartPack({ window = 1.2, spacing = 0.35, slotSpacing = 0.025 } = {}) {
+export function createSmartPack({ window = 1.2, spacing = 0.35, slotSpacing = 0.025, dynamicAttackers = false } = {}) {
   const packWindow = Number.isFinite(window) ? Math.max(0, window) : 1.2;
   const packSpacing = Number.isFinite(spacing) ? Math.max(0, spacing) : 0.35;
   const packSlotSpacing = Number.isFinite(slotSpacing) ? Math.max(0, slotSpacing) : 0.025;
-  return { lastCommitAt: -Infinity, commits: [], canCommit(slot, now, coordination = 1) {
+  return { lastCommitAt: -Infinity, commits: [], dynamicAttackers,
+    enableDynamicAttackers() { this.dynamicAttackers = true; },
+    canCommit(slot, now, coordination = 1) {
     if (coordination <= 0) return true;
     this.commits = this.commits.filter((c) => now - c.at < packWindow);
-    return this.commits.length < 2 && now - this.lastCommitAt >= packSpacing + ((slot % 3) * packSlotSpacing);
+    // Dynamic Beta packs retain short local staggering, not a global two-attacker
+    // quota. Legacy/default packs keep their original two-commit window cap.
+    return (this.dynamicAttackers || this.commits.length < 2)
+      && now - this.lastCommitAt >= packSpacing + ((slot % 3) * packSlotSpacing);
   }, recordCommit(slot, now) { this.commits.push({ slot, at: now }); this.lastCommitAt = now; } };
 }
 export function flankBias(self, peers, player, coordination = 0) {
@@ -399,6 +404,8 @@ export function isSegmentReachable(start, target, obstacles = [], clearance = 0.
   return true;
 }
 
+const TAU = Math.PI * 2;
+
 const wrapAngle = (a) => {
   let v = a;
   while (v > Math.PI) v -= Math.PI * 2;
@@ -591,7 +598,9 @@ export function flankSlots(count, escapeAxis, player, radius = 6) {
   const n = Math.max(0, Math.floor(count));
   if (!n || !player) return [];
   const mid = (n - 1) / 2;
-  const step = n > 1 ? Math.PI / 3 : 0;
+  // Keep the legacy 1–4 slot layout; larger packs need a full circle rather
+  // than repeating 60-degree slots on top of existing foxes.
+  const step = n > 4 ? TAU / n : n > 1 ? Math.PI / 3 : 0;
   const slots = [];
   for (let i = 0; i < n; i++) {
     const angle = escapeAxis + Math.PI + (i - mid) * step;
@@ -631,13 +640,11 @@ export function assignFlankSlot(self, peers, slots) {
 /**
  * 角色派发：返回 { slot: { role, since } }。
  *  - retreat    ：已残血 / 撤退中 / 休息中 / 死亡
- *  - striker    ：距玩家近且血量体力最足者，独占扑咬提交权
- *  - flanker / distractor ：其余交替（包抄 / 正面牵制），不提交扑咬
+ *  - Beta striker/flanker：所有健康、体力充足且可达者，都有扑咬提交权
+ *  - legacy flanker/distractor：保留原交替包抄/牵制，不扩展非 Beta 攻击权
  * 粘性：`prev` 中未过 `holdTime` 的角色优先保留，避免每帧乱跳。
  */
 export const SMART_TEAM_TUNE = Object.freeze({
-  minFoxesForMultiAttackers: 2,
-  maxAttackers: 2,
   restHpRatio: 0.42,
   restStaminaRatio: 0.2,
   restFatigue: 0.86,
@@ -652,8 +659,8 @@ const finiteRatio = (value, fallback = 1) => Number.isFinite(value) ? Math.max(0
 
 /**
  * Deterministic pack roles. The legacy path remains one striker plus flanker /
- * distractor. Beta enables a bounded attacker budget: healthy foxes get the
- * striker/flanker slots, while exhausted or surplus foxes rest or intercept.
+ * distractor. Beta gives every healthy, rested, reachable eligible fox a real
+ * attacker role; only depleted/non-healthy surplus foxes intercept or rest.
  */
 export function assignRoles(foxes, player, prev = {}, now = 0, options = {}) {
   const hold = Math.max(0, Number(options.holdTime ?? (options.betaTeam ? SMART_TEAM_TUNE.holdTime : 1.5)) || 0);
@@ -694,22 +701,20 @@ export function assignRoles(foxes, player, prev = {}, now = 0, options = {}) {
     return { f, score };
   }).sort((a, b) => a.score - b.score || ((a.f.slot ?? 0) - (b.f.slot ?? 0)));
 
-  const attackerBudget = betaTeam
-    ? Math.min(Math.max(1, Number(options.maxAttackers ?? SMART_TEAM_TUNE.maxAttackers) || 1),
-      eligible.length >= (options.minFoxesForMultiAttackers ?? SMART_TEAM_TUNE.minFoxesForMultiAttackers) ? 2 : 1)
-    : 1;
   const healthy = betaTeam ? scored.filter(({ f }) => {
     const hp = finiteRatio(f.maxHp ? f.hp / f.maxHp : 1);
     const stamina = finiteRatio(f.maxStamina ? f.stamina / f.maxStamina : 1);
     const fatigue = finiteRatio(f.fatigue, 0);
-    return hp >= (options.healthyHpRatio ?? SMART_TEAM_TUNE.healthyHpRatio)
+    return f.attackReachable !== false
+      && hp >= (options.healthyHpRatio ?? SMART_TEAM_TUNE.healthyHpRatio)
       && stamina >= (options.healthyStaminaRatio ?? SMART_TEAM_TUNE.healthyStaminaRatio)
       && fatigue <= (options.healthyFatigue ?? 0.72);
   }) : scored;
-  // If enough healthy foxes exist, only that pool may take attack slots. If
-  // the pack is universally depleted, the deterministic full pool still gives
-  // it one available attacker rather than deadlocking the encounter.
-  const ranked = healthy.length >= attackerBudget ? healthy : scored;
+  // Beta attacker count grows with the number of eligible foxes. There is no
+  // numeric cap and maxAttackers is deliberately not consulted. If the whole
+  // pack is below the healthy bar, retain one nearest attacker as a fallback.
+  const ranked = betaTeam ? (healthy.length ? healthy : scored.slice(0, 1)) : scored;
+  const attackerBudget = betaTeam ? ranked.length : 1;
   const selected = [];
   const held = ranked.filter(({ f }) => {
     const pe = prev[f.slot ?? 0];
