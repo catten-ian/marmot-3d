@@ -744,7 +744,8 @@ export class Audio {
 
   /** Idempotent work entry: before a gesture resolves after fetching, with ready=false;
    * after ensure() it also decodes. Failure resolves an explicit failed snapshot.
-   * retry=true retries failed resources, retaining successful bytes/decoded buffers.
+   * Completed calls return current snapshots; only in-flight calls share a Promise.
+   * retry=true retries failed resources/manifests, retaining successful caches.
    */
   preload({ onProgress, retry = false } = {}) {
     if (!this.isBeta) return Promise.resolve([]); // preserve Stable/Dev no-op
@@ -752,9 +753,10 @@ export class Audio {
     if (this._preloadActive) return this._preloadPromise;
     const needsDecode = this.ctx && BETA_AUDIO_RESOURCES.some(({ path }) =>
       this._assetBytesCache.has(path) && !this._decodedResources.has(path) && this._resourceFailures.get(path)?.stage !== 'decode');
-    if (this._preloadPromise && !(retry && this._resourceFailures.size) && !needsDecode) {
+    const needsRetry = retry && (this._resourceFailures.size || Object.values(this._manifestStatus).includes('failed'));
+    if (this._preloadPromise && !needsRetry && !needsDecode) {
       if (onProgress) { this._notifyReadiness({ label: '音频缓存状态' }); this._preloadObservers.delete(onProgress); }
-      return this._preloadPromise;
+      return Promise.resolve(this.getReadiness());
     }
     if (retry && this._resourceFailures.size) {
       this._readyPromise = null;
@@ -1222,15 +1224,19 @@ export class Audio {
       released = true;
       releaseSfxPlayback(name, this._reservations);
     };
-    if (!this.ensure()) {
+    const path = SFX_ASSETS[name];
+    const hasAsset = typeof path === 'string' && path.length > 0;
+    // Pure synthesis events (e.g. companionAlarm) have no manifest/file entry.
+    // Still ensure the context and hold the reservation for the original tones.
+    if (!this.ensure() || !hasAsset) {
       try { fallback(pan); } catch (_) { /* sound must never break gameplay */ }
       setTimeout(release, FALLBACK_HOLD_MS[name] || 300);
       return true;
     }
-    const manifest = this._sfxCache.has(SFX_ASSETS[name]) ? Promise.resolve(true) : this._hasManifestAsset('sfx', name, SFX_ASSETS[name]);
+    const manifest = this._sfxCache.has(path) ? Promise.resolve(true) : this._hasManifestAsset('sfx', name, path);
     manifest.catch(() => null).then(() => {
       // The runtime inventory is authoritative; old/missing manifests are advisory.
-      return this._loadBuffer(SFX_ASSETS[name], this._sfxCache);
+      return this._loadBuffer(path, this._sfxCache);
     }).then((buffer) => {
       if (!this.enabled || !this.settings.sfxEnabled) { release(); return; }
       const selected = selectSfxPlayback({ isBeta: this.isBeta, enabled: true, fileAvailable: !!buffer });

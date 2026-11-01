@@ -51,7 +51,7 @@ function harness(mod, { fetchAsset, decodeAsset, manifestFailure = false, fetchG
     fetchFn: async (url) => {
       calls.push(url);
       const path = pathOf(url);
-      if (url.endsWith('/manifest.json')) return { ok: !manifestFailure, status: 503, json: async () => ({ assets: {} }) };
+      if (url.endsWith('/manifest.json')) return { ok: !(typeof manifestFailure === 'function' ? manifestFailure(path) : manifestFailure), status: 503, json: async () => ({ assets: {} }) };
       if (fetchGate) await fetchGate.promise;
       const response = await fetchAsset?.(path, url);
       if (response) return response;
@@ -127,7 +127,9 @@ test('concurrent/repeated preload and ready calls share fetch/decode work, inclu
   decodeGate.resolve(); await ready;
   assert.equal((await first).ready, true);
   const counts = [h.calls.length, h.decodes.length];
-  assert.equal(audio.preload(), first); assert.equal(audio.whenReady(), ready);
+  assert.deepEqual(await audio.preload(), audio.getReadiness());
+  assert.equal(audio._preloadPromise, first); // completed snapshot reads must not start new work
+  assert.equal(audio.whenReady(), ready);
   await audio.preload({ retry: true });
   assert.deepEqual([h.calls.length, h.decodes.length], counts); assert.deepEqual(counts, [28, 26]);
   assert.ok(progress.some(({ state }) => state.status === 'fetching'));
@@ -282,4 +284,79 @@ test('empty decode Promises, invalid decoded buffers and procedural objects neve
       return true;
     });
   }
+});
+
+
+test('procedural companionAlarm schedules its original tones without manifest or resource requests', async () => {
+  const mod = await load(); const h = harness(mod); const { audio } = h;
+  // Isolate the SFX dispatch from the unrelated menu BGM requested at context creation.
+  audio.setSettings({ bgmEnabled: false });
+  const tones = [], timers = [];
+  audio._tone = (...args) => tones.push(args);
+  const originalTimeout = global.setTimeout;
+  global.setTimeout = (fn, delay) => { timers.push({ fn, delay }); return timers.length; };
+  try {
+    assert.equal(audio.companionAlarm('urgent', -0.4), true);
+    assert.equal(h.created.length, 1); assert.equal(audio.ctx.resumes, 1);
+    assert.equal(audio.companionAlarm('urgent', -0.4), false); // same-event rate limit
+    assert.deepEqual(timers.map(({ delay }) => delay), [0, 140, 280, 300]);
+    assert.equal(audio._reservations.get('companionAlarm').active, 1);
+    for (const { fn } of timers) fn();
+    assert.deepEqual(tones, [1397, 1661, 1865].map((freq) => [freq, 0.07, 'sine', 0.15, null, -0.4]));
+    assert.equal(audio._reservations.has('companionAlarm'), false);
+  } finally { global.setTimeout = originalTimeout; }
+  await tick();
+  assert.deepEqual(h.calls, []); assert.deepEqual(h.decodes, []);
+  assert.equal(mod.BETA_AUDIO_RESOURCES.some(({ keys }) => keys.includes('companionAlarm')), false);
+  assert.equal(audio.getReadiness().status, 'idle');
+});
+
+test('completed preload returns current snapshots after prefetch, gesture decoding and context state changes', async () => {
+  const mod = await load(); const h = harness(mod); const { audio } = h;
+  const prefetched = await audio.preload();
+  assert.equal(prefetched.ready, false); assert.equal(prefetched.status, 'awaiting-context');
+  h.gesture(); await audio.whenReady(); await audio.preload();
+  const counts = [h.calls.length, h.decodes.length];
+  const ready = await audio.preload();
+  assert.equal(ready.ready, true); assert.deepEqual(ready, audio.getReadiness());
+  audio.handleVisibility(true);
+  const hidden = await audio.preload();
+  assert.equal(hidden.ready, true); assert.equal(hidden.contextState, 'suspended');
+  assert.equal(hidden.unlocked, false); assert.deepEqual(hidden, audio.getReadiness());
+  hidden.resources[0].fetched = false;
+  assert.deepEqual(await audio.preload(), audio.getReadiness());
+  assert.deepEqual([h.calls.length, h.decodes.length], counts);
+});
+
+test('completed failed preload stays failed without implicit retries or false ready snapshots', async () => {
+  const mod = await load(); const h = harness(mod, { fetchAsset: (path) => path === mod.BGM_ASSETS.paf ? { ok: false, status: 503 } : null });
+  const failed = await h.audio.preload();
+  const counts = [h.calls.length, h.decodes.length];
+  for (let i = 0; i < 2; i++) {
+    const state = await h.audio.preload();
+    assert.equal(state.status, 'failed'); assert.equal(state.ready, false);
+    assert.deepEqual(state.failures, failed.failures); assert.deepEqual(state, h.audio.getReadiness());
+  }
+  assert.deepEqual([h.calls.length, h.decodes.length], counts);
+});
+
+test('explicit retry recovers a failed advisory manifest after resources ready using all successful caches', async () => {
+  const mod = await load(); let broken = true;
+  const h = harness(mod, { manifestFailure: (path) => broken && path.includes('/sfx/') });
+  await h.audio.preload(); h.gesture(); await h.audio.whenReady(); await h.audio.preload();
+  const before = h.audio.getReadiness();
+  assert.equal(before.ready, true); assert.deepEqual(before.manifests, { bgm: 'ready', sfx: 'failed' });
+  const calls = h.calls.slice(), decodes = h.decodes.slice();
+  const buffers = new Map(h.audio._decodedResources);
+  broken = false;
+  const retry = h.audio.preload({ retry: true });
+  assert.equal(h.audio.preload({ retry: true }), retry);
+  const recovered = await retry;
+  assert.equal(recovered.ready, true); assert.deepEqual(recovered.manifests, { bgm: 'ready', sfx: 'ready' });
+  assert.equal(h.calls.length, calls.length + 1);
+  assert.ok(h.calls.at(-1).endsWith('/sfx/manifest.json'));
+  assert.deepEqual(h.decodes, decodes); assert.deepEqual(h.audio._decodedResources, buffers);
+  assert.equal(recovered.attempt, before.attempt + 1);
+  assert.deepEqual(await h.audio.preload({ retry: true }), h.audio.getReadiness());
+  assert.equal(h.calls.length, calls.length + 1);
 });
