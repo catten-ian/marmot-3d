@@ -1,0 +1,35 @@
+{
+  "source_asset": "/home/fame/codex-runs/m3d-20261101-beta-marmot-upload/input/奔跑的土拨鼠.glb",
+  "copied_asset": "assets/models/marmot-run-stand.glb",
+  "bytes": 2445856,
+  "sha256": "95bfb02b245af132cf4f3a73200bcd0c89f59fb09019e92b904de20a9b61e787",
+  "mesh_count": 1,
+  "skin_count": 1,
+  "joint_count": 12,
+  "node_count": 14,
+  "embedded_images": 3,
+  "vertices": 28988,
+  "triangles": 26254,
+  "cameras": 0,
+  "lights": 0,
+  "animations": [
+    {
+      "name": "Run",
+      "channels": 36,
+      "duration_seconds": 0.5
+    },
+    {
+      "name": "StandIdle",
+      "channels": 36,
+      "duration_seconds": 2
+    },
+    {
+      "name": "StandUp",
+      "channels": 36,
+      "duration_seconds": 1
+    }
+  ],
+  "source_zip_sha256": "6226f4e47eeed35fc48597198894fb06cae14b23f68b2e35ff769eeeda14ad96",
+  "source_zip_executed": false,
+  "source_zip_extracted": false
+}
