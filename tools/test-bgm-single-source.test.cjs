@@ -50,6 +50,10 @@ function trackedBgmHarness({ loadBuffer = async () => ({ duration: 30 }) } = {})
       return source;
     },
     createGain() { return { gain: makeParam(), connect() {}, disconnect() {} }; },
+    createDynamicsCompressor() {
+      return { ...Object.fromEntries(['threshold', 'knee', 'ratio', 'attack', 'release'].map((key) => [key, makeParam()])), connect() {} };
+    },
+    createWaveShaper() { return { connect() {} }; },
   };
   const audio = {
     ctx: context,

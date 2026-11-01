@@ -45,7 +45,7 @@ const assert = require('node:assert/strict');
         buttons: { attack: { x: 4, y: -1, unknown: 1 } },
         cards: { hudMinimap: { opacity: -3 }, nope: { x: 0.5 } },
       },
-      audio: { masterVolume: 150, bgmVolume: 'NaN', madeUp: true },
+      audio: { masterVolume: 999, bgmVolume: 'NaN', madeUp: true },
       graphics: 'invalid',
       sceneFilter: { preset: 'legacy-blackwhite', intensity: 100 },
     });
@@ -53,7 +53,7 @@ const assert = require('node:assert/strict');
     assert.equal(result.config.touchLayout.scale, 1.5);
     assert.equal(result.config.touchLayout.buttons.attack.x, 1);
     assert.equal(result.config.touchLayout.buttons.attack.y, 0);
-    assert.equal(result.config.audio.masterVolume, 100);
+    assert.equal(result.config.audio.masterVolume, 150);
     assert.equal(result.config.audio.bgmVolume, undefined);
     assert.ok(result.ignored.includes('unknownTop'));
     assert.ok(result.ignored.includes('keybinds.custom.nope'));

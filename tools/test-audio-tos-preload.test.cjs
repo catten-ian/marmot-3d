@@ -28,6 +28,12 @@ class FakeContext {
     this.decoded = [];
   }
   createGain() { return new FakeNode(); }
+  createDynamicsCompressor() {
+    const node = new FakeNode();
+    for (const key of ['threshold', 'knee', 'ratio', 'attack', 'release']) node[key] = new FakeParam();
+    return node;
+  }
+  createWaveShaper() { return new FakeNode(); }
   createBufferSource() { const source = new FakeSource(); this.sources.push(source); return source; }
   decodeAudioData(bytes) { this.decoded.push(bytes); return Promise.resolve({ duration: 180 }); }
   resume() { this.state = 'running'; return Promise.resolve(); }

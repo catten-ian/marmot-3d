@@ -9,6 +9,14 @@ const chooseCombatVariant = (...args) => typeof pickVariant === 'function' ? pic
 const getBgmTrackMeta = (slot) => typeof trackMeta === 'function' ? trackMeta(slot) : { introSec: 0, gain: 1 };
 const resolveBgmStartOffset = (options = {}) => typeof startOffsetFor === 'function' ? startOffsetFor(options) : 0;
 
+export const BETA_MASTER_REFERENCE_GAIN = 0.48;
+export const AUDIO_VOLUME_MAX = 150;
+export const AUDIO_VOLUME_STEP = 1;
+export const AUDIO_PEAK_CEILING = 0.98;
+export const AUDIO_GUARD_RANGE = 32;
+export const AUDIO_LIMITER_THRESHOLD_DB = -3;
+export const AUDIO_COMPRESSOR_DRIVE = 10 ** (-AUDIO_LIMITER_THRESHOLD_DB / 20);
+export const AUDIO_COMPRESSOR = Object.freeze({ threshold: 0, knee: 0, ratio: 20, attack: 0.003, release: 0.12 });
 export const AUDIO_SETTINGS_KEY = 'marmot3d.audio.beta.v1';
 export const TOS_AUDIO_BASE = 'https://marmot.tos-cn-shanghai.volces.com/audio/';
 export const AUDIO_TIMEOUTS = Object.freeze({ bgm: 15000, sfx: 8000 });
@@ -29,10 +37,13 @@ export const AUDIO_DEFAULTS = Object.freeze({
 });
 
 const clamp01 = (value) => Math.max(0, Math.min(1, Number.isFinite(Number(value)) ? Number(value) : 0));
-const clampPercent = (value, fallback) => {
+// Numeric strings from legacy storage are accepted, but empty/null/booleans and
+// exponent syntax must never silently become zero or an enormous gain.
+export function normalizeAudioVolume(value, fallback = 100) {
+  if (typeof value !== 'number' && (typeof value !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim()))) return fallback;
   const number = Number(value);
-  return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
-};
+  return Number.isFinite(number) ? Math.round(Math.max(0, Math.min(AUDIO_VOLUME_MAX, number))) : fallback;
+}
 
 /** All public legacy event names remain available, including the repel/kill alias. */
 export const SFX_ASSETS = Object.freeze({
@@ -120,10 +131,11 @@ export function resolveBgmPlaybackGain({ procedural = false, assetKey = 'menu', 
 }
 
 export function normalizeAudioSettings(value = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) value = {};
   return {
-    masterVolume: clampPercent(value.masterVolume, AUDIO_DEFAULTS.masterVolume),
-    sfxVolume: clampPercent(value.sfxVolume, AUDIO_DEFAULTS.sfxVolume),
-    bgmVolume: clampPercent(value.bgmVolume, AUDIO_DEFAULTS.bgmVolume),
+    masterVolume: normalizeAudioVolume(value.masterVolume, AUDIO_DEFAULTS.masterVolume),
+    sfxVolume: normalizeAudioVolume(value.sfxVolume, AUDIO_DEFAULTS.sfxVolume),
+    bgmVolume: normalizeAudioVolume(value.bgmVolume, AUDIO_DEFAULTS.bgmVolume),
     sfxEnabled: value.sfxEnabled !== false,
     bgmEnabled: value.bgmEnabled !== false,
   };
@@ -245,15 +257,60 @@ export class BgmStateMachine {
   }
 }
 
-/** Three gain buses with independent controls; both leaf buses feed master. */
-export function createAudioBuses(ctx) {
+/** Emergency peak protection: unity below 0.9, smooth approach to -0.18 dBFS.
+ * The compressor handles sustained overload; this guard catches attack overshoot.
+ * It is not a loudness effect. Do not oversample: resampling can overshoot a ceiling.
+ */
+export function audioPeakGuard(sample) {
+  const magnitude = Math.abs(sample);
+  if (magnitude <= 0.9) return sample;
+  return Math.sign(sample) * (0.9 + (AUDIO_PEAK_CEILING - 0.9) * (1 - Math.exp(-(magnitude - 0.9) / (AUDIO_PEAK_CEILING - 0.9))));
+}
+
+/** Both leaf buses feed master. Only Beta adds the shared overload protection. */
+export function createAudioBuses(ctx, { isBeta = false } = {}) {
   const master = ctx.createGain();
   const sfx = ctx.createGain();
   const bgm = ctx.createGain();
   sfx.connect(master);
   bgm.connect(master);
-  master.connect(ctx.destination);
-  return { master, sfx, bgm };
+  let protection = null;
+  if (isBeta) {
+    // WebAudio compressors apply automatic makeup derived from f(1). A 0 dB,
+    // zero-knee threshold makes f(1)=1 (no hidden makeup). Matched pre/post gains
+    // move the effective threshold to -3 dBFS without boosting quiet signals.
+    // See Web Audio 1.0 section 1.19.4, "Computing the makeup gain".
+    const compressorInput = ctx.createGain();
+    compressorInput.gain.value = AUDIO_COMPRESSOR_DRIVE;
+    const compressor = ctx.createDynamicsCompressor();
+    for (const [key, value] of Object.entries(AUDIO_COMPRESSOR)) compressor[key].value = value;
+    const guardInput = ctx.createGain();
+    guardInput.gain.value = 1 / (AUDIO_COMPRESSOR_DRIVE * AUDIO_GUARD_RANGE);
+    const guard = ctx.createWaveShaper();
+    const curve = new Float32Array(65537);
+    for (let i = 0; i < curve.length; i++) curve[i] = audioPeakGuard((2 * i / (curve.length - 1) - 1) * AUDIO_GUARD_RANGE);
+    guard.curve = curve;
+    guard.oversample = 'none';
+    master.connect(compressorInput);
+    compressorInput.connect(compressor);
+    compressor.connect(guardInput);
+    guardInput.connect(guard);
+    guard.connect(ctx.destination);
+    protection = { compressorInput, compressor, guardInput, guard };
+  } else master.connect(ctx.destination);
+  return { master, sfx, bgm, protection };
+}
+
+/** Short smoothing avoids steps during typing/dragging. Zero/mute is immediate. */
+export function setAudioBusGain(param, target, now, smooth = true) {
+  param.cancelAndHoldAtTime?.(now);
+  if (!param.cancelAndHoldAtTime) {
+    param.cancelScheduledValues?.(now);
+    param.setValueAtTime?.(param.value, now);
+  }
+  if (smooth && target > 0 && param.setTargetAtTime) param.setTargetAtTime(target, now, 0.015);
+  else if (param.setValueAtTime) param.setValueAtTime(target, now);
+  else param.value = target;
 }
 
 export function reserveSfxPlayback(name, nowMs, reservations, limits = SFX_LIMITS) {
@@ -588,6 +645,8 @@ export class Audio {
     this._pafPaused = false;
     this._lastBgmMode = null;
     this._gestureHandler = null;
+    this._pageHidden = false;
+    this._settingsApplied = false;
   }
 
   _safeStorage() {
@@ -653,7 +712,7 @@ export class Audio {
       const AC = this.contextFactory || globalThis.window?.AudioContext || globalThis.window?.webkitAudioContext;
       if (!AC) return false;
       this.ctx = new AC();
-      this.buses = createAudioBuses(this.ctx);
+      this.buses = createAudioBuses(this.ctx, { isBeta: this.isBeta });
       this.master = this.buses.master;
       this.sfxBus = this.buses.sfx;
       this.bgmBus = this.buses.bgm;
@@ -673,6 +732,7 @@ export class Audio {
   }
 
   _resumeContext() {
+    if (this.isBeta && this._pageHidden) return;
     try {
       const resumed = this.ctx?.resume?.();
       resumed?.catch?.(() => {});
@@ -681,12 +741,15 @@ export class Audio {
 
   _applySettings() {
     if (!this.buses) return;
-    // The old synthesizer's reference output is 0.32; 100% preserves that balance.
-    this.buses.master.gain.value = this.enabled ? 0.32 * (this.isBeta ? this.settings.masterVolume / 100 : 1) : 0;
-    this.buses.sfx.gain.value = this.isBeta
-      ? (this.settings.sfxEnabled ? this.settings.sfxVolume / 100 : 0)
-      : 1;
-    this.buses.bgm.gain.value = this.isBeta && this.settings.bgmEnabled ? this.settings.bgmVolume / 100 : 0;
+    const master = this.enabled && !this._pageHidden
+      ? (this.isBeta ? BETA_MASTER_REFERENCE_GAIN * this.settings.masterVolume / 100 : 0.32) : 0;
+    const sfx = this.isBeta ? (this.settings.sfxEnabled ? this.settings.sfxVolume / 100 : 0) : 1;
+    const bgm = this.isBeta && this.settings.bgmEnabled ? this.settings.bgmVolume / 100 : 0;
+    for (const [key, value] of Object.entries({ master, sfx, bgm })) {
+      if (this.isBeta) setAudioBusGain(this.buses[key].gain, value, this.ctx.currentTime, this._settingsApplied);
+      else this.buses[key].gain.value = value;
+    }
+    this._settingsApplied = true;
   }
 
   getAudioSettings() { return { ...this.settings }; }
@@ -694,7 +757,11 @@ export class Audio {
   setSettings(value, { persist = true } = {}) {
     if (!this.isBeta) return this.getAudioSettings();
     const managerWasEnabled = this._bgmManager?.enabled;
-    this.settings = normalizeAudioSettings({ ...this.settings, ...value });
+    const patch = { ...value };
+    for (const key of ['masterVolume', 'sfxVolume', 'bgmVolume']) {
+      if (Object.hasOwn(patch, key)) patch[key] = normalizeAudioVolume(patch[key], this.settings[key]);
+    }
+    this.settings = normalizeAudioSettings({ ...this.settings, ...patch });
     this._applySettings();
     if (persist) writeAudioSettings(this.settings, this.storage);
     if (this._bgmManager) {
@@ -718,7 +785,10 @@ export class Audio {
 
   /** 页面切后台/回来时由 main.js 调用；稳定版调用也是安全 no-op。 */
   handleVisibility(hidden) {
-    if (!this.isBeta || !this.ctx) return;
+    if (!this.isBeta) return;
+    this._pageHidden = !!hidden;
+    if (!this.ctx) return;
+    this._applySettings();
     if (hidden) {
       try { this.ctx.suspend?.().catch?.(() => {}); } catch (_) { /* best-effort */ }
     } else {

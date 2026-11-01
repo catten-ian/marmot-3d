@@ -11,6 +11,64 @@ import {
   buildConfigExport, configExportFilename, parseConfigText,
 } from '../core/config-transfer.mjs';
 import { SCENE_FILTER_PRESETS, getSceneFilterPreset } from '../core/scene-filter-settings.mjs';
+import { AUDIO_VOLUME_MAX, AUDIO_VOLUME_STEP, normalizeAudioVolume } from '../systems/audio.js';
+
+/** Keep incomplete edits local. Only plain decimal notation is accepted. */
+export function parseAudioVolumeInput(text, previous, { commit = false } = {}) {
+  const draft = String(text).trim();
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(draft) || !Number.isFinite(Number(draft))) {
+    return { value: previous, apply: false };
+  }
+  const number = Number(draft);
+  const value = normalizeAudioVolume(number, previous);
+  // Decimal/negative/out-of-range drafts are normalized on blur/Enter, not
+  // while the user is still typing a sign or fractional value.
+  return { value, apply: commit || (Number.isInteger(number) && number >= 0 && number <= AUDIO_VOLUME_MAX && !draft.endsWith('.')) };
+}
+
+export function audioVolumeMarkup(id, label, value) {
+  return `<div class="audio-slider">
+    <span><label for="${id}Volume">${label}</label><output id="${id}Value" for="${id}Volume ${id}Number">${value}%</output></span>
+    <div class="audio-volume-controls">
+      <input id="${id}Volume" type="range" min="0" max="${AUDIO_VOLUME_MAX}" step="${AUDIO_VOLUME_STEP}" value="${value}" aria-valuetext="${value}%">
+      <input id="${id}Number" type="number" inputmode="numeric" min="0" max="${AUDIO_VOLUME_MAX}" step="${AUDIO_VOLUME_STEP}" value="${value}" aria-label="${label}（百分比）" aria-describedby="audioVolumeHelp" aria-valuetext="${value}%">
+    </div>
+  </div>`;
+}
+
+/** DOM adapter kept independent of SettingsUI so Node can exercise real handlers. */
+export function bindAudioVolumeControl({ slider, number, output, getValue, setValue }) {
+  if (!slider || !number) return;
+  const sync = (value, preserveDraft = false) => {
+    slider.value = String(value);
+    if (!preserveDraft) number.value = String(value);
+    for (const input of [slider, number]) input.setAttribute('aria-valuetext', `${value}%`);
+    if (output) { output.value = `${value}%`; output.textContent = `${value}%`; }
+  };
+  const edit = (commit) => {
+    const result = parseAudioVolumeInput(number.value, getValue(), { commit });
+    if (result.apply) {
+      const actual = setValue(result.value);
+      number.setAttribute('aria-invalid', 'false');
+      sync(actual, !commit);
+    } else if (commit) {
+      number.setAttribute('aria-invalid', 'false');
+      sync(getValue());
+    } else number.setAttribute('aria-invalid', 'true');
+  };
+  slider.addEventListener('input', () => {
+    const actual = setValue(normalizeAudioVolume(slider.value, getValue()));
+    number.setAttribute('aria-invalid', 'false');
+    sync(actual);
+  });
+  number.addEventListener('input', () => edit(false));
+  number.addEventListener('blur', () => edit(true));
+  number.addEventListener('change', () => edit(true));
+  number.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); edit(true); }
+  });
+  sync(getValue());
+}
 
 const GRAPHICS_OPTIONS = [
   { id: 'auto', name: '自动', desc: '保留浏览器默认 GPU 选择。' },
@@ -264,23 +322,14 @@ export class SettingsUI {
       const audioSettings = this.audio.getAudioSettings();
       html += `<section class="audio-settings" aria-label="音频设置">
         <h4>音频</h4>
-        <label class="audio-slider" for="audioMasterVolume">
-          <span>总音量 <output id="audioMasterValue">${audioSettings.masterVolume}%</output></span>
-          <input id="audioMasterVolume" type="range" min="0" max="100" step="1" value="${audioSettings.masterVolume}">
-        </label>
-        <label class="audio-slider" for="audioSfxVolume">
-          <span>音效音量 <output id="audioSfxValue">${audioSettings.sfxVolume}%</output></span>
-          <input id="audioSfxVolume" type="range" min="0" max="100" step="1" value="${audioSettings.sfxVolume}">
-        </label>
-        <label class="audio-slider" for="audioBgmVolume">
-          <span>音乐音量 <output id="audioBgmValue">${audioSettings.bgmVolume}%</output></span>
-          <input id="audioBgmVolume" type="range" min="0" max="100" step="1" value="${audioSettings.bgmVolume}">
-        </label>
+        ${audioVolumeMarkup('audioMaster', '总音量', audioSettings.masterVolume)}
+        ${audioVolumeMarkup('audioSfx', '音效音量', audioSettings.sfxVolume)}
+        ${audioVolumeMarkup('audioBgm', '音乐音量', audioSettings.bgmVolume)}
         <div class="audio-toggles">
           <label><input id="audioSfxEnabled" type="checkbox"${audioSettings.sfxEnabled ? ' checked' : ''}> 启用音效</label>
           <label><input id="audioBgmEnabled" type="checkbox"${audioSettings.bgmEnabled ? ' checked' : ''}> 启用音乐</label>
         </div>
-        <p>音量会立即生效并保存在本设备；音频文件缺失时会自动使用内置音效。</p>
+        <p id="audioVolumeHelp">范围 0–150%，步长 1%。可拖动或输入数字，立即生效并保存；空值或无效输入在失焦 / Enter 时恢复。高音量叠加会触发峰值保护；文件缺失时自动使用内置音效。</p>
       </section>`;
     }
 
@@ -461,19 +510,13 @@ export class SettingsUI {
     const fb = this.el.body.querySelector('#settingsFeedback');
     if (fb) fb.onclick = () => this.feedback.open();
     if (IS_BETA && this.audio) {
-      const sliderSettings = [
-        ['audioMasterVolume', 'masterVolume', 'audioMasterValue'],
-        ['audioSfxVolume', 'sfxVolume', 'audioSfxValue'],
-        ['audioBgmVolume', 'bgmVolume', 'audioBgmValue'],
-      ];
-      for (const [inputId, key, outputId] of sliderSettings) {
-        const input = this.el.body.querySelector(`#${inputId}`);
-        const output = this.el.body.querySelector(`#${outputId}`);
-        input?.addEventListener('input', () => {
-          const next = Number(input.value);
-          this.audio.setSettings({ [key]: next });
-          if (output) output.value = `${next}%`;
-          if (output) output.textContent = `${next}%`;
+      for (const [id, key] of [['audioMaster', 'masterVolume'], ['audioSfx', 'sfxVolume'], ['audioBgm', 'bgmVolume']]) {
+        bindAudioVolumeControl({
+          slider: this.el.body.querySelector(`#${id}Volume`),
+          number: this.el.body.querySelector(`#${id}Number`),
+          output: this.el.body.querySelector(`#${id}Value`),
+          getValue: () => this.audio.getAudioSettings()[key],
+          setValue: (next) => this.audio.setSettings({ [key]: next })[key],
         });
       }
       for (const [inputId, key] of [['audioSfxEnabled', 'sfxEnabled'], ['audioBgmEnabled', 'bgmEnabled']]) {

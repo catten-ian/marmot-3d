@@ -27,6 +27,12 @@ class Oscillator extends Source {
 class Context {
   constructor() { this.currentTime = 2; this.state = 'running'; this.sampleRate = 44100; this.destination = new Node(); this.sources = []; }
   createGain() { return new Node(); }
+  createDynamicsCompressor() {
+    const node = new Node();
+    for (const key of ['threshold', 'knee', 'ratio', 'attack', 'release']) node[key] = new Param();
+    return node;
+  }
+  createWaveShaper() { return new Node(); }
   createBufferSource() { const src = new Source(); this.sources.push(src); return src; }
   createOscillator() { const src = new Oscillator(); this.sources.push(src); return src; }
   decodeAudioData(bytes) { return Promise.resolve({ duration: 180, decodedByte: new Uint8Array(bytes)[0] }); }
@@ -132,8 +138,8 @@ test('procedural gain analytically matches the -16 LUFS normalized PAF reference
   const filePeakGain = mod.resolveBgmPlaybackGain({ assetKey: 'paf', slot: 'paf' });
   const fallbackGain = mod.resolveBgmPlaybackGain({ procedural: true, assetKey: 'paf', slot: 'paf' });
   const referenceRms = mod.BGM_REFERENCE_RMS;
-  const fileOutput = filePeakGain * referenceRms * (mod.AUDIO_DEFAULTS.bgmVolume / 100) * 0.32;
-  const fallbackOutput = fallbackGain * mod.TRIANGLE_WAVE_RMS * (mod.AUDIO_DEFAULTS.bgmVolume / 100) * 0.32;
+  const fileOutput = filePeakGain * referenceRms * (mod.AUDIO_DEFAULTS.bgmVolume / 100) * mod.BETA_MASTER_REFERENCE_GAIN;
+  const fallbackOutput = fallbackGain * mod.TRIANGLE_WAVE_RMS * (mod.AUDIO_DEFAULTS.bgmVolume / 100) * mod.BETA_MASTER_REFERENCE_GAIN;
   assert.ok(Math.abs(fileOutput - fallbackOutput) < 1e-12);
   assert.ok(fallbackGain < filePeakGain * 0.3, 'fallback must compensate for the oscillator being continuously active');
   assert.equal(mod.PROCEDURAL_BGM_GAIN, referenceRms / mod.TRIANGLE_WAVE_RMS);
