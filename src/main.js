@@ -37,6 +37,8 @@ import { AdaptiveRenderController, getRenderProfile, hasRealTouch } from './core
 import { InputModeManager, INPUT_MODE_TOUCH } from './core/input-mode.mjs';
 import { TouchControls } from './core/touch-controls.js';
 import { createSettingsPauseHooks } from './core/settings-pause.mjs';
+import { SceneFilterSettings } from './core/scene-filter-settings.mjs';
+import { SceneFilterRenderer } from './core/scene-filter-renderer.mjs';
 
 /** 输入模式（设置面板可强制）：auto=设备检测+首次触摸升级，touch=强制触屏，keyboard=强制键鼠。 */
 const inputMode = new InputModeManager();
@@ -184,6 +186,8 @@ const graphicsPreferenceState = {
 };
 
 let renderer;
+const sceneFilterSettings = new SceneFilterSettings();
+let sceneFilterRenderer = null;
 let rendererStatus = {
   backend: 'webgl', supportsSplat: false, gpuReason: '',
   graphicsPreference: graphicsPreferenceState.preference,
@@ -228,6 +232,9 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 // 曝光过高会把贴地的草地照成一片死白，0.92 是既能保留高光又不溢出的值
 renderer.toneMappingExposure = 0.92;
+sceneFilterRenderer = new SceneFilterRenderer(renderer, sceneFilterSettings, {
+  onUnavailable: () => settingsUI?.render?.(), THREE,
+});
 
 // 如实显示后端徽标：不能让「跑在 WebGL2 兜底上」被误认为「跑在 WebGPU 上」
 {
@@ -2915,7 +2922,13 @@ touchLayout.onJoystickScale = (v) => touchControls.setJoystickScale(v);
 
 // 设置面板"图形/渲染"只读信息：惰性读取当前渲染器（beta 为经典 WebGLRenderer，
 // dev GS 为 WebGPURenderer 家族；读取失败由 readGpuInfo fail-soft 为"不可用"）。
-const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState, audio, () => renderer);
+const settingsUI = new SettingsUI(binds, touchLayout, feedbackUI, inputMode, graphicsPreferenceState, audio, () => renderer, sceneFilterSettings);
+sceneFilterSettings.onChange((state) => {
+  // Preserve an in-progress slider drag; only rebuild the sheet when its
+  // selected preset is stale (0%, reset, import, or fail-soft fallback).
+  const control = settingsUI.el.body?.querySelector('#sceneFilterPreset');
+  if (!settingsUI.el.sheet.hidden && control && control.value !== state.preset) settingsUI.render();
+});
 touchLayout.onEditingStart = () => settingsUI.transferPauseToLayoutEditor();
 // 游戏中打开设置自动暂停；关闭时仅在由设置发起暂停时恢复（已暂停/标题态保持）。
 settingsUI.setPauseHooks(createSettingsPauseHooks({
@@ -3329,6 +3342,7 @@ function resizeRenderer() {
   refreshRenderProfile({ resize: true });
   // viewmodel 相机也要同步宽高比，否则爪子会被拉伸变形
   viewModel.resize(w / h);
+  sceneFilterRenderer?.resize();
 }
 
 window.addEventListener('resize', resizeRenderer);
@@ -3337,6 +3351,7 @@ window.visualViewport?.addEventListener('resize', resizeRenderer);
 
 canvas.addEventListener('webglcontextlost', (event) => {
   event.preventDefault();
+  sceneFilterRenderer?.disposeResources();
   console.warn('[renderer] WebGL context lost; browser/GPU reset may have interrupted rendering.', event);
   touchControls?.releaseAll();
   if (game.mode === 'play') pause();
@@ -3381,7 +3396,7 @@ function frame(now) {
   if (playAsFox) {
     if (IS_BETA) audio.updateBgmState({ mode: 'play', now: game.totalTime, hp: game.player.hp, stress: 0, threats: 0, threatActive: false, combat: false, combatUntil: game.bgmCombatUntil, lastPlayerHitAt: game.lastPlayerHitAt });
     playAsFox.update(dt);
-    renderer.render(scene, camera);
+    sceneFilterRenderer.render(scene, camera);
     requestAnimationFrame(frame);
     return;
   }
@@ -3433,8 +3448,8 @@ function frame(now) {
   // dt 传入 sky：天穹云随时间漂移（标题界面作为动态背景也在动）
   sky.update(controller.position, dt);
 
-  // 主场景
-  renderer.render(scene, camera);
+  // 主场景（共享普通/PAF 路径；第一人称爪子随后独立叠加，不受滤镜影响）
+  sceneFilterRenderer.render(scene, camera);
 
   // viewmodel（自己的爪子/腿）在独立场景渲染。
   // renderer.clearDepth() 清除深度缓冲，确保爪子永远画在最上层，
@@ -3562,6 +3577,7 @@ window.__game = {
   touchControls, renderProfile: () => ({ ...renderProfile }),
   adaptivePerformance: () => ({ ...adaptiveQuality.snapshot(), profile: { ...renderProfile } }),
   adaptiveTransitions,
+  sceneFilterSettings, sceneFilterRenderer,
   DEBUG_HIDE,
   // 摄影测量远景（异步加载完成后可用）
   backdrop: () => backdropRoot,

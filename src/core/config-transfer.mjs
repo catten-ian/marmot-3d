@@ -13,6 +13,7 @@ import { ACTIONS, normalizeControlMode } from './keybinds.js';
 import { normalizeAudioSettings } from '../systems/audio.js';
 import { normalizeGraphicsPreference } from './graphics-preference.js';
 import { normalizeInputMode, INPUT_MODES } from './input-mode.mjs';
+import { normalizeSceneFilter } from './scene-filter-settings.mjs';
 
 export const CONFIG_SCHEMA_VERSION = 1;
 export const CONFIG_APP = 'marmot3d';
@@ -21,7 +22,7 @@ const SCHEMES = ['compatible', 'optimized', 'custom'];
 const ACTION_IDS = new Set(ACTIONS.map((a) => a.id));
 // KeyboardEvent.code 白名单格式：KeyW / Digit3 / ArrowUp / ShiftLeft / F11 / Escape …
 const KEY_CODE_RE = /^(?:Key[A-Z]|Digit[0-9]|Numpad(?:[0-9]|Add|Subtract|Multiply|Divide|Decimal|Enter)|Arrow(?:Up|Down|Left|Right)|F(?:[1-9]|1[0-9]|2[0-4])|(?:Space|Escape|Enter|Tab|Backspace|Delete|Insert|Home|End|PageUp|PageDown|CapsLock|ContextMenu|Backquote|Minus|Equal|BracketLeft|BracketRight|Backslash|Semicolon|Quote|Comma|Period|Slash|ShiftLeft|ShiftRight|ControlLeft|ControlRight|AltLeft|AltRight|MetaLeft|MetaRight))$/;
-const TOP_LEVEL_KEYS = ['schemaVersion', 'app', 'channel', 'exportedAt', 'inputMode', 'keybinds', 'touchLayout', 'audio', 'graphics', 'inputModePreference'];
+const TOP_LEVEL_KEYS = ['schemaVersion', 'app', 'channel', 'exportedAt', 'inputMode', 'keybinds', 'touchLayout', 'audio', 'graphics', 'inputModePreference', 'sceneFilter'];
 
 function sanitizeKeyValue(value) {
   // 合法形态：单个 code 字符串、null（未绑定）、code 数组（多键）。
@@ -38,7 +39,7 @@ function sanitizeKeyValue(value) {
 export function buildConfigExport({
   binds = null, layout = null, audioSettings = null,
   graphicsPreference = 'auto', inputModePreference = 'auto',
-  inputModeEffective = 'keyboard', channel = 'beta', now = new Date(),
+  inputModeEffective = 'keyboard', sceneFilter = null, channel = 'beta', now = new Date(),
 } = {}) {
   return {
     schemaVersion: CONFIG_SCHEMA_VERSION,
@@ -56,6 +57,7 @@ export function buildConfigExport({
     audio: audioSettings ? normalizeAudioSettings(audioSettings) : undefined,
     graphics: normalizeGraphicsPreference(graphicsPreference),
     inputModePreference: normalizeInputMode(inputModePreference),
+    sceneFilter: sceneFilter ? normalizeSceneFilter(sceneFilter) : undefined,
   };
 }
 
@@ -231,6 +233,13 @@ export function sanitizeConfig(raw) {
   if (raw.inputModePreference != null) {
     if (INPUT_MODES.includes(raw.inputModePreference)) config.inputModePreference = raw.inputModePreference;
     else warnings.push(`输入模式偏好 ${JSON.stringify(raw.inputModePreference)} 非法，已忽略。`);
+  }
+  if (raw.sceneFilter != null) {
+    const clean = normalizeSceneFilter(raw.sceneFilter);
+    if (clean.preset !== raw.sceneFilter.preset || clean.intensity !== raw.sceneFilter.intensity) {
+      warnings.push('场景滤镜包含非法或越界值，已校验/钳制。');
+    }
+    config.sceneFilter = clean;
   }
   if (!Object.keys(config).length) {
     return { ok: false, error: '配置内容为空：没有可导入的有效字段。', warnings, ignored };
