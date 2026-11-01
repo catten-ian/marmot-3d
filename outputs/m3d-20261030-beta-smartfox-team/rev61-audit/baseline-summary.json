@@ -1,0 +1,14 @@
+{
+  "base": "b2c9b5962cb7f7b13065314f84951dee7646009b",
+  "cases": 180,
+  "completed": 180,
+  "failed": 0,
+  "oneMarmot": true,
+  "noProgressCases": 180,
+  "noProgressDespiteLaterAttack": 75,
+  "ticks": 64800,
+  "wallMs": 1088.768,
+  "smartAdminEntries": 62,
+  "allRuntime": true,
+  "browserHold": true
+}

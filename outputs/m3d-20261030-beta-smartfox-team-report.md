@@ -306,3 +306,17 @@ renderer/backend 为 `WebGLRenderer` / WebGL 2.0 / ANGLE Vulkan **SwiftShader �
 - 改动文件：`src/entities/smart-fox-core.mjs`、`src/entities/smart-fox.js`、`src/headless/smartfox-combat-lab.mjs`、`tools/qa-smartfox-dynamic-attackers.cjs`、`tools/test-smart-fox-beta.mjs`、`tools/test-smartfox-headless-lab.mjs`、本报告及 `changes-requested/` 证据。
 - 剩余限制：未执行完整 22 项 browser/CDP 套件；未做硬件 GPU、手机或视觉验收；主控独立验收仍待后续。本 worker 自报不等于上线。
 - 实现/证据 commit：`aa1426d891f29feffd2a1cd7f4b6c41db19a80af`（`fix(beta): restore real SmartFox parry contacts`）；报告 docs checkpoint 为本次追加。push=未执行，deploy=未执行。
+
+## 2026-11-01 rev61 专项续接：审计 checkpoint
+
+本轮 base=`b2c9b5962cb7f7b13065314f84951dee7646009b`。保留此前所有提交；动态围攻/parry 的主控独立验收与 rev61 上线是已确认成果，本轮不重做其功能。后台 `6ac0ebb`、lab `056ffa4/689ed36` 已存在实现和旧 worker 证据，但其专项独立验收不能由旧自报替代。
+
+`/home/fame/codex-runs/m3d-20261030-beta-smartfox-team/BROWSER_HOLD` 存在（2026-11-01 本轮检查），因此没有启动 Chrome/CDP，没有连接共享 18800；不修改门禁文件。真实生产浏览器专项验收及 4/8 狐 hit smoke 等待主控解除门禁。
+
+已保存 rev61 基线：`rev61-audit/before-matrix-180.json`，180/180 completed、每例 1 土拨鼠，固定 1/60、6 秒、多 seed；全量 Node `97/97 passed, 0 failed, 22 browser/CDP skipped`（`baseline-node-tests.txt`）。完整 62 项后台默认值/min/max/step/单位/runtime 与生产读取路径见 `admin-parameter-coverage.md/json`。新实例构造时快照生效，已有实例不半截改上限；runtime schemaVersion 仍为 1，显式 URL 覆盖 active，storage 为回退，普通 FOX 配置未展开写回。
+
+代码审计发现需要明确的验收边界：旧 vitals browser 脚本曾直接写 HP/状态、teleport、注入攻击阶段验证收支；其证据只能称为实体接线诊断，不符合本轮正常战斗专项验收要求，不据此宣称本轮浏览器通过。生产主战斗实体已通过的动态攻击者验收不受此判断影响。
+
+数据审计另发现 lab 的 no_progress 依据存活实体数不变，而不是运动/攻击进展，会在仍有战斗时误报；lab 输入直接展开 tune 且 dt/duration 未校验，可能让非法值绕过 runtime clamp 或造成无界运行。下一 checkpoint 只针对有复现依据的实验工具诊断/输入缺陷，不为产出而提高生产难度或更改已验收 AI 数值。
+
+本 checkpoint 仅审计/证据/报告；push/deploy=未执行；浏览器专项仍未完成，Codex 自报不等于主控独立验收。
