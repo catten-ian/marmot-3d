@@ -1,0 +1,24 @@
+✔ headless lab is deterministic and uses fixed-step seeded scenarios (15.618198ms)
+✔ birth invariant is full and independent for custom limits (0.160933ms)
+✔ three requested openings run through real shared attack events (12.548022ms)
+✔ matrix covers 1/2/4/8 foxes, one marmot, all moves/openings/seeds without NaN (1237.602445ms)
+✔ 4/8 fox scenarios exceed two distinct real attackers without a global two-commit cap (20.941556ms)
+✔ parry target selection follows a real windup attacker, not a closer idle fox (0.263198ms)
+✔ live SmartFox and headless lab import the same decision core contract (3.684009ms)
+✔ dead SmartFox remains dead and is never healed or respawned in the same run (1.361483ms)
+✔ all five movement policies execute distinct real trajectories; seed affects zigzag (25.306315ms)
+✔ parry opening has no prior tap; movement resumes after real parry and follow-up hit (58.625168ms)
+✔ long real-hit retreat uses configured far distance before safe resting; no lethal healing target (17.038373ms)
+✔ lab validates bounded time/counts, sanitizes overrides, and rejects NaN invariants (1.558927ms)
+✔ progress diagnostics ignore constant population and recognize actual idle (12.095625ms)
+✔ CLI invalid inputs fail promptly and machine-readably without wall-clock simulation (144.833413ms)
+✔ configured high retreat threshold reaches real navigation instead of an adapter .7 gate (9.121498ms)
+✔ chase opening approaches even for later stationary policy, hits one lunge then genuine taps (52.949656ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1618.561596

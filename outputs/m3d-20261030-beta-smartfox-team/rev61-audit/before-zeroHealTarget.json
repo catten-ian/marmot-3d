@@ -1,0 +1,199 @@
+{
+  "status": "completed",
+  "failure": null,
+  "scenario": "faceoff-tap",
+  "movement": "stationary",
+  "seed": 20261031,
+  "dt": 0.016666666666666666,
+  "duration": 8.616667,
+  "ticks": 517,
+  "foxes": [
+    {
+      "slot": 0,
+      "hp": 0,
+      "maxHp": 4,
+      "stamina": 85.89333333333411,
+      "maxStamina": 100,
+      "state": "dead",
+      "role": "retreat",
+      "dead": true,
+      "attacks": {
+        "commits": 1,
+        "pounceStrikes": 1,
+        "pounceHits": 0,
+        "meleeStrikes": 1,
+        "meleeHits": 1,
+        "retreats": 1,
+        "deaths": 1
+      },
+      "stateTime": {
+        "roam": 0.966667,
+        "pounce": 0.85,
+        "recover": 0.466667,
+        "retreat": 2.333333,
+        "rest_safe": 4
+      }
+    }
+  ],
+  "marmots": [
+    {
+      "id": 0,
+      "hp": 11,
+      "stats": {
+        "attempts": 6,
+        "hits": 4,
+        "blocked": 0,
+        "dealt": 4,
+        "taken": 1,
+        "parries": 0
+      }
+    }
+  ],
+  "events": [
+    {
+      "t": 0.233333,
+      "type": "fox_pounce_commit",
+      "fox": 0,
+      "distance": 4.45,
+      "dashDuration": 0.51677734375
+    },
+    {
+      "t": 0.5,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "tap",
+      "fox": 0
+    },
+    {
+      "t": 0.866667,
+      "type": "fox_pounce_strike",
+      "fox": 0,
+      "distance": 0.03666666666666796
+    },
+    {
+      "t": 0.866667,
+      "type": "fox_pounce_cost",
+      "fox": 0,
+      "cost": 26
+    },
+    {
+      "t": 1.083333,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "tap",
+      "fox": 0
+    },
+    {
+      "t": 1.083333,
+      "type": "marmot_hit",
+      "marmot": 0,
+      "fox": 0,
+      "move": "tap",
+      "damage": 1
+    },
+    {
+      "t": 1.35,
+      "type": "fox_melee_hit",
+      "fox": 0,
+      "marmot": 0,
+      "damage": 1
+    },
+    {
+      "t": 1.666667,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "tap",
+      "fox": 0
+    },
+    {
+      "t": 1.666667,
+      "type": "marmot_hit",
+      "marmot": 0,
+      "fox": 0,
+      "move": "tap",
+      "damage": 1
+    },
+    {
+      "t": 2.25,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "tap",
+      "fox": 0
+    },
+    {
+      "t": 2.25,
+      "type": "marmot_hit",
+      "marmot": 0,
+      "fox": 0,
+      "move": "tap",
+      "damage": 1
+    },
+    {
+      "t": 2.266667,
+      "type": "fox_retreat",
+      "fox": 0,
+      "distance": 0.02333333333333243
+    },
+    {
+      "t": 4.6,
+      "type": "fox_rest_safe",
+      "fox": 0,
+      "distance": 15.65666666666672
+    },
+    {
+      "t": 5.016667,
+      "type": "no_progress"
+    },
+    {
+      "t": 8.016667,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "tap",
+      "fox": 0
+    },
+    {
+      "t": 8.6,
+      "type": "marmot_attack_attempt",
+      "marmot": 0,
+      "move": "tap",
+      "fox": 0
+    },
+    {
+      "t": 8.6,
+      "type": "marmot_hit",
+      "marmot": 0,
+      "fox": 0,
+      "move": "tap",
+      "damage": 1
+    },
+    {
+      "t": 8.6,
+      "type": "fox_died",
+      "fox": 0
+    }
+  ],
+  "invariants": [],
+  "metrics": {
+    "pounceCommits": 1,
+    "pounceStrikes": 1,
+    "meleeHits": 1,
+    "activeAttackers": 1,
+    "attackerSlots": [
+      0
+    ],
+    "pounceCommitters": 1,
+    "committerSlots": [
+      0
+    ],
+    "peakAttackRoles": 1,
+    "peakConcurrentPounces": 1,
+    "peakWindowCommits": 1,
+    "parrySuccesses": 0,
+    "foxRetreats": 1,
+    "foxDeaths": 1,
+    "marmotHits": 4,
+    "playerDamageTaken": 1,
+    "playerHitsTaken": 1,
+    "attackPressure": 2
+  }
+}

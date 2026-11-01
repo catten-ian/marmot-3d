@@ -1,0 +1,12 @@
+✔ runtime payload schema validates whitelist and rejects empty/invalid payloads (0.99253ms)
+✔ validated runtime override changes actual tuning object, defaults stay intact when absent (0.204036ms)
+✔ URL payload roundtrip and admin beta-only projection (0.381254ms)
+✔ schema-added beta values traverse admin projection, active endpoint fetch, validation and runtime application (1.162484ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6.464502

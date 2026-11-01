@@ -1,0 +1,28 @@
+✔ FOX.retreat 存在且数值方向正确（含独立回血配置） (1.13221ms)
+✔ shouldRetreat：血量健康 + 体力充足 + 正在蓄力 → false（攻击中不撤退） (0.150334ms)
+✔ shouldRetreat：血量低 + 空闲状态 → true (0.674284ms)
+✔ shouldRetreat：体力低 + 空闲状态 → true (0.105212ms)
+✔ shouldRetreat：被打次数多 → true；血量健康 → false (0.101992ms)
+✔ shouldRetreat：撤退/休息/死亡中不重复触发 (0.098959ms)
+✔ chooseRestPoint：优先选玩家不在附近的洞穴口旁 (0.368102ms)
+✔ chooseRestPoint：无可用洞穴 → 背离玩家方向，且在边界内 (0.110015ms)
+✔ chooseRestPoint：Beta smart 远撤优先选择玩家 60m 外最远合法点 (0.237796ms)
+✔ chooseRestPoint：beta 导航余量把休息点放在洞穴避让带外 (0.209457ms)
+✔ stepRetreatProgress：停滞和超时都给出有界迁移信号 (0.140261ms)
+✔ enterRestSafe：驱退计数只发生一次（连续进入不重复计数） (0.102742ms)
+✔ stepRestSafe：休息期间确实回复生命（不再白等） (0.115675ms)
+✔ stepRestSafe：回到目标血量或计时到 → done（且回血封顶不溢出） (0.086439ms)
+✔ stepRestSafe：普通狐在一个休息周期内能从撤退线回到接近满血 (0.134622ms)
+✔ exitRestSafe：回到 roam，repelCounted 复位（允许第二次撤退再计数） (0.057662ms)
+✔ defeatFate：普通狐仍会增援，Beta smart 与 boss 一去不返 (0.07555ms)
+✔ stepDefeatCooldown：普通狐离场后倒数到 0 → shouldRespawn；首领永不重生 (0.098334ms)
+✔ 普通狐耐打：最强常规招（迎击 1.8）两下既打不死也打不跑 (0.045472ms)
+✔ 撤退循环完整走一遍：roam → retreat → rest_safe(计一次+回血) → roam(复位) (0.133277ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14.684257

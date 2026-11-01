@@ -1,0 +1,19 @@
+✔ FOX.vitals 存在且数值方向正确 (1.089673ms)
+✔ canSprint：体力足够 true，不足 false (0.114776ms)
+✔ hpSpeedMultiplier：阈值以上=1，零血=地板，单调递减 (0.134098ms)
+✔ hpDamageMultiplier：阈值以上=1，零血=damageMulAtZeroHp，单调递减 (0.131385ms)
+✔ stepStamina：冲刺 1 秒按 drainPerSec 消耗 (0.242444ms)
+✔ stepStamina：休息 1 秒回体力且按 maxHp 比例回血（封顶） (0.697234ms)
+✔ stepStamina：体力降到 0 → exhausted=true 且 locked>0 (0.17358ms)
+✔ stepStamina：locked 期间递减且不可冲刺 (0.120488ms)
+✔ stepStamina：纯函数，不修改传入对象 (0.548043ms)
+✔ stepStamina：非冲刺/扑击状态按状态恢复体力，只有 rest 回血 (3.363574ms)
+✔ stepStamina：NaN/负数/超上限均被安全钳制 (0.113722ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13.962616

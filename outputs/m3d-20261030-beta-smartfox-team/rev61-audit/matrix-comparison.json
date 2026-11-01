@@ -1,0 +1,108 @@
+{
+  "before": {
+    "cases": 180,
+    "completed": 180,
+    "failed": 0,
+    "exactlyOneMarmot": true,
+    "ticks": 64800,
+    "wallMs": 1088.768,
+    "aggregateRealtimeFactor": 991.95,
+    "invariantFailures": 0,
+    "noProgressCases": 180,
+    "parryCases": 60,
+    "parrySuccessCases": 60,
+    "byFoxCount": {
+      "1": {
+        "pounceCommits": 45,
+        "pounceStrikes": 45,
+        "meleeHits": 45,
+        "playerDamageTaken": 45,
+        "foxRetreats": 45,
+        "foxDeaths": 0,
+        "maxDistinctAttackers": 1
+      },
+      "2": {
+        "pounceCommits": 60,
+        "pounceStrikes": 60,
+        "meleeHits": 75,
+        "playerDamageTaken": 75,
+        "foxRetreats": 60,
+        "foxDeaths": 0,
+        "maxDistinctAttackers": 2
+      },
+      "4": {
+        "pounceCommits": 105,
+        "pounceStrikes": 105,
+        "meleeHits": 165,
+        "playerDamageTaken": 165,
+        "foxRetreats": 60,
+        "foxDeaths": 0,
+        "maxDistinctAttackers": 4
+      },
+      "8": {
+        "pounceCommits": 225,
+        "pounceStrikes": 225,
+        "meleeHits": 360,
+        "playerDamageTaken": 360,
+        "foxRetreats": 105,
+        "foxDeaths": 0,
+        "maxDistinctAttackers": 8
+      }
+    },
+    "failedTrace": []
+  },
+  "after": {
+    "cases": 180,
+    "completed": 180,
+    "failed": 0,
+    "exactlyOneMarmot": true,
+    "ticks": 60817,
+    "wallMs": 1401.537,
+    "aggregateRealtimeFactor": 723.22,
+    "invariantFailures": 0,
+    "noProgressCases": 0,
+    "parryCases": 60,
+    "parrySuccessCases": 60,
+    "byFoxCount": {
+      "1": {
+        "pounceCommits": 43,
+        "pounceStrikes": 42,
+        "meleeHits": 39,
+        "playerDamageTaken": 39,
+        "foxRetreats": 34,
+        "foxDeaths": 25,
+        "maxDistinctAttackers": 1
+      },
+      "2": {
+        "pounceCommits": 70,
+        "pounceStrikes": 63,
+        "meleeHits": 71,
+        "playerDamageTaken": 71,
+        "foxRetreats": 51,
+        "foxDeaths": 18,
+        "maxDistinctAttackers": 2
+      },
+      "4": {
+        "pounceCommits": 132,
+        "pounceStrikes": 131,
+        "meleeHits": 129,
+        "playerDamageTaken": 129,
+        "foxRetreats": 56,
+        "foxDeaths": 0,
+        "maxDistinctAttackers": 4
+      },
+      "8": {
+        "pounceCommits": 290,
+        "pounceStrikes": 277,
+        "meleeHits": 302,
+        "playerDamageTaken": 263,
+        "foxRetreats": 69,
+        "foxDeaths": 0,
+        "maxDistinctAttackers": 8
+      }
+    },
+    "failedTrace": [],
+    "parryOrderingVerified": true
+  },
+  "comparisonCaveat": "Before movement labels all actually chased because of makeMarmot argument mismatch. After has actual five policies and parry-opening intercept before selected movement. These are lab adapter/diagnostic fixes; metric differences are not production AI balance gains. Lab shares primitives but still does not reproduce full main.js contact/input/energy world loop."
+}

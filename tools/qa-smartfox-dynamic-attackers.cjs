@@ -2,9 +2,24 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
-const { spawn } = require('node:child_process');
+const { spawn, execFileSync } = require('node:child_process');
+// Respect the task-owned browser hold before opening a server or touching CDP.
+const BROWSER_HOLD = '/home/fame/codex-runs/m3d-20261030-beta-smartfox-team/BROWSER_HOLD';
+if (fs.existsSync(BROWSER_HOLD)) {
+  console.error(`BROWSER_HOLD present: ${BROWSER_HOLD}; no Chrome/CDP experiment started`);
+  process.exit(2);
+}
+// The shared 18800 service is never connected here. Other task-owned Chrome
+// experiments must finish before this private QA can start.
+const competingChrome = execFileSync('ps', ['-eo', 'args'], { encoding:'utf8' }).split('\n')
+  .filter(line => /^\S*(?:chrome|chromium)(?:\s|$)/.test(line.trim())
+    && /--remote-debugging-port=/.test(line) && !/--remote-debugging-port=18800(?:\s|$)/.test(line));
+if (competingChrome.length) {
+  console.error('Another private Chrome QA is active; no browser started:', competingChrome.join('\n'));
+  process.exit(2);
+}
 const ROOT = path.resolve(__dirname, '..');
-const OUT = path.join(ROOT, 'outputs', 'm3d-20261030-beta-smartfox-team', 'headless', 'dynamic-attackers', 'changes-requested');
+const OUT = path.join(ROOT, 'outputs', 'm3d-20261030-beta-smartfox-team', 'rev61-audit', 'dynamic-browser');
 fs.mkdirSync(OUT, { recursive: true });
 const PORT = 8359, CDP_PORT = 19359, BASE = `http://127.0.0.1:${PORT}`;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -320,3 +320,75 @@ renderer/backend 为 `WebGLRenderer` / WebGL 2.0 / ANGLE Vulkan **SwiftShader �
 数据审计另发现 lab 的 no_progress 依据存活实体数不变，而不是运动/攻击进展，会在仍有战斗时误报；lab 输入直接展开 tune 且 dt/duration 未校验，可能让非法值绕过 runtime clamp 或造成无界运行。下一 checkpoint 只针对有复现依据的实验工具诊断/输入缺陷，不为产出而提高生产难度或更改已验收 AI 数值。
 
 本 checkpoint 仅审计/证据/报告；push/deploy=未执行；浏览器专项仍未完成，Codex 自报不等于主控独立验收。
+
+## 2026-11-01 rev61 专项续接：后台/出生正常输入验收与远撤修复
+
+本轮继续同一 JOB/branch/task；base=`b2c9b5962cb7f7b13065314f84951dee7646009b`，审计 checkpoint=`deacc51`。保留 rev61 与此前独立验收结论。没有 reset/clean/stash、push、PR 或 deploy。本节是 worker 实测报告，不等于主控独立验收或上线。
+
+### 后台参数、持久化及出生语义
+
+62 项完整参数/default/min/max/step/单位/runtime 标记及直接消费文件/行号见 `rev61-audit/admin-parameter-coverage.md/json`。覆盖生命/体力上限，潜行/非扑击冲刺/扑击每秒与一次性消耗、近战/受击消耗，rest/recover/intercept/roam 恢复，普通休息与安全休息回血，锁定、低血速度/伤害、连击及撤退阈值/衰减、速度/到达半径/休息时长/目标/远撤距离，以及扑击/近战冷却、时序、团队参数。
+
+读取路径：admin `beta.*` → `runtimePayloadFromAdminConfig` → `sanitizeRuntimeValues` → active/explicit/storage → 本页 `BETA_TUNE` → 新 SmartFox 的 `smartTuning/smartVitals/smartRetreat` 独立快照 → SmartFox 收支/动作核心、Fox 受击/撤退/血条。主循环接触距离仍读本页 BETA_TUNE。语义是**重新打开游戏后生成的新实例**全部生效；不提供既有实例上限热更新承诺，也不把预览当即时应用。schemaVersion 仍为 1；局部旧配置保留缺项默认，显式 URL 优先覆盖 active，合法 storage 作回退。非有限/非法类型拒绝，负数/越界按 key clamp，上限≥1、比例 0..1、消耗/时间非负；合法 0 保留。没有展开写回 FOX 全局，普通狐仍使用 FOX 默认配置。
+
+本轮实际打开 `admin.html`，在“智能狐 · 生命/体力/恢复/撤退”组搜索、编辑，确认滑块/数值输入及“运行时生效”。通过 **127.0.0.1:8338 的内存测试 API** 使用现有保存/激活 UI，保存 `vitals_qa` 并激活；随后无显式 URL 的新游戏真实读取 local active，生成上限 8/160。另以显式 betaConfig URL 覆盖进行受击/远撤/低目标/死亡场景。没有访问或写线上 active，也不新增账号或密钥。截图、实际 active JSON、断言及命令位于 `rev61-audit/runtime-browser/`。
+
+默认出生：4/4 HP、100/100 体力；自定义出生：8/8、160/160。均验证 staminaLocked=0、hitStreak=0、非撤退/休息/死亡、血条/体力条 fill=1，多实例快照独立；首帧和远离目标静置 300 tick 后无异常 recover/rest_safe/retreat。新实例明确从 maxHp 填满，只有显式 initialHp 作为测试/回放伤血语义并 clamp。近处真实 AI 正常发动攻击后 recover 仍允许。满状态不撤退另覆盖阈值=1 的合法边界；低血阈值=0 不产生 0/0 NaN。默认上限仍为 4/100，**本轮没有改任何平衡默认数值**。
+
+### 数据驱动生产修复：受伤远撤不能在近处假安全回血
+
+新 QA 使用正常键盘移动离开洞穴；新建生产 SmartFox 仅指定初始 QA 场景摆位，之后不改坐标/HP/状态。通过真实 Space 输入命中，记录 HP 8→6.75、体力160→149（配置受击消耗11）、hitStreak=1。该场景暴露真实生产缺陷，证据保留：
+
+- `runtime-browser-failed-far-retreat/state-assertions.json`：实际距离 **13.418m** 时，撤退进度判定 stalled，随后进入 rest_safe 并回血，违反70m配置。
+- `runtime-browser-failed-turn-reset/state-assertions.json`：禁止近处回血后，又显示撤退转弯半径异常大，20秒仍未到目标，HP保持6.75；未将其标成通过。
+- 根因一：原进度逻辑只看距休息点的历史最短距离；正常转身/绕障期间短暂增加距离就累计“卡住”，然后直接在当前位置安全休息。新增共享 `stepSmartRetreatNavigation`，按实际位移判断停滞；失败/超时重选路，必须真实玩家距离达到配置值才可休息；休息时若玩家靠近也重返撤退。
+- 根因二：`_moveGround` 已积分 yaw 和 turnVelocity，Fox 帧末又对同一位移朝向调用转向，将角速度归零，造成只剩每帧很小的加速量。仅 Beta SmartFox retreat 分支保留已积分结果。普通狐/其他通道原分支保持。
+- 同样发现合法低回血目标可能把当前 HP 直接裁到目标值。Beta SmartFox 使用内部 preserveCurrentHp 守卫：目标仅限制新增回复，不扣当前血；HP≤0不恢复。普通配置路径保持。
+
+同一正常输入场景修复后：tick675 真实到达 **109.028m**、resolution=arrival 才进入 rest_safe；tick676 首次回血6.75→6.7766667，符合0.2×8/60；最终8HP/160体力，玩家始终100HP。低目标0.1场景真实到达远处后保持6.75HP，没有削血。1HP测试上限下真实推击致死，后续600tick HP始终0、最终state=dead，没有复活或回血。对比 JSON：`production-retreat-comparison.json`。没有瞬移、无敌、强制 commit/strike、写 HP、冻结 AI 或放宽接触/迎击条件。
+
+其他真实行为：UI生成实体的扑击进入 strike 扣13体力，合法 recover 后恢复6/s；后台值不只是存在于 payload。runtime browser **18/18断言通过、console error=0**。
+
+### 无渲染 lab 审计与修正；不冒称完整生产对战复制
+
+共享路径已核对：lab 与 live SmartFox 导入相同的感知/效用/角色分工/pack/扑击运动/近战核心、stepStamina、shouldRetreat；Fox 撤退与 lab 新共享 `stepSmartRetreatNavigation`、`stepFoxLocomotion`、`steerGroundDirection`；安全回血共用 stepRestSafe。依赖契约测试同时检查 SmartFox/Fox/lab 的这些接线。普通 Node 执行，不创建 renderer/DOM、不加载模型贴图，固定dt与注入PRNG，无 wall-clock 决策。
+
+发现并修正的 **lab 适配问题（不是生产 AI 优化）**：
+
+1. makeMarmot 多了一个未传入参数，movement 实际落在 target，五种标签全都在追击。现已正确传入策略并记录每0.25秒真实轨迹；zigzag 连续带seed变向。parry 开场先真实接近，真实迎击并跟进推击后才进入所选移动策略；chase-pounce 开场也先真实接近，成功一次扑击后改连续推击，再进入所选策略。未删除任何组合。
+2. 旧 no_progress 用存活数量不变代替运动进展，180例全误报。现按真实位移/状态/HP/体力/攻击变化识别；新矩阵0例误报。
+3. 适配层遗漏远撤最小距离、阈值外又硬卡HP<0.7，并在安全休息两处回血。现对接真实距离配置/硬阈值/同一导航与唯一安全回血入口，补连击衰减，保持死亡不回血。
+4. dt/duration/count/seed/命令/策略校验，actor-tick预算；override走与后台同一 sanitize；每tick检查有限数/资源上下界/死亡状态。非法输入机器JSON failed、exit2；场景失败exit1。记录实际执行tick、有效配置、HEAD/dirty来源；trace有界。始终恰好1只土拨鼠，参数marmots不会扩增实例。
+
+**仍有明确的 lab 共享边界/未完成项**：lab 是生产纯函数的数值适配器，尚未直接执行整个 SmartFox.update/Fox.update/main.js 世界循环。main.js 中扑击 swept contact/玩家无敌帧、完整玩家按住蓄力→能量消耗→硬直/击退结算尚未全部抽出；当前 lab 的 pounceHits 仍未完整接线、玩家HP/伤害/能量模型也非完整生产结算。团队核心虽共用，世界障碍与 live 感知/记忆/增援事件接线不完全等价。**因此不能把本次180 completed称为“完整生产无头对战验收通过”，不能用这些伤害指标调真实难度。** 本轮不为伪造对等性扩大 main.js/PAF 改动；该剩余工作需要后续专项共享适配重构与独立验收。已接受的生产4/8狐围攻/parry结论不受此工具边界影响。
+
+### 固定180矩阵与量化对照
+
+命令见 `rev61-audit/commands.txt`。矩阵为1/2/4/8狐 × 五移动 × 三场景 × seed20261031/20261132/20261233，dt=1/60，horizon6秒。`before-matrix-180.json` 与 `after-matrix-180.json` 原始每狐事件/状态完整保留；汇总 `matrix-comparison.json`。after **180/180 completed、0 failed、每例1土拨鼠、0不变量失败、60/60 parry场景**均具备真实输入窗→strike接触→resolveParryOutcome成功→后续推击；未接受失败为预期或放宽距离。没有失败case被删去，failedTrace为空。
+
+before 64,800tick/wall1.088768s；after60,817实际tick（终局死亡会提前结束）/wall1.401537s，累计模拟时间约723.22倍实时。before的五标签其实同追击，**不能将两批伤害差异解读为生产优化增益**。以下为lab适配回归数据，非线上平衡指标：
+
+| 狐数（各45例） | commit前→后 | strike前→后 | melee hit前→后 | 玩家伤害前→后 | 撤退前→后 | 死亡前→后 | after最多不同攻击者 |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+|1|45→43|45→42|45→39|45→39|45→34|0→25|1|
+|2|60→70|60→63|75→71|75→71|60→51|0→18|2|
+|4|105→132|105→131|165→129|165→129|60→56|0→0|4|
+|8|225→290|225→277|360→302|360→263|105→69|0→0|8|
+
+另有16秒真实受击远撤60/70m、低/零回血目标、不复活的自动回归；输入无界/非有限失败与五策略实际轨迹均测试。工具诊断修正和上面的生产远撤修复严格区分。
+
+### 有效4/8狐生产浏览器回归、验证及范围
+
+本轮初始BROWSER_HOLD存在，仅做Node；主控外部移除后开始本地QA。发现另一个私有浏览器出现时结束/暂缓本任务浏览器工作，待其退出再执行；脚本新增hold及其他私有Chrome启动门禁。没有连接共享18800，没有改门禁文件。最终专项与4/8浏览器顺序执行。
+
+`rev61-audit/dynamic-browser/`：两例均生产实体、玩家100/100HP、mode=play、godMode=false开局；6秒后均40HP且存活。4狐：4个不同committer/真实攻击者，4个hitter、5次真实hit。8狐：6个不同committer/真实攻击者，3个hitter、5次真实hit；slot2/5没有攻击、slot4/7尚未strike，如实记录，不强凑全员命中。每狐commit/strike/hit、最终HP/体力、生产player-hit关联及截图保留；两例各5/5断言通过，console error=0。
+
+renderer=`WebGLRenderer`/WebGL2/ANGLE Vulkan **SwiftShader软件渲染**。截图已打开检查。本证据不代表硬件GPU、物理手机、触控、视觉质量验收，也没有补跑整套22项browser/CDP suite。
+
+验证日志均在rev61-audit：
+
+- 10个变更/新增JS/MJS/CJS `node --check`通过（node-check.txt）；git diff --check通过。
+- 聚焦：admin6/6、runtime4/4、fox-vitals11/11、tactics17/17、smart-fox-beta28/28、foxtune7/7、repel20/20、SmartFox vitals13/13、lab16/16，均0fail/0skip。
+- 完整Node harness：**97/97文件通过、0失败，22 browser/CDP文件skipped另列**，没有把skipped计入通过（after-node-tests.txt）。
+- 改动：beta-tuning/fox-motion、Beta守卫下Fox撤退、headless lab、CLI、vitals/lab测试、QA脚本、审计证据/本报告。未改main.js、PAF、普通狐默认、Stable/Dev、rig/动画、滤镜/黑匣子、版本/public shell、其他工作树、线上服务/配置。`.codex-cli-write.lock`保留不stage。
+- 实现与证据commit在提交后追加；push=未执行、deploy=未执行。剩余：完整生产lab共享接线、主控专项独立验收、硬件/手机/完整browser suite。不得据本报告宣称全部原任务已完成或已上线。

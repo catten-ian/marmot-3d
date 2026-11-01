@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "output": "/home/fame/code/marmot3d/m3d-beta-smartfox-team-20261030/outputs/m3d-20261030-beta-smartfox-team/rev61-audit/runtime-browser",
+  "assertions": {
+    "defaultFullBirth": true,
+    "defaultIdleClean": true,
+    "defaultCleanFlags": true,
+    "adminGroupAndRuntime": true,
+    "adminSavedAndActivatedLocally": true,
+    "localActiveContainsValues": true,
+    "activeCustomFullBirth": true,
+    "activeCustomIdleClean": true,
+    "activeCustomCleanFlags": true,
+    "realPounceCost13": true,
+    "legitimateAttackRecoverAllowed": true,
+    "realRecovery6PerSecond": true,
+    "realInputHitAndCost": true,
+    "realConfiguredRetreat": true,
+    "realFarArrivalThenHeal": true,
+    "lowTargetNeverReducesCurrentHp": true,
+    "realInputDeathNoRevive": true,
+    "consoleErrorZero": true
+  },
+  "consoleErrors": 0
+}

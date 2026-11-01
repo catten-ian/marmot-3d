@@ -13,7 +13,15 @@
     "step": 1,
     "unit": "生命",
     "capability": "runtime",
-    "help": "含义：生命上限（新生成默认满血）（来源 BETA_TUNE.smartMaxHp）。单位：生命。范围：1～40。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：生命上限（新生成默认满血）（来源 BETA_TUNE.smartMaxHp）。单位：生命。范围：1～40。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 129,
+        "code": "maxHp: tune.smartMaxHp,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:129"
   },
   {
     "id": "beta.smartMaxStamina",
@@ -29,7 +37,15 @@
     "step": 1,
     "unit": "体力",
     "capability": "runtime",
-    "help": "含义：体力上限（新生成默认满体力）（来源 BETA_TUNE.smartMaxStamina）。单位：体力。范围：1～300。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：体力上限（新生成默认满体力）（来源 BETA_TUNE.smartMaxStamina）。单位：体力。范围：1～300。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 130,
+        "code": "maxStamina: tune.smartMaxStamina,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:130"
   },
   {
     "id": "beta.smartStalkStaminaPerSec",
@@ -45,7 +61,15 @@
     "step": 0.5,
     "unit": "体力/s",
     "capability": "runtime",
-    "help": "含义：潜行实际体力消耗（来源 BETA_TUNE.smartStalkStaminaPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：潜行实际体力消耗（来源 BETA_TUNE.smartStalkStaminaPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 131,
+        "code": "stalkStaminaPerSec: tune.smartStalkStaminaPerSec,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:131"
   },
   {
     "id": "beta.smartSprintStaminaPerSec",
@@ -61,7 +85,15 @@
     "step": 0.5,
     "unit": "体力/s",
     "capability": "runtime",
-    "help": "含义：非扑击冲刺实际体力消耗（来源 BETA_TUNE.smartSprintStaminaPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：非扑击冲刺实际体力消耗（来源 BETA_TUNE.smartSprintStaminaPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 132,
+        "code": "sprintStaminaPerSec: tune.smartSprintStaminaPerSec,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:132"
   },
   {
     "id": "beta.smartPounceStaminaPerSec",
@@ -77,7 +109,15 @@
     "step": 0.5,
     "unit": "体力/s",
     "capability": "runtime",
-    "help": "含义：扑击冲刺阶段实际体力消耗（来源 BETA_TUNE.smartPounceStaminaPerSec）。单位：体力/s。范围：0～80。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击冲刺阶段实际体力消耗（来源 BETA_TUNE.smartPounceStaminaPerSec）。单位：体力/s。范围：0～80。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 133,
+        "code": "pounceStaminaPerSec: tune.smartPounceStaminaPerSec,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:133"
   },
   {
     "id": "beta.smartPounceStaminaCost",
@@ -93,7 +133,15 @@
     "step": 1,
     "unit": "体力",
     "capability": "runtime",
-    "help": "含义：扑击命中段一次性体力消耗（来源 BETA_TUNE.smartPounceStaminaCost）。单位：体力。范围：0～100。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击命中段一次性体力消耗（来源 BETA_TUNE.smartPounceStaminaCost）。单位：体力。范围：0～100。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 134,
+        "code": "pounceStaminaCost: tune.smartPounceStaminaCost,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:134"
   },
   {
     "id": "beta.smartMeleeStaminaCost",
@@ -109,7 +157,15 @@
     "step": 1,
     "unit": "体力",
     "capability": "runtime",
-    "help": "含义：近战攻击段一次性体力消耗（来源 BETA_TUNE.smartMeleeStaminaCost）。单位：体力。范围：0～100。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：近战攻击段一次性体力消耗（来源 BETA_TUNE.smartMeleeStaminaCost）。单位：体力。范围：0～100。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 135,
+        "code": "meleeStaminaCost: tune.smartMeleeStaminaCost,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:135"
   },
   {
     "id": "beta.smartHitStaminaCost",
@@ -125,7 +181,15 @@
     "step": 0.5,
     "unit": "体力",
     "capability": "runtime",
-    "help": "含义：受击额外体力消耗（来源 BETA_TUNE.smartHitStaminaCost）。单位：体力。范围：0～40。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：受击额外体力消耗（来源 BETA_TUNE.smartHitStaminaCost）。单位：体力。范围：0～40。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 140,
+        "code": "hitStaminaCost: tune.smartHitStaminaCost,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:140"
   },
   {
     "id": "beta.smartRestStaminaRegenPerSec",
@@ -141,7 +205,20 @@
     "step": 0.5,
     "unit": "体力/s",
     "capability": "runtime",
-    "help": "含义：休息体力恢复速率（来源 BETA_TUNE.smartRestStaminaRegenPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：休息体力恢复速率（来源 BETA_TUNE.smartRestStaminaRegenPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 138,
+        "code": "restStaminaPerSec: tune.smartRestStaminaRegenPerSec,"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 192,
+        "code": "rest: T.smartRestStaminaRegenPerSec,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:138；src/entities/smart-fox.js:192"
   },
   {
     "id": "beta.smartRecoverStaminaRegenPerSec",
@@ -157,7 +234,15 @@
     "step": 0.5,
     "unit": "体力/s",
     "capability": "runtime",
-    "help": "含义：recover/放弃恢复速率（来源 BETA_TUNE.smartRecoverStaminaRegenPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：recover/放弃恢复速率（来源 BETA_TUNE.smartRecoverStaminaRegenPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 193,
+        "code": "recover: T.smartRecoverStaminaRegenPerSec,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:193"
   },
   {
     "id": "beta.smartInterceptStaminaRegenPerSec",
@@ -173,7 +258,15 @@
     "step": 0.5,
     "unit": "体力/s",
     "capability": "runtime",
-    "help": "含义：拦截体力恢复速率（来源 BETA_TUNE.smartInterceptStaminaRegenPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：拦截体力恢复速率（来源 BETA_TUNE.smartInterceptStaminaRegenPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 194,
+        "code": "intercept: T.smartInterceptStaminaRegenPerSec,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:194"
   },
   {
     "id": "beta.smartRoamStaminaRegenPerSec",
@@ -189,7 +282,15 @@
     "step": 0.5,
     "unit": "体力/s",
     "capability": "runtime",
-    "help": "含义：普通/漫游体力恢复速率（来源 BETA_TUNE.smartRoamStaminaRegenPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：普通/漫游体力恢复速率（来源 BETA_TUNE.smartRoamStaminaRegenPerSec）。单位：体力/s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 195,
+        "code": "roam: T.smartRoamStaminaRegenPerSec,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:195"
   },
   {
     "id": "beta.smartPounceRingCrawlSpeed",
@@ -205,7 +306,15 @@
     "step": 0.05,
     "unit": "m/s",
     "capability": "runtime",
-    "help": "含义：扑击提交环爬行速度上限（来源 BETA_TUNE.smartPounceRingCrawlSpeed）。单位：m/s。范围：0～5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击提交环爬行速度上限（来源 BETA_TUNE.smartPounceRingCrawlSpeed）。单位：m/s。范围：0～5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 421,
+        "code": "const crawl = T.smartPounceRingCrawlSpeed;"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:421"
   },
   {
     "id": "beta.smartPounceAlignCreepSpeed",
@@ -221,7 +330,9 @@
     "step": 0.05,
     "unit": "m/s",
     "capability": "runtime",
-    "help": "含义：扑击朝向微调速度上限（来源 BETA_TUNE.smartPounceAlignCreepSpeed）。单位：m/s。范围：0～5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击朝向微调速度上限（来源 BETA_TUNE.smartPounceAlignCreepSpeed）。单位：m/s。范围：0～5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [],
+    "consumer": ""
   },
   {
     "id": "beta.smartPackWindow",
@@ -237,7 +348,20 @@
     "step": 0.05,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：群体出击提交窗口（来源 BETA_TUNE.smartPackWindow）。单位：s。范围：0～5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：群体出击提交窗口（来源 BETA_TUNE.smartPackWindow）。单位：s。范围：0～5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/main.js",
+        "line": 570,
+        "code": "sandboxState.smartPack = createSmartPack(IS_BETA ? { window: BETA_TUNE.smartPackWindow, spacing: BETA_TUNE.smartPackSpacing, slotSpacing: BETA_TUNE.smartPackSlotSpacing } : undefined);"
+      },
+      {
+        "file": "src/main.js",
+        "line": 759,
+        "code": "sandboxState.smartPack = createSmartPack(IS_BETA ? { window: BETA_TUNE.smartPackWindow, spacing: BETA_TUNE.smartPackSpacing, slotSpacing: BETA_TUNE.smartPackSlotSpacing } : undefined);"
+      }
+    ],
+    "consumer": "src/main.js:570；src/main.js:759 → createSmartPack（动态模式不设两个提交者上限；window 仅清理窗口事件）"
   },
   {
     "id": "beta.smartPackSpacing",
@@ -253,7 +377,20 @@
     "step": 0.01,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：群体出击最小间隔（来源 BETA_TUNE.smartPackSpacing）。单位：s。范围：0～2。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：群体出击最小间隔（来源 BETA_TUNE.smartPackSpacing）。单位：s。范围：0～2。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/main.js",
+        "line": 570,
+        "code": "sandboxState.smartPack = createSmartPack(IS_BETA ? { window: BETA_TUNE.smartPackWindow, spacing: BETA_TUNE.smartPackSpacing, slotSpacing: BETA_TUNE.smartPackSlotSpacing } : undefined);"
+      },
+      {
+        "file": "src/main.js",
+        "line": 759,
+        "code": "sandboxState.smartPack = createSmartPack(IS_BETA ? { window: BETA_TUNE.smartPackWindow, spacing: BETA_TUNE.smartPackSpacing, slotSpacing: BETA_TUNE.smartPackSlotSpacing } : undefined);"
+      }
+    ],
+    "consumer": "src/main.js:570；src/main.js:759 → createSmartPack（动态模式不设两个提交者上限；window 仅清理窗口事件）"
   },
   {
     "id": "beta.smartPackSlotSpacing",
@@ -269,7 +406,20 @@
     "step": 0.005,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：群体槽位间隔增量（来源 BETA_TUNE.smartPackSlotSpacing）。单位：s。范围：0～0.5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：群体槽位间隔增量（来源 BETA_TUNE.smartPackSlotSpacing）。单位：s。范围：0～0.5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/main.js",
+        "line": 570,
+        "code": "sandboxState.smartPack = createSmartPack(IS_BETA ? { window: BETA_TUNE.smartPackWindow, spacing: BETA_TUNE.smartPackSpacing, slotSpacing: BETA_TUNE.smartPackSlotSpacing } : undefined);"
+      },
+      {
+        "file": "src/main.js",
+        "line": 759,
+        "code": "sandboxState.smartPack = createSmartPack(IS_BETA ? { window: BETA_TUNE.smartPackWindow, spacing: BETA_TUNE.smartPackSpacing, slotSpacing: BETA_TUNE.smartPackSlotSpacing } : undefined);"
+      }
+    ],
+    "consumer": "src/main.js:570；src/main.js:759 → createSmartPack（动态模式不设两个提交者上限；window 仅清理窗口事件）"
   },
   {
     "id": "beta.smartDebounceHold",
@@ -285,7 +435,15 @@
     "step": 0.01,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：智能狐意图切换确认时间（来源 BETA_TUNE.smartDebounceHold）。单位：s。范围：0～3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：智能狐意图切换确认时间（来源 BETA_TUNE.smartDebounceHold）。单位：s。范围：0～3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 289,
+        "code": "const debounced = debounceIntent(this._intentCandidate, intent, this._intentHeld, dt, IS_BETA ? { hold: T.smartDebounceHold } : undefined);"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:289"
   },
   {
     "id": "beta.smartRestHpRegenRatio",
@@ -301,7 +459,15 @@
     "step": 0.005,
     "unit": "最大生命/s",
     "capability": "runtime",
-    "help": "含义：普通休息回血比例（来源 BETA_TUNE.smartRestHpRegenRatio）。单位：最大生命/s。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：普通休息回血比例（来源 BETA_TUNE.smartRestHpRegenRatio）。单位：最大生命/s。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 139,
+        "code": "restHpRegenRatio: tune.smartRestHpRegenRatio,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:139"
   },
   {
     "id": "beta.smartRestSafeHpRegenRatio",
@@ -317,7 +483,15 @@
     "step": 0.01,
     "unit": "最大生命/s",
     "capability": "runtime",
-    "help": "含义：安全休息回血速率（来源 BETA_TUNE.smartRestSafeHpRegenRatio）。单位：最大生命/s。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：安全休息回血速率（来源 BETA_TUNE.smartRestSafeHpRegenRatio）。单位：最大生命/s。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 177,
+        "code": "regenPerSec: tune.smartRestSafeHpRegenRatio,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:177"
   },
   {
     "id": "beta.smartRestHealTarget",
@@ -333,7 +507,15 @@
     "step": 0.01,
     "unit": "最大生命比例",
     "capability": "runtime",
-    "help": "含义：安全休息回血目标（来源 BETA_TUNE.smartRestHealTarget）。单位：最大生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：安全休息回血目标（来源 BETA_TUNE.smartRestHealTarget）。单位：最大生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 178,
+        "code": "restHealTarget: tune.smartRestHealTarget,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:178"
   },
   {
     "id": "beta.smartStaminaLockSeconds",
@@ -349,7 +531,15 @@
     "step": 0.05,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：体力耗尽锁定时间（来源 BETA_TUNE.smartStaminaLockSeconds）。单位：s。范围：0～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：体力耗尽锁定时间（来源 BETA_TUNE.smartStaminaLockSeconds）。单位：s。范围：0～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 141,
+        "code": "staminaLockSeconds: tune.smartStaminaLockSeconds,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:141"
   },
   {
     "id": "beta.smartLowHpThreshold",
@@ -365,7 +555,15 @@
     "step": 0.01,
     "unit": "生命比例",
     "capability": "runtime",
-    "help": "含义：低血影响阈值（来源 BETA_TUNE.smartLowHpThreshold）。单位：生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：低血影响阈值（来源 BETA_TUNE.smartLowHpThreshold）。单位：生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 142,
+        "code": "lowHpThreshold: tune.smartLowHpThreshold,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:142"
   },
   {
     "id": "beta.smartSpeedMulAtZeroHp",
@@ -381,7 +579,15 @@
     "step": 0.01,
     "unit": "×",
     "capability": "runtime",
-    "help": "含义：零血速度倍率（来源 BETA_TUNE.smartSpeedMulAtZeroHp）。单位：×。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：零血速度倍率（来源 BETA_TUNE.smartSpeedMulAtZeroHp）。单位：×。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 143,
+        "code": "speedMulAtZeroHp: tune.smartSpeedMulAtZeroHp,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:143"
   },
   {
     "id": "beta.smartDamageMulAtZeroHp",
@@ -397,7 +603,15 @@
     "step": 0.01,
     "unit": "×",
     "capability": "runtime",
-    "help": "含义：零血伤害倍率（来源 BETA_TUNE.smartDamageMulAtZeroHp）。单位：×。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：零血伤害倍率（来源 BETA_TUNE.smartDamageMulAtZeroHp）。单位：×。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 144,
+        "code": "damageMulAtZeroHp: tune.smartDamageMulAtZeroHp,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:144"
   },
   {
     "id": "beta.smartRetreatHpRatio",
@@ -413,7 +627,15 @@
     "step": 0.01,
     "unit": "生命比例",
     "capability": "runtime",
-    "help": "含义：低血撤退阈值（来源 BETA_TUNE.smartRetreatHpRatio）。单位：生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：低血撤退阈值（来源 BETA_TUNE.smartRetreatHpRatio）。单位：生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 170,
+        "code": "hpRatio: tune.smartRetreatHpRatio,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:170"
   },
   {
     "id": "beta.smartRetreatStaminaRatio",
@@ -429,7 +651,15 @@
     "step": 0.01,
     "unit": "体力比例",
     "capability": "runtime",
-    "help": "含义：低体力撤退阈值（来源 BETA_TUNE.smartRetreatStaminaRatio）。单位：体力比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：低体力撤退阈值（来源 BETA_TUNE.smartRetreatStaminaRatio）。单位：体力比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 171,
+        "code": "staminaRatio: tune.smartRetreatStaminaRatio,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:171"
   },
   {
     "id": "beta.smartRetreatHitStreak",
@@ -445,7 +675,15 @@
     "step": 1,
     "unit": "次",
     "capability": "runtime",
-    "help": "含义：连续受击撤退阈值（来源 BETA_TUNE.smartRetreatHitStreak）。单位：次。范围：1～20。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：连续受击撤退阈值（来源 BETA_TUNE.smartRetreatHitStreak）。单位：次。范围：1～20。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 172,
+        "code": "hitStreak: tune.smartRetreatHitStreak,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:172"
   },
   {
     "id": "beta.smartHitStreakDecay",
@@ -461,7 +699,15 @@
     "step": 0.5,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：连续受击衰减时间（来源 BETA_TUNE.smartHitStreakDecay）。单位：s。范围：0～30。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：连续受击衰减时间（来源 BETA_TUNE.smartHitStreakDecay）。单位：s。范围：0～30。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 173,
+        "code": "hitStreakDecay: tune.smartHitStreakDecay,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:173"
   },
   {
     "id": "beta.smartRetreatSpeed",
@@ -477,7 +723,15 @@
     "step": 0.1,
     "unit": "m/s",
     "capability": "runtime",
-    "help": "含义：撤退移动速度（来源 BETA_TUNE.smartRetreatSpeed）。单位：m/s。范围：0～30。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：撤退移动速度（来源 BETA_TUNE.smartRetreatSpeed）。单位：m/s。范围：0～30。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 175,
+        "code": "speed: tune.smartRetreatSpeed,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:175"
   },
   {
     "id": "beta.smartRetreatArriveRadius",
@@ -493,7 +747,15 @@
     "step": 0.1,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：撤退休息点到达半径（来源 BETA_TUNE.smartRetreatArriveRadius）。单位：m。范围：0.1～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：撤退休息点到达半径（来源 BETA_TUNE.smartRetreatArriveRadius）。单位：m。范围：0.1～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 174,
+        "code": "arriveRadius: tune.smartRetreatArriveRadius,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:174"
   },
   {
     "id": "beta.smartRestSeconds",
@@ -509,7 +771,15 @@
     "step": 0.5,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：智能狐安全休息时长（来源 BETA_TUNE.smartRestSeconds）。单位：s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：智能狐安全休息时长（来源 BETA_TUNE.smartRestSeconds）。单位：s。范围：0～60。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 176,
+        "code": "restSeconds: { smart: tune.smartRestSeconds },"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:176"
   },
   {
     "id": "beta.smartRestMinPlayerDistance",
@@ -525,7 +795,15 @@
     "step": 1,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：远撤最小玩家距离（来源 BETA_TUNE.smartRestMinPlayerDistance）。单位：m。范围：0～120。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：远撤最小玩家距离（来源 BETA_TUNE.smartRestMinPlayerDistance）。单位：m。范围：0～120。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 49,
+        "code": "this.smartRestMinPlayerDistance = IS_BETA ? this.smartTuning.smartRestMinPlayerDistance : null;"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:49 → Fox._enterRetreat/stepSmartRetreatNavigation 实际距离校验"
   },
   {
     "id": "beta.smartPounceRecoverTime",
@@ -541,7 +819,15 @@
     "step": 0.05,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：扑击 recover 后摇（来源 BETA_TUNE.smartPounceRecoverTime）。单位：s。范围：0～3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击 recover 后摇（来源 BETA_TUNE.smartPounceRecoverTime）。单位：s。范围：0～3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 136,
+        "code": "pounceRecoverTime: tune.smartPounceRecoverTime,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:136"
   },
   {
     "id": "beta.smartPounceCooldown",
@@ -557,7 +843,15 @@
     "step": 0.1,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：扑击冷却（标准难度基准）（来源 BETA_TUNE.smartPounceCooldown）。单位：s。范围：0～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击冷却（标准难度基准）（来源 BETA_TUNE.smartPounceCooldown）。单位：s。范围：0～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/core/beta-tuning.js",
+        "line": 137,
+        "code": "pounceCooldown: tune.smartPounceCooldown,"
+      }
+    ],
+    "consumer": "src/core/beta-tuning.js:137"
   },
   {
     "id": "beta.smartTeamRestHpRatio",
@@ -573,7 +867,15 @@
     "step": 0.01,
     "unit": "生命比例",
     "capability": "runtime",
-    "help": "含义：团队休整低血阈值（来源 BETA_TUNE.smartTeamRestHpRatio）。单位：生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：团队休整低血阈值（来源 BETA_TUNE.smartTeamRestHpRatio）。单位：生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 244,
+        "code": "restHpRatio: T.smartTeamRestHpRatio,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:244"
   },
   {
     "id": "beta.smartTeamRestStaminaRatio",
@@ -589,7 +891,15 @@
     "step": 0.01,
     "unit": "体力比例",
     "capability": "runtime",
-    "help": "含义：团队休整体力阈值（来源 BETA_TUNE.smartTeamRestStaminaRatio）。单位：体力比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：团队休整体力阈值（来源 BETA_TUNE.smartTeamRestStaminaRatio）。单位：体力比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 245,
+        "code": "restStaminaRatio: T.smartTeamRestStaminaRatio,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:245"
   },
   {
     "id": "beta.smartTeamRestFatigue",
@@ -605,7 +915,15 @@
     "step": 0.01,
     "unit": "疲劳比例",
     "capability": "runtime",
-    "help": "含义：团队休整疲劳阈值（来源 BETA_TUNE.smartTeamRestFatigue）。单位：疲劳比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：团队休整疲劳阈值（来源 BETA_TUNE.smartTeamRestFatigue）。单位：疲劳比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 246,
+        "code": "restFatigue: T.smartTeamRestFatigue,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:246"
   },
   {
     "id": "beta.smartTeamHealthyHpRatio",
@@ -621,7 +939,15 @@
     "step": 0.01,
     "unit": "生命比例",
     "capability": "runtime",
-    "help": "含义：团队攻击位健康血量阈值（来源 BETA_TUNE.smartTeamHealthyHpRatio）。单位：生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：团队攻击位健康血量阈值（来源 BETA_TUNE.smartTeamHealthyHpRatio）。单位：生命比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 247,
+        "code": "healthyHpRatio: T.smartTeamHealthyHpRatio,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:247"
   },
   {
     "id": "beta.smartTeamHealthyStaminaRatio",
@@ -637,7 +963,15 @@
     "step": 0.01,
     "unit": "体力比例",
     "capability": "runtime",
-    "help": "含义：团队攻击位健康体力阈值（来源 BETA_TUNE.smartTeamHealthyStaminaRatio）。单位：体力比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：团队攻击位健康体力阈值（来源 BETA_TUNE.smartTeamHealthyStaminaRatio）。单位：体力比例。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 248,
+        "code": "healthyStaminaRatio: T.smartTeamHealthyStaminaRatio,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:248"
   },
   {
     "id": "beta.smartTeamHoldTime",
@@ -653,7 +987,15 @@
     "step": 0.1,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：团队角色保持时间（来源 BETA_TUNE.smartTeamHoldTime）。单位：s。范围：0～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：团队角色保持时间（来源 BETA_TUNE.smartTeamHoldTime）。单位：s。范围：0～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 240,
+        "code": "holdTime: IS_BETA ? T.smartTeamHoldTime : 1.5,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:240"
   },
   {
     "id": "beta.smartTeamSwitchCooldown",
@@ -669,7 +1011,15 @@
     "step": 0.1,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：团队角色切换冷却（来源 BETA_TUNE.smartTeamSwitchCooldown）。单位：s。范围：0～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：团队角色切换冷却（来源 BETA_TUNE.smartTeamSwitchCooldown）。单位：s。范围：0～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 241,
+        "code": "switchCooldown: IS_BETA ? T.smartTeamSwitchCooldown : 1.2,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:241"
   },
   {
     "id": "beta.smartPounceAimOffsetScale",
@@ -685,7 +1035,20 @@
     "step": 0.005,
     "unit": "×",
     "capability": "runtime",
-    "help": "含义：扑击战术偏移倍率（来源 BETA_TUNE.smartPounceAimOffsetScale）。单位：×。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：扑击战术偏移倍率（来源 BETA_TUNE.smartPounceAimOffsetScale）。单位：×。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 329,
+        "code": "const initialTacticalScale = (IS_BETA && intent === 'pounce') ? T.smartPounceAimOffsetScale : 1;"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 390,
+        "code": "const tacticalScale = (IS_BETA && intent === 'pounce') ? T.smartPounceAimOffsetScale : 1;"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:329；src/entities/smart-fox.js:390"
   },
   {
     "id": "beta.smartPounceMinDistance",
@@ -701,7 +1064,25 @@
     "step": 0.05,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：扑击最小提交距离（来源 BETA_TUNE.smartPounceMinDistance）。单位：m。范围：1～15。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击最小提交距离（来源 BETA_TUNE.smartPounceMinDistance）。单位：m。范围：1～15。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 70,
+        "code": "...(IS_BETA ? { pounceMinDistance: this.smartTuning.smartPounceMinDistance, pounceMaxDistance: this.smartTuning.smartPounceMaxDistance } : {}),"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 418,
+        "code": "?? ((T.smartPounceMinDistance + T.smartPounceMaxDistance) * 0.5);"
+      },
+      {
+        "file": "src/entities/smart-fox-core.mjs",
+        "line": 285,
+        "code": "const min = Number(tune.smartPounceMinDistance) || SMART_POUNCE.minDistance;"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:70；src/entities/smart-fox.js:418；src/entities/smart-fox-core.mjs:285"
   },
   {
     "id": "beta.smartPounceMaxDistance",
@@ -717,7 +1098,30 @@
     "step": 0.05,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：扑击最大提交距离（来源 BETA_TUNE.smartPounceMaxDistance）。单位：m。范围：1～20。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击最大提交距离（来源 BETA_TUNE.smartPounceMaxDistance）。单位：m。范围：1～20。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 70,
+        "code": "...(IS_BETA ? { pounceMinDistance: this.smartTuning.smartPounceMinDistance, pounceMaxDistance: this.smartTuning.smartPounceMaxDistance } : {}),"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 296,
+        "code": "if (IS_BETA && this._role === 'flanker' && distance <= T.smartPounceMaxDistance + 1.5"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 418,
+        "code": "?? ((T.smartPounceMinDistance + T.smartPounceMaxDistance) * 0.5);"
+      },
+      {
+        "file": "src/entities/smart-fox-core.mjs",
+        "line": 286,
+        "code": "const max = Number(tune.smartPounceMaxDistance) || SMART_POUNCE.maxDistance;"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:70；src/entities/smart-fox.js:296；src/entities/smart-fox.js:418；src/entities/smart-fox-core.mjs:286"
   },
   {
     "id": "beta.smartPounceApproachRadius",
@@ -733,7 +1137,25 @@
     "step": 0.02,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：扑击接近停靠半径（来源 BETA_TUNE.smartPounceApproachRadius）。单位：m。范围：2～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击接近停靠半径（来源 BETA_TUNE.smartPounceApproachRadius）。单位：m。范围：2～10。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 284,
+        "code": "const nearBand = IS_BETA ? (this._approachBand ? T.smartPounceApproachRadius + 0.45 : T.smartPounceApproachRadius) : (this._approachBand ? 3.9 : 3.4);"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 293,
+        "code": "if (IS_BETA && this._role === 'interceptor') intent = distance > T.smartPounceApproachRadius ? 'approach' : 'observe';"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 308,
+        "code": "const STAND = { observe: IS_BETA ? T.smartPounceObserveRadius : 7.2, approach: IS_BETA ? T.smartPounceApproachRadius : 3.4, feint: 4.6, recover: 11, abandon: 15 };"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:284；src/entities/smart-fox.js:293；src/entities/smart-fox.js:308"
   },
   {
     "id": "beta.smartPounceObserveRadius",
@@ -749,7 +1171,20 @@
     "step": 0.02,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：观察停靠半径（来源 BETA_TUNE.smartPounceObserveRadius）。单位：m。范围：4～12。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：观察停靠半径（来源 BETA_TUNE.smartPounceObserveRadius）。单位：m。范围：4～12。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 308,
+        "code": "const STAND = { observe: IS_BETA ? T.smartPounceObserveRadius : 7.2, approach: IS_BETA ? T.smartPounceApproachRadius : 3.4, feint: 4.6, recover: 11, abandon: 15 };"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 333,
+        "code": "const block = teamInterceptPoint(p, this, this._escVel, rolesIndexFor(this, peers0), T.smartPounceObserveRadius + 0.5);"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:308；src/entities/smart-fox.js:333"
   },
   {
     "id": "beta.smartPounceRingTolerance",
@@ -765,7 +1200,15 @@
     "step": 0.002,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：提交环容差（来源 BETA_TUNE.smartPounceRingTolerance）。单位：m。范围：0.05～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：提交环容差（来源 BETA_TUNE.smartPounceRingTolerance）。单位：m。范围：0.05～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox-core.mjs",
+        "line": 291,
+        "code": "const tolerance = Number(tune.smartPounceRingTolerance) || 0.28;"
+      }
+    ],
+    "consumer": "src/entities/smart-fox-core.mjs:291"
   },
   {
     "id": "beta.smartPounceMemoryPenalty",
@@ -780,7 +1223,15 @@
     "max": 1,
     "step": 0.005,
     "capability": "runtime",
-    "help": "含义：记忆抑制系数（来源 BETA_TUNE.smartPounceMemoryPenalty）。单位：无量纲。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：记忆抑制系数（来源 BETA_TUNE.smartPounceMemoryPenalty）。单位：无量纲。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 280,
+        "code": "...(IS_BETA ? { pounceMemoryPenalty: T.smartPounceMemoryPenalty, pounceFatiguePenalty: T.smartPounceFatiguePenalty } : {}),"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:280"
   },
   {
     "id": "beta.smartPounceFatiguePenalty",
@@ -795,7 +1246,15 @@
     "max": 1,
     "step": 0.005,
     "capability": "runtime",
-    "help": "含义：疲劳抑制系数（来源 BETA_TUNE.smartPounceFatiguePenalty）。单位：无量纲。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：疲劳抑制系数（来源 BETA_TUNE.smartPounceFatiguePenalty）。单位：无量纲。范围：0～1。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 280,
+        "code": "...(IS_BETA ? { pounceMemoryPenalty: T.smartPounceMemoryPenalty, pounceFatiguePenalty: T.smartPounceFatiguePenalty } : {}),"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:280"
   },
   {
     "id": "beta.smartPounceHitRadiusCap",
@@ -811,7 +1270,15 @@
     "step": 0.005,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：扑击命中半径上限（来源 BETA_TUNE.smartPounceHitRadiusCap）。单位：m。范围：1.7～3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击命中半径上限（来源 BETA_TUNE.smartPounceHitRadiusCap）。单位：m。范围：1.7～3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/main.js",
+        "line": 2084,
+        "code": "? Math.min(reachBase, BETA_TUNE.smartPounceHitRadiusCap)"
+      }
+    ],
+    "consumer": "src/main.js:2084 → main.js swept contact（新打开游戏的配置；无实例热改）"
   },
   {
     "id": "beta.smartPounceLeadSeconds",
@@ -827,7 +1294,15 @@
     "step": 0.002,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：移动目标提前量（来源 BETA_TUNE.smartPounceLeadSeconds）。单位：s。范围：0～0.5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：移动目标提前量（来源 BETA_TUNE.smartPounceLeadSeconds）。单位：s。范围：0～0.5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 401,
+        "code": "const leadDistance = Math.min(T.smartPounceMaxLeadDistance, Math.hypot(this._escVel.x, this._escVel.z) * T.smartPounceLeadSeconds);"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:401"
   },
   {
     "id": "beta.smartPounceMaxLeadDistance",
@@ -843,7 +1318,15 @@
     "step": 0.01,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：提前量距离上限（来源 BETA_TUNE.smartPounceMaxLeadDistance）。单位：m。范围：0～3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：提前量距离上限（来源 BETA_TUNE.smartPounceMaxLeadDistance）。单位：m。范围：0～3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 401,
+        "code": "const leadDistance = Math.min(T.smartPounceMaxLeadDistance, Math.hypot(this._escVel.x, this._escVel.z) * T.smartPounceLeadSeconds);"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:401"
   },
   {
     "id": "beta.smartPounceStrikeSpeed",
@@ -859,7 +1342,15 @@
     "step": 0.1,
     "unit": "m/s",
     "capability": "runtime",
-    "help": "含义：扑击速度（来源 BETA_TUNE.smartPounceStrikeSpeed）。单位：m/s。范围：2～25。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：扑击速度（来源 BETA_TUNE.smartPounceStrikeSpeed）。单位：m/s。范围：2～25。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 448,
+        "code": "pounceStrikeSpeed: IS_BETA ? T.smartPounceStrikeSpeed : undefined,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:448"
   },
   {
     "id": "beta.smartPounceStrikeTime",
@@ -875,7 +1366,15 @@
     "step": 0.002,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：扑击位移时长（来源 BETA_TUNE.smartPounceStrikeTime）。单位：s。范围：0.05～0.8。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：扑击位移时长（来源 BETA_TUNE.smartPounceStrikeTime）。单位：s。范围：0.05～0.8。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 451,
+        "code": "pounceStrikeTime: IS_BETA ? T.smartPounceStrikeTime : undefined,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:451"
   },
   {
     "id": "beta.smartMeleeTriggerRange",
@@ -891,7 +1390,15 @@
     "step": 0.01,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：近战触发距离（来源 BETA_TUNE.smartMeleeTriggerRange）。单位：m。范围：0.5～4。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：近战触发距离（来源 BETA_TUNE.smartMeleeTriggerRange）。单位：m。范围：0.5～4。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox-core.mjs",
+        "line": 104,
+        "code": "const canStart = input.distance <= (Number(tune.smartMeleeTriggerRange) || 0)"
+      }
+    ],
+    "consumer": "src/entities/smart-fox-core.mjs:104"
   },
   {
     "id": "beta.smartMeleeHitRange",
@@ -907,7 +1414,25 @@
     "step": 0.01,
     "unit": "m",
     "capability": "runtime",
-    "help": "含义：近战命中距离（来源 BETA_TUNE.smartMeleeHitRange）。单位：m。范围：0.3～2.5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：近战命中距离（来源 BETA_TUNE.smartMeleeHitRange）。单位：m。范围：0.3～2.5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 575,
+        "code": "this.warn.scale.z = T.smartMeleeHitRange;"
+      },
+      {
+        "file": "src/entities/smart-fox-core.mjs",
+        "line": 140,
+        "code": "const range = Number(tune.smartMeleeHitRange) || 0;"
+      },
+      {
+        "file": "src/main.js",
+        "line": 2083,
+        "code": "const reach = smartMelee ? BETA_TUNE.smartMeleeHitRange : f.type === 'smart' && IS_BETA"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:575；src/entities/smart-fox-core.mjs:140；src/main.js:2083"
   },
   {
     "id": "beta.smartMeleeWindupTime",
@@ -923,7 +1448,25 @@
     "step": 0.002,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：近战前摇（来源 BETA_TUNE.smartMeleeWindupTime）。单位：s。范围：0.2～0.6。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：近战前摇（来源 BETA_TUNE.smartMeleeWindupTime）。单位：s。范围：0.2～0.6。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 525,
+        "code": "this.windFull = T.smartMeleeWindupTime;"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 526,
+        "code": "this.windTotal = T.smartMeleeWindupTime;"
+      },
+      {
+        "file": "src/entities/smart-fox-core.mjs",
+        "line": 90,
+        "code": "const windupTime = meleeDuration(tune.smartMeleeWindupTime, .25);"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:525；src/entities/smart-fox.js:526；src/entities/smart-fox-core.mjs:90"
   },
   {
     "id": "beta.smartMeleeStrikeTime",
@@ -939,7 +1482,15 @@
     "step": 0.001,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：近战攻击窗口（来源 BETA_TUNE.smartMeleeStrikeTime）。单位：s。范围：0.1～0.3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。"
+    "help": "含义：近战攻击窗口（来源 BETA_TUNE.smartMeleeStrikeTime）。单位：s。范围：0.1～0.3。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：与同组倍率、冷却和碰撞参数叠加时请避免超出预期。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox-core.mjs",
+        "line": 91,
+        "code": "const strikeTime = meleeDuration(tune.smartMeleeStrikeTime, .15);"
+      }
+    ],
+    "consumer": "src/entities/smart-fox-core.mjs:91"
   },
   {
     "id": "beta.smartMeleeRecoverTime",
@@ -955,7 +1506,15 @@
     "step": 0.005,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：近战 recover 后摇（来源 BETA_TUNE.smartMeleeRecoverTime）。单位：s。范围：0.2～1.5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：近战 recover 后摇（来源 BETA_TUNE.smartMeleeRecoverTime）。单位：s。范围：0.2～1.5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox-core.mjs",
+        "line": 92,
+        "code": "const recoverTime = meleeDuration(tune.smartMeleeRecoverTime, .45);"
+      }
+    ],
+    "consumer": "src/entities/smart-fox-core.mjs:92"
   },
   {
     "id": "beta.smartMeleeCooldown",
@@ -971,7 +1530,15 @@
     "step": 0.01,
     "unit": "s",
     "capability": "runtime",
-    "help": "含义：近战冷却（来源 BETA_TUNE.smartMeleeCooldown）。单位：s。范围：0.6～4。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：近战冷却（来源 BETA_TUNE.smartMeleeCooldown）。单位：s。范围：0.6～4。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox-core.mjs",
+        "line": 93,
+        "code": "const cooldownTime = Math.max(0, Number(tune.smartMeleeCooldown) || 0);"
+      }
+    ],
+    "consumer": "src/entities/smart-fox-core.mjs:93"
   },
   {
     "id": "beta.smartMeleeStrikeSpeed",
@@ -987,6 +1554,34 @@
     "step": 0.02,
     "unit": "m/s",
     "capability": "runtime",
-    "help": "含义：近战短位移速度（来源 BETA_TUNE.smartMeleeStrikeSpeed）。单位：m/s。范围：0～5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。"
+    "help": "含义：近战短位移速度（来源 BETA_TUNE.smartMeleeStrikeSpeed）。单位：m/s。范围：0～5。调大通常增强或延长该项效果，调小通常减弱或缩短该项效果；请结合预览确认。关联机制：智能狐 · 生命/体力/恢复/撤退与游戏运行时同名来源共同决定预览中的数值、时间线和辅助体积。危险组合：过大的范围、速度、锁定时间叠加过小的冷却或前摇，可能造成无可躲避或重复命中；过小的碰撞高度或范围可能漏判。",
+    "consumerReferences": [
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 438,
+        "code": "x: this.x + Math.sin(this._meleeState.yaw) * T.smartMeleeStrikeSpeed * dt,"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 439,
+        "code": "z: this.z + Math.cos(this._meleeState.yaw) * T.smartMeleeStrikeSpeed * dt,"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 440,
+        "code": "vx: Math.sin(this._meleeState.yaw) * T.smartMeleeStrikeSpeed,"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 441,
+        "code": "vz: Math.cos(this._meleeState.yaw) * T.smartMeleeStrikeSpeed,"
+      },
+      {
+        "file": "src/entities/smart-fox.js",
+        "line": 442,
+        "code": "speed: T.smartMeleeStrikeSpeed,"
+      }
+    ],
+    "consumer": "src/entities/smart-fox.js:438；src/entities/smart-fox.js:439；src/entities/smart-fox.js:440；src/entities/smart-fox.js:441；src/entities/smart-fox.js:442"
   }
 ]

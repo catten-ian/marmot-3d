@@ -176,6 +176,10 @@ export function createSmartFoxRetreat(tune = BETA_TUNE) {
     restSeconds: { smart: tune.smartRestSeconds },
     regenPerSec: tune.smartRestSafeHpRegenRatio,
     restHealTarget: tune.smartRestHealTarget,
+    // Only Beta SmartFox opts in: a lower configured healing target must
+    // never remove current health or revive a dead entity.
+    preserveCurrentHp: true,
+    requireDepletion: true,
   };
 }
 

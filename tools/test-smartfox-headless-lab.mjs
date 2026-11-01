@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { runScenario, runMatrix, createSeededRandom, selectMarmotTarget } from '../src/headless/smartfox-combat-lab.mjs';
+import { spawnSync } from 'node:child_process';
+import { runScenario, runMatrix, createSeededRandom, selectMarmotTarget, advanceLabProgress, labActorInvariants } from '../src/headless/smartfox-combat-lab.mjs';
 import { BETA_TUNE, createSmartFoxSpawnState, createSmartFoxVitals } from '../src/core/beta-tuning.js';
 
 test('headless lab is deterministic and uses fixed-step seeded scenarios', () => {
@@ -70,13 +71,17 @@ test('parry target selection follows a real windup attacker, not a closer idle f
 });
 
 test('live SmartFox and headless lab import the same decision core contract', async () => {
-  const [live, lab] = await Promise.all([
+  const [live, lab, baseFox] = await Promise.all([
     readFile(new URL('../src/entities/smart-fox.js', import.meta.url), 'utf8'),
     readFile(new URL('../src/headless/smartfox-combat-lab.mjs', import.meta.url), 'utf8'),
+    readFile(new URL('../src/entities/fox.js', import.meta.url), 'utf8'),
   ]);
   for (const token of ['utilityScores', 'updatePerception', 'assignRoles', 'stepSmartMotion', 'advanceSmartMelee', 'stepStamina', 'shouldRetreat', 'smartPounceDashDurationForDistance']) {
     assert.match(live, new RegExp(`\\b${token}\\b`), token);
     assert.match(lab, new RegExp(`\\b${token}\\b`), token);
+  }
+  for (const token of ['stepSmartRetreatNavigation', 'stepFoxLocomotion', 'steerGroundDirection']) {
+    assert.ok(baseFox.includes(token) && lab.includes(token), token);
   }
 });
 
@@ -87,4 +92,103 @@ test('dead SmartFox remains dead and is never healed or respawned in the same ru
   const dead = result.foxes.filter((f) => f.dead);
   assert.ok(dead.length > 0);
   for (const f of dead) { assert.equal(f.hp, 0); assert.equal(f.state, 'dead'); }
+});
+
+
+test('all five movement policies execute distinct real trajectories; seed affects zigzag', () => {
+  const endpoints = new Set();
+  for (const movement of ['stationary', 'chase', 'orbit', 'kite', 'zigzag']) {
+    const r = runScenario({ seed:20261031, duration:6, movement });
+    assert.equal(r.marmots[0].strategy, movement);
+    const {x,z} = r.marmots[0];
+    if (movement === 'stationary') assert.equal(Math.hypot(x,z), 0);
+    else assert.ok(Math.hypot(x,z) > 1);
+    endpoints.add(`${x.toFixed(5)},${z.toFixed(5)}`);
+  }
+  assert.equal(endpoints.size, 5, 'the strategy must reach the actor, not merely appear in output metadata');
+  const a = runScenario({seed:11, duration:6, movement:'zigzag'});
+  const b = runScenario({seed:12, duration:6, movement:'zigzag'});
+  assert.notDeepEqual(a.movementTrace, b.movementTrace);
+});
+
+test('parry opening has no prior tap; movement resumes after real parry and follow-up hit', () => {
+  for (const movement of ['stationary', 'chase', 'orbit', 'kite', 'zigzag']) {
+    const r = runScenario({seed:20261031, duration:6, foxes:4, movement, scenario:'parry-tap'});
+    assert.equal(r.status, 'completed');
+    const success = r.events.find(e=>e.type==='parry_success');
+    assert.ok(success);
+    assert.ok(!r.events.some(e=>e.type==='marmot_attack_attempt' && e.t<success.t));
+    const opening = r.events.find(e=>e.type==='opening_complete');
+    assert.ok(opening && opening.t>success.t);
+    assert.ok(r.movementTrace.some(s=>s.t>opening.t && s.marmots[0].phase==='movement'));
+    assert.ok(r.movementTrace.every(s=>s.marmots[0].strategy===movement));
+  }
+});
+
+test('long real-hit retreat uses configured far distance before safe resting; no lethal healing target', () => {
+  for (const distance of [60,70]) {
+    const r = runScenario({seed:20261031, duration:16, movement:'stationary', tune:{smartRestMinPlayerDistance:distance,smartRestHealTarget:0}});
+    const hit = r.events.find(e=>e.type==='marmot_hit');
+    const retreat = r.events.find(e=>e.type==='fox_retreat');
+    const arrived = r.events.find(e=>e.type==='fox_rest_safe');
+    assert.ok(hit && retreat && arrived && hit.t<retreat.t && retreat.t<arrived.t);
+    assert.equal(retreat.requiredMinDistance, distance);
+    assert.ok(retreat.targetDistance>=distance && arrived.distance>=distance);
+    assert.ok(r.foxes[0].hp>=arrived.hp, 'rest target below current HP cannot damage the fox');
+    assert.equal(r.foxes[0].dead, false);
+  }
+});
+
+test('lab validates bounded time/counts, sanitizes overrides, and rejects NaN invariants', () => {
+  for(const config of [{dt:0},{dt:NaN},{dt:Infinity},{duration:-1},{duration:Infinity},{foxes:0},{foxes:1.5},{foxes:65},{scenario:'unknown'},{movement:'unknown'}]) {
+    assert.throws(()=>runScenario(config), RangeError, JSON.stringify(config));
+  }
+  assert.throws(()=>runMatrix({duration:300}), /budget/);
+  const r = runScenario({duration:1, tune:{smartMaxHp:-2, smartMaxStamina:Infinity, smartPounceStaminaCost:0, unknown:5}});
+  assert.equal(r.spawn[0].maxHp,1); assert.equal(r.spawn[0].maxStamina,100);
+  assert.equal(r.config.tune.smartPounceStaminaCost,0);
+  assert.ok(r.config.tuneWarnings.some(x=>x.includes('smartMaxStamina')));
+  assert.ok(r.config.ignoredTuneKeys.includes('unknown'));
+  const actor={slot:0,x:NaN,z:0,hp:1,maxHp:4,stamina:100,maxStamina:100};
+  assert.ok(labActorInvariants([actor],[]).includes('fox0:nonfinite:x'));
+});
+
+test('progress diagnostics ignore constant population and recognize actual idle', () => {
+  const actor={x:0,z:0,hp:4,stamina:100,state:'roam'};
+  let progress;
+  for(let i=0;i<360;i++) progress=advanceLabProgress(progress,[actor],1/60);
+  assert.equal(progress.stalled,true);
+  actor.x=.1; progress=advanceLabProgress(progress,[actor],1/60);
+  assert.equal(progress.stalled,false);
+  const r=runScenario({seed:20261031,duration:6,foxes:4,movement:'chase'});
+  assert.ok(!r.events.some(e=>e.type==='no_progress'));
+  assert.ok(r.metrics.attackPressure>0);
+});
+
+test('CLI invalid inputs fail promptly and machine-readably without wall-clock simulation', () => {
+  for(const args of [['repro','--dt','0'],['matrix','--duration','Infinity'],['typo'],['repro','--movement','typo']]) {
+    const child=spawnSync(process.execPath,['tools/smartfox-headless-lab.mjs',...args],{encoding:'utf8',timeout:5000});
+    assert.equal(child.status,2,child.stderr);
+    const r=JSON.parse(child.stdout); assert.equal(r.status,'failed'); assert.equal(r.code,'invalid_input');
+  }
+});
+
+
+test('configured high retreat threshold reaches real navigation instead of an adapter .7 gate', () => {
+  const r=runScenario({seed:20261031,duration:16,movement:'stationary',tune:{smartMaxHp:8,smartRetreatHpRatio:.95}});
+  const hit=r.events.find(e=>e.type==='marmot_hit'), retreat=r.events.find(e=>e.type==='fox_retreat');
+  assert.ok(hit && retreat && retreat.t>hit.t);
+  assert.ok(r.events.some(e=>e.type==='fox_rest_safe' && e.distance>=60));
+});
+
+
+test('chase opening approaches even for later stationary policy, hits one lunge then genuine taps', () => {
+  for (const movement of ['stationary','chase','orbit','kite','zigzag']) {
+    const r=runScenario({seed:20261031,duration:6,foxes:4,movement,scenario:'chase-pounce-tap'});
+    const hits=r.events.filter(e=>e.type==='marmot_hit');
+    assert.equal(hits.filter(e=>e.move==='lunge').length,1);
+    assert.ok(hits.some(e=>e.move==='tap' && e.t>hits.find(e=>e.move==='lunge').t));
+    const opening=r.events.find(e=>e.type==='opening_complete');assert.ok(opening);
+    assert.ok(r.movementTrace.some(e=>e.t>opening.t && e.marmots[0].phase==='movement'));
+  }
 });

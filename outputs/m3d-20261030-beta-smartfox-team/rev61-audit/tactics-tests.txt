@@ -1,0 +1,25 @@
+✔ flankSlots：返回 count 个槽位 (2.054227ms)
+✔ flankSlots：槽位角度互不相同（不重叠） (0.171824ms)
+✔ flankSlots：槽位围绕逃跑轴分布（全部在后半球，不挤在正面） (0.149123ms)
+✔ assignFlankSlot：不同 self 拿到不同槽位（不抢同一个） (0.238639ms)
+✔ assignFlankSlot：没有可用槽位时返回 null（不崩） (0.109271ms)
+✔ assignRoles：只有一只 striker (0.372492ms)
+✔ assignRoles：有伤/撤退中的狐是 retreat (0.108415ms)
+✔ assignRoles：粘性 —— 同样输入两次结果相同，且 holdTime 内不换 striker (0.344416ms)
+✔ assignRoles：单只狐直接是 striker；空数组不崩 (0.140392ms)
+✔ forcedRetreat：刚被打 → true；没被打过 → false；旧事 → false (0.131584ms)
+✔ assignRoles beta：两只健康狐都获得真实攻击位，撤退者不占位 (0.209755ms)
+✔ assignRoles beta：三只健康狐全部获得真实攻击位 (0.100031ms)
+✔ assignRoles beta：健康狐数量动态扩展且忽略旧双攻击上限 (0.176154ms)
+✔ assignRoles beta：残血/耗尽休息，保持角色直到 hold/cooldown 结束 (0.121023ms)
+✔ teamInterceptPoint：速度与槽位索引产生确定、远离贴脸的拦截点 (0.173989ms)
+✔ assignRoles beta：4/8 只健康狐全部获得真实攻击角色，撤退/休息/死亡不占位 (0.164454ms)
+✔ flankSlots：8 狐全圆分布且槽位不重复 (0.101707ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13.218919

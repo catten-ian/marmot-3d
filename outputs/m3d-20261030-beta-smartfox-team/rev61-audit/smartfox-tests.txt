@@ -1,0 +1,44 @@
+ASSERT memory-delay-decay/window-expiry OK
+ASSERT habituation/debounce/stagger/separation OK
+ASSERT utility-weight-snapshot OK
+ASSERT track-feint/repeat-habituation OK
+ASSERT feint-scale/default-equivalence OK
+ASSERT recover-lock/recommit-gate OK
+ASSERT ground-steer/zero-speed-null OK
+{"kind":"standing-pounce-simulation","attempts":1000,"hits":890,"rate":0.89}
+✔ utilityScores 返回全部意图且选出唯一 topIntent (0.828765ms)
+✔ 远距离未察觉时偏好 observe，近距离高怀疑时偏好进攻 (0.129264ms)
+✔ 玩家格挡且有记忆时偏好 feint（虚晃） (0.136722ms)
+✔ 残血高疲劳时偏好 recover/abandon (0.094492ms)
+✔ 感知：进入视野锥且靠近时怀疑度上升，离开后衰减 (0.301096ms)
+✔ 视野锥外（viewDot<cos60°）不积累怀疑 (0.143184ms)
+✔ 扑击一旦提交不可取消，并在约 0.72s 后进入冷却 (0.468341ms)
+✔ 受击打断累加记忆与打断次数 (0.113433ms)
+✔ 统一运动高速转向上限更低且转向时持续前进 (0.358948ms)
+✔ pounce distance integrates acceleration and habituation is capped (0.161776ms)
+✔ pounce rejects misaligned intent and uses readable windup (0.18149ms)
+✔ 记忆延迟后按每秒衰减且打断时间窗会过期 (0.780113ms)
+✔ 佯攻习惯化、防抖、群战错峰与分离纯函数 (0.254024ms)
+✔ 权重快照保持原公式数值 (0.146102ms)
+✔ trackFeint 只统计进入佯攻且受击/扑击清零 (0.166621ms)
+✔ feintScale 按比例作用且默认快照不变 (0.149811ms)
+✔ 扑击自然结束后的 recover 硬直阻止再次 committed (0.327572ms)
+✔ steerGroundDirection 直冲岩石转为切向且零速返回 null (0.250052ms)
+✔ Beta 扑击瞄准纯函数在提交态剔除包抄与分离偏移 (0.143069ms)
+✔ 站立玩家扑击命中率模拟处于可命中但非必中区间 (56.49295ms)
+✔ 提交判定独立于导航扩展目标，并锁定 lead 点 (0.239348ms)
+✔ 智能狐 contactCd 每帧递减且不低于零 (0.227265ms)
+✔ Beta 接近环显式拆分 approach/align/backoff 且错过窗口不穿过玩家 (0.221402ms)
+✔ Beta 环内但未对正时不得停在 align（否则永远无法提交） (0.101436ms)
+✔ Beta 前摇进度不得因瞬时未就绪被重置（否则永远无法提交） (0.194726ms)
+✔ Beta 提交与 melee 互斥，提交后仍不可取消 (0.144293ms)
+✔ Beta 动态攻击群取消两提交窗上限但保留错峰间隔 (0.117311ms)
+✔ Beta 共享 dash 时长能覆盖 5.4m 提交的既定目标带，不改 strike 命中范围 (0.146269ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 68.824461
