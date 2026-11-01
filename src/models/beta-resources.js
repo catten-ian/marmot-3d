@@ -1,10 +1,9 @@
 import * as THREE from 'three';
 import { loadModel, resetModelLoadCache } from './loader.js';
 import { loadSceneModel, resetSceneModelCache } from './scene.js';
-import { BetaMarmotModel } from '../entities/beta-marmot-model.js';
 
 export const BETA_RESOURCE_MANIFEST = Object.freeze([
-  { id: 'player-marmot', url: './assets/models/marmot-run-stand.glb', kind: 'model', requiredClips: ['Run', 'StandIdle', 'StandUp'] },
+  { id: 'player-marmot', url: './assets/models/marmot-run-stand.glb', kind: 'model', consumers: ['player', 'companion'], requiredClips: ['Run', 'StandIdle', 'StandUp'] },
   { id: 'fox', url: './assets/models/fox.glb', kind: 'model' },
   { id: 'terrain-backdrop', url: './assets/models/terrain-lod.glb', kind: 'scene' },
   { id: 'citrus-sky', url: 'assets/sky/citrus_orchard_road_puresky_1k.jpg', kind: 'texture' },
@@ -14,12 +13,6 @@ function validateModel(record, spec) {
   if (!record || record.level !== 'full' || !record.textured) throw new Error(`${spec.id}: 模型或贴图未完整就绪`);
   if (spec.requiredClips?.some((name) => !record.animations?.some((clip) => clip.name === name && clip.duration > 0 && clip.tracks?.length))) {
     throw new Error(`${spec.id}: 缺少必需动画`);
-  }
-  if (spec.requiredClips) {
-    const clone = record.scene.clone(true);
-    clone.userData.animations = record.animations;
-    const rig = new BetaMarmotModel(clone, 0.9);
-    rig.dispose();
   }
 }
 

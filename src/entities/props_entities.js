@@ -10,7 +10,7 @@
  */
 import * as THREE from 'three';
 import { terrainHeight } from '../core/utils.js';
-import { instantiate, normalizeModel } from '../models/loader.js';
+import { instantiate, normalizeModel, resetModelLoadCache, disposeModelInstance } from '../models/loader.js';
 import { USE_REAL_MODELS, IS_BETA } from '../core/version.js';
 import { BETA_TUNE } from '../core/beta-tuning.js';
 import { companionFollowStep } from './marmot-rig.js';
@@ -301,7 +301,34 @@ export class Companion {
     this.actions = new Map();
     this.activeClip = null;
     this._lastFollowSpeed = 0;
-    this._loadRealModel();
+    if (IS_BETA) {
+      this._readyPromise = null;
+      this.ready = this.ensureReady();
+      void this.ready.catch(() => {});
+    } else this._loadRealModel();
+  }
+
+  /** Beta readiness includes attachment, rig binding, materials and size validation. */
+  ensureReady() {
+    if (this.realModel && this.rig) return Promise.resolve(this);
+    if (this._readyPromise) return this._readyPromise;
+    this._readyFailed = false;
+    this._readyPromise = this._loadRealModel().then((ok) => {
+      if (!ok || !this.realModel || !this.rig) throw new Error('伙伴模型或 rig 初始化失败');
+      return this;
+    }).catch((error) => {
+      this._readyFailed = true;
+      throw error;
+    });
+    this.ready = this._readyPromise;
+    return this.ready;
+  }
+
+  resetReady() {
+    if (this._readyFailed) {
+      resetModelLoadCache('./assets/models/marmot-run-stand.glb', { failedOnly: true });
+      this._readyPromise = null;
+    }
   }
 
   /**
@@ -313,9 +340,10 @@ export class Companion {
    */
   async _loadRealModel() {
     if (!USE_REAL_MODELS) return;
+    let inst;
     try {
-      const inst = await instantiateMarmot();
-      if (!inst) { this.modelLevel = 'procedural'; return; }
+      inst = await instantiateMarmot();
+      if (!inst) { this.modelLevel = 'procedural'; return false; }
       this.rig = IS_BETA ? new BetaMarmotModel(inst, 0.75) : null;
       const norm = this.rig ? { wrap: this.rig.wrap } : normalizeModel(inst, 0.75, { upAxis: 'native' });
       if (this.rig) { this.mixer = this.rig.mixer; this.actions = this.rig.actions; this.activeClip = this.rig.activeClip; }
@@ -330,10 +358,12 @@ export class Companion {
       if (!(rs.x > 1e-3 && rs.y > 1e-3 && rs.z > 1e-3 && rs.y < 5)) {
         console.warn('[companion] 真实模型尺寸异常，回退:', rs.toArray().map((v) => v.toFixed(3)));
         this._discardRealModel();
-        return;
+        return false;
       }
       this._restoreVisibility();
+      return true;
     } catch (e) {
+      if (IS_BETA && !this.realModel) disposeModelInstance(inst);
       console.warn('[companion] 绑定/静态土拨鼠不可用，使用程序化建模', e);
       this._discardRealModel();
     }
@@ -360,7 +390,8 @@ export class Companion {
     if (this.realModel) {
       this.mesh.remove(this.realModel);
       this.realModel.traverse((o) => {
-        if (o.geometry) o.geometry.dispose?.();
+        // Beta instances share cached geometry; dispose only instance materials.
+        if (!IS_BETA && o.geometry) o.geometry.dispose?.();
         const mats = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of mats) { m?.dispose?.(); }
       });

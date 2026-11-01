@@ -44,10 +44,10 @@ test('follow animation is based on current displacement, including arrival and s
 
 test('failed Beta loads retain the existing visible procedural fallback', () => {
   const main = read('src/main.js'), props = read('src/entities/props_entities.js');
-  assert.match(main, /if \(!inst\) return;/);
+  assert.match(main, /if \(!inst\) throw new Error/);
   assert.match(main, /uploaded marmot unavailable; procedural fallback/);
   assert.match(props, /this\.proceduralMesh = buildMarmotMesh/);
-  assert.match(props, /if \(!inst\) \{ this\.modelLevel = 'procedural'; return; \}/);
+  assert.match(props, /if \(!inst\) \{ this\.modelLevel = 'procedural'; return false; \}/);
   assert.match(props, /this\.proceduralMesh\.visible = !useReal/);
 });
 
@@ -113,8 +113,9 @@ test('production asset matches the upload; real skin, embedded images, nonempty 
 
 test('Beta player/companion/preload use upload, other channel defaults remain marmot.glb', () => {
   const main = read('src/main.js'), props = read('src/entities/props_entities.js');
-  assert.match(main, /if \(IS_BETA && USE_REAL_MODELS\)/);
-  assert.match(main, /instantiate\('\.\/assets\/models\/marmot-run-stand.glb', 'marmot'\)/);
+  assert.match(main, /if \(!IS_BETA\) audio\.ensure\(\);/);
+  assert.match(main, /if \(!IS_BETA \|\| !USE_REAL_MODELS\)/);
+  assert.match(main, /instantiate\(PLAYER_MODEL_URL, 'marmot'\)/);
   assert.match(main, /new BetaMarmotModel\(inst, 0.9\)/);
   assert.match(main, /grazing: grazeTarget > 0/);
   assert.match(main, /marmotFile: IS_BETA \? 'marmot-run-stand.glb' : 'marmot.glb'/);

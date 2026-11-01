@@ -31,7 +31,7 @@ import {
 import { Keybinds, ACTIONS, findConflicts } from './core/keybinds.js';
 import { bindText, kbd, schemeHints, setHintBinds } from './core/key-hints.mjs';
 import { BetaMarmotModel } from './entities/beta-marmot-model.js';
-import { preloadModels, instantiate } from './models/loader.js';
+import { preloadModels, instantiate, resetModelLoadCache, disposeModelInstance } from './models/loader.js';
 import { createResourceEntryGate } from './models/beta-resource-gate.mjs';
 import { createBetaResourceSpecs } from './models/beta-resources.js';
 import { buildBackdrop } from './models/scene.js';
@@ -413,18 +413,35 @@ playerModel.visible = false;
 
 // Beta alone uses the user's uploaded skin and its three original clips.
 let playerRig = null;
-let playerRigReady = Promise.resolve();
-if (IS_BETA && USE_REAL_MODELS) {
-  playerRigReady = instantiate('./assets/models/marmot-run-stand.glb', 'marmot').then((inst) => {
-    if (!inst) return;
-    const rig = new BetaMarmotModel(inst, 0.9);
-    // Upload faces local +Z; playerModel's existing +PI yaw faces movement.
-    playerModel.add(rig.wrap);
-    playerRig = rig;
-    playerBody.visible = false;
-    return rig;
-  }).catch((error) => { console.warn('[player] uploaded marmot unavailable; procedural fallback:', error); throw error; });
+let playerRigReady = null;
+const PLAYER_MODEL_URL = './assets/models/marmot-run-stand.glb';
+function ensurePlayerRig() {
+  if (!IS_BETA || !USE_REAL_MODELS) return Promise.reject(new Error('Beta 玩家真实模型已关闭'));
+  if (playerRig) return Promise.resolve(playerRig);
+  if (playerRigReady) return playerRigReady;
+  playerRigReady = instantiate(PLAYER_MODEL_URL, 'marmot').then((inst) => {
+    if (!inst) throw new Error('玩家模型实例为空');
+    let rig;
+    try {
+      rig = new BetaMarmotModel(inst, 0.9);
+      playerModel.add(rig.wrap);
+      playerRig = rig;
+      playerBody.visible = false;
+      return rig;
+    } catch (error) {
+      rig?.wrap.removeFromParent();
+      rig?.dispose();
+      disposeModelInstance(inst);
+      throw error;
+    }
+  }).catch((error) => {
+    playerRigReady = null;
+    console.warn('[player] uploaded marmot unavailable; procedural fallback:', error);
+    throw error;
+  });
+  return playerRigReady;
 }
+if (IS_BETA) void ensurePlayerRig().catch(() => {});
 
 const VIEW_MODE_KEY = 'marmot3d.viewMode.v1';
 let thirdPerson = false;
@@ -503,11 +520,11 @@ preloadModels('./assets/models/', {
 const betaEntryGate = IS_BETA ? createResourceEntryGate({
   resources: [
     ...createBetaResourceSpecs(),
-    { id: 'player-rig-init', load: () => playerRigReady, validate: (rig) => { if (!rig) throw new Error('玩家 BetaMarmotModel rig 未初始化'); } },
-    { id: 'companion-rig-init', load: () => Promise.resolve(companion.ready).then(() => companion), validate: (c) => { if (!c?.realModel || !c.rig) throw new Error('伙伴模型或 rig 未初始化'); } },
+    { id: 'player-rig-init', load: () => ensurePlayerRig(), reset: () => resetModelLoadCache(PLAYER_MODEL_URL, { failedOnly: true }), validate: (rig) => { if (!rig) throw new Error('玩家 BetaMarmotModel rig 未初始化'); } },
+    { id: 'companion-rig-init', load: () => companion.ensureReady(), reset: () => companion.resetReady(), validate: (c) => { if (!c?.realModel || !c.rig) throw new Error('伙伴模型或 rig 未初始化'); } },
   ],
   audioReady: async () => {
-    if (!audio.ensure()) throw new Error('音频 AudioContext 无法在用户手势中启动');
+    if (betaAudioEnsureFailed) throw new Error('音频 AudioContext 无法在用户手势中启动');
     if (typeof audio.ready !== 'function') throw new Error('音频资源进入门未提供 ready()');
     await audio.ready();
   },
@@ -515,19 +532,27 @@ const betaEntryGate = IS_BETA ? createResourceEntryGate({
   onError: (error) => hud.setLoading(0, `资源加载失败：${error.resourceId || '音频'} · ${error.message || error}`),
 }) : null;
 
-async function enterWithBetaGate(label, action) {
+let betaEntryAttempt = null;
+let betaAudioEnsureFailed = false;
+function enterWithBetaGate(label, action) {
   if (!IS_BETA) return action();
-  if (!betaEntryGate) return action();
+  if (betaEntryAttempt) return betaEntryAttempt;
+  // ensure/resume must run synchronously in the click/key handler, before any await.
+  betaAudioEnsureFailed = audio.ensure() === false;
   hud.beginLoadingSession(label);
-  try {
-    audio.ensure();
-    await betaEntryGate.enter();
+  betaEntryAttempt = betaEntryGate.enter(async () => {
+    hud.hideLoader();
     return await action();
-  } catch (error) {
-    hud.showPanel(`<h2>资源加载失败</h2><p>${error.resourceId || '音频'}：${error.message || error}</p><button class="primary" id="resourceRetryBtn">重试</button>`);
-    document.getElementById('resourceRetryBtn')?.addEventListener('click', () => { betaEntryGate.reset(); void enterWithBetaGate(label, action); }, { once: true });
+  }).catch((error) => {
+    hud.hideLoader();
+    hud.showPanel(`<h2>资源加载失败</h2><p>${escapeHtml(error.resourceId || '音频')}：${escapeHtml(error.message || String(error))}</p><button class="primary" id="resourceRetryBtn">重试</button>`);
+    document.getElementById('resourceRetryBtn')?.addEventListener('click', () => {
+      betaEntryGate.reset();
+      void enterWithBetaGate(label, action);
+    }, { once: true });
     return undefined;
-  }
+  }).finally(() => { betaEntryAttempt = null; });
+  return betaEntryAttempt;
 }
 
 // —— 场景远景 ——
@@ -1197,9 +1222,11 @@ function completeLevel() {
   controller.exitLock();
   hud.showPanel(levelClearHTML());
   document.getElementById('nextBtn').onclick = () => {
-    hud.hidePanel();
-    loadLevel(game.level + 1, true);
-    if (!controller.touchEnabled) controller.requestLock();
+    return enterWithBetaGate('准备下一关', () => {
+      hud.hidePanel();
+      loadLevel(game.level + 1, true);
+      if (!controller.touchEnabled) controller.requestLock();
+    });
   };
   document.getElementById('clearSelectBtn').onclick = showLevelSelect;
 }
@@ -1436,6 +1463,7 @@ function showTeacherNote() {
 }
 
 function startPlay() {
+  if (!IS_BETA) audio.ensure();
   return enterWithBetaGate('准备进入游戏', () => {
     hidePauseMini();
     hud.hidePanel();
@@ -1446,6 +1474,7 @@ function startPlay() {
 }
 
 function resetAll() {
+  if (IS_BETA && betaEntryAttempt) return;
   game.completed = 0;
   game.totalRepels = 0;
   game.totalTime = 0;
@@ -1456,6 +1485,9 @@ function resetAll() {
 }
 
 function retryLevel() {
+  return enterWithBetaGate('准备重试关卡', retryLevelReady);
+}
+function retryLevelReady() {
   hidePauseMini();
   loadLevel(game.level, false);
   game.mode = 'play';
@@ -2757,6 +2789,7 @@ const isBound = (code) => {
 window.addEventListener('keydown', (e) => {
   // 独立扮演模式自行读取同一 Keybinds；不得同时触发土拨鼠动作。
   if (playAsFox) return;
+  if (IS_BETA && betaEntryAttempt) return;
   if (e.repeat) {
     // 长按只记录"按住"状态（攻击/移动需要），不重复触发单次动作
     if (game.mode === 'play' && isBound(e.code)) {
