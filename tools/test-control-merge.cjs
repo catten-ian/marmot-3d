@@ -113,12 +113,19 @@ const path = require('node:path');
   assert.ok(devHint.movement.includes('横移'), 'dev optimized hint preserves arrow strafe description');
 
   const root = path.resolve(__dirname, '..');
-    // TPS keys select screen directions exactly like the touch joystick.
-    // Only FPV keyboard steering owns camera yaw.
-    const keyboard = resolveKeyboardDrive(
-      keys, moveMap, turnMap, this.yaw, PLAYER.handling.turnRate, dt,
-      PLAYER.backpedalSpeed, this.thirdPerson,
-    );
+  const controlsSource = fs.readFileSync(path.join(root, 'src/core/controls.js'), 'utf8');
+  const keyboardBlock = controlsSource.slice(
+    controlsSource.indexOf('const keyboard = resolveKeyboardDrive'),
+    controlsSource.indexOf('this.isBackpedal = intent.isBackpedal'),
+  );
+  assert.match(keyboardBlock, /PLAYER\.backpedalSpeed, this\.thirdPerson/,
+    'keyboard resolver receives the actual perspective');
+  assert.match(keyboardBlock, /if \(!this\.thirdPerson\) this\.yaw = keyboard\.yaw/,
+    'only FPV keyboard steering writes camera yaw');
+  assert.match(keyboardBlock, /if \(this\.thirdPerson \|\|/,
+    'all TPS inputs use the touch screen-direction resolver');
+  assert.match(keyboardBlock, /x: this\.thirdPerson \? mx : this\.touchAxes\.x/,
+    'TPS uses combined screen axes rather than a lateral/backpedal special case');
   const settingsSource = fs.readFileSync(path.join(root, 'src/ui/settings.js'), 'utf8');
   const mainSource = fs.readFileSync(path.join(root, 'src/main.js'), 'utf8');
   assert.match(settingsSource, /if \(IS_BETA\)[\s\S]*?data-control-mode/, 'beta settings expose the control mode choice');

@@ -216,8 +216,7 @@ export class FirstPersonController {
       keys, moveMap, turnMap, this.yaw, PLAYER.handling.turnRate, dt,
       PLAYER.backpedalSpeed, this.thirdPerson,
     );
-    );
-    this.yaw = keyboard.yaw;
+    if (!this.thirdPerson) this.yaw = keyboard.yaw;
     let mx = keyboard.mx, mz = keyboard.mz;
     // Touch joystick axes share the same acceleration/collision path as WASD.
     // The combined vector is normalized below, so mixing keyboard and touch
