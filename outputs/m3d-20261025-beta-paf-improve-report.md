@@ -103,7 +103,7 @@
 日期：2026-11-02（Asia/Shanghai）
 通道 / 分支：`beta` / `codex/beta-paf-timed-range-20261102`
 基线：`95c6f2acc9f78181158d60f8a004397e0e0b2a2e`（rev61）
-实现 commit：`6566139`（本地；未 push、未部署）。
+实现 commit：`6566139002cbcc2fcfe3359c491fb8775de55730`（本地；未 push、未部署）。
 
 ## 行为
 
