@@ -210,8 +210,12 @@ export class FirstPersonController {
     turnMap = null,
   ) {
     const base = PLAYER.speed * speedMul;
+    // TPS keys select screen directions exactly like the touch joystick.
+    // Only FPV keyboard steering owns camera yaw.
     const keyboard = resolveKeyboardDrive(
-      keys, moveMap, turnMap, this.yaw, PLAYER.handling.turnRate, dt, PLAYER.backpedalSpeed,
+      keys, moveMap, turnMap, this.yaw, PLAYER.handling.turnRate, dt,
+      PLAYER.backpedalSpeed, this.thirdPerson,
+    );
     );
     this.yaw = keyboard.yaw;
     let mx = keyboard.mx, mz = keyboard.mz;
@@ -235,13 +239,13 @@ export class FirstPersonController {
 
     let intent = resolveMoveIntent(mx, mz, this.yaw, PLAYER.backpedalSpeed);
     const touchActive = Math.hypot(this.touchAxes.x, this.touchAxes.y) > 1e-6;
-    if (touchActive && !turnActive) {
-      // 第一人称把摇杆横向转向与带符号前后油门同帧合并；
-      // 第三人称仍按屏幕方向跑，且摇杆绝不写入镜头 yaw。
+    if (this.thirdPerson || (touchActive && !turnActive)) {
+      // TPS merges keyboard/touch before the shared screen-direction resolver.
+      // FPV keeps joystick steering + signed throttle and independent touch look.
       const drive = resolveTouchDrive({
-        // 拉视角中：第一人称用身体朝向计算移动，避免右手环视瞬间改变摇杆方向。
         bodyYaw: this.bodyYaw, cameraYaw: (!this.thirdPerson && this.touchLookActive) ? this.bodyYaw : this.yaw,
-        x: this.touchAxes.x, y: this.touchAxes.y, dt,
+        x: this.thirdPerson ? mx : this.touchAxes.x,
+        y: this.thirdPerson ? mz : this.touchAxes.y, dt,
         turnRate: 2.7, backpedalSpeed: PLAYER.backpedalSpeed,
         thirdPerson: this.thirdPerson,
       });

@@ -24,12 +24,12 @@ export function resolveMoveIntent(mx, mz, yaw, backpedalSpeed = 0.58) {
   };
 }
 
-/** Resolve keyboard movement and optional steering independently, then combine them. */
-export function resolveKeyboardDrive(keys, moveMap, turnMap, yaw, turnRate, dt, backpedalSpeed = 0.58) {
+/** TPS selects screen directions; FPV retains movement plus optional steering. */
+export function resolveKeyboardDrive(keys, moveMap, turnMap, yaw, turnRate, dt, backpedalSpeed = 0.58, thirdPerson = false) {
   const down = (code) => !!code && keys.has(code);
   const turn = Number(down(turnMap?.left) || down(turnMap?.leftAlt))
     - Number(down(turnMap?.right) || down(turnMap?.rightAlt));
-  const nextYaw = yaw + turn * turnRate * dt;
+  const nextYaw = thirdPerson ? yaw : yaw + turn * turnRate * dt;
   let mx = 0, mz = 0;
   if (down(moveMap?.forward) || down(moveMap?.forwardAlt)) mz += 1;
   if (down(moveMap?.back) || down(moveMap?.backAlt)) mz -= 1;
@@ -37,6 +37,21 @@ export function resolveKeyboardDrive(keys, moveMap, turnMap, yaw, turnRate, dt, 
   if (down(moveMap?.right) || down(moveMap?.rightAlt)) mx += 1;
   const turnActive = down(turnMap?.left) || down(turnMap?.leftAlt)
     || down(turnMap?.right) || down(turnMap?.rightAlt);
+  if (thirdPerson) {
+    // Driving profiles place A/D in turnMap; in TPS these are screen-left/right.
+    mx -= turn;
+    const drive = resolveTouchDrive({
+      bodyYaw: yaw, cameraYaw: yaw, x: mx, y: mz, dt, thirdPerson: true,
+    });
+    const length = Math.max(1, Math.hypot(mx, mz));
+    return {
+      yaw, mx, mz, turn: 0, turnActive: false,
+      intent: {
+        mx: mx / length, mz: mz / length, moveX: drive.moveX, moveZ: drive.moveZ,
+        facingYaw: drive.bodyYaw, isBackpedal: false, speedScale: 1,
+      },
+    };
+  }
   return {
     yaw: nextYaw, mx, mz, turn, turnActive,
     intent: resolveMoveIntent(mx, mz, nextYaw, backpedalSpeed),

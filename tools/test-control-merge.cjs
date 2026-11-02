@@ -26,6 +26,7 @@ const path = require('node:path');
   assert.equal(betaDriving.moveMap.forward, 'KeyW');
   assert.equal(betaDriving.moveMap.back, 'KeyS');
 
+  // Calls without thirdPerson explicitly exercise the unchanged FPV contract.
   const left = resolveKeyboardDrive(new Set(['KeyA']), betaDriving.moveMap, betaDriving.turnMap, 0, 2.2, 0.1, 0.58);
   assert.ok(left.yaw > 0.2 && left.mx === 0 && left.mz === 0, 'A turns left without moving laterally');
   const arrowRight = resolveKeyboardDrive(new Set(['ArrowRight']), betaDriving.moveMap, betaDriving.turnMap, 0, 2.2, 0.1);
@@ -112,6 +113,12 @@ const path = require('node:path');
   assert.ok(devHint.movement.includes('横移'), 'dev optimized hint preserves arrow strafe description');
 
   const root = path.resolve(__dirname, '..');
+    // TPS keys select screen directions exactly like the touch joystick.
+    // Only FPV keyboard steering owns camera yaw.
+    const keyboard = resolveKeyboardDrive(
+      keys, moveMap, turnMap, this.yaw, PLAYER.handling.turnRate, dt,
+      PLAYER.backpedalSpeed, this.thirdPerson,
+    );
   const settingsSource = fs.readFileSync(path.join(root, 'src/ui/settings.js'), 'utf8');
   const mainSource = fs.readFileSync(path.join(root, 'src/main.js'), 'utf8');
   assert.match(settingsSource, /if \(IS_BETA\)[\s\S]*?data-control-mode/, 'beta settings expose the control mode choice');
