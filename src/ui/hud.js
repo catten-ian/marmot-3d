@@ -134,7 +134,13 @@ export class HUD {
     if (this.el.loaderBytes) { this.el.loaderBytes.hidden = true; this.el.loaderBytes.textContent = ''; }
     try {
       const video = this.el.loaderVideo;
-      if (video) { video.currentTime = 0; void video.play(); }
+      if (video) {
+        video.currentTime = 0;
+        // Loading can finish before play() settles; pause() then aborts the pending
+        // request. Handle that Promise rejection instead of leaking console errors.
+        const playing = video.play();
+        if (playing && typeof playing.catch === 'function') playing.catch(() => {});
+      }
     } catch (_) {}
     this.setLoading(0, label || '准备加载…');
   }

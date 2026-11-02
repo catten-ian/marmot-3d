@@ -59,6 +59,25 @@ test('audio preload reports one aggregated completion per job with mock fetch', 
   assert.equal(audio.ctx, null);
 });
 
+test('loading video handles play aborted by a fast loading completion', async () => {
+  const { HUD } = await import('../src/ui/hud.js');
+  const abort = Object.assign(new Error('play interrupted by pause'), { name: 'AbortError' });
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.once('unhandledRejection', onUnhandled);
+  const video = { currentTime: 0, play: () => Promise.reject(abort) };
+  try {
+    HUD.prototype.beginLoadingSession.call({
+      el: { loader: { style: {}, classList: { remove() {} } }, loaderBytes: {}, loaderVideo: video },
+      setLoading() {},
+    }, 'ready');
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.removeListener('unhandledRejection', onUnhandled);
+  }
+});
+
 test('beta inline loader script contains quality override, auto selection and classic fallback', () => {
   const html = fs.readFileSync('index-public.html', 'utf8');
   assert.match(html, /__betaLoadingPickQuality/);

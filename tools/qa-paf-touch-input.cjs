@@ -192,16 +192,26 @@ async function naturalHunt() {
     trace.push(s);
     if(i%20===0)console.log('natural hunt',i,'score',s.score,'phase',s.phase);
     if(s.score>scoreStart){success=s;break;}
-    if(s.phase==='idle') {
+    if(s.phase==='idle'||s.phase==='wind') {
       const target=s.prey.sort((a,b)=>Math.hypot(a.x-s.pos.x,a.z-s.pos.z)-Math.hypot(b.x-s.pos.x,b.z-s.pos.z))[0];
       const dist=Math.hypot(target.x-s.pos.x,target.z-s.pos.z);
       const yaw=Math.atan2(target.x+(target.vx||0)*.32-s.pos.x,target.z+(target.vz||0)*.32-s.pos.z);
       let delta=yaw-s.pos.yaw;while(delta>Math.PI)delta-=2*Math.PI;while(delta<-Math.PI)delta+=2*Math.PI;
-      if(dist<4.5&&Math.abs(delta)<.18) {
+      if(s.phase==='wind') {
+        // Holding Space creates the real prediction. Release only when its
+        // existing target marker confirms a hit; no prey or geometry is changed.
+        if(s.preview.visibleTargetMarks>0) {
+          await Promise.all([...held].map(code=>key(code,false)));
+        } else {
+          await Promise.all([key('KeyA',delta>.08),key('KeyD',delta<-.08),key('KeyW',false),key('ShiftLeft',false)]);
+        }
+      } else if(dist>=2.4&&dist<4.9&&Math.abs(delta)<.16) {
+        // Avoid a point-blank 5.67m overshoot. Start a real hold, then use the
+        // wind-phase prediction above instead of guessing before it exists.
         await Promise.all([...held].map(code=>key(code,false)));
-        await key('Space',true);await key('Space',false);
+        await key('Space',true);
       } else {
-        await Promise.all([key('KeyA',delta>.10),key('KeyD',delta<-.10),key('KeyW',Math.abs(delta)<1.2),key('ShiftLeft',dist>12||target.state==='flee')]);
+        await Promise.all([key('KeyA',delta>.10),key('KeyD',delta<-.10),key('KeyW',Math.abs(delta)<1.2),key('ShiftLeft',dist>10)]);
       }
     }
     await steps(4);
@@ -232,6 +242,11 @@ async function run() {
   send=await connectCdp(); await send('Runtime.enable');await send('Page.enable');await send('Network.enable');await send('Emulation.setFocusEmulationEnabled',{enabled:true});
   await send('Page.addScriptToEvaluateOnNewDocument', {source:`window.__touchTrace=[];for(const type of ['touchstart','touchmove','touchend','touchcancel','pointerdown','pointermove','pointerup','pointercancel'])window.addEventListener(type,e=>window.__touchTrace.push({type,at:performance.now(),target:e.target.id||e.target.dataset?.touchAction,pointerId:e.pointerId,changed:e.changedTouches&&Array.from(e.changedTouches,t=>({id:t.identifier,x:t.clientX,y:t.clientY})),touches:e.touches&&Array.from(e.touches,t=>t.identifier)}),true);`});
   await navigate(390,844,true);
+  if (process.env.PAF_HUNT_ONLY) {
+    await naturalHunt();
+    report.pass = Object.values(report.checks).every(c => c.pass) && report.errors.length === 0;
+    return;
+  }
   await evalJs(`window.__playAsFox.setViewMode('fpv')`);
   const joy=await rect('#touchJoystick'), attack=await rect('[data-touch-action="attack"]');
   // Verify hit-testing against the actual layout, rather than dispatching to a DOM element.
