@@ -42,6 +42,11 @@ import {
   pafPounceProgress, pafPounceActiveAt, pafPounceAirHeight, pafPouncePathAt,
   pafPounceCanCatchAt, pafPouncePredictionHitsTarget, pafPounceGroundPreview, pafPouncePreviewActive, PAF_POUNCE_PREVIEW_STYLE, PAF_POUNCE_PREVIEW_GRID,
 } from '../core/paf-pounce.js';
+import {
+  PAF_TIMED_ROUND_MS, PAF_POUNCE_RANGE_DEFAULT, PAF_POUNCE_RANGE_MIN, PAF_POUNCE_RANGE_MAX,
+  PAF_POUNCE_RANGE_PER_PIXEL, clampPounceRange, pounceRangeFromDrag, createPafTimedRound,
+} from '../core/paf-timed-range.mjs';
+import { createPafLeaderboard } from '../core/paf-leaderboard.mjs';
 
 /** 扮演藏狐模式全部可调平衡数值（后台滑块直接改这里的运行时副本）。 */
 export const PAF_DEFAULTS = {
@@ -52,6 +57,10 @@ export const PAF_DEFAULTS = {
   turnRate: 2.6,          // 键盘转向 rad/s
   mouseTurn: 0.0024,      // 鼠标每像素转向（默认乘普通控制器灵敏度比例）
   pounceArcDeg: 120,      // wind 期间可选方向总弧度（默认前方 ±60°）
+  pounceRangeDefault: 5.67,
+  pounceRangeMin: 3.6,
+  pounceRangeMax: 7.2,
+  pounceRangePerPixel: 0.02,
   // 扑击相位
   lungeTime: 0.42,        // 腾空时长 s
   lungeSpeed: 13.5,       // 腾空速度 m/s
@@ -231,7 +240,8 @@ class Prey {
       let fleeYaw;
       if (threatening) {
         const threatYaw = fox.phase === 'lunge' ? fox.lungeYaw : fox.yaw;
-        const land = predictLandingPoint(fox.x, fox.z, threatYaw, cfg);
+        const threatCfg = fox.pounceSpeed ? { ...cfg, lungeSpeed: fox.pounceSpeed } : cfg;
+        const land = predictLandingPoint(fox.x, fox.z, threatYaw, threatCfg);
         const ev = evadeVector(this.x, this.z, fox.x, fox.z, land.x, land.z, cfg);
         fleeYaw = ev.ok ? ev.yaw : yawTo(this.x - fox.x, this.z - fox.z);
       } else {
@@ -313,6 +323,13 @@ export function createPlayAsFox(ctx) {
   const cfg = { ...PAF_DEFAULTS, ...(debugOn ? loadPafCfg() : {}) };
   cfg.pounceArcDeg = clamp(Number.isFinite(cfg.pounceArcDeg) ? cfg.pounceArcDeg : PAF_DEFAULTS.pounceArcDeg, 0, 360);
   cfg.catchRadius = Number.isFinite(cfg.catchRadius) ? Math.max(0, cfg.catchRadius) : PAF_DEFAULTS.catchRadius;
+  cfg.pounceRangeMin = Number.isFinite(cfg.pounceRangeMin) ? cfg.pounceRangeMin : PAF_POUNCE_RANGE_MIN;
+  cfg.pounceRangeMax = Number.isFinite(cfg.pounceRangeMax) ? cfg.pounceRangeMax : PAF_POUNCE_RANGE_MAX;
+  cfg.pounceRangeMin = Math.min(cfg.pounceRangeMin, cfg.pounceRangeMax);
+  cfg.pounceRangeMax = Math.max(cfg.pounceRangeMin, cfg.pounceRangeMax);
+  cfg.pounceRangeDefault = clampPounceRange(cfg.pounceRangeDefault, { min: cfg.pounceRangeMin, max: cfg.pounceRangeMax });
+  cfg.pounceRangePerPixel = Number.isFinite(cfg.pounceRangePerPixel) && cfg.pounceRangePerPixel > 0
+    ? cfg.pounceRangePerPixel : PAF_POUNCE_RANGE_PER_PIXEL;
 
   // —— 玩家扮演的藏狐 ——
   const foxVisual = createPafFoxModel({});
@@ -328,6 +345,7 @@ export function createPlayAsFox(ctx) {
     phase: 'idle',                 // idle | wind | lunge | recover
     phaseT: 0, sprint: false, groundSpeed: 0,
     lungeYaw: 0, lungeStartX: 0, lungeStartZ: 0, airY: 0, windStartYaw: 0,
+    lungeRange: PAF_POUNCE_RANGE_DEFAULT,
     get forward() { return { x: Math.sin(this.yaw), z: Math.cos(this.yaw) }; },
   };
 
@@ -336,6 +354,10 @@ export function createPlayAsFox(ctx) {
   let elapsed = 0;
   let running = true;
   let paused = false;
+  let mode = 'free';
+  let timedRound = null;
+  let timedResult = null;
+  const leaderboard = createPafLeaderboard();
   const keys = new Set();
   const pounceCharge = new PafPounceCharge();
   let previewGroup = null;
@@ -401,6 +423,12 @@ export function createPlayAsFox(ctx) {
       body.play-as-fox #touchJoystick > span::after { content:'移动 / 转向';font-size:10px; }
       body.play-as-fox [data-touch-action="attack"] .attack-swipe-ring { display:none; }
       body.play-as-fox [data-touch-action="attack"] .attack-core { background:radial-gradient(circle,#e9bd73,#a75d27); }
+      #pafModeActions,#pafTimedResult,#pafLeaderboard { pointer-events:auto; }
+      #pafModeActions button,#pafTimedResult button,#pafLeaderboard button { margin:2px;padding:6px 9px;border-radius:8px;border:1px solid #778568;background:rgba(18,26,18,.86);color:#eef5e7;cursor:pointer; }
+      #pafModeActions { position:absolute; top:48px; left:50%; transform:translateX(-50%); text-align:center; color:#dfe8d6; font-size:12px; white-space:nowrap; }
+      #pafTimedResult { position:absolute; left:50%; top:38%; transform:translate(-50%,-50%); min-width:250px; padding:16px; text-align:center; border:1px solid #899d77; border-radius:12px; background:rgba(12,20,13,.92); color:#f2f7eb; }
+      #pafLeaderboard { position:absolute; right:14px; top:54px; min-width:190px; padding:10px; border:1px solid #68765b; border-radius:10px; background:rgba(12,20,13,.9); color:#e7eedf; font-size:12px; }
+      #pafLeaderboard[hidden],#pafTimedResult[hidden] { display:none; }
     `;
     document.head.appendChild(style);
   }
@@ -410,12 +438,20 @@ export function createPlayAsFox(ctx) {
     <div id="pafTip" style="position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#dfe8d6;text-shadow:0 1px 3px #000;font-size:13px;line-height:1.6"></div>
     <div id="pafCenter" style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);color:#ffd24a;font-size:30px;font-weight:900;text-shadow:0 2px 6px #000;opacity:0;transition:opacity .15s"></div>
     <button id="pafExit" style="position:absolute;top:12px;right:14px;pointer-events:auto;padding:8px 14px;border-radius:10px;border:1px solid #6f7d5f;background:rgba(20,28,20,.72);color:#e7eedf;font-size:13px;cursor:pointer">退出扮演 (Esc)</button>
+    <div id="pafModeActions"><button id="pafTimedStart">开始 2 分钟限时挑战</button><button id="pafLeaderboardToggle">本机排行榜</button></div>
+    <div id="pafLeaderboard" hidden></div>
+    <div id="pafTimedResult" hidden></div>
     <div id="pafViewTag">第三人称</div>
 `;
   document.body.appendChild(overlay);
   const elTop = overlay.querySelector('#pafTop');
   const elTip = overlay.querySelector('#pafTip');
   const elCenter = overlay.querySelector('#pafCenter');
+  const elModeActions = overlay.querySelector('#pafModeActions');
+  const elTimedStart = overlay.querySelector('#pafTimedStart');
+  const elLeaderboardToggle = overlay.querySelector('#pafLeaderboardToggle');
+  const elLeaderboard = overlay.querySelector('#pafLeaderboard');
+  const elTimedResult = overlay.querySelector('#pafTimedResult');
   overlay.querySelector('#pafExit').onclick = () => exit();
   const settingsButton = document.getElementById('setBtn');
   settingsButton?.setAttribute('aria-label', '设置与键位');
@@ -435,6 +471,53 @@ export function createPlayAsFox(ctx) {
     elCenter.style.opacity = '1';
     clearTimeout(flash._t); flash._t = setTimeout(() => { elCenter.style.opacity = '0'; }, 650);
   }
+
+  function renderLeaderboard() {
+    const rows = leaderboard.list();
+    elLeaderboard.innerHTML = `<b>本机限时排行榜</b><div style="opacity:.75;margin:4px 0 6px">仅此设备 · ${rows.length}/${leaderboard.capacity}</div>`
+      + (rows.length ? rows.map((row, index) => `<div>${index + 1}. <b>${row.score}</b> 只 · ${new Date(row.timestamp).toLocaleString()}</div>`).join('') : '<div>暂无完成的限时记录</div>')
+      + '<button id="pafLeaderboardReset">清除本机记录</button>';
+    elLeaderboard.querySelector('#pafLeaderboardReset')?.addEventListener('click', () => {
+      leaderboard.reset();
+      renderLeaderboard();
+    });
+  }
+
+  function finishTimedRound() {
+    if (!timedRound || timedResult) return;
+    cancelPounce();
+    releasePafInput({ keys, touchControls, touchState: touch });
+    const result = { score, durationMs: PAF_TIMED_ROUND_MS, timestamp: new Date().toISOString() };
+    timedResult = result;
+    const saved = leaderboard.record(result).added;
+    renderLeaderboard();
+    elTimedResult.innerHTML = `<b>限时结束</b><div style="font-size:24px;margin:8px 0">${score} 只</div><div style="opacity:.8">本轮 120 秒 · ${saved ? '结果已保存到本机' : '本机存储不可用，结果未保存'}</div><button id="pafTimedRestart">再来一局</button><button id="pafTimedResultExit">退出扮演</button>`;
+    elTimedResult.hidden = false;
+    elTimedResult.querySelector('#pafTimedRestart')?.addEventListener('click', startTimedRound);
+    elTimedResult.querySelector('#pafTimedResultExit')?.addEventListener('click', exit);
+    flash(`时间到 · ${score} 只`, '#ffd24a');
+  }
+
+  function startTimedRound() {
+    mode = 'timed';
+    score = 0;
+    elapsed = 0;
+    timedResult = null;
+    timedRound = createPafTimedRound({ durationMs: PAF_TIMED_ROUND_MS });
+    timedRound.start();
+    cancelPounce();
+    respawnAll(cfg.preyCount);
+    elTimedResult.hidden = true;
+    elModeActions.hidden = true;
+    flash('限时挑战开始 · 120 秒', '#9fe6a0');
+  }
+
+  elTimedStart.addEventListener('click', startTimedRound);
+  elLeaderboardToggle.addEventListener('click', () => {
+    elLeaderboard.hidden = !elLeaderboard.hidden;
+    if (!elLeaderboard.hidden) renderLeaderboard();
+  });
+  renderLeaderboard();
 
   // 视角切换：进入 FPV 时视线从当前身体朝向出发；退出无任何残留状态。
   const elViewTag = overlay.querySelector('#pafViewTag');
@@ -458,7 +541,18 @@ export function createPlayAsFox(ctx) {
   function toggleView() { setViewMode(viewMode.toggle()); return viewMode.mode; }
 
   const settingsOpen = () => { const sheet = document.getElementById('setSheet'); return !!sheet && !sheet.hidden; };
-  const inputBlocked = () => pafInputBlocked({ running, paused, settingsOpen: settingsOpen() });
+  const inputBlocked = () => pafInputBlocked({ running, paused, settingsOpen: settingsOpen() })
+    || document.hidden || document.body.classList.contains('paused');
+  const pounceSpeed = () => fox.lungeRange / Math.max(0.0001, cfg.lungeTime);
+  function adjustPounceRange(dy) {
+    if (!pounceCharge.active || fox.phase !== 'wind') return fox.lungeRange;
+    fox.lungeRange = pounceRangeFromDrag(fox.lungeRange, dy, {
+      pixelsPerMeter: 1 / cfg.pounceRangePerPixel,
+      min: cfg.pounceRangeMin,
+      max: cfg.pounceRangeMax,
+    });
+    return fox.lungeRange;
+  }
 
   let previewGeometryKey = null;
   function clearPouncePreview() {
@@ -473,7 +567,7 @@ export function createPlayAsFox(ctx) {
   function previewTargetInRange(p, yaw) {
     return pafPouncePredictionHitsTarget({
       startX: fox.phase === 'wind' ? fox.x : fox.lungeStartX, startZ: fox.phase === 'wind' ? fox.z : fox.lungeStartZ, yaw,
-      lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, lungeHeight: cfg.lungeHeight,
+      lungeSpeed: pounceSpeed(), lungeTime: cfg.lungeTime, lungeHeight: cfg.lungeHeight,
       targetX: p.x, targetZ: p.z, catchRadius: cfg.catchRadius,
       catchFoxCenter: cfg.catchFoxCenter, catchVerticalTol: cfg.catchVerticalTol,
       preyCenterHeight: cfg.preyCenterHeight, foxTerrainAt: (x, z) => terrainHeight(x, z),
@@ -486,7 +580,7 @@ export function createPlayAsFox(ctx) {
     if (!pafPouncePreviewActive(fox.phase)) { clearPouncePreview(); return; }
     const startX = fox.phase === 'wind' ? fox.x : fox.lungeStartX;
     const startZ = fox.phase === 'wind' ? fox.z : fox.lungeStartZ;
-    const geometryKey = [startX,startZ,fox.lungeYaw,cfg.lungeSpeed,cfg.lungeTime,cfg.lungeHeight,cfg.catchRadius,cfg.catchFoxCenter,cfg.catchVerticalTol,cfg.preyCenterHeight].join(',');
+    const geometryKey = [startX,startZ,fox.lungeYaw,pounceSpeed(),cfg.lungeTime,cfg.lungeHeight,cfg.catchRadius,cfg.catchFoxCenter,cfg.catchVerticalTol,cfg.preyCenterHeight].join(',');
     if (!previewGroup) {
       previewGeometry = new THREE.BufferGeometry();
       const capacity = PAF_POUNCE_PREVIEW_GRID.columns * PAF_POUNCE_PREVIEW_GRID.rows * 18;
@@ -498,7 +592,7 @@ export function createPlayAsFox(ctx) {
       scene.add(previewGroup);
     }
     if (geometryKey !== previewGeometryKey) {
-      const coords = pafPounceGroundPreview({ ...cfg, startX, startZ, yaw: fox.lungeYaw }, terrainHeight);
+      const coords = pafPounceGroundPreview({ ...cfg, startX, startZ, yaw: fox.lungeYaw, lungeSpeed: pounceSpeed() }, terrainHeight);
       const positions = previewGeometry.getAttribute('position');
       positions.array.set(coords); positions.needsUpdate = true;
       previewGeometry.setDrawRange(0, coords.length / 3);
@@ -528,6 +622,8 @@ export function createPlayAsFox(ctx) {
     if (selected.source !== 'fallback' || isTouch) fox.lungeYaw = selected.yaw;
     fox.lungeStartX = fox.x; fox.lungeStartZ = fox.z;
     pounceCharge.reset();
+    clearPouncePreview();
+    fox.pounceSpeed = pounceSpeed();
     fox.phase = 'lunge'; fox.phaseT = 0;
     updatePouncePreview();
     return true;
@@ -537,19 +633,25 @@ export function createPlayAsFox(ctx) {
     pounceCharge.cancel();
     clearPouncePreview();
     if (fox.phase === 'wind') { fox.phase = 'idle'; fox.phaseT = 0; }
+    fox.lungeRange = cfg.pounceRangeDefault;
+    fox.pounceSpeed = 0;
   }
 
   function startPounce(pointerId = 'default') {
     if (!pafCanStartPounce({ running, paused, settingsOpen: settingsOpen(), phase: fox.phase })) return false;
+    if (mode === 'timed' && (!timedRound || !timedRound.canScore)) return false;
     if (!pounceCharge.press(pointerId)) return false;
     fox.phase = 'wind'; fox.phaseT = 0;
     fox.windStartYaw = fox.yaw;
     fox.lungeYaw = fox.yaw;
+    fox.lungeRange = cfg.pounceRangeDefault;
+    fox.pounceSpeed = 0;
     updatePouncePreview();
     return true;
   }
 
   function catchPrey(p) {
+    if (mode === 'timed' && !timedRound?.canScore) return;
     p.caught = true; p.respawn = cfg.respawnTime;
     p.mesh.visible = false; p.mark.style.display = 'none';
     score += 1;
@@ -580,6 +682,10 @@ export function createPlayAsFox(ctx) {
       toggleView();
     }
     if (e.code === 'Escape') exit();
+    if (pounceCharge.active && (e.code === 'PageUp' || e.code === 'PageDown')) {
+      e.preventDefault();
+      adjustPounceRange(e.code === 'PageUp' ? -15 : 15);
+    }
   };
   const onKeyUp = (e) => {
     keys.delete(e.code);
@@ -592,6 +698,7 @@ export function createPlayAsFox(ctx) {
   const mouseSensitivityScale = (ctx.mouseSensitivity || 0.0022) / 0.0022;
   const onMouseMove = (e) => {
     if (inputBlocked() || document.pointerLockElement !== canvas) return;
+    if (pounceCharge.active && e.movementY) adjustPounceRange(e.movementY);
     if (viewMode.mode === 'fpv') {
       // FPV：鼠标自由视角（pitch 夹紧），不动身体朝向
       // 鼠标右移 = 向右转（与正常模式 controls.js 的 yaw -= movementX 同号约定）
@@ -628,9 +735,9 @@ export function createPlayAsFox(ctx) {
   const isTouch = isTouchMode();
   const touch = { throttle: 0, turn: 0, sprint: false };
   const pafRoute = new PafInputRoute(touchControls);
-  const touchAction = (action, pressed, pointerId) => {
+  const touchAction = (action, pressed, pointerId, gesture = null) => {
     if (action === 'attack') {
-      if (pressed) { if (!inputBlocked()) startPounce(pointerId); }
+      if (pressed) { if (!inputBlocked()) { startPounce(pointerId); if (gesture?.dy) adjustPounceRange(gesture.dy); } }
       else commitPounce(pointerId);
       return;
     }
@@ -685,7 +792,19 @@ export function createPlayAsFox(ctx) {
 
   function update(dt) {
     if (inputBlocked()) return;
-    elapsed += dt;
+    if (document.hidden || document.body.classList.contains('paused')) {
+      if (pounceCharge.active) cancelPounce();
+      return;
+    }
+    if (mode === 'timed') {
+      const tick = timedRound?.tick(dt * 1000);
+      elapsed = (tick?.elapsedMs || 0) / 1000;
+      if (tick?.justFinished) {
+        finishTimedRound();
+        elTop.textContent = `扮演藏狐 · 限时结束 · 捕猎 ${score} 只 · 0s`;
+        return;
+      }
+    } else elapsed += dt;
     const keyboardSprint = sprintHeld();
     const axes = pafRoute.controller?.touchAxes || { x: 0, y: 0 };
     const keyboardInput = pafKeyboardDriveInput(binds, keys);
@@ -716,7 +835,7 @@ export function createPlayAsFox(ctx) {
       const t = clamp(fox.phaseT / cfg.lungeTime, 0, 1);
       const path = pafPouncePathAt({
         startX: fox.lungeStartX, startZ: fox.lungeStartZ, yaw: fox.lungeYaw,
-        lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime, t,
+        lungeSpeed: fox.pounceSpeed || pounceSpeed(), lungeTime: cfg.lungeTime, t,
       });
       fox.x = path.x; fox.z = path.z;
       fox.airY = pafPounceAirHeight(t, cfg.lungeHeight);
@@ -746,7 +865,7 @@ export function createPlayAsFox(ctx) {
     // 姿态：分组混合（模型内部：body 下移/后躯下压/腿折弯/头补偿），替代旧的 scale.y 压扁
     const animName = fox.phase !== 'idle' ? fox.phase
       : throttle !== 0 ? (fox.sprint ? 'dash' : 'stalk') : 'idle';
-    const groundSpeed = fox.phase === 'lunge' ? cfg.lungeSpeed
+    const groundSpeed = fox.phase === 'lunge' ? (fox.pounceSpeed || pounceSpeed())
       : Math.abs(throttle) * (fox.sprint ? cfg.runSpeed : cfg.stalkSpeed);
     try {
       foxVisual.setAnimState?.({ anim: animName, speed: groundSpeed });
@@ -761,7 +880,7 @@ export function createPlayAsFox(ctx) {
         const preyTerrainY = terrainHeight(p.x, p.z);
         if (pafPounceCanCatchAt({
           startX: fox.lungeStartX, startZ: fox.lungeStartZ, yaw: fox.lungeYaw,
-          lungeSpeed: cfg.lungeSpeed, lungeTime: cfg.lungeTime,
+          lungeSpeed: fox.pounceSpeed || pounceSpeed(), lungeTime: cfg.lungeTime,
           t: pafPounceProgress(fox.phaseT, cfg.lungeTime), lungeHeight: cfg.lungeHeight,
           targetX: p.x, targetZ: p.z, foxTerrainY: groundY, preyTerrainY,
           catchRadius: cfg.catchRadius, catchFoxCenter: cfg.catchFoxCenter,
@@ -796,18 +915,25 @@ export function createPlayAsFox(ctx) {
     });
 
     // HUD
-    elTop.textContent = `扮演藏狐 · 捕猎 ${score} 只 · ${elapsed.toFixed(0)}s`;
+    const timeLabel = mode === 'timed'
+      ? `限时 ${Math.max(0, PAF_TIMED_ROUND_MS / 1000 - elapsed).toFixed(1)}s`
+      : `${elapsed.toFixed(0)}s`;
+    elTop.textContent = `扮演藏狐 · ${mode === 'timed' ? '限时挑战' : '自由练习'} · 捕猎 ${score} 只 · ${timeLabel}`;
     const phaseLabel = fox.phase === 'wind' ? '蓄力中…' : fox.phase === 'lunge' ? '扑击！' : fox.phase === 'recover' ? '硬直' : fox.sprint ? '冲刺（易被发现）' : '潜行';
-    const chargeHint = fox.phase === 'wind' ? ` · 已瞄准 ${fox.phaseT.toFixed(1)}s` : '';
+    const chargeHint = fox.phase === 'wind' ? ` · 已瞄准 ${fox.phaseT.toFixed(1)}s · 距离 ${fox.lungeRange.toFixed(2)}m` : '';
     elTip.innerHTML = isTouch
-      ? `左下摇杆上下前后、左右转向 · <b>冲刺</b>按住冲刺 · <b>扑击</b>按住瞄准/显示范围，松开扑击（${phaseLabel}）${chargeHint}`
-      : `W/S 前后移动 · A/D 转向 · <b>Shift</b> 按住冲刺 · <b>空格/左键</b> 按住瞄准/显示范围，松开扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
+      ? `左下摇杆上下前后、左右转向 · <b>冲刺</b>切换潜行 · <b>扑击</b>按住瞄准；攻击键上拖延长、下拖缩短，松开扑击（${phaseLabel}）${chargeHint}`
+      : `W/S 前后移动 · A/D 转向 · <b>Shift</b> 冲刺潜行切换 · <b>空格/左键</b> 按住瞄准；鼠标上/下拖或 PageUp/PageDown 调整距离，松开扑击 · <b>V</b> 切换视角（${phaseLabel}）${chargeHint}`;
   }
 
   function setPaused(value) {
     const next = !!value;
     if (!running || paused === next) return false;
     paused = next;
+    if (timedRound) {
+      if (paused) timedRound.pause();
+      else timedRound.resume();
+    }
     ctx.audio?.setPafPaused?.(paused);
     if (paused) {
       cancelPounce();
@@ -866,6 +992,9 @@ export function createPlayAsFox(ctx) {
     get active() { return running; },
     get paused() { return paused; },
     get score() { return score; },
+    get mode() { return mode; },
+    get timed() { return timedRound ? timedRound.snapshot() : null; },
+    get pounceRange() { return fox.lungeRange; },
     get elapsed() { return elapsed; },
     get phase() { return fox.phase; },
     get phaseT() { return fox.phaseT; },
@@ -905,6 +1034,9 @@ export function createPlayAsFox(ctx) {
     },
     retryAudio() { ctx.audio?._bgmManager?.request('paf', true, { transition: 'paf' }); },
     toggleView,
+    startTimedRound,
+    showLeaderboard: () => { elLeaderboard.hidden = false; renderLeaderboard(); },
+    resetLeaderboard: () => { leaderboard.reset(); renderLeaderboard(); },
     setPaused,
     setViewMode: (m) => setViewMode(m),
     // 仅供自动化 QA：直接设置 FPV 视线（仍过俯仰夹紧）

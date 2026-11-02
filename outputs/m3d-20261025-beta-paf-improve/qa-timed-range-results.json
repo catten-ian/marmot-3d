@@ -1,0 +1,109 @@
+{
+  "startedAt": "2026-11-02T06:57:14.033Z",
+  "cdp": {
+    "endpoint": "http://127.0.0.1:9497",
+    "private": true
+  },
+  "renderer": {
+    "renderer": "WebGLRenderer",
+    "context": "WebGL2RenderingContext",
+    "webgl2": true,
+    "vendor": "WebKit",
+    "rendererString": "WebKit WebGL"
+  },
+  "scenarios": {
+    "desktop": {
+      "defaultRange": 5.67,
+      "extendedRange": 5.97,
+      "phaseAfterRelease": "lunge",
+      "viewMode": "tps"
+    },
+    "touch": {
+      "touchBase": 5.67,
+      "touchExtended": 7.2,
+      "phaseAfterRelease": "lunge",
+      "width": 390,
+      "height": 844
+    }
+  },
+  "screenshots": [
+    "07-desktop-range-preview.png",
+    "08-touch-range-release.png",
+    "09-timed-start.png",
+    "10-timed-result.png",
+    "11-leaderboard-after-reload.png"
+  ],
+  "consoleErrors": [],
+  "exceptions": [],
+  "checks": {
+    "boot": {
+      "pass": true,
+      "detail": ""
+    },
+    "paf-entry": {
+      "pass": true,
+      "detail": ""
+    },
+    "desktop-fpv": {
+      "pass": true,
+      "detail": ""
+    },
+    "desktop-tps": {
+      "pass": true,
+      "detail": ""
+    },
+    "desktop-keyboard-range": {
+      "pass": true,
+      "detail": "5.67 -> 5.97"
+    },
+    "desktop-preview-visible": {
+      "pass": true,
+      "detail": ""
+    },
+    "touch-drag-range": {
+      "pass": true,
+      "detail": "5.67 -> 7.2"
+    },
+    "touch-preview-visible": {
+      "pass": true,
+      "detail": ""
+    },
+    "touch-release-lunge": {
+      "pass": true,
+      "detail": ""
+    },
+    "timed-start": {
+      "pass": true,
+      "detail": ""
+    },
+    "timed-exact-end": {
+      "pass": true,
+      "detail": "{\"status\":\"finished\",\"elapsedMs\":120000,\"remainingMs\":0,\"durationMs\":120000,\"justFinished\":false}"
+    },
+    "timed-result-visible": {
+      "pass": true,
+      "detail": ""
+    },
+    "timed-score-number": {
+      "pass": true,
+      "detail": ""
+    },
+    "exit-clean": {
+      "pass": true,
+      "detail": ""
+    },
+    "leaderboard-persistence-after-reload": {
+      "pass": true,
+      "detail": "本机限时排行榜仅此设备 · 1/101. 0 只 · 11/2/2026, 2:58:02 PM清除本机记录"
+    },
+    "leaderboard-local-label": {
+      "pass": true,
+      "detail": ""
+    },
+    "timed-restart": {
+      "pass": true,
+      "detail": ""
+    }
+  },
+  "finishedAt": "2026-11-02T06:58:24.027Z"
+}

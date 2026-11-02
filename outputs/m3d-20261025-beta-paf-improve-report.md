@@ -95,3 +95,40 @@
 - 初版验收报告 commit：`f9cb00906fc016731c6986b4b41215edfad5c1e0`。
 - 本轮收口提交包含复测后的结构化结果、6 张截图与本报告；其本地 commit hash 在交付回复中列明。复测日志保留在上述 `outputs/m3d-20261025-beta-paf-improve/` 路径。
 - **未 push、未部署；未改版本戳、Caddy、systemd 或线上文件。**
+
+---
+
+# Current Scope — timed range + local leaderboard
+
+日期：2026-11-02（Asia/Shanghai）
+通道 / 分支：`beta` / `codex/beta-paf-timed-range-20261102`
+基线：`95c6f2acc9f78181158d60f8a004397e0e0b2a2e`（rev61）
+实现 commit：`5efd5f4`（本地；未 push、未部署）。
+
+## 行为
+
+- **攻击距离**：蓄力期间预览与实际扑击共用 `pafPouncePathAt`/`pafPounceCanCatchAt` 的同一终点和后半段命中窗。触屏只消费攻击按钮自己的 pointer；按住攻击键后，屏幕上拖（`dy < 0`）延长、下拖（`dy > 0`）缩短真实扑击距离；松开仍是唯一提交点。键鼠保持指针锁定：鼠标垂直移动同步调整距离，`PageUp`/`PageDown` 提供等价键盘控制；TPS/FPV 的视角转向仍各自保留。范围为 **3.60–7.20m**，默认 **5.67m**，每屏幕像素 **0.02m**，输入和预览均钳制；取消、暂停、blur、visibility、pointercancel、退出、multi-touch 路由恢复都会清空蓄力。
+- **冲突解决**：触屏继续复用 `PafInputRoute`/共享 `TouchControls`，攻击 pointer 不抢摇杆或右侧 look pointer；PAF 屏蔽共享攻击键的旧 parry/roll 回调。普通练习模式仍可直接进入，顶部提供显式「开始 2 分钟限时挑战」按钮，不会静默把自由 PAF 变成计时。
+- **计时模式**：`createPafTimedRound` 用 active-play fixed-step `dt` 累计，精确在 **120000ms** 结束；暂停、设置、隐藏态不推进。时间到先停止攻击/捕获，再显示实际分数；结果页提供「再来一局」和「退出扮演」。
+- **本机榜单**：版本化键 `m3d_paf_leaderboard_v1`，默认容量 10；仅接受整数分数、有效 ISO 时间戳和正整数时长，按分数降序、时长、时间戳稳定排序。读取/写入/清除遇到损坏、拒绝或不可用存储均 fail-soft；UI 标明「仅此设备」，支持清除本机记录，不依赖服务端或账号。
+
+## 改动文件
+
+- `src/play/play-as-fox.js`：范围输入/同几何实际扑击、计时模式入口和结果 UI、榜单 UI、暂停/隐藏清理、QA 状态钩子。
+- `src/core/paf-timed-range.mjs`：范围映射和 120000ms 计时纯模块。
+- `src/core/paf-leaderboard.mjs`：版本化 localStorage 榜单纯模块。
+- `tools/test-paf-timed-range.cjs`、`tools/test-paf-leaderboard.cjs`：边界、暂停/重启、取消、范围同路径、排序/容量/存储故障测试。
+- `tools/qa-paf-timed-range.cjs`：私有 Chrome/CDP 真实 UI 验收，不连接共享 `18800`。
+- `outputs/m3d-20261025-beta-paf-improve/07-*.png` 至 `11-*.png`、`qa-timed-range-results.json`：本轮证据。
+
+## 验证
+
+- 语法：所有 changed `JS/MJS/CJS` `node --check` 通过；`git diff --check` 通过。
+- 纯测试：`node --test tools/test-paf-timed-range.cjs tools/test-paf-leaderboard.cjs` **8/8**；既有 `test-paf-input-route`、`test-paf-pounce`、`test-paf-entry`、`test-paf-audio-settings` 全通过。
+- 全量：`timeout --signal=TERM --kill-after=5s 90s node tools/run-node-tests.cjs` **99/99 PASS**，既有规则跳过 **22** 个 browser/CDP 测试。
+- 私有浏览器：`timeout --signal=TERM --kill-after=10s 180s node tools/qa-paf-timed-range.cjs` **17/17 checks PASS**，`0 console.error`、`0 Runtime.exceptionThrown`；Chrome **147.0.7727.137**，`WebGL2RenderingContext`（私有 headless 实例，renderer 字符串 `WebKit WebGL`）。覆盖桌面 TPS/FPV、键盘范围、390×844 触控真实按住-上拖-松开、计时开始、完整 **2400 × 0.05s = 120s** fixed-step round、时间到结果、刷新后榜单持久化和重启。
+
+## 限制
+
+- 私有 headless Chrome 的真实 rAF 在本环境会被节流，因此 120 秒浏览器轮次使用产品已暴露的 `?pafqa=1` `__playAsFox.step(0.05)` 固定步长钩子完成；这是真实 PAF 更新/渲染/榜单路径，不伪造分数，也不把该结果宣称为物理设备实玩成绩。纯测试覆盖精确边界；未声称额外的 120 秒墙钟 rAF 场景通过。
+- 本轮未修改 `touch-controls.js`、`main.js`、公共 shell、版本戳、服务器或其他通道；未新增第三方依赖或资产。
