@@ -3618,13 +3618,40 @@ if (IS_BETA) {
 // ============================================================
 // 启动
 // ============================================================
-hud.setLoading(100, '完成');
+// Beta 的资源门必须在标题页之前完成：标题不是资源加载的替代品。
+// 音频先在无手势阶段下载真实文件；AudioContext 解码/启用仍由首次用户
+// 手势完成，避免违反浏览器自动播放策略，同时让模型、场景和贴图的真实
+// 网络加载进度完整显示在首屏加载视频上。
+let betaBootError = null;
+if (IS_BETA) {
+  hud.beginLoadingSession('正在加载 Beta 资源');
+  try {
+    await Promise.all([
+      betaEntryGate.preload({ includeAudio: false }),
+      audio.preload({
+        onProgress: ({ done, total, label }) => {
+          const pct = 8 + (done / Math.max(1, total)) * 88;
+          hud.setLoading(pct, `预载音频 ${done}/${total}${label ? ` · ${label}` : ''}`);
+        },
+      }),
+    ]);
+  } catch (error) {
+    betaBootError = error;
+    hud.setLoading(0, `资源加载失败：${error.resourceId || 'Beta 资源'} · ${error.message || error}`);
+  }
+}
+if (!betaBootError) hud.setLoading(100, '完成');
 loadLevel(0, false);
 // 标题状态下相机也需要正确落位，否则会渲染在场景原点（地下）
 controller.update(0.016, new Set(), 1);
 sky.update(controller.position);
-title();
-hud.hideLoader();
+if (betaBootError) {
+  hud.showPanel(`<h2>Beta 资源加载失败</h2><p>请检查网络后重试。</p><button class="primary" id="betaBootRetryBtn">重试</button>`);
+  document.getElementById('betaBootRetryBtn')?.addEventListener('click', () => location.reload(), { once: true });
+} else {
+  title();
+  hud.hideLoader();
+}
 if (SANDBOX_MODE) requestAnimationFrame(() => requestAnimationFrame(enterSandbox));
 requestAnimationFrame(frame);
 

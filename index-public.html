@@ -152,7 +152,7 @@
 
 <!-- ========== 加载（beta：电影感视频背景 + 轻量进度条） ========== -->
 <div id="loader" class="loader">
-  <video class="loader-video" id="loaderVideo" muted loop playsinline preload="none"
+  <video class="loader-video" id="loaderVideo" muted loop playsinline autoplay preload="auto"
          disablepictureinpicture x-webkit-airplay="deny"></video>
   <div class="loader-scrim" aria-hidden="true"></div>
   <div class="loader-marmot" aria-hidden="true">🐹</div>
@@ -199,9 +199,17 @@
         video.style.display = 'none';
         if (loader) { loader.classList.remove('cinematic'); loader.classList.add('classic'); }
       }, { once: true });
+      // Start only after the media element has a decodable frame. Calling
+      // play() immediately after load() races network setup on mobile and
+      // leaves a frozen poster; every rejection is deliberately handled.
+      var playWhenReady = function () {
+        var play = video.play();
+        if (play && typeof play.catch === 'function') play.catch(function () {});
+      };
+      video.addEventListener('loadeddata', playWhenReady, { once: true });
+      video.addEventListener('canplay', playWhenReady, { once: true });
       video.load();
-      var play = video.play();
-      if (play && typeof play.catch === 'function') play.catch(function () {});
+      if (video.readyState >= 2) playWhenReady();
     }
     var lastProgressAt = Date.now();
     var stalled = false;

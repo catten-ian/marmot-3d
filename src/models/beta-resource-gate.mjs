@@ -7,19 +7,20 @@ export function createResourceEntryGate({ resources, audioReady, onProgress = ()
   let loading = false;
   let batchPromise = null;
   const successful = new Map();
-  const run = async () => {
+  const run = async ({ includeAudio = true } = {}) => {
     loading = true;
     let done = 0;
+    const total = resources.length + (includeAudio ? 1 : 0);
     const settle = async (resource) => {
       try {
         if (successful.has(resource.id)) {
-          done += 1; onProgress({ done, total: resources.length + 1, resource: resource.id });
+          done += 1; onProgress({ done, total, resource: resource.id });
           return successful.get(resource.id);
         }
         const value = await resource.load();
         if (typeof resource.validate === 'function') await resource.validate(value);
         successful.set(resource.id, value);
-        done += 1; onProgress({ done, total: resources.length + 1, resource: resource.id });
+        done += 1; onProgress({ done, total, resource: resource.id });
         return value;
       } catch (error) {
         successful.delete(resource.id);
@@ -34,9 +35,11 @@ export function createResourceEntryGate({ resources, audioReady, onProgress = ()
       const rejected = results.find((result) => result.status === 'rejected');
       if (rejected) throw rejected.reason;
       const values = results.map((result) => result.value);
-      if (typeof audioReady !== 'function') throw new Error('音频进入门未提供 ready()');
-      await audioReady();
-      done += 1; onProgress({ done, total: resources.length + 1, resource: 'audio' });
+      if (includeAudio) {
+        if (typeof audioReady !== 'function') throw new Error('音频进入门未提供 ready()');
+        await audioReady();
+        done += 1; onProgress({ done, total, resource: 'audio' });
+      }
       return { values, audio: true };
     } catch (error) {
       failed = error;
@@ -46,7 +49,11 @@ export function createResourceEntryGate({ resources, audioReady, onProgress = ()
       loading = false;
     }
   };
-  const getReady = () => { if (!readyPromise) readyPromise = run(); return readyPromise; };
+  const getReady = (options = {}) => {
+    if (options.includeAudio === false) return run(options);
+    if (!readyPromise) readyPromise = run(options);
+    return readyPromise;
+  };
   return {
     /** Concurrent callers share one batch and only the first task runs. */
     enter(task) {
@@ -57,7 +64,7 @@ export function createResourceEntryGate({ resources, audioReady, onProgress = ()
       });
       return batchPromise;
     },
-    preload() { return getReady(); },
+    preload(options = {}) { return getReady(options); },
     get pending() { return loading; },
     get error() { return failed; },
     /** Retry only the failed model/resource; successful resource promises remain cached. */
