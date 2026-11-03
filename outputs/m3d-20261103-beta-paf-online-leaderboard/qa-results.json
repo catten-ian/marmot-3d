@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-03T00:28:26.368Z",
+  "startedAt": "2026-11-03T04:33:21.223Z",
   "checks": {
     "no-other-task-browser": {
       "pass": true,
@@ -43,7 +43,7 @@
     },
     "same-ip-lower-replaced": {
       "pass": true,
-      "detail": "{\"total\":1,\"items\":[{\"rank\":1,\"score\":0,\"durationMs\":120000,\"submittedAt\":\"2026-11-03T00:28:48.144Z\"}]}"
+      "detail": "{\"total\":1,\"items\":[{\"rank\":1,\"score\":0,\"durationMs\":120000,\"submittedAt\":\"2026-11-03T04:33:43.332Z\"}]}"
     },
     "replacement-post-once": {
       "pass": true,
@@ -63,7 +63,7 @@
     },
     "desktop-panel-in-viewport": {
       "pass": true,
-      "detail": "{\"left\":946,\"right\":1266,\"top\":96,\"bottom\":288,\"width\":1280,\"height\":720,\"scrollHeight\":190,\"clientHeight\":190,\"overflowY\":\"auto\",\"buttons\":[{\"text\":\"本机榜\",\"disabled\":false,\"left\":959,\"right\":1018.984375,\"top\":133,\"bottom\":167},{\"text\":\"在线榜\",\"disabled\":false,\"left\":1026.984375,\"right\":1086.96875,\"top\":133,\"bottom\":167},{\"text\":\"刷新在线榜\",\"disabled\":false,\"left\":959,\"right\":1045.640625,\"top\":241,\"bottom\":275}]}"
+      "detail": "{\"left\":946,\"right\":1266,\"top\":96,\"bottom\":284,\"width\":1280,\"height\":720,\"scrollHeight\":186,\"clientHeight\":186,\"overflowY\":\"auto\",\"buttons\":[{\"text\":\"本机榜\",\"disabled\":false,\"left\":959,\"right\":1018.984375,\"top\":132,\"bottom\":166},{\"text\":\"在线榜\",\"disabled\":false,\"left\":1026.984375,\"right\":1086.96875,\"top\":132,\"bottom\":166},{\"text\":\"刷新在线榜\",\"disabled\":false,\"left\":959,\"right\":1045.640625,\"top\":237,\"bottom\":271}]}"
     },
     "boot-390": {
       "pass": true,
@@ -91,11 +91,11 @@
     },
     "different-ip-coexists": {
       "pass": true,
-      "detail": "{\"total\":2,\"items\":[{\"rank\":1,\"score\":0,\"durationMs\":120000,\"submittedAt\":\"2026-11-03T00:28:48.144Z\"},{\"rank\":2,\"score\":0,\"durationMs\":120000,\"submittedAt\":\"2026-11-03T00:29:12.025Z\"}]}"
+      "detail": "{\"total\":2,\"items\":[{\"rank\":1,\"score\":0,\"durationMs\":120000,\"submittedAt\":\"2026-11-03T04:33:43.332Z\"},{\"rank\":2,\"score\":0,\"durationMs\":120000,\"submittedAt\":\"2026-11-03T04:34:07.075Z\"}]}"
     },
     "mobile390-result-operable": {
       "pass": true,
-      "detail": "{\"left\":15,\"right\":375,\"top\":320,\"bottom\":524,\"width\":390,\"height\":844,\"scrollHeight\":202,\"clientHeight\":202,\"overflowY\":\"auto\",\"buttons\":[{\"text\":\"在线重试\",\"disabled\":false,\"left\":0,\"right\":0,\"top\":0,\"bottom\":0},{\"text\":\"再来一局\",\"disabled\":false,\"left\":119.6875,\"right\":193,\"top\":475,\"bottom\":509},{\"text\":\"退出扮演\",\"disabled\":false,\"left\":197,\"right\":270.3125,\"top\":475,\"bottom\":509}]}"
+      "detail": "{\"left\":15,\"right\":375,\"top\":320.5,\"bottom\":523.5,\"width\":390,\"height\":844,\"scrollHeight\":201,\"clientHeight\":201,\"overflowY\":\"auto\",\"buttons\":[{\"text\":\"在线重试\",\"disabled\":false,\"left\":0,\"right\":0,\"top\":0,\"bottom\":0},{\"text\":\"再来一局\",\"disabled\":false,\"left\":119.6875,\"right\":193,\"top\":474.5,\"bottom\":508.5},{\"text\":\"退出扮演\",\"disabled\":false,\"left\":197,\"right\":270.3125,\"top\":474.5,\"bottom\":508.5}]}"
     },
     "failure-exit-not-blocked": {
       "pass": true,
@@ -157,7 +157,7 @@
             "rank": 1,
             "score": 0,
             "durationMs": 120000,
-            "submittedAt": "2026-11-03T00:28:48.144Z"
+            "submittedAt": "2026-11-03T04:33:43.332Z"
           }
         ]
       }
@@ -174,83 +174,83 @@
   "network": [
     {
       "method": "POST",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/scores"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/scores"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/scores"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/scores"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/scores"
     },
     {
       "status": 502,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/scores"
     },
     {
       "method": "POST",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/scores"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/scores"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "method": "GET",
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     },
     {
       "status": 200,
-      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+      "url": "http://127.0.0.1:41703/marmot3d-beta/api/paf/leaderboard?limit=50"
     }
   ],
   "consoleErrors": [],
@@ -267,5 +267,5 @@
       "height": 568
     }
   },
-  "finishedAt": "2026-11-03T00:29:33.326Z"
+  "finishedAt": "2026-11-03T04:34:28.899Z"
 }

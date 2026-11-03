@@ -18,8 +18,9 @@ test.before(async () => {
 
 test('lead 时间 = wind 剩余 + lungeTime × 0.45', () => {
   assert.equal(P.leadLungeFraction, 0.45);
+  assert.equal(P.lungeTime, 0.32); // 保留线上热修；公式仍按当前配置验证。
   const t = pp.windLeadTime(0.22, P);
-  assert.ok(Math.abs(t - (0.22 + 0.42 * 0.45)) < 1e-12);
+  assert.ok(Math.abs(t - (0.22 + P.lungeTime * P.leadLungeFraction)) < 1e-12);
 });
 
 test('lead 目标点 = 猎物位置 + 速度 × leadTime', () => {

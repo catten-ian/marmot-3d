@@ -66,7 +66,7 @@ test('zigzag 速度系数护栏：默认 0.9 且不低于 0.85', () => {
 
 test('A4 预测着陆点 = pos + dir(yaw) × lungeSpeed × lungeTime × 0.7', () => {
   const land = pp.predictLandingPoint(0, 0, 0, P);
-  const reach = 13.5 * 0.42 * 0.7;
+  const reach = P.lungeSpeed * P.lungeTime * P.landingPredict;
   assert.ok(Math.abs(land.x) < 1e-12);
   assert.ok(Math.abs(land.z - reach) < 1e-9);
   // yaw=90° → +x
