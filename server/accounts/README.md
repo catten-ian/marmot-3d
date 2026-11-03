@@ -5,7 +5,7 @@
 - 路径前缀：`/marmot3d-beta/api`（也兼容 `/api`）
 - 游客可直接游玩和上报单关成绩；游客升级账号保留原 uid 和历史成绩。
 - 密码：scrypt 加盐哈希，不存明文；令牌：`payload.HMAC-SHA256`，无状态校验，改名即失效。
-- 存储：`$DATA_DIR/accounts.jsonl`、`scores.jsonl`、`configs.jsonl`（分数仅追加，读取时按玩家取最佳；命名配置同名原子覆盖）。
+- 存储：`$DATA_DIR/accounts.jsonl`、`scores.jsonl`、`configs.jsonl`（单关分数仅追加，读取时按玩家取最佳；命名配置同名原子覆盖）；PAF 独立使用 `paf-scores.jsonl`。
 
 ## 环境变量
 
@@ -18,6 +18,7 @@
 | `LEVEL_COUNT` | 否 | `12` | 关卡总数（校验 level 下标） |
 | `MAX_TOTAL_TIME` | 否 | `86400` | 单次成绩用时上限（秒，防作弊） |
 | `BODY_LIMIT` / `RATE_PER_MIN` | 否 | `16384` / `60` | body 上限 / 每玩家每分钟写次数（游客创建每 IP 10/min；登录、注册、升级每 IP 20/min） |
+| `PAF_BODY_LIMIT` / `PAF_RATE_PER_MIN` | 否 | `2048` / `12` | PAF 提交 body 上限 / 每 IP 每分钟提交次数 |
 | `M3D_FEEDBACK_URL` | 否 | `http://127.0.0.1:8094` | 账号服务端访问反馈服务的地址，不下发浏览器 |
 | `M3D_FEEDBACK_TOKEN` | 反馈代理必填 | — | 反馈服务管理令牌，仅账号服务端持有；缺失时反馈代理返回 503，不影响账号/排行/配置 |
 | `M3D_FEEDBACK_ADMIN_USERS` | 可选 | `catten` | 允许读取后台反馈的账号名，逗号分隔；未列入账号返回 403 |
@@ -68,6 +69,21 @@ GET /leaderboard?kind=level&level=0&limit=50    # 单关榜，按用时升序
 GET /scores/mine  Bearer -> {"levels":{"0":42.5},"full":null}
 GET /health -> {"ok":true}
 ```
+
+PAF 两分钟在线榜（公开读、无需登录提交）。服务端取 `clientIp(req)` 的规范化 IP，以现有
+`M3D_ACCOUNTS_SECRET` 做 keyed HMAC 后去重；公开响应与持久化均不含明文 IP。每个 IP 只保留最新
+提交，低分同样替换，不是 personal-best。按分数降序、同分按服务器 `submittedAt` 升序；
+提交串行执行并通过临时文件 + rename 原子重写，失败返回错误且内存保留旧纪录。
+
+```
+GET  /paf/leaderboard?limit=50
+-> {"total":2,"items":[{"rank":1,"score":8,"durationMs":120000,"submittedAt":"..."}]}
+POST /paf/scores  {"score":8,"durationMs":120000}
+-> {"ok":true,"rank":1,"total":2,"entry":{"rank":1,"score":8,"durationMs":120000,"submittedAt":"..."}}
+```
+
+`score` 必须为 0..100000 的整数，`durationMs` 必须严格等于 120000；`limit` 为 1..100。
+非法 JSON/object/字段返回 400，body 过大返回 413，IP 限流返回 429。客户端时间不参与排序。
 
 Beta 后台命名调参配置（公开读；写按 IP 共享限流；与文件导出/导入相互独立）：
 
@@ -138,6 +154,7 @@ handle_path /marmot3d-beta/* {
 
 ## 备份与测试
 
-- 备份 `DATA_DIR` 三个 JSONL（accounts / scores / configs）即可。
+- 备份 `DATA_DIR` 四个 JSONL（accounts / scores / configs / paf-scores）即可。
 - `node --test server/accounts/test.mjs`：游客创建限流、游客单关上报与最快记录、升级冲突/校验/正式账号拒绝、uid 与成绩继承、旧令牌失效、新账号登录、旧账号兼容，以及原注册/登录/成绩/路由断言；并覆盖 `/configs` 的保存/列表/读取/同名覆盖/删除/100KB 上限/持久化重载。
 - `node --test tools/test-admin-feedback-proxy.mjs`：使用临时账号目录、临时签名/反馈令牌和真实临时 mock HTTP 服务，覆盖未登录/错误账号 401、登录代理成功、白名单参数、令牌不泄漏、下游 503/超时和未配置 503。
+- `node --test server/accounts/paf-test.mjs`：两个 IP 共存、同 IP 低分替换、原子文件当前值、排序/rank/total/limit、重启、隐私、非法输入、限流与写盘失败回滚。

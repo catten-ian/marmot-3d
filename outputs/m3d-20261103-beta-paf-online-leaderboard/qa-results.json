@@ -1,0 +1,271 @@
+{
+  "startedAt": "2026-11-03T00:28:26.368Z",
+  "checks": {
+    "no-other-task-browser": {
+      "pass": true,
+      "detail": ""
+    },
+    "boot-1280": {
+      "pass": true,
+      "detail": ""
+    },
+    "paf-entry-1280": {
+      "pass": true,
+      "detail": ""
+    },
+    "timed-running": {
+      "pass": true,
+      "detail": ""
+    },
+    "timed-finished": {
+      "pass": true,
+      "detail": ""
+    },
+    "first-auto-submit": {
+      "pass": true,
+      "detail": ""
+    },
+    "first-submit-once": {
+      "pass": true,
+      "detail": ""
+    },
+    "first-local-and-online": {
+      "pass": true,
+      "detail": "{\"status\":\"success\",\"rank\":1,\"total\":1,\"error\":\"\"}"
+    },
+    "restart-not-blocked": {
+      "pass": true,
+      "detail": ""
+    },
+    "replacement-auto-submit": {
+      "pass": true,
+      "detail": ""
+    },
+    "same-ip-lower-replaced": {
+      "pass": true,
+      "detail": "{\"total\":1,\"items\":[{\"rank\":1,\"score\":0,\"durationMs\":120000,\"submittedAt\":\"2026-11-03T00:28:48.144Z\"}]}"
+    },
+    "replacement-post-once": {
+      "pass": true,
+      "detail": ""
+    },
+    "success-exit-not-blocked": {
+      "pass": true,
+      "detail": ""
+    },
+    "desktop-reenter": {
+      "pass": true,
+      "detail": ""
+    },
+    "online-board-visible": {
+      "pass": true,
+      "detail": ""
+    },
+    "desktop-panel-in-viewport": {
+      "pass": true,
+      "detail": "{\"left\":946,\"right\":1266,\"top\":96,\"bottom\":288,\"width\":1280,\"height\":720,\"scrollHeight\":190,\"clientHeight\":190,\"overflowY\":\"auto\",\"buttons\":[{\"text\":\"本机榜\",\"disabled\":false,\"left\":959,\"right\":1018.984375,\"top\":133,\"bottom\":167},{\"text\":\"在线榜\",\"disabled\":false,\"left\":1026.984375,\"right\":1086.96875,\"top\":133,\"bottom\":167},{\"text\":\"刷新在线榜\",\"disabled\":false,\"left\":959,\"right\":1045.640625,\"top\":241,\"bottom\":275}]}"
+    },
+    "boot-390": {
+      "pass": true,
+      "detail": ""
+    },
+    "paf-entry-390": {
+      "pass": true,
+      "detail": ""
+    },
+    "honest-submit-failure": {
+      "pass": true,
+      "detail": ""
+    },
+    "local-retained-on-failure": {
+      "pass": true,
+      "detail": ""
+    },
+    "retry-visible": {
+      "pass": true,
+      "detail": ""
+    },
+    "online-retry-success": {
+      "pass": true,
+      "detail": ""
+    },
+    "different-ip-coexists": {
+      "pass": true,
+      "detail": "{\"total\":2,\"items\":[{\"rank\":1,\"score\":0,\"durationMs\":120000,\"submittedAt\":\"2026-11-03T00:28:48.144Z\"},{\"rank\":2,\"score\":0,\"durationMs\":120000,\"submittedAt\":\"2026-11-03T00:29:12.025Z\"}]}"
+    },
+    "mobile390-result-operable": {
+      "pass": true,
+      "detail": "{\"left\":15,\"right\":375,\"top\":320,\"bottom\":524,\"width\":390,\"height\":844,\"scrollHeight\":202,\"clientHeight\":202,\"overflowY\":\"auto\",\"buttons\":[{\"text\":\"在线重试\",\"disabled\":false,\"left\":0,\"right\":0,\"top\":0,\"bottom\":0},{\"text\":\"再来一局\",\"disabled\":false,\"left\":119.6875,\"right\":193,\"top\":475,\"bottom\":509},{\"text\":\"退出扮演\",\"disabled\":false,\"left\":197,\"right\":270.3125,\"top\":475,\"bottom\":509}]}"
+    },
+    "failure-exit-not-blocked": {
+      "pass": true,
+      "detail": ""
+    },
+    "mobile-reenter": {
+      "pass": true,
+      "detail": ""
+    },
+    "mobile-online-load": {
+      "pass": true,
+      "detail": ""
+    },
+    "mobile390-board-in-viewport": {
+      "pass": true,
+      "detail": "{\"left\":12,\"right\":378,\"top\":96,\"bottom\":301,\"width\":390,\"height\":844,\"scrollHeight\":203,\"clientHeight\":203,\"overflowY\":\"auto\",\"buttons\":[{\"text\":\"本机榜\",\"disabled\":false,\"left\":25,\"right\":84.984375,\"top\":132,\"bottom\":166},{\"text\":\"在线榜\",\"disabled\":false,\"left\":92.984375,\"right\":152.96875,\"top\":132,\"bottom\":166},{\"text\":\"刷新在线榜\",\"disabled\":false,\"left\":25,\"right\":111.640625,\"top\":254,\"bottom\":288}]}"
+    },
+    "mobile320-board-operable": {
+      "pass": true,
+      "detail": "{\"left\":12,\"right\":308,\"top\":96,\"bottom\":301,\"width\":320,\"height\":568,\"scrollHeight\":203,\"clientHeight\":203,\"overflowY\":\"auto\",\"buttons\":[{\"text\":\"本机榜\",\"disabled\":false,\"left\":25,\"right\":84.984375,\"top\":132,\"bottom\":166},{\"text\":\"在线榜\",\"disabled\":false,\"left\":92.984375,\"right\":152.96875,\"top\":132,\"bottom\":166},{\"text\":\"刷新在线榜\",\"disabled\":false,\"left\":25,\"right\":111.640625,\"top\":254,\"bottom\":288}]}"
+    },
+    "local-clear-retained": {
+      "pass": true,
+      "detail": ""
+    },
+    "mobile320-online-reload": {
+      "pass": true,
+      "detail": ""
+    },
+    "exit-not-blocked": {
+      "pass": true,
+      "detail": ""
+    },
+    "persistent-current-only": {
+      "pass": true,
+      "detail": ""
+    },
+    "no-browser-page-exceptions": {
+      "pass": true,
+      "detail": ""
+    }
+  },
+  "scenarios": {
+    "first": {
+      "score": 1,
+      "submission": {
+        "status": "success",
+        "rank": 1,
+        "total": 1,
+        "error": ""
+      }
+    },
+    "replacement": {
+      "firstScore": 1,
+      "replacedBoard": {
+        "total": 1,
+        "items": [
+          {
+            "rank": 1,
+            "score": 0,
+            "durationMs": 120000,
+            "submittedAt": "2026-11-03T00:28:48.144Z"
+          }
+        ]
+      }
+    }
+  },
+  "screenshots": [
+    "01-desktop-result-success-1280x720.png",
+    "02-desktop-online-board-1280x720.png",
+    "03-mobile-submit-failure-390x844.png",
+    "04-mobile-retry-success-390x844.png",
+    "05-mobile-online-board-390x844.png",
+    "06-mobile-online-board-320x568.png"
+  ],
+  "network": [
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+    },
+    {
+      "status": 502,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/scores"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    },
+    {
+      "status": 200,
+      "url": "http://127.0.0.1:43319/marmot3d-beta/api/paf/leaderboard?limit=50"
+    }
+  ],
+  "consoleErrors": [],
+  "exceptions": [],
+  "cdp": {
+    "endpoint": "127.0.0.1:9531",
+    "independentProfile": true,
+    "shared18800Used": false
+  },
+  "renderer": {
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/147.0.0.0 Safari/537.36",
+    "viewport": {
+      "width": 320,
+      "height": 568
+    }
+  },
+  "finishedAt": "2026-11-03T00:29:33.326Z"
+}

@@ -1,0 +1,70 @@
+✔ two IPs coexist; same IP replaces even with lower score and persists only current records (42.117106ms)
+✔ score desc, submittedAt asc, continuous rank, unique total and bounded limit survive restart (46.875111ms)
+✔ strict JSON, integer score and exact duration validation; body limit and independent IP rate limit (40.800783ms)
+[accounts] Error: EISDIR: illegal operation on a directory, rename '/tmp/m3d-paf-scores-P3qyzD/paf-scores.jsonl.tmp-3394631-d9e96ce5' -> '/tmp/m3d-paf-scores-P3qyzD/paf-scores.jsonl'
+    at async Object.rename (node:internal/fs/promises:842:10)
+    at async writeJsonlAtomic (file:///home/fame/code/marmot3d/m3d-beta-paf-online-ip-board-20261103/server/accounts/server.mjs:228:7)
+    at async file:///home/fame/code/marmot3d/m3d-beta-paf-online-ip-board-20261103/server/accounts/server.mjs:239:7 {
+  errno: -21,
+  code: 'EISDIR',
+  syscall: 'rename',
+  path: '/tmp/m3d-paf-scores-P3qyzD/paf-scores.jsonl.tmp-3394631-d9e96ce5',
+  dest: '/tmp/m3d-paf-scores-P3qyzD/paf-scores.jsonl'
+}
+✔ disk rewrite failure returns non-success and leaves the previous in-memory record effective (11.142021ms)
+▶ 账号与排行
+  ✔ health 与路由前缀 (0.612689ms)
+  ✔ CORS 预检保留跨域方法与鉴权头 (23.208821ms)
+  ✔ 旧账号缺 guest 字段按正式账号兼容，持久化游客不进入 nameIndex (46.177987ms)
+  ✔ 注册成功并返回 token/user；重复用户名 409 (36.59288ms)
+  ✔ 非法用户名/短密码 → 400 (8.642929ms)
+  ✔ 登录：正确通过、错误密码 401；/auth/me 校验令牌 (85.560368ms)
+  ✔ 未登录不能上报成绩 (1.921727ms)
+  ✔ 成绩校验：time 非正/超上限/level 越界/计数非法 → 400 (0.348036ms)
+  ✔ 上报后上榜；更慢的成绩不覆盖，更快的覆盖；榜单按用时升序 (67.27897ms)
+  ✔ 单关榜相互隔离；level 越界 400 (38.298947ms)
+  ✔ 我的成绩：返回各关最佳与全通关时间 (38.710028ms)
+  ✔ 排行榜公开可读（无需令牌） (1.874719ms)
+  ✔ 游客签发、单关最快成绩与升级账号：uid/成绩继承、改名、旧令牌失效、登录可用 (110.295568ms)
+  ✔ 游客签发按 IP 限流，超过默认阈值返回 429 中文错误 (26.760505ms)
+✔ 账号与排行 (492.348948ms)
+▶ 命名调参配置 /configs
+  ✔ 配置名校验：中英文/数字/连字符/下划线，1-50 位 (1.067183ms)
+  ✔ 空列表；部署前缀 /marmot3d-beta/api 同样可达 (4.133105ms)
+  ✔ 当前生效配置独立槽位读写，不出现在命名列表 (8.154617ms)
+  ✔ 保存→列表→读取往返；中文名字走 URL 编码 (8.488676ms)
+  ✔ 同名覆盖：内容与 updatedAt 更新，列表仍只有一条 (41.287832ms)
+  ✔ 非法名字 / config 非对象 / 非法 JSON → 4xx (11.229024ms)
+  ✔ config 超过 100KB → 413 (4.839834ms)
+  ✔ DELETE 幂等：不存在也 ok；删除后读取 404、列表消失 (12.067722ms)
+  ✔ 列表按 updatedAt 倒序 (1.889097ms)
+  ✔ CORS 预检允许 DELETE (1.881504ms)
+  ✔ 持久化到 configs.jsonl，重启后同名记录以最后一行生效 (4.93007ms)
+✔ 命名调参配置 /configs (100.555799ms)
+✔ buildScorePayload validates time and level, floors counters and defaults missing counters to zero (2.277881ms)
+✔ session round-trips token/user with guest flag; 401 restore clears it (0.929196ms)
+✔ escapeHtml and time format (1.234089ms)
+✔ API: bearer header, leaderboard filters, guest() and upgrade() routes (1.664126ms)
+✔ 未登录和错误账号均为 401，且不会访问下游 (144.473008ms)
+✔ 登录后通过部署前缀代理列表和统计，只转发白名单参数 (39.384336ms)
+✔ 下游 503、超时与缺少配置均 fail-soft，内部 token 不出现在响应 (109.928771ms)
+✔ 已登录但代理未配置时明确返回 503 (30.297401ms)
+✔ records sort by score, duration, timestamp and cap at ten (2.158257ms)
+✔ equal scores use deterministic timestamp tie-break and preserve clear fields (1.050973ms)
+✔ corrupt, denied and unavailable storage fail soft (0.290941ms)
+✔ reset removes only local records (0.173682ms)
+✔ board exposes loading, empty, ready and error/retry states (1.693712ms)
+✔ real submission state reports server rank, refreshes board and prevents duplicate concurrent POST (0.455371ms)
+✔ failed POST preserves retry payload; successful POST remains successful if later refresh fails (1.256188ms)
+✔ timed round starts, pauses, resumes, and finishes exactly at 120000ms (4.216556ms)
+✔ restart clears elapsed state and creates a new running round (0.730188ms)
+✔ round cancellation clears the held attack pointer before a new round (0.199452ms)
+✔ vertical attack drag maps to the same bounded range used by preview and actual path (0.374177ms)
+ℹ tests 48
+ℹ suites 2
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 725.765343
