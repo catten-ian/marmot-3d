@@ -48,6 +48,7 @@ import {
 } from '../core/paf-timed-range.mjs';
 import { createPafLeaderboard } from '../core/paf-leaderboard.mjs';
 import { createPafOnlineLeaderboard } from '../core/paf-online-leaderboard.mjs';
+import { normalizePafName } from '../core/paf-name.mjs';
 
 /** 扮演藏狐模式全部可调平衡数值（后台滑块直接改这里的运行时副本）。 */
 export const PAF_DEFAULTS = {
@@ -101,6 +102,8 @@ export const PAF_DEFAULTS = {
   noiseCoefStalk: 0.45,   // 听觉噪声系数
   noiseCoefSprint: 1.0,
   noiseCoefLunge: 1.5,
+  lungeHearingRadiusMinScale: 0.8,
+  lungeHearingRadiusMaxScale: 1.2,
   suspicionAlert: 0.5,    // 进 alert 的累积阈值
   suspicionFlee: 1.0,     // 累积到该值直接逃
   suspicionDecay: 0.6,    // 离开感知后衰减 /s
@@ -358,6 +361,7 @@ export function createPlayAsFox(ctx) {
   let mode = 'free';
   let timedRound = null;
   let timedResult = null;
+  let lastCaptureMs = PAF_TIMED_ROUND_MS;
   const leaderboard = createPafLeaderboard();
   const onlineLeaderboard = createPafOnlineLeaderboard();
   let leaderboardTab = 'local';
@@ -492,6 +496,10 @@ export function createPlayAsFox(ctx) {
   function renderLeaderboard() {
     elLeaderboard.replaceChildren();
     appendText(elLeaderboard, 'b', 'PAF 限时排行榜');
+    const close = appendText(elLeaderboard, 'button', '×', 'pafLeaderboardClose');
+    close.type = 'button'; close.setAttribute('aria-label', '关闭排行榜');
+    close.style.cssText = 'float:right;font-size:20px;line-height:1';
+    close.addEventListener('click', () => { elLeaderboard.hidden = true; });
     const tabs = document.createElement('div');
     tabs.style.cssText = 'display:flex;gap:4px;margin:6px 0';
     for (const [value, label, id] of [['local', '本机榜', 'pafLocalTab'], ['online', '在线榜', 'pafOnlineTab']]) {
@@ -510,19 +518,19 @@ export function createPlayAsFox(ctx) {
       const note = appendText(elLeaderboard, 'div', `仅此设备 · ${rows.length}/${leaderboard.capacity}`);
       note.style.cssText = 'opacity:.75;margin:4px 0 6px';
       if (!rows.length) appendText(elLeaderboard, 'div', '暂无完成的限时记录');
-      rows.forEach((row, index) => appendText(elLeaderboard, 'div', `${index + 1}. ${row.score} 只 · ${new Date(row.timestamp).toLocaleString()}`));
+      rows.forEach((row, index) => appendText(elLeaderboard, 'div', `${index + 1}. ${row.name || '匿名旧记录'} · ${row.score} 只 · 最后一只 ${row.completionMs}ms · ${new Date(row.timestamp).toLocaleString()}`));
       const reset = appendText(elLeaderboard, 'button', '清除本机记录', 'pafLeaderboardReset');
       reset.addEventListener('click', () => { leaderboard.reset(); renderLeaderboard(); });
       return;
     }
     const state = onlineLeaderboard.getState();
     appendText(elLeaderboard, 'b', '在线限时排行榜');
-    const note = appendText(elLeaderboard, 'div', `每个 IP 仅保留最新提交 · 共 ${state.total} 条`);
+    const note = appendText(elLeaderboard, 'div', `每个 IP 仅保留历史最高分 · 共 ${state.total} 条`);
     note.style.cssText = 'opacity:.75;margin:4px 0 6px';
     if (state.status === 'idle' || state.status === 'loading') appendText(elLeaderboard, 'div', '正在加载在线榜…');
     if (state.status === 'empty') appendText(elLeaderboard, 'div', '暂无在线记录，完成一轮即可上榜');
     if (state.status === 'error') appendText(elLeaderboard, 'div', '在线榜加载失败，请检查网络后重试');
-    for (const row of state.items) appendText(elLeaderboard, 'div', `${row.rank}. ${row.score} 只 · ${new Date(row.submittedAt).toLocaleString()}`);
+    for (const row of state.items) appendText(elLeaderboard, 'div', `${row.rank}. ${row.name} · ${row.score} 只 · 最后一只 ${row.completionMs}ms · ${new Date(row.submittedAt).toLocaleString()}`);
     const refresh = appendText(elLeaderboard, 'button', state.status === 'error' ? '重试在线榜' : '刷新在线榜', 'pafOnlineRefresh');
     refresh.disabled = state.status === 'loading';
     refresh.addEventListener('click', () => void onlineLeaderboard.load());
@@ -535,30 +543,68 @@ export function createPlayAsFox(ctx) {
     const submission = onlineLeaderboard.getState().submission;
     retry.hidden = submission.status !== 'error';
     retry.disabled = submission.status === 'submitting';
-    if (submission.status === 'submitting') status.textContent = '在线提交中…（可退出或再来一局）';
-    else if (submission.status === 'success') status.textContent = `在线提交成功 · 当前第 ${submission.rank} 名 / 共 ${submission.total} 条`;
-    else if (submission.status === 'error') status.textContent = timedResult?.localSaved
-      ? '在线提交失败；本机成绩仍保留，可点击“在线重试”。'
-      : '在线提交失败；本机存储也不可用，可点击“在线重试”。';
-    else status.textContent = '尚未提交在线榜';
+    if (submission.status === 'submitting') status.textContent = '在线提交中…';
+    else if (submission.status === 'success') status.textContent = `在线新纪录提交成功 · 当前第 ${submission.rank} 名 / 共 ${submission.total} 条`;
+    else if (submission.status === 'not_better') status.textContent = `未超过个人最好 · 当前最好 ${submission.best} 只 · 第 ${submission.rank} 名 / 共 ${submission.total} 条`;
+    else if (submission.status === 'error') {
+      status.textContent = `在线提交失败：${submission.error}。${timedResult?.localSaved ? '本机成绩仍保留。' : ''}可修改名字重新提交，或在线重试。`;
+      const submit = elTimedResult.querySelector('#pafSubmitScore');
+      if (submit) submit.disabled = false;
+    }
+    else status.textContent = '请先输入名字，再提交到线上榜';
   }
 
   function finishTimedRound() {
     if (!timedRound || timedResult) return;
     cancelPounce();
     releasePafInput({ keys, touchControls, touchState: touch });
-    const result = { score, durationMs: PAF_TIMED_ROUND_MS, timestamp: new Date().toISOString() };
+    const result = { score, durationMs: PAF_TIMED_ROUND_MS, completionMs: lastCaptureMs, timestamp: new Date().toISOString() };
     timedResult = result;
-    const saved = leaderboard.record(result).added;
-    timedResult.localSaved = saved;
-    renderLeaderboard();
-    elTimedResult.innerHTML = `<b>限时结束</b><div style="font-size:24px;margin:8px 0">${score} 只</div><div style="opacity:.8">本轮 120 秒 · ${saved ? '结果已保存到本机' : '本机存储不可用，结果未保存'}</div><div id="pafOnlineSubmitStatus" role="status" style="margin:8px 0">在线提交中…</div><button id="pafOnlineRetry" hidden>在线重试</button><button id="pafTimedRestart">再来一局</button><button id="pafTimedResultExit">退出扮演</button>`;
+    timedResult.localSaved = false;
+    elTimedResult.innerHTML = `<b>限时结束</b><div style="font-size:24px;margin:8px 0">${score} 只</div><div style="opacity:.8">本轮 120 秒 · 最后一只捕获 ${result.completionMs}ms</div><label for="pafPlayerName" style="display:block;margin:10px 0 4px;text-align:left">排行榜名字（至少 5 个 Unicode 字母/数字/下划线）</label><input id="pafPlayerName" type="text" autocomplete="nickname" minlength="5" maxlength="24" inputmode="text" aria-describedby="pafNameError" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid #778568;background:#172217;color:#eef5e7"><div id="pafNameError" role="alert" style="min-height:1.3em;color:#ffb4a8;text-align:left"></div><button id="pafSubmitScore" type="button">提交排行榜</button><div id="pafLocalReplace" hidden><span>已有同名本机记录，本次更优。</span><button id="pafConfirmLocalReplace" type="button">确认替换本机记录</button><button id="pafKeepLocalRecord" type="button">保留旧记录</button></div><div id="pafLocalStatus" role="status" style="margin:8px 0"></div><div id="pafOnlineSubmitStatus" role="status" style="margin:8px 0">请先提交排行榜</div><button id="pafOnlineRetry" hidden type="button">在线重试</button><button id="pafTimedRestart" type="button">再来一局</button><button id="pafContinueSandbox" type="button">继续沙盒模式（非限时模式）</button><button id="pafTimedResultExit" type="button">退出扮演</button>`;
     elTimedResult.hidden = false;
     elTimedResult.querySelector('#pafTimedRestart')?.addEventListener('click', startTimedRound);
     elTimedResult.querySelector('#pafTimedResultExit')?.addEventListener('click', exit);
     elTimedResult.querySelector('#pafOnlineRetry')?.addEventListener('click', () => void onlineLeaderboard.retry());
+    const submitScore = (replaceLocal = false) => {
+      const input = elTimedResult.querySelector('#pafPlayerName');
+      const error = elTimedResult.querySelector('#pafNameError');
+      const name = normalizePafName(input?.value);
+      if (!name.ok) { if (error) error.textContent = name.error; input?.focus(); return; }
+      if (!replaceLocal && input?.dataset.localChecked !== name.key) {
+        const local = leaderboard.record({ ...result, name: name.value });
+        if (local.needsConfirmation) {
+          input.dataset.localChecked = name.key;
+          elTimedResult.querySelector('#pafLocalReplace').hidden = false;
+          elTimedResult.querySelector('#pafSubmitScore').hidden = true;
+          elTimedResult.querySelector('#pafLocalStatus').textContent = '请明确选择是否替换本机同名记录。';
+          return;
+        }
+        timedResult.localSaved = local.added;
+        input.dataset.localChecked = name.key;
+        elTimedResult.querySelector('#pafLocalStatus').textContent = local.added ? '本机记录已保存。' : local.reason === 'not_better' ? '本机同名记录更好，已保留旧记录。' : (local.error || '本机记录未保存。');
+        renderLeaderboard();
+      }
+      if (replaceLocal) {
+        const local = leaderboard.record({ ...result, name: name.value }, { replaceExisting: true });
+        timedResult.localSaved = local.added;
+        elTimedResult.querySelector('#pafLocalReplace').hidden = true;
+        elTimedResult.querySelector('#pafLocalStatus').textContent = local.added ? '本机同名记录已替换。' : (local.error || '本机记录未保存。');
+        renderLeaderboard();
+      }
+      elTimedResult.querySelector('#pafSubmitScore').disabled = true;
+      void onlineLeaderboard.submit(result, name.value);
+    };
+    elTimedResult.querySelector('#pafSubmitScore')?.addEventListener('click', () => submitScore());
+    elTimedResult.querySelector('#pafConfirmLocalReplace')?.addEventListener('click', () => submitScore(true));
+    elTimedResult.querySelector('#pafKeepLocalRecord')?.addEventListener('click', () => {
+      const input = elTimedResult.querySelector('#pafPlayerName');
+      elTimedResult.querySelector('#pafLocalReplace').hidden = true;
+      elTimedResult.querySelector('#pafLocalStatus').textContent = '已保留旧本机记录。';
+      elTimedResult.querySelector('#pafSubmitScore').hidden = false;
+    });
+    elTimedResult.querySelector('#pafContinueSandbox')?.addEventListener('click', () => exit({ continueSandbox: true }));
     renderOnlineSubmission();
-    void onlineLeaderboard.submit(result);
     flash(`时间到 · ${score} 只`, '#ffd24a');
   }
 
@@ -566,6 +612,7 @@ export function createPlayAsFox(ctx) {
     mode = 'timed';
     score = 0;
     elapsed = 0;
+    lastCaptureMs = PAF_TIMED_ROUND_MS;
     timedResult = null;
     onlineLeaderboard.resetSubmission();
     timedRound = createPafTimedRound({ durationMs: PAF_TIMED_ROUND_MS });
@@ -724,6 +771,7 @@ export function createPlayAsFox(ctx) {
     p.caught = true; p.respawn = cfg.respawnTime;
     p.mesh.visible = false; p.mark.style.display = 'none';
     score += 1;
+    if (mode === 'timed') lastCaptureMs = Math.round(timedRound.elapsedMs);
     flash('捕获 +1', '#9fe6a0');
   }
 
@@ -1014,7 +1062,7 @@ export function createPlayAsFox(ctx) {
     return true;
   }
 
-  function exit() {
+  function exit(options = {}) {
     if (!running) return;
     ctx.audio?.setPafPaused?.(false);
     ctx.audio?.setPafActive?.(false);
@@ -1046,7 +1094,7 @@ export function createPlayAsFox(ctx) {
     document.body.classList.remove('play-as-fox');
     hidden.forEach((o) => { o.visible = true; });
     if (document.pointerLockElement === canvas && document.exitPointerLock) document.exitPointerLock();
-    onExit?.({ score, elapsed });
+    onExit?.({ score, elapsed, continueSandbox: options.continueSandbox === true });
   }
 
   const api = { update, exit, get active() { return running; } };

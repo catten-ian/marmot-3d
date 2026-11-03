@@ -1006,11 +1006,12 @@ async function enterPlayAsFoxReady() {
     touchLookSensitivity: controller.touchLookSensitivity,
     getFoxes: () => foxes,
     requestLock: () => { if (!touchControls.controller.touchEnabled) controller.requestLock(); },
-    onExit: () => {
+    onExit: (result = {}) => {
       playAsFox = null;
       document.body.classList.remove('play-as-fox');
       controller.update(0.016, new Set(), 1);
-      title();
+      if (result.continueSandbox) enterSandboxReady();
+      else title();
     },
   });
   // BETA 调试后台（lil-gui）：仅 ?pafdebug=1 懒加载，普通玩家/stable/dev 永不加载。

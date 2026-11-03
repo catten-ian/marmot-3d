@@ -1,10 +1,11 @@
 /** BETA 账号与排行榜接口；请求失败只向调用方报告，不影响游戏主循环。 */
 export class AccountsApiError extends Error {
-  constructor(status, message = '账号服务暂不可用', code = '') {
+  constructor(status, message = '账号服务暂不可用', code = '', details = null) {
     super(message);
     this.name = 'AccountsApiError';
     this.status = Number(status) || 0;
     this.code = code;
+    this.details = details;
   }
 }
 
@@ -94,7 +95,7 @@ export class AccountsApi {
       let data = null;
       try { data = await response.json(); } catch (_) { data = null; }
       if (!response.ok) {
-        throw new AccountsApiError(response.status, String(data?.error || '账号服务暂不可用'), 'http');
+        throw new AccountsApiError(response.status, String(data?.error || '账号服务暂不可用'), String(data?.code || 'http'), data);
       }
       return data || {};
     });

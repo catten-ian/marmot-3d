@@ -5,7 +5,7 @@ const path = require('node:path');
 const { spawn, execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const OUT = path.join(ROOT, 'outputs', 'm3d-20261103-beta-paf-online-leaderboard');
+const OUT = path.join(ROOT, 'outputs', 'm3d-20261103-beta-paf-online-leaderboard-v2');
 const CDP_PORT = Number(process.env.PAF_ONLINE_QA_CDP_PORT || 9531);
 const CHROME = process.env.CHROME_PATH || '/usr/bin/google-chrome';
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,6 +54,18 @@ async function click(selector) {
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: rect.x, y: rect.y, button: 'left', buttons: 1, clickCount: 1 });
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: rect.x, y: rect.y, button: 'left', buttons: 0, clickCount: 1 });
 }
+async function fillName(name) {
+  await evalJs(`(() => { const e=document.querySelector('#pafPlayerName'); if(!e) throw new Error('missing name input'); e.value=${JSON.stringify(name)}; e.dispatchEvent(new Event('input',{bubbles:true})); return true; })()`);
+  await click('#pafSubmitScore');
+}
+async function key(type, code, keyValue = code) {
+  await send('Input.dispatchKeyEvent', {
+    type, key: keyValue, code,
+    windowsVirtualKeyCode: code === 'Space' ? 32 : code === 'ShiftLeft' ? 16 : code === 'KeyW' ? 87 : code === 'PageDown' ? 34 : code === 'PageUp' ? 33 : 0,
+    nativeVirtualKeyCode: code === 'Space' ? 32 : 0,
+    autoRepeat: false,
+  });
+}
 async function navigate(ip, width = 1280, height = 720, mobile = false) {
   await viewport(width, height, mobile);
   await send('Network.setExtraHTTPHeaders', { headers: { 'X-Forwarded-For': ip } });
@@ -67,16 +79,23 @@ async function finishRound(withControlledCatch = false) {
   await click('#pafTimedStart');
   check('timed-running', await waitFor('window.__playAsFox?.timed?.status === "running"', 4000));
   if (withControlledCatch) {
-    await evalJs(`(() => { const api=window.__playAsFox; api.respawnAll(1); const p=api.prey[0]; api.teleport(0,0,0); p.x=0;p.z=5.6;p.vx=0;p.vz=0;p.yaw=Math.PI;p.state='wander';p.suspicion=0;p.timer=99; })()`);
+    await evalJs(`(() => { const api=window.__playAsFox; api.respawnAll(1); const p=api.prey[0]; api.teleport(0,0,0); p.x=0;p.z=3.4;p.vx=0;p.vz=0;p.yaw=Math.PI;p.state='freeze';p.suspicion=0;p.timer=99; })()`);
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
-    await evalJs('for(let i=0;i<60;i++) window.__playAsFox.step(1/60); true');
+    await evalJs('for(let i=0;i<60;i++){const a=window.__playAsFox,p=a.prey[0];p.x=a.pos.x;p.z=a.pos.z+3.4;p.vx=0;p.vz=0;a.step(1/60);} true');
   }
   await evalJs('for (let i = 0; i < 2400 && window.__playAsFox.timed.status !== "finished"; i++) window.__playAsFox.step(0.05); true');
   check('timed-finished', await evalJs('window.__playAsFox.timed.status === "finished" && window.__playAsFox.timed.elapsedMs === 120000'));
 }
 async function board() {
   const response = await fetch(`http://127.0.0.1:${accountPort}/paf/leaderboard`);
+  return response.json();
+}
+async function submitBoardScore(ip, score, name = 'Board_Player') {
+  const response = await fetch(`http://127.0.0.1:${accountPort}/paf/scores`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
+    body: JSON.stringify({ name, score, durationMs: 120000, completionMs: 120000 }),
+  });
   return response.json();
 }
 async function layout(selector) {
@@ -141,46 +160,90 @@ async function layout(selector) {
     await send('Runtime.enable'); await send('Page.enable'); await send('Network.enable');
 
     await navigate('203.0.113.41');
+    await key('keyDown', 'Space', ' ');
+    await evalJs('for(let i=0;i<6;i++) window.__playAsFox.step(1/60); true');
+    const quietNoise = await evalJs('({phase:window.__playAsFox.phase,noise:window.__playAsFox.noise})');
+    await key('keyDown', 'KeyW', 'w');
+    await evalJs('for(let i=0;i<12;i++) window.__playAsFox.step(1/60); true');
+    const windStalkNoise = await evalJs('({phase:window.__playAsFox.phase,noise:window.__playAsFox.noise})');
+    await key('keyDown', 'ShiftLeft', 'Shift');
+    await evalJs('for(let i=0;i<12;i++) window.__playAsFox.step(1/60); true');
+    const windSprintNoise = await evalJs('({phase:window.__playAsFox.phase,noise:window.__playAsFox.noise})');
+    await key('keyUp', 'ShiftLeft', 'Shift'); await key('keyUp', 'KeyW', 'w'); await key('keyUp', 'Space', ' ');
+    await evalJs('for(let i=0;i<2;i++) window.__playAsFox.step(1/60); true');
+    const defaultLungeNoise = await evalJs('({phase:window.__playAsFox.phase,noise:window.__playAsFox.noise})');
+    check('real-wind-no-lunge-noise', quietNoise.phase === 'wind' && quietNoise.noise.mode !== 'lunge'
+      && windStalkNoise.phase === 'wind' && windStalkNoise.noise.mode === 'stalk'
+      && windSprintNoise.phase === 'wind' && windSprintNoise.noise.mode === 'sprint'
+      && defaultLungeNoise.phase === 'lunge' && defaultLungeNoise.noise.mode === 'lunge',
+      JSON.stringify({ quietNoise, windStalkNoise, windSprintNoise, defaultLungeNoise }));
+    const rangeSamples = { default: defaultLungeNoise.noise.hearingRadius };
+    await evalJs('for(let i=0;i<50;i++) window.__playAsFox.step(1/60); true');
+    await key('keyDown', 'Space', ' ');
+    await evalJs('for(let i=0;i<2;i++) window.__playAsFox.step(1/60); true');
+    for (let i = 0; i < 12; i++) await key('keyDown', 'PageDown');
+    await key('keyUp', 'Space', ' '); await evalJs('for(let i=0;i<2;i++) window.__playAsFox.step(1/60); true');
+    rangeSamples.min = await evalJs('({phase:window.__playAsFox.phase,radius:window.__playAsFox.noise.hearingRadius})');
+    await evalJs('for(let i=0;i<50;i++) window.__playAsFox.step(1/60); true');
+    await key('keyDown', 'Space', ' '); await evalJs('for(let i=0;i<2;i++) window.__playAsFox.step(1/60); true');
+    for (let i = 0; i < 24; i++) await key('keyDown', 'PageUp');
+    await key('keyUp', 'Space', ' '); await evalJs('for(let i=0;i<2;i++) window.__playAsFox.step(1/60); true');
+    rangeSamples.max = await evalJs('({phase:window.__playAsFox.phase,radius:window.__playAsFox.noise.hearingRadius})');
+    check('real-lunge-range-hearing-monotonic', rangeSamples.min.phase === 'lunge' && rangeSamples.max.phase === 'lunge'
+      && rangeSamples.min.radius < rangeSamples.default && rangeSamples.default < rangeSamples.max.radius, JSON.stringify(rangeSamples));
+    report.scenarios.noise = { quietNoise, windStalkNoise, windSprintNoise, defaultLungeNoise, rangeSamples };
     await finishRound(true);
+    check('name-required-before-submit', await evalJs('!document.querySelector("#pafPlayerName")?.value && window.__playAsFox.onlineLeaderboard.submission.status === "idle"'));
+    check('result-three-actions-visible', await evalJs('["#pafTimedRestart","#pafContinueSandbox","#pafTimedResultExit"].every((s)=>{const e=document.querySelector(s);return e&&!e.hidden})'));
+    await fillName('Desktop_One');
     check('first-auto-submit', await waitFor('window.__playAsFox.onlineLeaderboard.submission.status === "success"', 12000));
     const firstScore = await evalJs('window.__playAsFox.score');
     const firstSubmission = await evalJs('window.__playAsFox.onlineLeaderboard.submission');
     check('first-submit-once', report.network.filter((item) => item.method === 'POST' && item.url.includes('/paf/scores')).length === 1);
-    check('first-local-and-online', firstSubmission.total === 1 && firstSubmission.rank === 1, JSON.stringify(firstSubmission));
+    check('first-local-and-online', firstSubmission.accepted === true && firstSubmission.total === 1 && firstSubmission.rank === 1, JSON.stringify(firstSubmission));
+    const highSubmission = await submitBoardScore('203.0.113.41', 2, 'Desktop_One');
+    check('same-ip-higher-accepted', highSubmission.accepted === true && highSubmission.best === 2 && highSubmission.rank === 1, JSON.stringify(highSubmission));
+    const highScore = highSubmission.best;
     await screenshot('01-desktop-result-success-1280x720');
     report.scenarios.first = { score: firstScore, submission: firstSubmission };
     await click('#pafTimedRestart');
     check('restart-not-blocked', await waitFor('window.__playAsFox.timed.status === "running" && window.__playAsFox.score === 0', 4000));
 
     await evalJs('for (let i = 0; i < 2400 && window.__playAsFox.timed.status !== "finished"; i++) window.__playAsFox.step(0.05); true');
-    check('replacement-auto-submit', await waitFor('window.__playAsFox.onlineLeaderboard.submission.status === "success"', 12000));
+    await fillName('Desktop_One');
+    check('lower-submit-receipt', await waitFor('window.__playAsFox.onlineLeaderboard.submission.status === "not_better"', 12000));
     const replacedBoard = await board();
-    check('same-ip-lower-replaced', replacedBoard.total === 1 && replacedBoard.items[0].score === 0 && firstScore >= 0, JSON.stringify(replacedBoard));
+    const lowerSubmission = await evalJs('window.__playAsFox.onlineLeaderboard.submission');
+    check('same-ip-lower-retained', lowerSubmission.accepted === false && lowerSubmission.best === highScore
+      && replacedBoard.total === 1 && replacedBoard.items[0].score === highScore, JSON.stringify({ replacedBoard, lowerSubmission }));
     check('replacement-post-once', report.network.filter((item) => item.method === 'POST' && item.url.includes('/paf/scores')).length === 2);
     await click('#pafTimedResultExit');
     check('success-exit-not-blocked', await waitFor('!window.__playAsFox', 5000));
     await evalJs('window.__enterPlayAsFox()');
     check('desktop-reenter', await waitFor('!!window.__playAsFox?.active', 10000));
     await click('#pafLeaderboardToggle'); await click('#pafOnlineTab');
-    check('online-board-visible', await waitFor('!document.querySelector("#pafLeaderboard").hidden && document.querySelector("#pafLeaderboard")?.textContent.includes("0 只")'));
+    check('online-board-visible', await waitFor(`!document.querySelector("#pafLeaderboard").hidden && document.querySelector("#pafLeaderboard")?.textContent.includes("${highScore} 只")`));
     await screenshot('02-desktop-online-board-1280x720');
     const desktopLayout = await layout('#pafLeaderboard');
     check('desktop-panel-in-viewport', desktopLayout.right > desktopLayout.left && desktopLayout.bottom > desktopLayout.top && desktopLayout.left >= 0 && desktopLayout.right <= 1280 && desktopLayout.top >= 0 && desktopLayout.bottom <= 720, JSON.stringify(desktopLayout));
-    report.scenarios.replacement = { firstScore, replacedBoard };
+    await click('#pafLeaderboardClose');
+    check('desktop-leaderboard-close', await evalJs('document.querySelector("#pafLeaderboard").hidden === true'));
+    report.scenarios.replacement = { firstScore, highScore, highSubmission, replacedBoard, lowerSubmission };
 
     await navigate('2001:db8::41', 390, 844, true);
     await click('#pafTimedStart');
     await close(accounts.server);
     await evalJs('for (let i = 0; i < 2400 && window.__playAsFox.timed.status !== "finished"; i++) window.__playAsFox.step(0.05); true');
+    await fillName('Mobile_One');
     check('honest-submit-failure', await waitFor('window.__playAsFox.onlineLeaderboard.submission.status === "error"', 12000));
-    check('local-retained-on-failure', await evalJs('(async()=>{const m=await import("/src/core/paf-leaderboard.mjs");const rows=m.createPafLeaderboard().list();return rows.length===3 && rows.at(-1).score===window.__playAsFox.score;})()'));
+    check('local-retained-on-failure', await evalJs('(async()=>{const m=await import("/src/core/paf-leaderboard.mjs");const rows=m.createPafLeaderboard().list();return rows.length===2 && rows.at(-1).score===window.__playAsFox.score;})()'));
     check('retry-visible', await evalJs('!document.querySelector("#pafOnlineRetry").hidden && document.querySelector("#pafOnlineSubmitStatus").textContent.includes("本机成绩仍保留")'));
     await screenshot('03-mobile-submit-failure-390x844');
     accountPort = await listen(accounts.server, accountPort);
     await click('#pafOnlineRetry');
     check('online-retry-success', await waitFor('window.__playAsFox.onlineLeaderboard.submission.status === "success"', 12000));
     const twoIpBoard = await board();
-    check('different-ip-coexists', twoIpBoard.total === 2 && twoIpBoard.items.every((item) => item.score === 0), JSON.stringify(twoIpBoard));
+    check('different-ip-coexists', twoIpBoard.total === 2 && twoIpBoard.items.map((item) => item.score).sort((a, b) => b - a).join(',') === `${highScore},0`, JSON.stringify(twoIpBoard));
     await screenshot('04-mobile-retry-success-390x844');
     const mobileResult = await layout('#pafTimedResult');
     check('mobile390-result-operable', mobileResult.left >= 0 && mobileResult.right <= 390 && mobileResult.top >= 0 && mobileResult.bottom <= 844 && mobileResult.buttons.every((b) => !b.disabled && b.left >= 0 && b.right <= 390), JSON.stringify(mobileResult));
@@ -202,12 +265,27 @@ async function layout(selector) {
     check('local-clear-retained', await evalJs('document.querySelector("#pafLeaderboard").textContent.includes("暂无完成的限时记录")'));
     await click('#pafOnlineTab');
     check('mobile320-online-reload', await waitFor('!document.querySelector("#pafLeaderboard").hidden && document.querySelector("#pafLeaderboard")?.textContent.includes("共 2 条")'));
+    await submitBoardScore('203.0.113.50', 3, 'Tie_Alpha');
+    const tieBeta = await fetch(`http://127.0.0.1:${accountPort}/paf/scores`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '203.0.113.51' }, body: JSON.stringify({ name: 'Tie_Beta', score: 3, durationMs: 120000, completionMs: 70000 }) }).then((response) => response.json());
+    check('same-score-shorter-completion-wins', tieBeta.accepted === true, JSON.stringify(tieBeta));
+    await click('#pafOnlineRefresh');
+    check('same-score-order-visible', await waitFor('document.querySelector("#pafLeaderboard")?.textContent.indexOf("Tie_Beta") < document.querySelector("#pafLeaderboard")?.textContent.indexOf("Tie_Alpha")'));
     await screenshot('06-mobile-online-board-320x568');
-    await click('#pafExit');
+    await click('#pafLeaderboardClose');
+    check('mobile-leaderboard-close', await evalJs('document.querySelector("#pafLeaderboard").hidden === true'));
+    await click('#pafTimedStart');
+    await evalJs('for (let i = 0; i < 2400 && window.__playAsFox.timed.status !== "finished"; i++) window.__playAsFox.step(0.05); true');
+    check('sandbox-actions-visible', await evalJs('["#pafTimedRestart","#pafContinueSandbox","#pafTimedResultExit"].every((s)=>!!document.querySelector(s))'));
+    const postsBeforeSandbox = report.network.filter((item) => item.method === 'POST' && item.url.includes('/paf/scores')).length;
+    await click('#pafContinueSandbox');
+    check('continue-sandbox-real-state', await waitFor('!window.__playAsFox && window.__game.game.sandbox === true && window.__game.game.mode === "play"', 8000));
+    check('sandbox-does-not-submit', report.network.filter((item) => item.method === 'POST' && item.url.includes('/paf/scores')).length === postsBeforeSandbox);
+    await evalJs('window.__game.exitSandbox(); true');
     check('exit-not-blocked', await waitFor('!window.__playAsFox && !document.querySelector("#playAsFoxHud")', 5000));
 
     const persisted = fs.readFileSync(path.join(dataDir, 'paf-scores.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
-    check('persistent-current-only', persisted.length === 2 && persisted.every((item) => item.score === 0 && item.durationMs === 120000));
+    check('persistent-current-only', persisted.length === 4 && persisted.map((item) => item.score).sort((a, b) => b - a).join(',') === `3,3,${highScore},0`
+      && persisted.every((item) => item.durationMs === 120000));
     check('no-browser-page-exceptions', report.exceptions.length === 0, report.exceptions.join('\n'));
     report.renderer = await evalJs('({userAgent:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight}})').catch(() => null);
     report.finishedAt = new Date().toISOString(); save();

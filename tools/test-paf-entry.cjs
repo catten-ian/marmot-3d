@@ -31,7 +31,7 @@ test('PAF hides marmot-only touch actions and overlapping utility buttons', () =
 
 test('Beta entry hands off to the independent PAF update loop and exit callback returns to title', () => {
   assert.match(main, /pafBtn\) pafBtn\.onclick = enterPlayAsFox/);
-  assert.match(main, /playAsFox = createPlayAsFox\([\s\S]*?onExit: \(\) => \{[\s\S]*?title\(\)/);
+  assert.match(main, /playAsFox = createPlayAsFox\([\s\S]*?onExit: \(result = \{\}\) => \{[\s\S]*?title\(\)/);
   assert.match(main, /if \(playAsFox\) \{[\s\S]*?playAsFox\.update\(dt\);[\s\S]*?return;/);
   assert.match(paf, /const api = \{ update, exit, get active\(\) \{ return running; \} \}/);
 });

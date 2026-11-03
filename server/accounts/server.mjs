@@ -13,7 +13,7 @@
  *
  * 存储：DATA_DIR 下 JSONL（accounts.jsonl / scores.jsonl / configs.jsonl / paf-scores.jsonl），启动载入内存；
  *      单关分数仅追加（保留历史），读取时按玩家取最佳；账号与配置文件变更时原子重写。
- *      PAF 使用独立 paf-scores.jsonl，每个 IP HMAC 仅一条当前纪录，提交时串行原子重写。
+ *      PAF 使用独立 paf-scores.jsonl，每个 IP HMAC 仅一条历史最高纪录，提交时串行原子重写。
  *
  * 环境变量：
  *  PORT(默认8095) HOST(默认127.0.0.1) DATA_DIR(默认 <repo>/data/accounts)
@@ -29,6 +29,7 @@ import fsp from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizePafName } from '../../src/core/paf-name.mjs';
 
 const ROUTE_PREFIXES = ['/marmot3d-beta/api', '/api'];
 const USERNAME_RE = /^[\p{L}\p{N}_.\-]{2,16}$/u;
@@ -145,7 +146,7 @@ function createStore(dataDir) {
   const scoreFile = path.join(dataDir, 'scores.jsonl');
   const configFile = path.join(dataDir, 'configs.jsonl');
   const pafScoreFile = path.join(dataDir, 'paf-scores.jsonl');
-  /** @type {Map<string, {key:string, score:number, durationMs:number, submittedAt:string}>} */
+  /** @type {Map<string, {key:string, name?:string, score:number, durationMs:number, completionMs:number, submittedAt:string}>} */
   const pafScores = new Map();
   /** @type {Map<string, {name:string, config:object, updatedAt:string, size:number}>} */
   const configs = new Map(); // 配置名 -> 最新记录
@@ -199,8 +200,11 @@ function createStore(dataDir) {
         const r = JSON.parse(s);
         if (r && typeof r.key === 'string' && r.key && Number.isInteger(r.score)
           && r.score >= 0 && r.score <= 100000 && r.durationMs === 120000
+          && (r.completionMs === undefined || (Number.isInteger(r.completionMs) && r.completionMs >= 0 && r.completionMs <= 120000))
           && typeof r.submittedAt === 'string' && Number.isFinite(Date.parse(r.submittedAt))) {
-          pafScores.set(r.key, { key: r.key, score: r.score, durationMs: r.durationMs, submittedAt: r.submittedAt });
+          const parsedName = normalizePafName(r.name);
+          const name = parsedName.ok ? parsedName.value : '';
+          pafScores.set(r.key, { key: r.key, ...(name ? { name } : {}), score: r.score, durationMs: r.durationMs, completionMs: r.completionMs ?? 120000, submittedAt: r.submittedAt });
         }
       } catch { /* skip */ }
     }
@@ -231,14 +235,26 @@ function createStore(dataDir) {
       throw e;
     }
   }
-  function submitPafScore(key, score, submittedAt) {
+  function submitPafScore(key, name, score, completionMs, submittedAt) {
     const write = pafWriteQueue.then(async () => {
-      const record = { key, score, durationMs: 120000, submittedAt };
+      const current = pafScores.get(key);
+      if ([...pafScores.values()].some((record) => record.key !== key && record.name && normalizePafName(record.name).key === normalizePafName(name).key)) {
+        return { conflict: true, reason: 'name_taken' };
+      }
+      if (current?.name && normalizePafName(current.name).key !== normalizePafName(name).key) {
+        return { conflict: true, reason: 'ip_name_mismatch' };
+      }
+      if (current && score <= current.score) {
+        const sorted = sortedPafScores({ pafScores });
+        return { accepted: false, record: current, rank: sorted.indexOf(current) + 1, total: sorted.length };
+      }
+      const record = { key, name, score, durationMs: 120000, completionMs, submittedAt };
       const next = new Map(pafScores);
       next.set(key, record);
       await writeJsonlAtomic(pafScoreFile, [...next.values()]);
       pafScores.clear(); for (const [k, v] of next) pafScores.set(k, v);
-      return record;
+      const sorted = sortedPafScores({ pafScores });
+      return { accepted: true, record, rank: sorted.indexOf(record) + 1, total: sorted.length };
     });
     pafWriteQueue = write.catch(() => {});
     return write;
@@ -297,15 +313,22 @@ function normalizePafScore(body) {
   if (!isObj(body)) return { error: '请求体必须是 JSON object' };
   if (!Number.isInteger(body.score) || body.score < 0 || body.score > 100000) return { error: 'score 必须是 0..100000 的整数' };
   if (body.durationMs !== 120000) return { error: 'durationMs 必须等于 120000' };
-  return { ok: true, value: { score: body.score, durationMs: 120000 } };
+  const name = normalizePafName(body.name);
+  if (!name.ok) return { error: name.error };
+  const completionMs = body.completionMs === undefined ? 120000 : body.completionMs;
+  if (!Number.isInteger(completionMs) || completionMs < 0 || completionMs > 120000) return { error: 'completionMs 必须是 0..120000 的整数' };
+  return { ok: true, value: { name: name.value, score: body.score, durationMs: 120000, completionMs } };
 }
 
 function publicPafEntry(record, rank) {
-  return { rank, score: record.score, durationMs: record.durationMs, submittedAt: record.submittedAt };
+  return { rank, name: record.name || '匿名玩家', score: record.score, durationMs: record.durationMs, completionMs: record.completionMs ?? 120000, submittedAt: record.submittedAt };
 }
 
 function sortedPafScores(store) {
-  return [...store.pafScores.values()].sort((a, b) => b.score - a.score || a.submittedAt.localeCompare(b.submittedAt));
+  return [...store.pafScores.values()].sort((a, b) => b.score - a.score
+    || (a.completionMs ?? 120000) - (b.completionMs ?? 120000)
+    || a.submittedAt.localeCompare(b.submittedAt)
+    || a.key.localeCompare(b.key));
 }
 
 function bestPerPlayer(scores, kind, level = null) {
@@ -441,10 +464,15 @@ export function createAccountsServer(options = {}) {
         const norm = normalizePafScore(body);
         if (norm.error) return sendJson(res, 400, { error: norm.error });
         const key = crypto.createHmac('sha256', secret).update(`paf-ip:${ip}`).digest('hex');
-        await store.submitPafScore(key, norm.value.score, new Date().toISOString());
-        const sorted = sortedPafScores(store);
-        const rank = sorted.findIndex((r) => r.key === key) + 1;
-        return sendJson(res, 200, { ok: true, rank, total: sorted.length, entry: publicPafEntry(store.pafScores.get(key), rank) });
+        const result = await store.submitPafScore(key, norm.value.name, norm.value.score, norm.value.completionMs, new Date().toISOString());
+        if (result.conflict) return sendJson(res, 409, { error: result.reason === 'name_taken' ? '名字已被占用' : '该 IP 已绑定其他名字，请使用原名字', code: result.reason });
+        const { rank, total } = result;
+        const best = result.record.score;
+        return sendJson(res, 200, {
+          ok: true, accepted: result.accepted, best,
+          reason: result.accepted ? undefined : 'not_better', name: result.record.name || '匿名玩家',
+          rank, total, entry: publicPafEntry(result.record, rank),
+        });
       }
 
       // ---------- 游客身份（无需令牌，按 IP 严格限流）----------
