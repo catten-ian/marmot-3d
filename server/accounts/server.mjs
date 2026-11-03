@@ -11,19 +11,22 @@
  *  - Beta 后台命名调参配置：保存/列表/读取/删除（configs.jsonl，同名覆盖）。
  *  - Beta 后台用户反馈：账号会话鉴权后，由服务端代理反馈管理接口；内部令牌不下发。
  *
- * 存储：DATA_DIR 下 JSONL（accounts.jsonl / scores.jsonl / configs.jsonl），启动载入内存；
- *      分数仅追加（保留历史），读取时按玩家取最佳；账号与配置文件变更时原子重写。
+ * 存储：DATA_DIR 下 JSONL（accounts.jsonl / scores.jsonl / configs.jsonl / paf-scores.jsonl），启动载入内存；
+ *      单关分数仅追加（保留历史），读取时按玩家取最佳；账号与配置文件变更时原子重写。
+ *      PAF 使用独立 paf-scores.jsonl，每个 IP HMAC 仅一条当前纪录，提交时串行原子重写。
  *
  * 环境变量：
  *  PORT(默认8095) HOST(默认127.0.0.1) DATA_DIR(默认 <repo>/data/accounts)
  *  M3D_ACCOUNTS_SECRET  令牌签名密钥（必填；缺失拒绝启动）
  *  BODY_LIMIT(默认16384) RATE_PER_MIN(默认60) LEVEL_COUNT(默认12)
+ *  PAF_BODY_LIMIT(默认2048) PAF_RATE_PER_MIN(默认12)
  *  MAX_TOTAL_TIME(默认 86400 秒，防作弊上限)
  *  M3D_FEEDBACK_URL(默认 http://127.0.0.1:8094) M3D_FEEDBACK_TOKEN(反馈代理必填)
  */
 import http from 'node:http';
 import crypto from 'node:crypto';
 import fsp from 'node:fs/promises';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -64,7 +67,35 @@ function timingEqual(a, b) {
   return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 function clientIp(req) {
-  return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return normalizeIp(forwarded) || normalizeIp(req.socket.remoteAddress) || 'unknown';
+}
+function normalizeIp(value) {
+  let ip = String(value || '').trim().replace(/^\[|\]$/g, '').split('%')[0];
+  if (net.isIPv4(ip)) return ip;
+  if (!net.isIPv6(ip)) return '';
+  ip = ip.toLowerCase();
+  if (ip.startsWith('::ffff:') && net.isIPv4(ip.slice(7))) return ip.slice(7);
+  const lastColon = ip.lastIndexOf(':');
+  if (ip.includes('.')) {
+    const ipv4 = ip.slice(lastColon + 1).split('.').map(Number);
+    ip = `${ip.slice(0, lastColon)}:${((ipv4[0] << 8) | ipv4[1]).toString(16)}:${((ipv4[2] << 8) | ipv4[3]).toString(16)}`;
+  }
+  const halves = ip.split('::');
+  const left = halves[0] ? halves[0].split(':') : [];
+  const right = halves[1] ? halves[1].split(':') : [];
+  const words = [...left, ...Array(8 - left.length - right.length).fill('0'), ...right]
+    .map((word) => String(parseInt(word || '0', 16)));
+  let bestStart = -1, bestLength = 0;
+  for (let i = 0; i < words.length;) {
+    if (words[i] !== '0') { i += 1; continue; }
+    let end = i; while (end < words.length && words[end] === '0') end += 1;
+    if (end - i > bestLength) { bestStart = i; bestLength = end - i; }
+    i = end;
+  }
+  if (bestLength < 2) return words.map((word) => parseInt(word, 10).toString(16)).join(':');
+  const hex = words.map((word) => parseInt(word, 10).toString(16));
+  return `${hex.slice(0, bestStart).join(':')}::${hex.slice(bestStart + bestLength).join(':')}`;
 }
 export function routePath(pathname) {
   for (const pre of ROUTE_PREFIXES) {
@@ -113,10 +144,14 @@ function createStore(dataDir) {
   const accFile = path.join(dataDir, 'accounts.jsonl');
   const scoreFile = path.join(dataDir, 'scores.jsonl');
   const configFile = path.join(dataDir, 'configs.jsonl');
+  const pafScoreFile = path.join(dataDir, 'paf-scores.jsonl');
+  /** @type {Map<string, {key:string, score:number, durationMs:number, submittedAt:string}>} */
+  const pafScores = new Map();
   /** @type {Map<string, {name:string, config:object, updatedAt:string, size:number}>} */
   const configs = new Map(); // 配置名 -> 最新记录
   let accountWriteQueue = Promise.resolve();
   let configWriteQueue = Promise.resolve();
+  let pafWriteQueue = Promise.resolve();
 
   async function load() {
     await fsp.mkdir(dataDir, { recursive: true });
@@ -157,6 +192,18 @@ function createStore(dataDir) {
         }
       } catch { /* skip */ }
     }
+    const pafText = await fsp.readFile(pafScoreFile, 'utf8').catch(() => '');
+    for (const line of pafText.split('\n')) {
+      const s = line.trim(); if (!s) continue;
+      try {
+        const r = JSON.parse(s);
+        if (r && typeof r.key === 'string' && r.key && Number.isInteger(r.score)
+          && r.score >= 0 && r.score <= 100000 && r.durationMs === 120000
+          && typeof r.submittedAt === 'string' && Number.isFinite(Date.parse(r.submittedAt))) {
+          pafScores.set(r.key, { key: r.key, score: r.score, durationMs: r.durationMs, submittedAt: r.submittedAt });
+        }
+      } catch { /* skip */ }
+    }
   }
   async function rewriteAccounts() {
     const write = accountWriteQueue.then(async () => {
@@ -174,6 +221,28 @@ function createStore(dataDir) {
     return write;
   }
   async function appendScore(r) { scores.push(r); await fsp.appendFile(scoreFile, JSON.stringify(r) + '\n', 'utf8'); }
+  async function writeJsonlAtomic(file, records) {
+    const tmp = `${file}.tmp-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
+    try {
+      await fsp.writeFile(tmp, records.length ? records.map((r) => JSON.stringify(r)).join('\n') + '\n' : '', 'utf8');
+      await fsp.rename(tmp, file);
+    } catch (e) {
+      await fsp.unlink(tmp).catch(() => {});
+      throw e;
+    }
+  }
+  function submitPafScore(key, score, submittedAt) {
+    const write = pafWriteQueue.then(async () => {
+      const record = { key, score, durationMs: 120000, submittedAt };
+      const next = new Map(pafScores);
+      next.set(key, record);
+      await writeJsonlAtomic(pafScoreFile, [...next.values()]);
+      pafScores.clear(); for (const [k, v] of next) pafScores.set(k, v);
+      return record;
+    });
+    pafWriteQueue = write.catch(() => {});
+    return write;
+  }
   async function rewriteConfigs() {
     const write = configWriteQueue.then(async () => {
       const tmp = `${configFile}.tmp-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
@@ -190,7 +259,7 @@ function createStore(dataDir) {
     return write;
   }
 
-  return { users, nameIndex, scores, configs, load, rewriteAccounts, appendScore, rewriteConfigs };
+  return { users, nameIndex, scores, configs, pafScores, load, rewriteAccounts, appendScore, rewriteConfigs, submitPafScore };
 }
 
 // ---------------- 限流 ----------------
@@ -222,6 +291,21 @@ export function normalizeScore(body, levelCount, maxTotalTime) {
   }
   const version = typeof body.version === 'string' ? body.version.slice(0, 40) : '';
   return { ok: true, value: { kind, level, time, ...ints, version } };
+}
+
+function normalizePafScore(body) {
+  if (!isObj(body)) return { error: '请求体必须是 JSON object' };
+  if (!Number.isInteger(body.score) || body.score < 0 || body.score > 100000) return { error: 'score 必须是 0..100000 的整数' };
+  if (body.durationMs !== 120000) return { error: 'durationMs 必须等于 120000' };
+  return { ok: true, value: { score: body.score, durationMs: 120000 } };
+}
+
+function publicPafEntry(record, rank) {
+  return { rank, score: record.score, durationMs: record.durationMs, submittedAt: record.submittedAt };
+}
+
+function sortedPafScores(store) {
+  return [...store.pafScores.values()].sort((a, b) => b.score - a.score || a.submittedAt.localeCompare(b.submittedAt));
 }
 
 function bestPerPlayer(scores, kind, level = null) {
@@ -266,6 +350,8 @@ export function createAccountsServer(options = {}) {
   const limiter = createRateLimiter(options.ratePerMin || 60);
   const authLimiter = createRateLimiter(20); // 登录/注册/升级更严格
   const guestLimiter = createRateLimiter(options.guestRatePerMin || 10); // 游客签发按 IP 严格限流
+  const pafLimiter = createRateLimiter(options.pafRatePerMin || 12);
+  const pafBodyLimit = Math.max(256, Math.min(2048, Number(options.pafBodyLimit) || 2048));
   let loaded = null;
   const feedbackUrl = options.feedbackUrl ?? process.env.M3D_FEEDBACK_URL ?? 'http://127.0.0.1:8094';
   const feedbackToken = options.feedbackToken ?? process.env.M3D_FEEDBACK_TOKEN ?? '';
@@ -335,6 +421,31 @@ export function createAccountsServer(options = {}) {
       const route = (routePath(url.pathname) || '/').replace(/\/+$/, '') || '/';
       if (req.method === 'OPTIONS') { res.writeHead(204, corsHeaders()); return res.end(); }
       if (route === '/health' && req.method === 'GET') return sendJson(res, 200, { ok: true });
+
+      // ---------- PAF 两分钟在线榜（公开读；无需登录，按规范化 IP 的 HMAC 去重）----------
+      if (route === '/paf/leaderboard' && req.method === 'GET') {
+        const rawLimit = url.searchParams.get('limit');
+        const requestedLimit = rawLimit === null || rawLimit === '' ? 50 : Number(rawLimit);
+        if (!Number.isInteger(requestedLimit) || requestedLimit < 1) return sendJson(res, 400, { error: 'limit 必须是正整数' });
+        const limit = Math.min(100, requestedLimit);
+        const sorted = sortedPafScores(store);
+        return sendJson(res, 200, { total: sorted.length, items: sorted.slice(0, limit).map((r, i) => publicPafEntry(r, i + 1)) });
+      }
+
+      if (route === '/paf/scores' && req.method === 'POST') {
+        const ip = clientIp(req);
+        if (!pafLimiter(ip)) return sendJson(res, 429, { error: 'PAF 成绩提交过于频繁，请稍后再试' }, { 'Retry-After': '60' });
+        const read = await readBody(req, pafBodyLimit);
+        if (read.tooLarge) return sendJson(res, 413, { error: '请求体过大' });
+        let body; try { body = JSON.parse(read.raw.toString('utf8')); } catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+        const norm = normalizePafScore(body);
+        if (norm.error) return sendJson(res, 400, { error: norm.error });
+        const key = crypto.createHmac('sha256', secret).update(`paf-ip:${ip}`).digest('hex');
+        await store.submitPafScore(key, norm.value.score, new Date().toISOString());
+        const sorted = sortedPafScores(store);
+        const rank = sorted.findIndex((r) => r.key === key) + 1;
+        return sendJson(res, 200, { ok: true, rank, total: sorted.length, entry: publicPafEntry(store.pafScores.get(key), rank) });
+      }
 
       // ---------- 游客身份（无需令牌，按 IP 严格限流）----------
       if (req.method === 'POST' && route === '/auth/guest') {
@@ -568,6 +679,8 @@ if (isMain) {
   const { server } = createAccountsServer({
     secret: SECRET, dataDir: DATA_DIR, bodyLimit: Math.max(2048, Number(process.env.BODY_LIMIT || 16384)),
     ratePerMin: Math.max(1, Number(process.env.RATE_PER_MIN || 60)),
+    pafRatePerMin: Math.max(1, Number(process.env.PAF_RATE_PER_MIN || 12)),
+    pafBodyLimit: Math.max(256, Number(process.env.PAF_BODY_LIMIT || 2048)),
     levelCount: Math.max(1, Number(process.env.LEVEL_COUNT || 12)),
     maxTotalTime: Math.max(60, Number(process.env.MAX_TOTAL_TIME || 86400)),
     feedbackUrl: process.env.M3D_FEEDBACK_URL || 'http://127.0.0.1:8094',

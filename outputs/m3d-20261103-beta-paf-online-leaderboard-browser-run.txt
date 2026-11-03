@@ -1,0 +1,31 @@
+{
+  "pass": true,
+  "checks": 34,
+  "scenarios": {
+    "first": {
+      "score": 1,
+      "submission": {
+        "status": "success",
+        "rank": 1,
+        "total": 1,
+        "error": ""
+      }
+    },
+    "replacement": {
+      "firstScore": 1,
+      "replacedBoard": {
+        "total": 1,
+        "items": [
+          {
+            "rank": 1,
+            "score": 0,
+            "durationMs": 120000,
+            "submittedAt": "2026-11-03T00:28:48.144Z"
+          }
+        ]
+      }
+    }
+  },
+  "consoleErrors": 0,
+  "exceptions": 0
+}
