@@ -21,7 +21,7 @@
 
 export const TAU = Math.PI * 2;
 
-/** 玩家当前给猎物的线索档位：潜行 / 冲刺 / 扑击（wind+lunge 同属最高威胁档）。 */
+/** 玩家当前给猎物的线索档位：潜行 / 冲刺 / 扑击。 */
 export const CUE_MODE = Object.freeze({ STALK: 'stalk', SPRINT: 'sprint', LUNGE: 'lunge' });
 
 const D2R = Math.PI / 180;
@@ -68,19 +68,24 @@ export function distanceFalloff(d, radius, inner) {
 
 /** 各线索档位的视觉 / 听觉半径（m）。视觉对齐旧三档；听觉为全向代理。 */
 export function cueRadii(mode, p) {
+  const hearingOverride = Number.isFinite(p.hearingRadius) ? p.hearingRadius : null;
+  const visionMode = p.visionMode || mode;
+  const vision = visionMode === CUE_MODE.LUNGE ? p.visionRadiusLunge
+    : visionMode === CUE_MODE.SPRINT ? p.detectSprint : p.detectStalk;
   switch (mode) {
     case CUE_MODE.LUNGE:
-      return { vision: p.visionRadiusLunge, hearing: p.detectLunge };
+      return { vision, hearing: hearingOverride ?? p.detectLunge };
     case CUE_MODE.SPRINT:
-      return { vision: p.detectSprint, hearing: p.hearRadiusSprint };
+      return { vision, hearing: hearingOverride ?? p.hearRadiusSprint };
     case CUE_MODE.STALK:
     default:
-      return { vision: p.detectStalk, hearing: p.hearRadiusStalk };
+      return { vision, hearing: hearingOverride ?? p.hearRadiusStalk };
   }
 }
 
 /** 视觉速度系数（潜行 < 冲刺 < 扑击）。 */
 export function visionSpeedCoef(mode, p) {
+  mode = p.visionMode || mode;
   if (mode === CUE_MODE.LUNGE) return p.speedCoefLunge;
   if (mode === CUE_MODE.SPRINT) return p.speedCoefSprint;
   return p.speedCoefStalk;
@@ -88,6 +93,7 @@ export function visionSpeedCoef(mode, p) {
 
 /** 听觉噪声系数（冲刺/扑击噪声更大）。 */
 export function hearingNoiseCoef(mode, p) {
+  if (Number.isFinite(p.noiseCoef)) return p.noiseCoef;
   if (mode === CUE_MODE.LUNGE) return p.noiseCoefLunge;
   if (mode === CUE_MODE.SPRINT) return p.noiseCoefSprint;
   return p.noiseCoefStalk;

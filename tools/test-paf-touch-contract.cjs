@@ -19,12 +19,45 @@ test('quiet preparation has independent radius/strength and zero hearing outside
   const quietTuned = noise.pafNoiseState({phase:'wind'},tuned);
   assert.ok(quietTuned.hearingRadius < tuned.hearRadiusStalk); assert.ok(quietTuned.noiseCoef < tuned.noiseCoefStalk);
 });
-test('moving preparation, sprint, airborne lunge and recovery keep their hearing contracts', () => {
-  for (const state of [{phase:'wind',groundSpeed:1},{phase:'lunge',groundSpeed:0},{phase:'lunge',groundSpeed:13.5}]) {
-    const n = noise.pafNoiseState(state,cfg);
-    assert.equal(n.hearingRadius,cfg.detectLunge);assert.equal(n.noiseCoef,cfg.noiseCoefLunge);
-    assert.equal(noise.pafNoiseConfig(n,cfg),cfg);
+test('noise modes follow ground state: idle, wind quiet/stalk/sprint, and lunge', () => {
+  const idleQuiet = noise.pafNoiseState({ phase: 'idle', groundSpeed: 0, sprint: false }, cfg);
+  assert.equal(idleQuiet.mode, 'stalk');
+  assert.equal(idleQuiet.hearingRadius, cfg.hearRadiusStalk);
+  assert.equal(idleQuiet.noiseCoef, cfg.noiseCoefStalk);
+
+  const windQuiet = noise.pafNoiseState({ phase: 'wind', groundSpeed: 0, sprint: true }, cfg);
+  assert.equal(windQuiet.mode, 'stalk');
+  assert.equal(windQuiet.hearingRadius, .9);
+  assert.equal(windQuiet.noiseCoef, .12);
+  assert.equal(windQuiet.quietPreparation, true);
+
+  const windStalk = noise.pafNoiseState({ phase: 'wind', groundSpeed: 1, sprint: false }, cfg);
+  assert.equal(windStalk.mode, 'stalk');
+  assert.equal(windStalk.hearingRadius, cfg.hearRadiusStalk);
+  assert.equal(windStalk.noiseCoef, cfg.noiseCoefStalk);
+  assert.equal(windStalk.visionMode, 'lunge');
+
+  const windSprint = noise.pafNoiseState({ phase: 'wind', groundSpeed: cfg.runSpeed, sprint: true }, cfg);
+  assert.equal(windSprint.mode, 'sprint');
+  assert.equal(windSprint.hearingRadius, cfg.hearRadiusSprint);
+  assert.equal(windSprint.noiseCoef, cfg.noiseCoefSprint);
+  assert.equal(windSprint.visionMode, 'lunge');
+
+  const lunge = noise.pafNoiseState({ phase: 'lunge', groundSpeed: 0, lungeRange: cfg.pounceRangeDefault }, cfg);
+  assert.equal(lunge.mode, 'lunge');
+  assert.equal(lunge.hearingRadius, cfg.detectLunge);
+  assert.equal(lunge.noiseCoef, cfg.noiseCoefLunge);
+  assert.equal(lunge.visionMode, 'lunge');
+  for (const wind of [windQuiet, windStalk, windSprint]) assert.notEqual(wind.mode, 'lunge');
+
+  const min = noise.pafNoiseState({phase:'lunge',lungeRange:cfg.pounceRangeMin},cfg);
+  const max = noise.pafNoiseState({phase:'lunge',lungeRange:cfg.pounceRangeMax},cfg);
+  assert.ok(min.hearingRadius < lunge.hearingRadius && lunge.hearingRadius < max.hearingRadius);
+  for (const n of [windQuiet, windStalk, windSprint, lunge, min, max]) {
+    const actual = predator.perceptionCue({dist:n.hearingRadius * .9,inCone:false,mode:n.mode}, noise.pafNoiseConfig(n,cfg));
+    assert.equal(actual.hearR,n.hearingRadius);
   }
+  assert.equal(noise.pafNoiseState({phase:'lunge',groundSpeed:0,lungeRange:cfg.pounceRangeMin},cfg).noiseCoef,cfg.noiseCoefLunge);
   for (const phase of ['idle','recover']) for(const sprint of [false,true]) {
     const n=noise.pafNoiseState({phase,sprint},cfg);
     assert.equal(n.hearingRadius,sprint?cfg.hearRadiusSprint:cfg.hearRadiusStalk);
