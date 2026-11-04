@@ -1346,6 +1346,10 @@ function title() {
   hud.showPanel(`
     <div class="eyebrow">CAMPAIGN / ${LEVELS.length} 关草原冒险 · 第一 / 第三人称 3D</div>
     <h2>从两只藏狐，到草原守望者。</h2>
+    <div class="row title-actions title-actions-primary">
+      <button class="primary" id="startBtn">从第 ${game.level + 1} 关继续 · Enter</button>
+      <button class="ghost" id="levelSelectBtn">选择关卡 · 已解锁 ${progress.maxUnlocked + 1}/${LEVELS.length}</button>
+    </div>
     <button class="sandbox-entry" id="sandboxEntryBtn" type="button">自由测试 / 沙盒 <span>不计关卡 · 无限练习</span></button>
     ${IS_BETA ? `<button class="sandbox-entry" id="playAsFoxBtn" type="button" style="border-color:#b98a4a">扮演藏狐（BETA） <span>潜行 · 蓄力 · 扑击捕猎土拨鼠</span></button>` : ''}
     <p>你是草原上的一只土拨鼠。默认第一人称贴近草地，也可以按 <b>${bindText(binds, 'cameraView', 'V')}</b> 切换为第三人称跟随视角，随时按需选择。</p>
@@ -1399,10 +1403,6 @@ function title() {
         : '<span class="account-name">正在进入游客模式…</span>';
       return `<div class="accounts-title-row">${right}<button class="ghost" id="leaderboardBtn" type="button">排行榜</button></div>`;
     })() : ''}
-    <div class="row title-actions">
-      <button class="primary" id="startBtn">从第 ${game.level + 1} 关继续 · Enter</button>
-      <button class="ghost" id="levelSelectBtn">选择关卡 · 已解锁 ${progress.maxUnlocked + 1}/${LEVELS.length}</button>
-    </div>
     <div style="margin-top:10px">
       <button class="ghost" id="howBtn">教师说明：数值是玩法抽象</button>
     </div>
@@ -1417,9 +1417,11 @@ function title() {
     document.getElementById('leaderboardBtn')?.addEventListener('click', () => leaderboardUI?.open());
     document.getElementById('accountUpgradeBtn')?.addEventListener('click', () => authModal?.open('upgrade'));
     document.getElementById('accountLogoutBtn')?.addEventListener('click', () => {
+      const token = accountStore()?.token || '';
       clearSession(undefined, ACCOUNTS.storageKey);
       setAccountSession(null);
       title();
+      if (token) void accountsApi.logout(token).catch((e) => console.debug('[accounts] 撤销会话略过', e?.status || e?.code || e));
       // 退出/换身份后立即签发新游客，保证下一局仍可上榜。
       void accountsApi.guest().then((res) => {
         const s = writeSession(res?.token, res?.user, undefined, ACCOUNTS.storageKey);

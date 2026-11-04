@@ -608,7 +608,22 @@ export function createPlayAsFox(ctx) {
     flash(`时间到 · ${score} 只`, '#ffd24a');
   }
 
-  function startTimedRound() {
+  async function startTimedRound() {
+    if (elTimedStart.disabled) return;
+    elTimedStart.disabled = true;
+    const oldLabel = elTimedStart.textContent;
+    elTimedStart.textContent = '获取在线回合凭证…';
+    try {
+      await onlineLeaderboard.beginRun();
+    } catch (error) {
+      // The local PAF round remains playable offline, but the server will
+      // reject any bare score submission until a credentialed retry succeeds.
+      elTip.textContent = '在线凭证暂不可用，本轮仍可保存本机记录；线上提交请重新开始。';
+      console.debug('[paf] run ticket unavailable', error?.message || error);
+    } finally {
+      elTimedStart.disabled = false;
+      elTimedStart.textContent = oldLabel;
+    }
     mode = 'timed';
     score = 0;
     elapsed = 0;

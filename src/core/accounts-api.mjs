@@ -139,6 +139,10 @@ export class AccountsApi {
     return this.request('/auth/me', { token });
   }
 
+  logout(token) {
+    return this.request('/auth/logout', { method: 'POST', token, body: {} });
+  }
+
   submitScore(payload, token) {
     return this.request('/scores', { method: 'POST', token, body: payload });
   }

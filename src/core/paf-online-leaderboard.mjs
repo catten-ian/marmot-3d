@@ -15,6 +15,7 @@ export function createPafOnlineLeaderboard({ api = new AccountsApi(), limit = 50
   let loadSequence = 0;
   let submitSequence = 0;
   let lastResult = null;
+  let runTicket = '';
   let state = {
     status: 'idle', items: [], total: 0, error: '',
     submission: { status: 'idle', accepted: null, best: null, rank: null, total: 0, name: '', error: '' },
@@ -22,6 +23,17 @@ export function createPafOnlineLeaderboard({ api = new AccountsApi(), limit = 50
   const snapshot = () => ({ ...state, items: state.items.slice(), submission: { ...state.submission } });
   const emit = () => { const value = snapshot(); for (const listener of listeners) listener(value); };
   const patch = (value) => { state = { ...state, ...value }; emit(); };
+
+  async function beginRun() {
+    runTicket = '';
+    const response = await api.request('/paf/runs', { method: 'POST', body: {} });
+    if (!response?.ok || typeof response.ticket !== 'string' || !response.ticket || response.durationMs !== 120000
+      || typeof response.expiresAt !== 'string' || !Number.isFinite(Date.parse(response.expiresAt))) {
+      throw new Error('在线回合凭证无效');
+    }
+    runTicket = response.ticket;
+    return runTicket;
+  }
 
   async function load() {
     const sequence = ++loadSequence;
@@ -52,7 +64,8 @@ export function createPafOnlineLeaderboard({ api = new AccountsApi(), limit = 50
     const sequence = ++submitSequence;
     patch({ submission: { status: 'submitting', accepted: null, best: null, rank: null, total: 0, name: parsedName.value, error: '' } });
     try {
-      const response = await api.request('/paf/scores', { method: 'POST', body: lastResult });
+      if (!runTicket) throw new Error('本轮没有在线凭证，请重新开始限时回合');
+      const response = await api.request('/paf/scores', { method: 'POST', body: { ...lastResult, runTicket } });
       if (sequence !== submitSequence) return false;
       const entry = publicEntry(response?.entry);
       const accepted = response?.accepted !== false;
@@ -77,6 +90,7 @@ export function createPafOnlineLeaderboard({ api = new AccountsApi(), limit = 50
     getState: snapshot,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     load,
+    beginRun,
     submit,
     retry() { return lastResult ? submit(lastResult, lastResult.name) : load(); },
     resetSubmission() {

@@ -49,6 +49,24 @@ SMART_BOUNDS.smartTeamRestHpRatio = [0, 1];
 SMART_BOUNDS.smartTeamRestStaminaRatio = [0, 1];
 for (const key of RATIO_KEYS) SMART_BOUNDS[key] = [0, 1];
 
+// These bounds mirror the Beta admin tuning ranges for every non-SmartFox
+// runtime value. Keeping the boundary table here makes URL, active-config and
+// client-side projections use the same finite envelope.
+const RUNTIME_BOUNDS = {
+  moveSpeedMul: [.5, 2], sprintMoveCost: [0, 20], runMoveCost: [0, 20], flowerCount: [0, 20],
+  grassSeconds: [.1, 5], grazeCoreRadius: [.1, 8], grazeHaloRadius: [.2, 12], grazeRate: [.01, 3],
+  grassRegrowPerSec: [0, .2], grazeRegenPerSec: [0, 30], grazeConeHalfAngle: [0, Math.PI],
+  grazeMoveSpeedMul: [0, 2], grazeImmediateShare: [0, 1], mouthCapacity: [0, 500], chewPerSec: [0, 30],
+  chewRunSpeedThreshold: [0, 20], chewRunRateRatio: [0, 1], mainBurrowChewPerSec: [0, 60],
+  temporaryBurrowChewPerSec: [0, 60], staminaFatThreshold: [0, .99], flowerHpTotal: [0, 100],
+  flowerStaminaTotal: [0, 100], flowerRecoverySeconds: [0, 60], companionFollowSpeed: [1, 20],
+  companionFollowGap: [.2, 5], grazeEyeDropExtra: [0, 1], thirdPersonGrazeDrop: [0, 2],
+  lungeLockRange: [1, 20], lungeLockHalfAngle: [.05, Math.PI],
+  stunDiminishWindow: [0, 20], stunDiminishFactor: [0, 1], stunDiminishFloor: [0, 5],
+  stunDiminishResetSeconds: [0, 30], bgmCombatLatchSeconds: [5, 120],
+  ...SMART_BOUNDS,
+};
+
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
 function safeSessionStorage() {
@@ -56,7 +74,7 @@ function safeSessionStorage() {
 }
 
 /** Keep only actual beta tuning keys and finite values of the same type. */
-export function sanitizeRuntimeValues(values, base = BETA_TUNE) {
+export function sanitizeRuntimeValues(values, base = BETA_TUNE, { strict = false } = {}) {
   if (!isObject(values)) return { values: {}, ignored: [], warnings: ['values 必须是对象'] };
   const out = {}; const ignored = []; const warnings = [];
   for (const [key, value] of Object.entries(values)) {
@@ -67,21 +85,40 @@ export function sanitizeRuntimeValues(values, base = BETA_TUNE) {
     } else if (typeof base[key] === 'number') {
       const n = Number(value);
       if (typeof value !== 'number' || !Number.isFinite(n)) { warnings.push(`${key} 必须是有限数字`); continue; }
-      // Runtime payloads must not smuggle negative/NaN physics values.
-      const bounded = Math.max(0, n);
-      const bounds = SMART_BOUNDS[key];
-      out[key] = bounds ? Math.min(bounds[1], Math.max(bounds[0], bounded)) : bounded;
+      const bounds = RUNTIME_BOUNDS[key];
+      if (!bounds) { warnings.push(`${key} 缺少运行时边界`); continue; }
+      if (strict && (n < bounds[0] || n > bounds[1])) {
+        warnings.push(`${key} 超出允许范围 ${bounds[0]}..${bounds[1]}`);
+        continue;
+      }
+      out[key] = strict ? n : Math.min(bounds[1], Math.max(bounds[0], n));
     } else { ignored.push(key); }
   }
   return { values: out, ignored, warnings };
 }
 
-export function validateRuntimePayload(payload, base = BETA_TUNE) {
+function runtimeCombinationErrors(values) {
+  const errors = [];
+  if (values.grazeHaloRadius < values.grazeCoreRadius) errors.push('grazeHaloRadius 必须不小于 grazeCoreRadius');
+  if (values.smartPounceMinDistance > values.smartPounceMaxDistance) errors.push('smartPounceMinDistance 不得大于 smartPounceMaxDistance');
+  if (values.smartPounceApproachRadius < values.smartPounceMinDistance || values.smartPounceApproachRadius > values.smartPounceMaxDistance) {
+    errors.push('smartPounceApproachRadius 必须位于扑击最小/最大距离之间');
+  }
+  if (values.smartPounceObserveRadius < values.smartPounceApproachRadius) errors.push('smartPounceObserveRadius 不得小于 smartPounceApproachRadius');
+  return errors;
+}
+
+export function validateRuntimePayload(payload, base = BETA_TUNE, options = {}) {
   if (!isObject(payload)) return { ok: false, error: '运行时配置必须是对象' };
   if (payload.schemaVersion !== RUNTIME_CONFIG_SCHEMA_VERSION) {
     return { ok: false, error: `运行时配置 schemaVersion 不匹配：期望 ${RUNTIME_CONFIG_SCHEMA_VERSION}` };
   }
-  const clean = sanitizeRuntimeValues(payload.values, base);
+  const strict = options.strict !== false;
+  const clean = sanitizeRuntimeValues(payload.values, base, { strict });
+  const combinations = runtimeCombinationErrors({ ...base, ...clean.values });
+  if (strict && combinations.length) return { ok: false, error: combinations.join('；'), ...clean, combinations };
+  clean.warnings.push(...combinations);
+  if (strict && clean.warnings.length) return { ok: false, error: clean.warnings.join('；'), ...clean, combinations };
   if (!Object.keys(clean.values).length) return { ok: false, error: '运行时配置没有有效 Beta 参数', ...clean };
   return { ok: true, ...clean, payload: { schemaVersion: RUNTIME_CONFIG_SCHEMA_VERSION, values: clean.values } };
 }
@@ -102,13 +139,13 @@ export function runtimePayloadFromAdminConfig(config) {
 }
 
 export function encodeRuntimePayload(payload) {
-  const result = validateRuntimePayload(payload);
+  const result = validateRuntimePayload(payload, BETA_TUNE, { strict: true });
   if (!result.ok) throw new TypeError(result.error);
   return encodeURIComponent(JSON.stringify(result.payload));
 }
 
 export function decodeRuntimePayload(encoded, base = BETA_TUNE) {
-  try { return validateRuntimePayload(JSON.parse(decodeURIComponent(String(encoded))), base); }
+  try { return validateRuntimePayload(JSON.parse(decodeURIComponent(String(encoded))), base, { strict: true }); }
   catch { return { ok: false, error: '运行时配置 URL 载荷不是有效 JSON' }; }
 }
 
@@ -134,9 +171,10 @@ export function applyRuntimeConfigSources({
 } = {}) {
   const params = new URLSearchParams(locationLike?.search || '');
   if (params.has(RUNTIME_CONFIG_QUERY_KEY)) {
-    const query = readRuntimePayload(locationLike, null, target);
+    let query = readRuntimePayload(locationLike, null, target);
     const active = activePayload ? validateRuntimePayload(activePayload, target) : null;
     const activeApplied = active?.ok ? applyRuntimeValues(active.payload.values, target).applied : [];
+    if (query.ok) query = validateRuntimePayload(query.payload, target);
     if (!query.ok) {
       return active?.ok
         ? { ...active, applied: activeApplied, source: 'active', queryError: query.error }

@@ -10,6 +10,7 @@ import {
   formatConfigSize, formatConfigTime,
 } from './tuning-schema.mjs';
 import { runtimePayloadFromAdminConfig } from '../core/runtime-config.mjs';
+import { readSession } from '../core/accounts-session.mjs';
 
 const fmt = (v) => {
   if (typeof v === 'boolean') return v ? '开' : '关';
@@ -329,6 +330,14 @@ export class TuningPanel {
     this.cloudStatusEl.className = kind ? `cloud-status ${kind}` : 'cloud-status';
   }
 
+  _authHeaders(contentType = false) {
+    const headers = { Accept: 'application/json' };
+    const token = readSession()?.token;
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (contentType) headers['Content-Type'] = 'application/json';
+    return headers;
+  }
+
   _hideOverwrite() {
     this.pendingOverwrite = null;
     this.cloudConfirm.hidden = true;
@@ -402,7 +411,7 @@ export class TuningPanel {
       if (typeof fetch !== 'function') throw new Error('fetch 不可用');
       const res = await fetch(configsIndexUrl(this.apiBase), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: this._authHeaders(true),
         body: JSON.stringify({ name, config: payload }),
       });
       const data = await res.json().catch(() => null);
@@ -429,7 +438,7 @@ export class TuningPanel {
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error(data && data.error ? data.error : `HTTP ${res.status}`);
       const payload = runtimePayloadFromAdminConfig(data.config);
-      const active = await fetch(`${this.apiBase}/configs/active`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ name, config: payload }) });
+      const active = await fetch(`${this.apiBase}/configs/active`, { method: 'POST', headers: this._authHeaders(true), body: JSON.stringify({ name, config: payload }) });
       const activeData = await active.json().catch(() => null);
       if (!active.ok || !activeData || activeData.ok !== true) throw new Error(activeData?.error || `HTTP ${active.status}`);
       this._cloudStatus(`已应用「${name}」到全部 Beta 网站`, 'ok'); this.toast(`已应用「${name}」到全部 Beta 网站`, 'ok');
@@ -445,7 +454,7 @@ export class TuningPanel {
       if (!Object.keys(payload.values).length) throw new Error('当前面板没有可应用的 Beta 参数');
       const res = await fetch(`${this.apiBase}/configs/active`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: this._authHeaders(true),
         body: JSON.stringify({ name: '后台当前值', config: payload }),
       });
       const data = await res.json().catch(() => null);
@@ -497,7 +506,7 @@ export class TuningPanel {
     (async () => {
       try {
         if (typeof fetch !== 'function') throw new Error('fetch 不可用');
-        const res = await fetch(configItemUrl(this.apiBase, name), { method: 'DELETE', headers: { Accept: 'application/json' } });
+        const res = await fetch(configItemUrl(this.apiBase, name), { method: 'DELETE', headers: this._authHeaders() });
         const data = await res.json().catch(() => null);
         if (!res.ok || !data || data.ok !== true) throw new Error(data && data.error ? data.error : `HTTP ${res.status}`);
         this.toast(`已删除服务器配置「${name}」`, 'ok');

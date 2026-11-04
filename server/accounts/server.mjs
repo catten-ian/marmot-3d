@@ -18,6 +18,8 @@
  * 环境变量：
  *  PORT(默认8095) HOST(默认127.0.0.1) DATA_DIR(默认 <repo>/data/accounts)
  *  M3D_ACCOUNTS_SECRET  令牌签名密钥（必填；缺失拒绝启动）
+ *  M3D_ALLOWED_ORIGINS  精确 CORS allowlist（默认 https://www.catten.cyou，不接受 *）
+ *  M3D_CONFIG_ADMIN_USERS  配置写入管理员账号名 allowlist（默认反馈管理员或 catten）
  *  BODY_LIMIT(默认16384) RATE_PER_MIN(默认60) LEVEL_COUNT(默认12)
  *  PAF_BODY_LIMIT(默认2048) PAF_RATE_PER_MIN(默认12)
  *  MAX_TOTAL_TIME(默认 86400 秒，防作弊上限)
@@ -30,6 +32,8 @@ import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizePafName } from '../../src/core/paf-name.mjs';
+import { BETA_TUNE } from '../../src/core/beta-tuning.js';
+import { validateRuntimePayload } from '../../src/core/runtime-config.mjs';
 
 const ROUTE_PREFIXES = ['/marmot3d-beta/api', '/api'];
 const USERNAME_RE = /^[\p{L}\p{N}_.\-]{2,16}$/u;
@@ -41,20 +45,34 @@ const CONFIG_MAX_BYTES = 100 * 1024;
 const CONFIG_ENVELOPE_SLACK = 1024;
 const FEEDBACK_RESPONSE_LIMIT = 2 * 1024 * 1024;
 const FEEDBACK_LIST_QUERY = ['type', 'version', 'q', 'handled', 'month', 'limit', 'before'];
+const DEFAULT_CORS_ORIGINS = ['https://www.catten.cyou'];
+const DEFAULT_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+const PAF_DURATION_MS = 120000;
 
 // ---------------- 工具 ----------------
 function isObj(v) { return typeof v === 'object' && v !== null && !Array.isArray(v); }
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
+function normalizeOrigins(value) {
+  const values = Array.isArray(value) ? value : String(value || '').split(',');
+  return new Set(values.map((origin) => String(origin).trim()).filter((origin) => /^https?:\/\/[^/]+$/u.test(origin)));
+}
+function corsHeaders(origin = '', allowedOrigins = new Set(DEFAULT_CORS_ORIGINS)) {
+  const headers = {
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
   };
+  const value = String(origin || '').trim();
+  if (value && allowedOrigins.has(value)) {
+    headers['Access-Control-Allow-Origin'] = value;
+    headers.Vary = 'Origin';
+  } else if (value) {
+    headers.Vary = 'Origin';
+  }
+  return headers;
 }
 function sendJson(res, status, obj, extra = {}) {
   const body = JSON.stringify(obj);
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...corsHeaders(), ...extra });
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...(res.m3dCors || corsHeaders()), ...extra });
   res.end(body);
 }
 async function readBody(req, limit) {
@@ -118,19 +136,20 @@ function verifyPassword(password, record) {
 function signToken(payloadB64, secret) {
   return crypto.createHmac('sha256', secret).update(payloadB64).digest('base64url');
 }
-function issueToken(user, secret) {
-  const payload = b64url(JSON.stringify({ uid: user.id, name: user.name, iat: Date.now() }));
+function issueToken(user, secret, now = Date.now()) {
+  const payload = b64url(JSON.stringify({ uid: user.id, name: user.name, iat: now, ver: Number(user.tokenVersion) || 0 }));
   return `${payload}.${signToken(payload, secret)}`;
 }
-function verifyToken(token, secret, users) {
+function verifyToken(token, secret, users, { now = Date.now(), ttlMs = DEFAULT_TOKEN_TTL_MS } = {}) {
   if (typeof token !== 'string' || !token.includes('.')) return null;
   const dot = token.lastIndexOf('.');
   const payloadB64 = token.slice(0, dot); const sig = token.slice(dot + 1);
   let payload;
   try { payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8')); } catch { return null; }
-  if (!payload || !payload.uid || !timingEqual(sig, signToken(payloadB64, secret))) return null;
+  if (!payload || !payload.uid || !Number.isFinite(payload.iat) || payload.iat > now || now - payload.iat > ttlMs
+    || !timingEqual(sig, signToken(payloadB64, secret))) return null;
   const user = users.get(payload.uid);
-  if (!user || user.name !== payload.name) return null; // 改名后旧令牌失效
+  if (!user || user.name !== payload.name || (Number(user.tokenVersion) || 0) !== (Number(payload.ver) || 0)) return null;
   return user;
 }
 
@@ -374,17 +393,57 @@ export function createAccountsServer(options = {}) {
   const authLimiter = createRateLimiter(20); // 登录/注册/升级更严格
   const guestLimiter = createRateLimiter(options.guestRatePerMin || 10); // 游客签发按 IP 严格限流
   const pafLimiter = createRateLimiter(options.pafRatePerMin || 12);
+  const pafRunLimiter = createRateLimiter(options.pafRatePerMin || 12);
   const pafBodyLimit = Math.max(256, Math.min(2048, Number(options.pafBodyLimit) || 2048));
+  const tokenTtlMs = Math.max(1, Number(options.tokenTtlMs) || DEFAULT_TOKEN_TTL_MS);
+  const allowedOrigins = normalizeOrigins(options.allowedOrigins ?? process.env.M3D_ALLOWED_ORIGINS ?? DEFAULT_CORS_ORIGINS);
+  const configAdminUsers = new Set(String(options.configAdminUsers ?? process.env.M3D_CONFIG_ADMIN_USERS ?? process.env.M3D_FEEDBACK_ADMIN_USERS ?? 'catten')
+    .split(',').map((name) => name.trim().toLowerCase()).filter(Boolean));
   let loaded = null;
   const feedbackUrl = options.feedbackUrl ?? process.env.M3D_FEEDBACK_URL ?? 'http://127.0.0.1:8094';
   const feedbackToken = options.feedbackToken ?? process.env.M3D_FEEDBACK_TOKEN ?? '';
   const feedbackAdminUsers = new Set(String(options.feedbackAdminUsers ?? process.env.M3D_FEEDBACK_ADMIN_USERS ?? 'catten')
     .split(',').map((name) => name.trim().toLowerCase()).filter(Boolean));
   const feedbackTimeoutMs = Math.max(50, Number(options.feedbackTimeoutMs ?? 6000) || 6000);
+  const pafRuns = new Map();
+  const pafNow = options.pafNow || Date.now;
 
   function authUser(req) {
     const match = /^Bearer\s+(\S+)$/i.exec(String(req.headers.authorization || ''));
-    return match ? verifyToken(match[1], secret, store.users) : null;
+    return match ? verifyToken(match[1], secret, store.users, { ttlMs: tokenTtlMs }) : null;
+  }
+
+  function requireConfigAdmin(req, res) {
+    const user = authUser(req);
+    if (!user) { sendJson(res, 401, { error: '需要管理员登录', code: 'admin_auth_required' }); return null; }
+    if (!configAdminUsers.has(String(user.name || '').trim().toLowerCase())) {
+      sendJson(res, 403, { error: '当前账号无权修改 Beta 配置', code: 'config_forbidden' }); return null;
+    }
+    return user;
+  }
+
+  function issuePafRun(ip) {
+    const now = pafNow();
+    for (const [nonce, run] of pafRuns) if (run.expiresAt <= now || run.used) pafRuns.delete(nonce);
+    const nonce = crypto.randomBytes(18).toString('base64url');
+    const expiresAt = now + 15 * 60 * 1000;
+    const key = crypto.createHmac('sha256', secret).update(`paf-ip:${ip}`).digest('hex');
+    const payload = b64url(JSON.stringify({ nonce, iat: now, exp: expiresAt, durationMs: PAF_DURATION_MS }));
+    pafRuns.set(nonce, { key, startedAt: now, expiresAt, used: false });
+    return { ticket: `${payload}.${signToken(payload, secret)}`, expiresAt };
+  }
+
+  function consumePafRun(ticket, key) {
+    if (typeof ticket !== 'string' || !ticket.includes('.')) return { ok: false, reason: 'run_ticket_invalid' };
+    const dot = ticket.lastIndexOf('.'); const payloadB64 = ticket.slice(0, dot); const sig = ticket.slice(dot + 1);
+    let payload;
+    try { payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8')); } catch { return { ok: false, reason: 'run_ticket_invalid' }; }
+    if (!payload?.nonce || !timingEqual(sig, signToken(payloadB64, secret)) || payload.exp <= pafNow()) return { ok: false, reason: 'run_ticket_invalid' };
+    const run = pafRuns.get(payload.nonce);
+    if (!run || run.used || run.key !== key) return { ok: false, reason: 'run_ticket_replayed' };
+    if (pafNow() - run.startedAt < PAF_DURATION_MS) return { ok: false, reason: 'run_not_finished' };
+    run.used = true;
+    return { ok: true };
   }
 
   async function proxyFeedback(req, res, kind, searchParams) {
@@ -442,10 +501,18 @@ export function createAccountsServer(options = {}) {
       await loaded;
       const url = new URL(req.url, 'http://localhost');
       const route = (routePath(url.pathname) || '/').replace(/\/+$/, '') || '/';
-      if (req.method === 'OPTIONS') { res.writeHead(204, corsHeaders()); return res.end(); }
+      res.m3dCors = corsHeaders(req.headers.origin, allowedOrigins);
+      if (req.method === 'OPTIONS') { res.writeHead(204, res.m3dCors); return res.end(); }
       if (route === '/health' && req.method === 'GET') return sendJson(res, 200, { ok: true });
 
-      // ---------- PAF 两分钟在线榜（公开读；无需登录，按规范化 IP 的 HMAC 去重）----------
+      // ---------- PAF 两分钟在线榜（公开读；提交必须先取得一次性回合凭证）----------
+      if (route === '/paf/runs' && req.method === 'POST') {
+        const ip = clientIp(req);
+        if (!pafRunLimiter(ip)) return sendJson(res, 429, { error: 'PAF 回合创建过于频繁，请稍后再试' }, { 'Retry-After': '60' });
+        const run = issuePafRun(ip);
+        return sendJson(res, 200, { ok: true, ticket: run.ticket, durationMs: PAF_DURATION_MS, expiresAt: new Date(run.expiresAt).toISOString() });
+      }
+
       if (route === '/paf/leaderboard' && req.method === 'GET') {
         const rawLimit = url.searchParams.get('limit');
         const requestedLimit = rawLimit === null || rawLimit === '' ? 50 : Number(rawLimit);
@@ -461,9 +528,11 @@ export function createAccountsServer(options = {}) {
         const read = await readBody(req, pafBodyLimit);
         if (read.tooLarge) return sendJson(res, 413, { error: '请求体过大' });
         let body; try { body = JSON.parse(read.raw.toString('utf8')); } catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+        const key = crypto.createHmac('sha256', secret).update(`paf-ip:${ip}`).digest('hex');
+        const ticket = consumePafRun(body?.runTicket, key);
+        if (!ticket.ok) return sendJson(res, ticket.reason === 'run_ticket_invalid' ? 401 : 409, { error: '需要已完成且未使用的 PAF 回合凭证', code: ticket.reason });
         const norm = normalizePafScore(body);
         if (norm.error) return sendJson(res, 400, { error: norm.error });
-        const key = crypto.createHmac('sha256', secret).update(`paf-ip:${ip}`).digest('hex');
         const result = await store.submitPafScore(key, norm.value.name, norm.value.score, norm.value.completionMs, new Date().toISOString());
         if (result.conflict) return sendJson(res, 409, { error: result.reason === 'name_taken' ? '名字已被占用' : '该 IP 已绑定其他名字，请使用原名字', code: result.reason });
         const { rank, total } = result;
@@ -501,6 +570,7 @@ export function createAccountsServer(options = {}) {
         const password = typeof body.password === 'string' ? body.password : '';
         if (!USERNAME_RE.test(name)) return sendJson(res, 400, { error: '用户名需 2-16 位，可用中英文/数字/_.-' });
         if (password.length < 6 || password.length > 128) return sendJson(res, 400, { error: '密码至少 6 位' });
+        if (configAdminUsers.has(name.toLowerCase())) return sendJson(res, 403, { error: '该用户名已保留' });
         if (store.nameIndex.has(name.toLowerCase())) return sendJson(res, 409, { error: '用户名已被占用' });
         const { salt, hash } = hashPassword(password);
         const user = { id: crypto.randomUUID(), name, salt, hash, guest: false, createdAt: new Date().toISOString() };
@@ -539,6 +609,7 @@ export function createAccountsServer(options = {}) {
         const password = typeof body.password === 'string' ? body.password : '';
         if (!USERNAME_RE.test(name)) return sendJson(res, 400, { error: '用户名需 2-16 位，可用中英文/数字/_.-' });
         if (password.length < 6 || password.length > 128) return sendJson(res, 400, { error: '密码至少 6 位' });
+        if (configAdminUsers.has(name.toLowerCase())) return sendJson(res, 403, { error: '该用户名已保留' });
         if (store.nameIndex.has(name.toLowerCase())) return sendJson(res, 409, { error: '用户名已被占用' });
 
         const { salt, hash } = hashPassword(password);
@@ -555,6 +626,15 @@ export function createAccountsServer(options = {}) {
         const user = authUser(req);
         if (!user) return sendJson(res, 401, { error: 'unauthorized' });
         return sendJson(res, 200, { user: { id: user.id, name: user.name, guest: user.guest === true } });
+      }
+
+      if (req.method === 'POST' && route === '/auth/logout') {
+        const user = authUser(req);
+        if (!user) return sendJson(res, 401, { error: 'unauthorized' });
+        const previous = Number(user.tokenVersion) || 0;
+        user.tokenVersion = previous + 1;
+        try { await store.rewriteAccounts(); } catch (error) { user.tokenVersion = previous; throw error; }
+        return sendJson(res, 200, { ok: true });
       }
 
       // ---------- 用户反馈（仅服务端持内部令牌；浏览器只使用账号会话）----------
@@ -629,6 +709,7 @@ export function createAccountsServer(options = {}) {
           if (!rec) return sendJson(res, 404, { error: '当前没有生效配置', code: 'active_config_missing' });
           return sendJson(res, 200, { name: rec.config?.sourceName || '', updatedAt: rec.updatedAt, size: rec.size, config: rec.config });
         }
+        if (!requireConfigAdmin(req, res)) return;
         if (!limiter('cfg:' + clientIp(req))) return sendJson(res, 429, { error: '操作过于频繁，请稍后再试' });
         const read = await readBody(req, CONFIG_MAX_BYTES + CONFIG_ENVELOPE_SLACK);
         if (read.tooLarge) return sendJson(res, 413, { error: '请求体过大（配置上限 100KB）' });
@@ -636,6 +717,8 @@ export function createAccountsServer(options = {}) {
         const sourceName = typeof body.name === 'string' ? body.name.trim() : '';
         if (!CONFIG_NAME_RE.test(sourceName)) return sendJson(res, 400, { error: '配置名非法' });
         if (!isObj(body.config)) return sendJson(res, 400, { error: 'config 必须是对象' });
+        const runtime = validateRuntimePayload(body.config, BETA_TUNE, { strict: true });
+        if (!runtime.ok) return sendJson(res, 400, { error: `runtime 配置非法：${runtime.error}`, code: 'runtime_config_invalid' });
         let size; try { size = Buffer.byteLength(JSON.stringify(body.config)); } catch { return sendJson(res, 400, { error: 'config 无法序列化' }); }
         if (size > CONFIG_MAX_BYTES) return sendJson(res, 413, { error: `配置过大（${size} 字节），上限 100KB` });
         const rec = { name: '__active__', config: { ...body.config, sourceName }, updatedAt: new Date().toISOString(), size };
@@ -645,6 +728,7 @@ export function createAccountsServer(options = {}) {
       }
 
       if (route === '/configs' && req.method === 'POST') {
+        if (!requireConfigAdmin(req, res)) return;
         if (!limiter('cfg:' + clientIp(req))) return sendJson(res, 429, { error: '操作过于频繁，请稍后再试' });
         const read = await readBody(req, CONFIG_MAX_BYTES + CONFIG_ENVELOPE_SLACK);
         if (read.tooLarge) return sendJson(res, 413, { error: '请求体过大（配置上限 100KB）' });
@@ -652,6 +736,12 @@ export function createAccountsServer(options = {}) {
         const name = typeof body.name === 'string' ? body.name.trim() : '';
         if (!CONFIG_NAME_RE.test(name)) return sendJson(res, 400, { error: '配置名需 1-50 位，可用中英文/数字/连字符/下划线' });
         if (!isObj(body.config)) return sendJson(res, 400, { error: 'config 必须是对象' });
+        const runtimeValues = Object.fromEntries(Object.entries(body.config.values || {})
+          .filter(([key]) => key.startsWith('beta.')).map(([key, value]) => [key.slice(5), value]));
+        if (Object.keys(runtimeValues).length) {
+          const runtime = validateRuntimePayload({ schemaVersion: 1, values: runtimeValues }, BETA_TUNE, { strict: true });
+          if (!runtime.ok) return sendJson(res, 400, { error: `runtime 配置非法：${runtime.error}`, code: 'runtime_config_invalid' });
+        }
         let size;
         try { size = Buffer.byteLength(JSON.stringify(body.config)); } catch { return sendJson(res, 400, { error: 'config 无法序列化' }); }
         if (size > CONFIG_MAX_BYTES) return sendJson(res, 413, { error: `配置过大（${size} 字节），上限 100KB` });
@@ -672,6 +762,7 @@ export function createAccountsServer(options = {}) {
           const rec = store.configs.get(rawName);
           return sendJson(res, 200, { name: rec.name, updatedAt: rec.updatedAt, size: rec.size, config: rec.config });
         }
+        if (!requireConfigAdmin(req, res)) return;
         // DELETE 幂等：删除不存在的名字也返回 ok。
         if (!exists) return sendJson(res, 200, { ok: true, name: rawName, deleted: false });
         if (!limiter('cfg:' + clientIp(req))) return sendJson(res, 429, { error: '操作过于频繁，请稍后再试' });

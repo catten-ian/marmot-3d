@@ -35,12 +35,14 @@ before(async () => {
     res.end(JSON.stringify({ items: [{ id: 'one', createdAt: '2026-10-25T00:00:00.000Z', type: '卡顿', description: '临时 mock 反馈', version: 'beta-test', handled: false, snapshot: { level: 2 } }], total: 1, nextCursor: null }));
   });
   const feedbackUrl = `http://127.0.0.1:${await listen(mock)}`;
+  const salt = crypto.randomBytes(16);
+  fs.writeFileSync(path.join(tmpDir, 'accounts.jsonl'), `${JSON.stringify({ id: 'admin', name: 'catten', salt: salt.toString('hex'), hash: crypto.scryptSync(password, salt, 64).toString('hex') })}\n`);
   const app = createAccountsServer({ secret: `test-accounts-${crypto.randomBytes(24).toString('hex')}`, dataDir: tmpDir, feedbackUrl, feedbackToken, feedbackTimeoutMs: 100 });
   accounts = app.server;
   baseUrl = `http://127.0.0.1:${await listen(accounts)}`;
-  const register = await request('/auth/register', { method: 'POST', body: { username: 'catten', password } });
-  assert.equal(register.status, 200);
-  sessionToken = register.json.token;
+  const login = await request('/auth/login', { method: 'POST', body: { username: 'catten', password } });
+  assert.equal(login.status, 200);
+  sessionToken = login.json.token;
 });
 
 after(async () => {

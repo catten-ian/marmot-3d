@@ -1,14 +1,35 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BETA_TUNE } from '../src/core/beta-tuning.js';
-import { validateRuntimePayload, applyRuntimeValues, encodeRuntimePayload, decodeRuntimePayload, buildGameUrl, runtimePayloadFromAdminConfig, fetchActiveBetaConfig } from '../src/core/runtime-config.mjs';
+import { validateRuntimePayload, applyRuntimeValues, applyRuntimeConfigSources, encodeRuntimePayload, decodeRuntimePayload, buildGameUrl, runtimePayloadFromAdminConfig, fetchActiveBetaConfig } from '../src/core/runtime-config.mjs';
 
 test('runtime payload schema validates whitelist and rejects empty/invalid payloads', () => {
   assert.equal(validateRuntimePayload(null).ok, false);
   const r = validateRuntimePayload({ schemaVersion: 1, values: { moveSpeedMul: 1.4, grazeRate: 0.8, nope: 3, grassRegrowPerSec: -2 } });
-  assert.equal(r.ok, true); assert.deepEqual(r.values, { moveSpeedMul: 1.4, grazeRate: 0.8, grassRegrowPerSec: 0 });
+  assert.equal(r.ok, false); assert.match(r.error, /grassRegrowPerSec/);
   assert.deepEqual(r.ignored, ['nope']);
   assert.equal(validateRuntimePayload({ schemaVersion: 1, values: { moveSpeedMul: 'x' }}).ok, false);
+  assert.equal(validateRuntimePayload({ schemaVersion: 1, values: { moveSpeedMul: 1e100 } }).ok, false);
+  assert.equal(validateRuntimePayload({ schemaVersion: 1, values: { grazeCoreRadius: 4, grazeHaloRadius: 2 } }).ok, false);
+});
+
+test('every runtime numeric key rejects nonfinite and extreme values', () => {
+  for (const [key, value] of Object.entries(BETA_TUNE)) {
+    if (typeof value !== 'number') continue;
+    assert.equal(validateRuntimePayload({ schemaVersion: 1, values: { [key]: value } }).ok, true, key);
+    for (const invalid of [NaN, Infinity, -Infinity, 1e100, -1e100]) {
+      assert.equal(validateRuntimePayload({ schemaVersion: 1, values: { [key]: invalid } }).ok, false, key);
+    }
+  }
+});
+
+test('active and query overlays cannot create invalid combinations', () => {
+  const target = { ...BETA_TUNE };
+  const query = encodeRuntimePayload({ schemaVersion: 1, values: { grazeCoreRadius: 2.5 } });
+  const result = applyRuntimeConfigSources({ locationLike: { search: `?betaConfig=${query}` }, target, activePayload: { schemaVersion: 1, values: { grazeHaloRadius: 2 } } });
+  assert.equal(result.source, 'active');
+  assert.equal(target.grazeCoreRadius, BETA_TUNE.grazeCoreRadius);
+  assert.equal(target.grazeHaloRadius, 2);
 });
 
 test('validated runtime override changes actual tuning object, defaults stay intact when absent', () => {

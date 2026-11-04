@@ -118,6 +118,7 @@ export class FeedbackPanel {
 
   logout() {
     this.requestSerial++;
+    const token = this.session?.token || '';
     clearSession();
     this.session = null;
     this.list.replaceChildren(); this.stats.replaceChildren();
@@ -127,6 +128,7 @@ export class FeedbackPanel {
     this.loginForm.elements.password.value = '';
     this.loginStatus.textContent = '已退出登录';
     this._showSession();
+    if (token) void this.api.logout(token).catch(() => {});
   }
 
   _query() {

@@ -4,7 +4,7 @@
 
 - 路径前缀：`/marmot3d-beta/api`（也兼容 `/api`）
 - 游客可直接游玩和上报单关成绩；游客升级账号保留原 uid 和历史成绩。
-- 密码：scrypt 加盐哈希，不存明文；令牌：`payload.HMAC-SHA256`，无状态校验，改名即失效。
+- 密码：scrypt 加盐哈希，不存明文；令牌：`payload.HMAC-SHA256`，默认 TTL 12 小时，按账号 token version 服务端撤销，改名也会使旧令牌失效。
 - 存储：`$DATA_DIR/accounts.jsonl`、`scores.jsonl`、`configs.jsonl`（单关分数仅追加，读取时按玩家取最佳；命名配置同名原子覆盖）；PAF 独立使用 `paf-scores.jsonl`。
 
 ## 环境变量
@@ -22,6 +22,10 @@
 | `M3D_FEEDBACK_URL` | 否 | `http://127.0.0.1:8094` | 账号服务端访问反馈服务的地址，不下发浏览器 |
 | `M3D_FEEDBACK_TOKEN` | 反馈代理必填 | — | 反馈服务管理令牌，仅账号服务端持有；缺失时反馈代理返回 503，不影响账号/排行/配置 |
 | `M3D_FEEDBACK_ADMIN_USERS` | 可选 | `catten` | 允许读取后台反馈的账号名，逗号分隔；未列入账号返回 403 |
+| `M3D_CONFIG_ADMIN_USERS` | 可选 | `M3D_FEEDBACK_ADMIN_USERS` 或 `catten` | 允许保存/应用/删除调参配置的账号名；角色由服务端账号 allowlist 判断 |
+| `M3D_ALLOWED_ORIGINS` | 可选 | `https://www.catten.cyou` | 精确 CORS allowlist，逗号分隔；不接受 `*` |
+
+配置管理员账号必须事先在账号数据中存在并由运营安全管理；allowlist 中的名称禁止公开注册或游客升级。启用前应核实现存同名账号确属管理员，变更 allowlist 不会自动创建账号。
 
 ## API
 
@@ -38,6 +42,7 @@ POST /auth/upgrade  Bearer（仅游客） {"username":"...","password":"≥6位"
 POST /auth/register / POST /auth/login -> 200 {"token":"<bearer>","user":{"id","name"}}
    # 注册重名 409，凭证错误 401
 GET  /auth/me        Bearer -> {"user":{"id","name","guest":false|true}} / 401
+POST /auth/logout    Bearer -> {"ok":true}；服务端递增 token version，当前及复制出的旧令牌立即失效
 ```
 
 Beta 后台用户反馈（需要有效账号会话；兼容 `/marmot3d-beta/api` 与 `/api` 前缀）：
@@ -70,31 +75,39 @@ GET /scores/mine  Bearer -> {"levels":{"0":42.5},"full":null}
 GET /health -> {"ok":true}
 ```
 
-PAF 两分钟在线榜（公开读、无需登录提交）。服务端取 `clientIp(req)` 的规范化 IP，以现有
-`M3D_ACCOUNTS_SECRET` 做 keyed HMAC 后去重；公开响应与持久化均不含明文 IP。每个 IP 只保留最新
-提交，低分同样替换，不是 personal-best。按分数降序、同分按服务器 `submittedAt` 升序；
+PAF 两分钟在线榜（公开读、无需登录提交）。浏览器开始限时回合前先请求一次性回合凭证：
+
+```
+POST /paf/runs      -> {"ok":true,"ticket":"<signed one-time ticket>","durationMs":120000,"expiresAt":"..."}
+POST /paf/scores    {"runTicket":"<ticket>","name":"...","score":8,"durationMs":120000,"completionMs":120000}
+```
+
+服务端验证签名、15 分钟有效期、当前规范化 IP 绑定、服务器计时至少 120 秒和一次性使用；消费后凭证不可重放。裸分数提交、篡改 ticket、跨 IP 转移、提前提交和重放均拒绝。凭证和使用状态仅保存在当前服务进程，重启后未提交的回合失效。该凭证不能证明浏览器没有篡改分数或完成时间；攻击者仍可领取凭证、等待后提交伪造分数。IP HMAC 只做去重/绑定，绝不作为成绩证明。
+
+服务端仍取 `clientIp(req)` 的规范化 IP，以现有
+`M3D_ACCOUNTS_SECRET` 做 keyed HMAC 后去重；公开响应与持久化均不含明文 IP。每个 IP 保留最高分，按分数降序、同分按客户端完成时间及服务器 `submittedAt` 升序；
 提交串行执行并通过临时文件 + rename 原子重写，失败返回错误且内存保留旧纪录。
 
 ```
 GET  /paf/leaderboard?limit=50
 -> {"total":2,"items":[{"rank":1,"score":8,"durationMs":120000,"submittedAt":"..."}]}
-POST /paf/scores  {"score":8,"durationMs":120000}
+POST /paf/scores  {"runTicket":"<ticket>","name":"Player_One","score":8,"durationMs":120000,"completionMs":120000}
 -> {"ok":true,"rank":1,"total":2,"entry":{"rank":1,"score":8,"durationMs":120000,"submittedAt":"..."}}
 ```
 
 `score` 必须为 0..100000 的整数，`durationMs` 必须严格等于 120000；`limit` 为 1..100。
-非法 JSON/object/字段返回 400，body 过大返回 413，IP 限流返回 429。客户端时间不参与排序。
+名字按现有命名规则校验；旧匿名记录仍可读取。非法 JSON/object/字段返回 400，body 过大返回 413，IP 限流返回 429。完成时间仍由客户端提供，不能视为可信证据。
 
-Beta 后台命名调参配置（公开读；写按 IP 共享限流；与文件导出/导入相互独立）：
+Beta 后台命名调参配置（公开读；写/删/应用必须带有效 Bearer 且账号名命中服务端 `M3D_CONFIG_ADMIN_USERS`；与文件导出/导入相互独立）：
 
 ```
-POST   /configs        {"name":"啃草方案_v1","config":{ ... }}   # 同名直接覆盖
+POST   /configs        Bearer + {"name":"啃草方案_v1","config":{ ... }}   # 同名直接覆盖
 -> 200 {"ok":true,"name":"啃草方案_v1","updatedAt":"...","size":15693}
    # name：trim 后 1-50 位，中英文/数字/连字符/下划线，否则 400
    # config：JSON 对象；序列化后 ≤100KB，否则 413（精简 values 结构默认约 16KB）
 GET    /configs        -> {"configs":[{"name","updatedAt","size"}]}   # 按 updatedAt 倒序
 GET    /configs/:name  -> {"name","updatedAt","size","config":{...}}  # 不存在 404
-DELETE /configs/:name  -> {"ok":true,"name","deleted":true|false}     # 幂等，不存在也 200
+DELETE /configs/:name  Bearer -> {"ok":true,"name","deleted":true|false} # 幂等，不存在也 200
 ```
 
 config 本体为 Beta 后台精简结构 `{schemaVersion:1, app:"marmot3d-beta-admin", savedAt, values:{...}}`；

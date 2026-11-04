@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 
 import { createAccountsServer, normalizeScore, routePath, isValidConfigName } from './server.mjs';
 
-let tmpDir, baseUrl, server, secret, app;
+let tmpDir, baseUrl, server, secret, app, adminToken;
 function listen(s) { return new Promise((r) => s.listen(0, '127.0.0.1', () => r(s.address().port))); }
 
 before(async () => {
@@ -20,10 +20,13 @@ before(async () => {
     createdAt: '2020-01-01T00:00:00.000Z',
   };
   const persistedGuest = { id: 'persisted-guest-id', name: '游客-旧记录', guest: true, createdAt: '2020-01-02T00:00:00.000Z' };
-  fs.writeFileSync(path.join(tmpDir, 'accounts.jsonl'), `${JSON.stringify(legacy)}\n${JSON.stringify(persistedGuest)}\n`);
-  app = createAccountsServer({ secret, dataDir: tmpDir, levelCount: 5, maxTotalTime: 3600, bodyLimit: 8192, ratePerMin: 1000 });
+  const admin = { id: 'admin-id', name: '后台管理员', salt: legacySalt, hash: crypto.scryptSync('admin123', Buffer.from(legacySalt, 'hex'), 64).toString('hex') };
+  fs.writeFileSync(path.join(tmpDir, 'accounts.jsonl'), `${JSON.stringify(legacy)}\n${JSON.stringify(persistedGuest)}\n${JSON.stringify(admin)}\n`);
+  app = createAccountsServer({ secret, dataDir: tmpDir, levelCount: 5, maxTotalTime: 3600, bodyLimit: 8192, ratePerMin: 1000, configAdminUsers: '后台管理员', allowedOrigins: ['https://www.catten.cyou', 'http://127.0.0.1:4173'] });
   server = app.server;
   baseUrl = `http://127.0.0.1:${await listen(server)}`;
+  const login = await req('POST', '/auth/login', { body: { username: '后台管理员', password: 'admin123' } });
+  adminToken = login.json.token;
 });
 after(async () => { await new Promise((r) => server.close(r)); fs.rmSync(tmpDir, { recursive: true, force: true }); });
 
@@ -54,7 +57,11 @@ describe('账号与排行', () => {
   test('CORS 预检保留跨域方法与鉴权头', async () => {
     const preflight = await req('OPTIONS', '/auth/guest');
     assert.equal(preflight.status, 204);
-    assert.equal(preflight.headers['access-control-allow-origin'], '*');
+    assert.equal(preflight.headers['access-control-allow-origin'], undefined);
+    const allowed = await fetch(baseUrl + '/auth/guest', { method: 'OPTIONS', headers: { Origin: 'http://127.0.0.1:4173' } });
+    assert.equal(allowed.headers.get('access-control-allow-origin'), 'http://127.0.0.1:4173');
+    const rejected = await fetch(baseUrl + '/auth/guest', { method: 'OPTIONS', headers: { Origin: 'https://evil.example' } });
+    assert.equal(rejected.headers.get('access-control-allow-origin'), null);
     assert.match(preflight.headers['access-control-allow-methods'], /OPTIONS/);
     assert.match(preflight.headers['access-control-allow-headers'], /Authorization/i);
     assert.equal((await req('GET', '/auth/me')).status, 401);
@@ -92,6 +99,28 @@ describe('账号与排行', () => {
     assert.equal((await req('GET', '/auth/me')).status, 401);
     const me = await req('GET', '/auth/me', { token: ok.json.token });
     assert.equal(me.status, 200); assert.equal(me.json.user.name, u.username);
+  });
+
+  test('会话 TTL 与服务端登出撤销生效', async () => {
+    const user = await registerUser('会话');
+    assert.equal((await req('POST', '/auth/logout', { token: user.token })).status, 200);
+    assert.equal((await req('GET', '/auth/me', { token: user.token })).status, 401);
+    const login = await req('POST', '/auth/login', { body: { username: user.username, password: 'secret123' } });
+    assert.equal((await req('GET', '/auth/me', { token: login.json.token })).status, 200);
+
+    const ttlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'm3d-token-ttl-'));
+    const ttlApp = createAccountsServer({ secret: `${secret}-ttl`, dataDir: ttlDir, tokenTtlMs: 20, ratePerMin: 1000 });
+    const ttlPort = await listen(ttlApp.server);
+    try {
+      const response = await fetch(`http://127.0.0.1:${ttlPort}/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: '短期会话', password: 'secret123' }) });
+      const token = (await response.json()).token;
+      await new Promise((resolve) => setTimeout(resolve, 35));
+      const expired = await fetch(`http://127.0.0.1:${ttlPort}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+      assert.equal(expired.status, 401);
+    } finally {
+      await new Promise((resolve) => ttlApp.server.close(resolve));
+      fs.rmSync(ttlDir, { recursive: true, force: true });
+    }
   });
 
   test('未登录不能上报成绩', async () => {
@@ -268,17 +297,29 @@ describe('命名调参配置 /configs', () => {
 
   test('当前生效配置独立槽位读写，不出现在命名列表', async () => {
     assert.equal((await req('GET', '/configs/active')).status, 404);
-    const set = await req('POST', '/configs/active', { body: { name: '方案-active', config: { schemaVersion: 1, values: { moveSpeedMul: 1.2 } } } });
+    assert.equal((await req('POST', '/configs/active', { body: { name: '伪造管理员', isAdmin: true, config: { schemaVersion: 1, values: { moveSpeedMul: 1.2 } } } })).status, 401);
+    const set = await req('POST', '/configs/active', { token: adminToken, body: { name: '方案-active', config: { schemaVersion: 1, values: { moveSpeedMul: 1.2 } } } });
     assert.equal(set.status, 200);
+    assert.equal((await req('POST', '/configs/active', { token: adminToken, body: { name: '过大值', config: { schemaVersion: 1, values: { moveSpeedMul: 1e100 } } } })).status, 400);
+    assert.equal((await req('POST', '/configs/active', { token: adminToken, body: { name: '非法组合', config: { schemaVersion: 1, values: { grazeCoreRadius: 4, grazeHaloRadius: 2 } } } })).status, 400);
     const active = await req('GET', '/configs/active');
     assert.equal(active.status, 200);
     assert.equal(active.json.config.values.moveSpeedMul, 1.2);
     assert.equal((await req('GET', '/configs')).json.configs.some((x) => x.name === '__active__'), false);
   });
 
+  test('配置写入与删除需要服务端管理员角色，普通账号不能伪造', async () => {
+    assert.equal((await req('POST', '/auth/register', { body: { username: '后台管理员', password: 'secret123' } })).status, 403);
+    const ordinary = await registerUser('普通后台');
+    const payload = { name: '普通账号不能写', config: { schemaVersion: 1, values: { moveSpeedMul: 1 } } };
+    assert.equal((await req('POST', '/configs', { token: ordinary.token, body: payload })).status, 403);
+    assert.equal((await req('DELETE', '/configs/普通账号不能写', { token: ordinary.token })).status, 403);
+    assert.equal((await req('DELETE', '/configs/普通账号不能写')).status, 401);
+  });
+
   test('保存→列表→读取往返；中文名字走 URL 编码', async () => {
     const config = { schemaVersion: 1, app: 'marmot3d-beta-admin', values: { 'player.speed': 8.5, 'beta.flowerInstant': false } };
-    const saved = await req('POST', '/configs', { body: { name: '  啃草方案_v1  ', config } });
+    const saved = await req('POST', '/configs', { token: adminToken, body: { name: '  啃草方案_v1  ', config } });
     assert.equal(saved.status, 200);
     assert.equal(saved.json.ok, true);
     assert.equal(saved.json.name, '啃草方案_v1'); // 服务端 trim
@@ -300,11 +341,11 @@ describe('命名调参配置 /configs', () => {
   test('同名覆盖：内容与 updatedAt 更新，列表仍只有一条', async () => {
     const first = await req('GET', '/configs/配置-cover');
     const c1 = { schemaVersion: 1, values: { a: 1 } };
-    const r1 = await req('POST', '/configs', { body: { name: '配置-cover', config: c1 } });
+    const r1 = await req('POST', '/configs', { token: adminToken, body: { name: '配置-cover', config: c1 } });
     assert.equal(r1.status, 200);
     await new Promise((r) => setTimeout(r, 20));
     const c2 = { schemaVersion: 1, values: { a: 2, b: 'x'.repeat(200) } };
-    const r2 = await req('POST', '/configs', { body: { name: '配置-cover', config: c2 } });
+    const r2 = await req('POST', '/configs', { token: adminToken, body: { name: '配置-cover', config: c2 } });
     assert.equal(r2.status, 200);
     assert.ok(r2.json.updatedAt >= r1.json.updatedAt);
     assert.notEqual(r2.json.updatedAt, r1.json.updatedAt);
@@ -317,20 +358,20 @@ describe('命名调参配置 /configs', () => {
   });
 
   test('非法名字 / config 非对象 / 非法 JSON → 4xx', async () => {
-    assert.equal((await req('POST', '/configs', { body: { name: '', config: {} } })).status, 400);
-    assert.equal((await req('POST', '/configs', { body: { name: 'bad/name', config: {} } })).status, 400);
-    assert.equal((await req('POST', '/configs', { body: { name: 'x'.repeat(51), config: {} } })).status, 400);
-    assert.equal((await req('POST', '/configs', { body: { name: 'no-config' } })).status, 400);
+    assert.equal((await req('POST', '/configs', { token: adminToken, body: { name: '', config: {} } })).status, 400);
+    assert.equal((await req('POST', '/configs', { token: adminToken, body: { name: 'bad/name', config: {} } })).status, 400);
+    assert.equal((await req('POST', '/configs', { token: adminToken, body: { name: 'x'.repeat(51), config: {} } })).status, 400);
+    assert.equal((await req('POST', '/configs', { token: adminToken, body: { name: 'no-config' } })).status, 400);
     assert.equal((await req('GET', '/configs/a%ZZ')).status, 400); // 未转义保留字符
     const badJson = await fetch(baseUrl + '/configs', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{not-json',
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` }, body: '{not-json',
     });
     assert.equal(badJson.status, 400);
   });
 
   test('config 超过 100KB → 413', async () => {
     const big = { schemaVersion: 1, values: { blob: 'x'.repeat(100 * 1024 + 100) } };
-    const r = await req('POST', '/configs', { body: { name: '超大配置', config: big } });
+    const r = await req('POST', '/configs', { token: adminToken, body: { name: '超大配置', config: big } });
     assert.equal(r.status, 413);
     assert.match(r.json.error, /100KB|过大|大/);
     // 被拒绝的配置不落盘
@@ -338,17 +379,17 @@ describe('命名调参配置 /configs', () => {
   });
 
   test('DELETE 幂等：不存在也 ok；删除后读取 404、列表消失', async () => {
-    const missing = await req('DELETE', '/configs/从不存在');
+    const missing = await req('DELETE', '/configs/从不存在', { token: adminToken });
     assert.equal(missing.status, 200);
     assert.equal(missing.json.ok, true);
     assert.equal(missing.json.deleted, false);
 
-    await req('POST', '/configs', { body: { name: '删除我', config: { schemaVersion: 1, values: {} } } });
-    const del = await req('DELETE', '/configs/删除我');
+    await req('POST', '/configs', { token: adminToken, body: { name: '删除我', config: { schemaVersion: 1, values: {} } } });
+    const del = await req('DELETE', '/configs/删除我', { token: adminToken });
     assert.equal(del.status, 200);
     assert.equal(del.json.deleted, true);
     assert.equal((await req('GET', '/configs/删除我')).status, 404);
-    const again = await req('DELETE', '/configs/删除我');
+    const again = await req('DELETE', '/configs/删除我', { token: adminToken });
     assert.equal(again.status, 200);
     assert.equal(again.json.deleted, false);
     const list = await req('GET', '/configs');
@@ -376,7 +417,7 @@ describe('命名调参配置 /configs', () => {
     assert.ok(lines.some((r) => r.name === '配置-cover'));
     // 手工追加一条同名旧内容，验证“后写覆盖”的载入策略与历史追加兼容。
     fs.appendFileSync(file, JSON.stringify({ name: '配置-cover', config: { schemaVersion: 1, values: { stale: true } }, updatedAt: '2000-01-01T00:00:00.000Z' }) + '\n');
-    const app2 = createAccountsServer({ secret, dataDir: tmpDir, levelCount: 5, maxTotalTime: 3600, bodyLimit: 8192, ratePerMin: 1000 });
+    const app2 = createAccountsServer({ secret, dataDir: tmpDir, levelCount: 5, maxTotalTime: 3600, bodyLimit: 8192, ratePerMin: 1000, configAdminUsers: '后台管理员' });
     const s2 = app2.server;
     const port2 = await new Promise((r) => s2.listen(0, '127.0.0.1', () => r(s2.address().port)));
     try {

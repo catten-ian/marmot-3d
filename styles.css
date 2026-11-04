@@ -790,6 +790,7 @@ button.primary:focus-visible { outline: 3px solid #fff; }
 .level-option.done .level-option-top span { color: var(--teal); }
 .level-option.locked { opacity: .72; cursor: not-allowed; border-color: #3a483b; }
 .title-actions { align-items: stretch; }
+.title-actions-primary { margin: 10px 0 12px; position: sticky; top: 0; z-index: 2; padding: 4px 0; background: linear-gradient(#18231a 78%, transparent); }
 
 /* ---------- 加载 ---------- */
 .loader {
