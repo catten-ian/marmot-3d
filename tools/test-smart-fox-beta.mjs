@@ -10,8 +10,10 @@ import {
   habituateDecayRate,
   updateSmartMemory, stepInterruptionTimes, debounceIntent, createSmartPack, foxSeparation, SMART_POUNCE_TUNE, smartPounceDashDistance, smartPounceDashDurationForDistance,
   trackFeint, RECOVER_LOCK, assembleSmartAim,
+  createSmartBlackboard, observeSmartTarget, publishSmartObservation, readSmartObservation,
 } from '../src/entities/smart-fox-core.mjs';
 import { stepFoxLocomotion, foxMaxTurnRate, steerGroundDirection } from '../src/core/fox-motion.js';
+import { FOX } from '../src/core/config.js';
 
 test('utilityScores 返回全部意图且选出唯一 topIntent', () => {
   const r = utilityScores({ distance: 3, playerFacing: 1, guard: false, suspicion: 0.9 });
@@ -311,4 +313,27 @@ test('Beta 共享 dash 时长能覆盖 5.4m 提交的既定目标带，不改 st
   assert.ok(duration > SMART_POUNCE_TUNE.dashDuration);
   assert.ok(covered >= distance - SMART_POUNCE_TUNE.maxStrikeDistance);
   assert.ok(duration < 2);
+});
+
+test('Beta SmartFox 共享黑板广播实时全知目标，不受视锥/障碍/中继距离限制', () => {
+  const board = createSmartBlackboard();
+  const observation = observeSmartTarget({ observer: { slot: 1, x: 0, z: 0, yaw: Math.PI }, target: { x: 0, z: 6 }, now: 1 });
+  assert.ok(observation?.direct && observation.omniscient);
+  assert.equal(publishSmartObservation(board, observation, 1), true);
+  const relayed = readSmartObservation(board, { consumerSlot: 2, consumerX: 100, consumerZ: 100, now: 1.1 });
+  assert.equal(relayed.x, 0); assert.equal(relayed.z, 6);
+  assert.equal(relayed.stale, false);
+  assert.equal(readSmartObservation(board, { now: 30 }).omniscient, true);
+});
+
+test('SmartPack 指标分开记录决策候选、提交、提交命中与实际伤害', () => {
+  const pack = createSmartPack();
+  pack.recordDecision('observe'); pack.recordDecision('pounce');
+  pack.recordCommit(0, 1); pack.recordCommittedHit(); pack.recordPlayerDamage(12);
+  assert.deepEqual(pack.metrics, { decisionEvaluations: 2, decisionCandidates: 1, commits: 1, committedHits: 1, actualPlayerDamage: 12 });
+});
+
+test('Beta SmartFox runtime damage keeps the default 12 and excludes synthetic training damage', () => {
+  assert.equal(FOX.damage.default, 12);
+  assert.notEqual(FOX.damage.smart, 34);
 });

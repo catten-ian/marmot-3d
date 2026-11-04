@@ -18,6 +18,7 @@ import {
   flankSlots, assignFlankSlot, assignRoles, forcedRetreat, assembleSmartAim, teamInterceptPoint,
   createSmartPounceApproachState, advanceSmartPounceApproach,
   createSmartMeleeState, advanceSmartMelee, cancelSmartMelee, consumeSmartMeleeHit,
+  observeSmartTarget, publishSmartObservation, readSmartObservation,
 } from './smart-fox-core.mjs';
 
 
@@ -88,6 +89,7 @@ export class SmartFox extends Fox {
     this._restSafeSeen = false;
     this._escVel = { x: 0, z: 0 };   // 玩家速度低通估计（逃跑轴）
     this._lastPlayerPos = null;
+    this._smartBelief = null;
     this._pounceApproach = createSmartPounceApproachState();
     this.teamRole = this._role;
     this.roleSince = 0;
@@ -212,6 +214,13 @@ export class SmartFox extends Fox {
     const facingYaw = p.facingYaw ?? p.bodyYaw ?? p.yaw ?? 0;
     const obstacles = ROCKS.map((rock) => { const [ox, oz] = scalePoint(rock); return { x: ox, z: oz, r: scaleRadius(rock[2]) + 0.72 * this.cfg.scale }; });
     for (const b of (Array.isArray(burrows) ? burrows : burrows ? [burrows] : BURROWS)) obstacles.push({ x: b.x, z: b.z, r: (b.r || 0) + 2.5 });
+    // Beta coordination shares the current sensory sample with every SmartFox.
+    // This is perception only; movement still uses this fox's own motion state.
+    const coordinator = packContext?.coordinator;
+    const shared = coordinator ? readSmartObservation(coordinator.blackboard, { now: this._age }) : null;
+    const sensory = shared || observeSmartTarget({ observer: this, target: p, now: this._age });
+    if (coordinator && sensory) publishSmartObservation(coordinator.blackboard, sensory, this._age);
+    this._smartBelief = sensory;
     const reachable = isSegmentReachable(this, p, obstacles, 0.82);
     const separation = separationVector(this, (packContext?.smartFoxes || []).filter((f) => f !== this && f.alive !== false), 1.85, 2.2);
     const viewDot = Math.cos(facingYaw - Math.atan2(this.x - p.x, this.z - p.z));
@@ -300,6 +309,7 @@ export class SmartFox extends Fox {
       { side: (this.slot % 2 === 0 ? 1 : -1) });
     this._feintRepeats = tracked.repeats; this._feintSide = tracked.side; this._feintPrevIntent = tracked.prevIntent;
     this.intent = intent;
+    coordinator?.recordDecision?.(intent);
     this.topScores = scores.scores;
 
     // —— 交战战术：把抽象意图映射成具体运动目标点 ——

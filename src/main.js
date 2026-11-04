@@ -88,7 +88,7 @@ import { createBurrows } from './world/burrows.js';
 import { burrowVolumeAt } from './world/underground.js';
 import { Fox } from './entities/fox.js';
 import { SmartFox } from './entities/smart-fox.js';
-import { createSmartPack, smartMeleeContactHit } from './entities/smart-fox-core.mjs';
+import { createSmartPack, publishSmartObservation, smartMeleeContactHit } from './entities/smart-fox-core.mjs';
 import { hpDamageMultiplier } from './core/fox-motion.js';
 import { Food, Companion, buildMarmotMesh } from './entities/props_entities.js';
 import { devOn, IS_DEV, IS_BETA, USE_REAL_MODELS, USE_REAL_FOX_MODEL, VERSION, VERSION_LABEL } from './core/version.js';
@@ -2098,8 +2098,14 @@ function update(dt) {
   let threats = 0;
   let anyWinding = false;
   const smartFoxes = foxes.filter((candidate) => candidate.type === 'smart');
+  if (sandboxState.active && sandboxState.smartPack?.blackboard) {
+    publishSmartObservation(sandboxState.smartPack.blackboard, {
+      targetId: 'player', sourceSlot: -1, sourceX: p.x, sourceZ: p.z,
+      x: p.x, z: p.z, observedAt: game.totalTime, confidence: 1, direct: true, omniscient: true,
+    }, game.totalTime);
+  }
   // 阶段 3：本帧智能狐群体的共享战术存储（角色分派粘性表 roles 等）
-  const smartTactics = { roles: null };
+  const smartTactics = sandboxState.smartPack?.tactics || (sandboxState.smartPack ? (sandboxState.smartPack.tactics = { roles: null }) : { roles: null });
   for (const f of foxes) {
     const prevState = f.state;
     const prevFoxX = f.x, prevFoxZ = f.z;
@@ -2216,6 +2222,10 @@ function update(dt) {
         interruptHeldAttackCharge();
         clearPendingAerialParry();
         p.hp = testState.godMode ? Math.max(1, p.hp) : Math.max(0, p.hp - damage);
+        if (f.type === 'smart') {
+          sandboxState.smartPack?.recordCommittedHit?.();
+          sandboxState.smartPack?.recordPlayerDamage?.(damage);
+        }
         recordTestLog('player-hit', { foxType: f.type, attackKind: smartMelee ? 'melee' : f.type === 'smart' ? 'pounce' : 'contact', damage, hpBefore, hpAfter: p.hp,
           preventedByGodMode: testState.godMode });
         sandboxRecorder?.playerHit({

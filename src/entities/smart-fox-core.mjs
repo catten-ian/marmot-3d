@@ -216,11 +216,48 @@ export function debounceIntent(prev, next, held = 0, dt = 0, options = {}) {
   if (held + dt < (options.hold ?? .25)) return { intent: prev, held: held + dt };
   return { intent: next, held: 0 };
 }
-export function createSmartPack({ window = 1.2, spacing = 0.35, slotSpacing = 0.025, dynamicAttackers = false } = {}) {
+export const SMART_SHARED_MEMORY_DEFAULTS = Object.freeze({
+  maxAge: 0.25, maxEntries: 4, minConfidence: 0,
+});
+
+export function createSmartBlackboard(options = {}) {
+  return { ...SMART_SHARED_MEMORY_DEFAULTS, ...options, observations: [], realtimeTarget: null };
+}
+
+/** Beta SmartFox sensory state is intentionally omniscient. The blackboard
+ * shares the current player sample every frame; it never moves a fox or grants
+ * a hit, and physical locomotion/collision remains owned by SmartFox motion. */
+export function observeSmartTarget({ observer, target, now = 0 } = {}) {
+  if (!observer || !target) return null;
+  return {
+    targetId: 'player', sourceSlot: observer.slot ?? 0,
+    sourceX: observer.x, sourceZ: observer.z,
+    x: target.x, z: target.z, observedAt: now,
+    confidence: 1, direct: true, omniscient: true,
+  };
+}
+
+export function publishSmartObservation(blackboard, observation, now = 0) {
+  if (!blackboard || !observation || observation.direct !== true) return false;
+  const entry = { ...observation, observedAt: Number.isFinite(observation.observedAt) ? observation.observedAt : now, confidence: 1 };
+  blackboard.realtimeTarget = entry;
+  blackboard.observations = [entry];
+  return true;
+}
+
+export function readSmartObservation(blackboard, { now = 0, targetId = 'player' } = {}) {
+  const item = blackboard?.realtimeTarget;
+  if (!item || item.targetId !== targetId) return null;
+  return { ...item, age: Math.max(0, now - item.observedAt), stale: false, confidence: 1, omniscient: true };
+}
+
+export function createSmartPack({ window = 1.2, spacing = 0.35, slotSpacing = 0.025, dynamicAttackers = false, memory } = {}) {
   const packWindow = Number.isFinite(window) ? Math.max(0, window) : 1.2;
   const packSpacing = Number.isFinite(spacing) ? Math.max(0, spacing) : 0.35;
   const packSlotSpacing = Number.isFinite(slotSpacing) ? Math.max(0, slotSpacing) : 0.025;
   return { lastCommitAt: -Infinity, commits: [], dynamicAttackers,
+    tactics: { roles: null }, blackboard: createSmartBlackboard(memory),
+    metrics: { decisionEvaluations: 0, decisionCandidates: 0, commits: 0, committedHits: 0, actualPlayerDamage: 0 },
     enableDynamicAttackers() { this.dynamicAttackers = true; },
     canCommit(slot, now, coordination = 1) {
     if (coordination <= 0) return true;
@@ -229,7 +266,12 @@ export function createSmartPack({ window = 1.2, spacing = 0.35, slotSpacing = 0.
     // quota. Legacy/default packs keep their original two-commit window cap.
     return (this.dynamicAttackers || this.commits.length < 2)
       && now - this.lastCommitAt >= packSpacing + ((slot % 3) * packSlotSpacing);
-  }, recordCommit(slot, now) { this.commits.push({ slot, at: now }); this.lastCommitAt = now; } };
+  },
+    recordDecision(intent) { this.metrics.decisionEvaluations += 1; if (intent === 'pounce') this.metrics.decisionCandidates += 1; },
+    recordCommit(slot, now) { this.commits.push({ slot, at: now }); this.lastCommitAt = now; this.metrics.commits += 1; },
+    recordCommittedHit() { this.metrics.committedHits += 1; },
+    recordPlayerDamage(amount) { this.metrics.actualPlayerDamage += Math.max(0, Number(amount) || 0); },
+  };
 }
 export function flankBias(self, peers, player, coordination = 0) {
   if (!coordination) return 0;

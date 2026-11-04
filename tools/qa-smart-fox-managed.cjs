@@ -31,8 +31,8 @@ const server = http.createServer((req, res) => {
 });
 server.on('error', (e) => { console.error('serve error', e.message); process.exit(1); });
 
-const CDP_HTTP = 'http://127.0.0.1:18800';
-const TARGET_URL = 'http://127.0.0.1:8324/index.html?sandbox=1&webgl=1&t=' + Date.now();
+const CDP_HTTP = process.env.SMARTFOX_QA_CDP || 'http://127.0.0.1:18800';
+const TARGET_URL = 'http://127.0.0.1:8324/index.html?version=beta&sandbox=1&webgl=1&models=off&foxmodel=off&t=' + Date.now();
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'outputs', 'smart-fox-qa');
 fs.mkdirSync(OUT, { recursive: true });
